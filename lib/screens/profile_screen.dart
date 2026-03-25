@@ -7,6 +7,8 @@ import '../theme/app_colors.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/aura_bar.dart';
 import '../widgets/post_card.dart';
+import '../widgets/github_card.dart';
+import '../widgets/image_upload_widget.dart';
 
 class ProfileScreen extends StatelessWidget {
   final int? userId; // null = current user
@@ -161,6 +163,10 @@ class ProfileScreen extends StatelessWidget {
                             _Stat(count: posts.length, label: 'posts'),
                           ],
                         ),
+                        const SizedBox(height: 16),
+
+                        // GitHub activity card
+                        GitHubCard(githubHandle: 'torvalds'), // replace with user.githubHandle
                       ],
                     ),
                   ),

@@ -10,20 +10,34 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # State management
+  # ── Firebase ──────────────────────────────────────
+  firebase_core: ^2.32.0
+  firebase_auth: ^4.20.0
+  cloud_firestore: ^4.17.5
+  firebase_storage: ^11.7.7
+  firebase_messaging: ^14.9.4
+  google_sign_in: ^6.2.1
+
+  # ── State management ──────────────────────────────
   provider: ^6.1.2
 
-  # Navigation
+  # ── Navigation ────────────────────────────────────
   go_router: ^13.2.0
 
-  # UI & Icons
+  # ── Images ────────────────────────────────────────
+  image_picker: ^1.1.2
+  cached_network_image: ^3.3.1
+
+  # ── UI & Icons ────────────────────────────────────
   cupertino_icons: ^1.0.6
   google_fonts: ^6.2.1
 
-  # Utils
+  # ── Utils ─────────────────────────────────────────
   timeago: ^3.6.1
   shared_preferences: ^2.2.3
   uuid: ^4.4.0
+  http: ^1.2.1
+  flutter_local_notifications: ^17.2.2
 
 dev_dependencies:
   flutter_test:
