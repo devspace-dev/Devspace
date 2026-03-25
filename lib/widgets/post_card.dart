@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../models/post_model.dart';
-import '../models/badge_model.dart';
 import '../providers/posts_provider.dart';
 import '../providers/users_provider.dart';
 import '../providers/auth_provider.dart';
@@ -36,7 +35,6 @@ class _PostCardState extends State<PostCard> {
     final usersP = context.read<UsersProvider>();
     final me     = context.read<AuthProvider>().currentUser;
     final user   = usersP.getUserById(post.userId) ?? me;
-    final badge  = getBadge(user.aura);
     final lines  = post.content.split('\n').where((l) => l.isNotEmpty).toList();
 
     return Container(

@@ -67,8 +67,8 @@ class PostModel {
 
   factory PostModel.fromJson(Map<String, dynamic> json) {
     return PostModel(
-      id: (json['_id'] as ObjectId).hexString,
-      userId: (json['userId'] as ObjectId).hexString,
+      id: (json['_id'] as ObjectId).oid,
+      userId: (json['userId'] as ObjectId).oid,
       content: json['content'] as String? ?? '',
       tags: List<String>.from(json['tags'] as List? ?? []),
       imageUrl: json['imageUrl'] as String?,

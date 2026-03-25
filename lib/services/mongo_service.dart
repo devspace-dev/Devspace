@@ -77,7 +77,15 @@ class MongoService {
     String? passwordHash,
     required String handle,
     String avatar = '',
-    String college = '',
+    String role = 'Student',
+    String year = '',
+    String branch = '',
+    String building = '',
+    List<String> stack = const [],
+    String bio = '',
+    String college = 'Jaipur National University',
+    String githubHandle = '',
+    bool profileCompleted = false,
   }) async {
     final doc = {
       'name': name,
@@ -88,14 +96,17 @@ class MongoService {
       'avatar': avatar,
       'color': 0xFF7C3AED, // Default violet
       'aura': 0,
-      'role': 'Developer',
-      'year': '1st Year',
-      'building': 'Not set',
-      'stack': [],
+      'role': role,
+      'year': year,
+      'branch': branch,
+      'building': building,
+      'stack': stack,
       'followers': 0,
       'following': 0,
-      'bio': '',
+      'bio': bio,
       'college': college,
+      'githubHandle': githubHandle,
+      'profileCompleted': profileCompleted,
       'createdAt': DateTime.now().toUtc(),
     };
     final result = await _users.insertOne(doc);
@@ -108,9 +119,13 @@ class MongoService {
   }
 
   Future<void> updateUser(String uid, Map<String, dynamic> data) async {
+    final modifier = modify;
+    for (final entry in data.entries) {
+      modifier.set(entry.key, entry.value);
+    }
     await _users.updateOne(
       where.eq('_id', ObjectId.parse(uid)),
-      modify.setAll(data),
+      modifier,
     );
     _refreshStreams();
   }
@@ -175,7 +190,7 @@ class MongoService {
     };
     final result = await _posts.insertOne(doc);
     _refreshStreams();
-    return (result.id as ObjectId).hexString;
+    return (result.id as ObjectId).oid;
   }
 
   Stream<List<PostModel>> streamFeed() async* {

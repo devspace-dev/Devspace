@@ -49,7 +49,9 @@ class AuraBoardScreen extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: BoxDecoration(
-                color: i == 0 ? AppColors.primary.withOpacity(0.05) : Colors.transparent,
+                color: i == 0
+                    ? AppColors.primary.withValues(alpha: 0.05)
+                    : Colors.transparent,
                 border: const Border(bottom: BorderSide(color: AppColors.border)),
               ),
               child: Row(
@@ -76,7 +78,7 @@ class AuraBoardScreen extends StatelessWidget {
                             style: const TextStyle(
                               fontWeight: FontWeight.w800, fontSize: 15,
                               color: AppColors.text)),
-                        Text('@${u.handle} · ${u.year}',
+                        Text('@${u.handle} · ${u.academicLabel.isEmpty ? u.role : u.academicLabel}',
                             style: const TextStyle(
                               fontSize: 12, color: AppColors.text3)),
                         const SizedBox(height: 6),
@@ -120,7 +122,7 @@ class AuraBoardScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppColors.bg3,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: b.color.withOpacity(0.2)),
+                  border: Border.all(color: b.color.withValues(alpha: 0.2)),
                 ),
                 child: Row(
                   children: [

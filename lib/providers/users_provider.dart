@@ -54,14 +54,16 @@ class UsersProvider extends ChangeNotifier {
     return _users.where((u) =>
       u.name.toLowerCase().contains(q) ||
       u.handle.toLowerCase().contains(q) ||
+      u.branch.toLowerCase().contains(q) ||
       u.building.toLowerCase().contains(q) ||
+      u.role.toLowerCase().contains(q) ||
       u.stack.any((s) => s.toLowerCase().contains(q))
     ).toList();
   }
 
   List<UserModel> filterByBranch(String branch) {
     if (branch == 'All') return _users;
-    return _users.where((u) => u.year.contains(branch)).toList();
+    return _users.where((u) => u.branch == branch).toList();
   }
 
   List<UserModel> get leaderboard {

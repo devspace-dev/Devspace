@@ -46,6 +46,34 @@ class AuthProvider extends ChangeNotifier {
     ));
   }
 
+  Future<AuthResult> updateProfile({
+    required String name,
+    required String handle,
+    required String role,
+    required String year,
+    required String branch,
+    required String building,
+    required List<String> stack,
+    required String college,
+    String bio = '',
+    String githubHandle = '',
+    String? avatar,
+  }) async {
+    return AuthService.instance.updateCurrentUserProfile(
+      name: name,
+      handle: handle,
+      role: role,
+      year: year,
+      branch: branch,
+      building: building,
+      stack: stack,
+      college: college,
+      bio: bio,
+      githubHandle: githubHandle,
+      avatar: avatar,
+    );
+  }
+
   Future<void> signOut() => AuthService.instance.signOut();
 
   @override

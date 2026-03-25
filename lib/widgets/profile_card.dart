@@ -52,7 +52,8 @@ class ProfileCard extends StatelessWidget {
                                 AuraPill(aura: liveUser.aura, small: true),
                               ],
                             ),
-                            Text('@${liveUser.handle} · ${liveUser.year}',
+                            Text(
+                                '@${liveUser.handle} · ${liveUser.academicLabel.isEmpty ? liveUser.role : liveUser.academicLabel}',
                                 style: const TextStyle(
                                   fontSize: 12, color: AppColors.text3)),
                           ],
@@ -84,9 +85,11 @@ class ProfileCard extends StatelessWidget {
                     children: liveUser.stack.map((s) => Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.12),
+                        color: AppColors.primary.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(99),
-                        border: Border.all(color: AppColors.primary.withOpacity(0.25)),
+                        border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.25),
+                        ),
                       ),
                       child: Text(s,
                           style: const TextStyle(
@@ -120,12 +123,12 @@ class _FollowButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: user.isFollowing
               ? Colors.transparent
-              : AppColors.primary.withOpacity(0.12),
+              : AppColors.primary.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(99),
           border: Border.all(
             color: user.isFollowing
                 ? AppColors.border2
-                : AppColors.primary.withOpacity(0.4),
+                : AppColors.primary.withValues(alpha: 0.4),
           ),
         ),
         child: Text(

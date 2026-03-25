@@ -77,6 +77,12 @@ class AuthService {
     return sanitized.isEmpty ? 'devspace_user' : sanitized;
   }
 
+  bool _looksLikeImageReference(String avatar) {
+    return avatar.startsWith('http') ||
+        avatar.contains('/') ||
+        avatar.startsWith('data:');
+  }
+
   Future<String> _generateUniqueHandle(String email) async {
     final base = _sanitizeHandleSeed(email.split('@').first);
     var candidate = base;
@@ -124,7 +130,15 @@ class AuthService {
         passwordHash: passwordHash,
         handle: handle,
         avatar: _buildAvatar(name, normalizedEmail),
-        college: 'MNIT Jaipur',
+        role: 'Student',
+        year: '',
+        branch: '',
+        building: '',
+        stack: const [],
+        bio: '',
+        college: 'Jaipur National University',
+        githubHandle: '',
+        profileCompleted: false,
       );
 
       await _persistSession(user);
@@ -182,7 +196,15 @@ class AuthService {
         email: email,
         handle: await _generateUniqueHandle(email),
         avatar: _buildAvatar(account.displayName ?? '', email),
-        college: 'MNIT Jaipur',
+        role: 'Student',
+        year: '',
+        branch: '',
+        building: '',
+        stack: const [],
+        bio: '',
+        college: 'Jaipur National University',
+        githubHandle: '',
+        profileCompleted: false,
       );
 
       await _persistSession(user);
@@ -202,6 +224,69 @@ class AuthService {
     }
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('auth_uid');
+  }
+
+  Future<AuthResult> updateCurrentUserProfile({
+    required String name,
+    required String handle,
+    required String role,
+    required String year,
+    required String branch,
+    required String building,
+    required List<String> stack,
+    required String college,
+    String bio = '',
+    String githubHandle = '',
+    String? avatar,
+  }) async {
+    final user = _currentUser;
+    if (user == null) {
+      return const AuthResult(error: 'No authenticated user.');
+    }
+
+    try {
+      final normalizedHandle = _sanitizeHandleSeed(handle);
+      final existingHandleUser =
+          await MongoService.instance.getUserByHandle(normalizedHandle);
+      if (existingHandleUser != null && existingHandleUser.id != user.id) {
+        return const AuthResult(error: 'That handle is already taken.');
+      }
+
+      final trimmedName = name.trim();
+      final trimmedBuilding = building.trim();
+      final trimmedBio = bio.trim();
+      final trimmedGithub = githubHandle.trim();
+      final nextAvatar = (avatar != null && avatar.trim().isNotEmpty)
+          ? avatar.trim()
+          : (_looksLikeImageReference(user.avatar)
+              ? user.avatar
+              : _buildAvatar(trimmedName, user.email));
+
+      await MongoService.instance.updateUser(user.id, {
+        'name': trimmedName,
+        'handle': normalizedHandle,
+        'role': role,
+        'year': year,
+        'branch': branch,
+        'building': trimmedBuilding,
+        'stack': stack,
+        'bio': trimmedBio,
+        'college': college,
+        'githubHandle': trimmedGithub,
+        'profileCompleted': true,
+        'avatar': nextAvatar,
+      });
+
+      final refreshedUser = await MongoService.instance.getUserById(user.id);
+      if (refreshedUser == null) {
+        return const AuthResult(error: 'Failed to refresh updated profile.');
+      }
+
+      await _persistSession(refreshedUser);
+      return AuthResult(user: refreshedUser);
+    } catch (e) {
+      return AuthResult(error: 'Profile update failed: $e');
+    }
   }
 
   void dispose() {

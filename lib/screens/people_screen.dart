@@ -29,7 +29,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
     final usersP = context.watch<UsersProvider>();
     var users    = usersP.search(_query);
     if (_branch != 'All') {
-      users = users.where((u) => u.year.contains(_branch)).toList();
+      users = users.where((u) => u.branch == _branch).toList();
     }
 
     return Column(
