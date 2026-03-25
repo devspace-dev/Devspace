@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -23,6 +24,12 @@ void main() async {
   // ───────────────────────────────────────────────────────────────────────
   const String mongoUri = 'mongodb+srv://admin:admin123@cluster0.abcde.mongodb.net/devspace?retryWrites=true&w=majority';
   
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint('Firebase initialization skipped: $e');
+  }
+
   try {
     await MongoService.instance.init(mongoUri);
     await AuthService.instance.init();
@@ -72,6 +79,7 @@ class _Root extends StatefulWidget {
 
 class _RootState extends State<_Root> {
   bool _showSplash = true;
+  String? _notificationsInitializedForUid;
 
   @override
   Widget build(BuildContext context) {
@@ -82,24 +90,19 @@ class _RootState extends State<_Root> {
     // Gate on MongoDB auth state
     return StreamBuilder<UserModel?>(
       stream: AuthService.instance.authStateChanges,
+      initialData: AuthService.instance.currentUser,
       builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            backgroundColor: Color(0xFF09090B),
-            body: Center(
-              child: CircularProgressIndicator(color: Color(0xFF7C3AED)),
-            ),
-          );
-        }
-
-        final user = snap.data;
+        final user = snap.data ?? AuthService.instance.currentUser;
 
         if (user == null) {
           return LoginScreen(onSuccess: () {});
         }
 
         // Initialize notifications (optional if using FCM)
-        NotificationService.instance.init(user.id);
+        if (_notificationsInitializedForUid != user.id) {
+          _notificationsInitializedForUid = user.id;
+          NotificationService.instance.init(user.id);
+        }
         
         return const DevSpaceApp();
       },

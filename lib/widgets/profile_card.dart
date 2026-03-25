@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/user_model.dart';
+import '../providers/auth_provider.dart';
 import '../providers/users_provider.dart';
 import '../theme/app_colors.dart';
 import 'user_avatar.dart';
@@ -28,7 +29,7 @@ class ProfileCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            UserAvatar(user: user, size: 50, showStory: true),
+            UserAvatar(user: liveUser, size: 50, showStory: true),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -43,15 +44,15 @@ class ProfileCard extends StatelessWidget {
                           children: [
                             Row(
                               children: [
-                                Text(user.name,
+                                Text(liveUser.name,
                                     style: const TextStyle(
                                       fontWeight: FontWeight.w800,
                                       fontSize: 15, color: AppColors.text)),
                                 const SizedBox(width: 6),
-                                AuraPill(aura: user.aura, small: true),
+                                AuraPill(aura: liveUser.aura, small: true),
                               ],
                             ),
-                            Text('@${user.handle} · ${user.year}',
+                            Text('@${liveUser.handle} · ${liveUser.year}',
                                 style: const TextStyle(
                                   fontSize: 12, color: AppColors.text3)),
                           ],
@@ -62,14 +63,14 @@ class ProfileCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 6),
-                  Text(user.bio,
+                  Text(liveUser.bio,
                       style: const TextStyle(fontSize: 13, color: AppColors.text2)),
                   const SizedBox(height: 6),
                   Row(
                     children: [
                       const Text('🛠 ', style: TextStyle(fontSize: 11)),
                       Expanded(
-                        child: Text(user.building,
+                        child: Text(liveUser.building,
                             style: const TextStyle(
                               fontSize: 11, color: AppColors.text4),
                             overflow: TextOverflow.ellipsis),
@@ -80,7 +81,7 @@ class ProfileCard extends StatelessWidget {
                   Wrap(
                     spacing: 6,
                     runSpacing: 4,
-                    children: user.stack.map((s) => Container(
+                    children: liveUser.stack.map((s) => Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: AppColors.primary.withOpacity(0.12),
@@ -93,7 +94,7 @@ class ProfileCard extends StatelessWidget {
                     )).toList(),
                   ),
                   const SizedBox(height: 10),
-                  AuraBar(aura: user.aura),
+                  AuraBar(aura: liveUser.aura),
                 ],
               ),
             ),
@@ -110,8 +111,10 @@ class _FollowButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final currentUserId = context.read<AuthProvider>().currentUser.id;
+
     return GestureDetector(
-      onTap: () => context.read<UsersProvider>().toggleFollow(user.id),
+      onTap: () => context.read<UsersProvider>().toggleFollow(currentUserId, user.id),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(

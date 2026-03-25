@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/mongo_service.dart';
@@ -5,14 +7,24 @@ import '../services/mongo_service.dart';
 class UsersProvider extends ChangeNotifier {
   List<UserModel> _users = [];
   bool _isLoading = false;
+  StreamSubscription<List<UserModel>>? _usersSub;
 
   List<UserModel> get users => List.unmodifiable(_users);
   bool get isLoading => _isLoading;
 
   Future<void> fetchUsers() async {
+    if (_usersSub != null) {
+      await _usersSub!.cancel();
+    }
     _isLoading = true;
     notifyListeners();
-    MongoService.instance.streamUsers().listen((newList) {
+
+    final initialUsers = await MongoService.instance.streamUsers().first;
+    _users = initialUsers;
+    _isLoading = false;
+    notifyListeners();
+
+    _usersSub = MongoService.instance.usersStream.listen((newList) {
       _users = newList;
       _isLoading = false;
       notifyListeners();
@@ -56,5 +68,11 @@ class UsersProvider extends ChangeNotifier {
     final sorted = List<UserModel>.from(_users);
     sorted.sort((a, b) => b.aura.compareTo(a.aura));
     return sorted;
+  }
+
+  @override
+  void dispose() {
+    _usersSub?.cancel();
+    super.dispose();
   }
 }

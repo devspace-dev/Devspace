@@ -11,7 +11,7 @@ import '../widgets/github_card.dart';
 import '../widgets/image_upload_widget.dart';
 
 class ProfileScreen extends StatelessWidget {
-  final int? userId; // null = current user
+  final String? userId; // null = current user
 
   const ProfileScreen({super.key, this.userId});
 
@@ -46,7 +46,7 @@ class ProfileScreen extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(right: 12),
                   child: GestureDetector(
-                    onTap: () => usersP.toggleFollow(user.id),
+                    onTap: () => usersP.toggleFollow(me.id, user.id),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
                       decoration: BoxDecoration(

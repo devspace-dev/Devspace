@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../models/post_model.dart';
 import '../services/mongo_service.dart';
@@ -5,16 +7,26 @@ import '../services/mongo_service.dart';
 class PostsProvider extends ChangeNotifier {
   List<PostModel> _posts = [];
   bool _isLoading = false;
+  StreamSubscription<List<PostModel>>? _feedSub;
 
   List<PostModel> get posts => List.unmodifiable(_posts);
   bool get isLoading => _isLoading;
+  List<PostModel> postsForUser(String userId) =>
+      _posts.where((post) => post.userId == userId).toList();
 
   Future<void> fetchFeed() async {
+    if (_feedSub != null) {
+      await _feedSub!.cancel();
+    }
     _isLoading = true;
     notifyListeners();
-    
-    // In a real app we'd use streams, but for this provider we'll fetch once or listen
-    MongoService.instance.streamFeed().listen((newList) {
+
+    final initialPosts = await MongoService.instance.streamFeed().first;
+    _posts = initialPosts;
+    _isLoading = false;
+    notifyListeners();
+
+    _feedSub = MongoService.instance.feedStream.listen((newList) {
       _posts = newList;
       _isLoading = false;
       notifyListeners();
@@ -40,7 +52,32 @@ class PostsProvider extends ChangeNotifier {
     // Refresh feed or handle local update
   }
 
-  Future<void> toggleBookmark(String postId, String userId) async {
-    // Implement bookmarking if needed in MongoService
+  Future<void> toggleRepost(String postId) async {
+    _posts = _posts.map((post) {
+      if (post.id != postId) return post;
+      final isReposted = !post.isReposted;
+      final nextReposts = isReposted
+          ? post.reposts + 1
+          : (post.reposts > 0 ? post.reposts - 1 : 0);
+      return post.copyWith(
+        isReposted: isReposted,
+        reposts: nextReposts,
+      );
+    }).toList();
+    notifyListeners();
+  }
+
+  Future<void> toggleBookmark(String postId, [String? userId]) async {
+    _posts = _posts.map((post) {
+      if (post.id != postId) return post;
+      return post.copyWith(isBookmarked: !post.isBookmarked);
+    }).toList();
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _feedSub?.cancel();
+    super.dispose();
   }
 }

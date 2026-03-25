@@ -1,27 +1,56 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+
 import '../models/user_model.dart';
-import '../data/mock_users.dart';
+import '../services/auth_service.dart';
+import '../services/mongo_service.dart';
 
 class AuthProvider extends ChangeNotifier {
-  UserModel _currentUser = kMe;
+  AuthProvider() {
+    _currentUser = AuthService.instance.currentUser;
+    _authSub = AuthService.instance.authStateChanges.listen((user) {
+      _currentUser = user;
+      notifyListeners();
+    });
+  }
 
-  UserModel get currentUser => _currentUser;
+  UserModel? _currentUser;
+  StreamSubscription<UserModel?>? _authSub;
+
+  UserModel get currentUser {
+    final user = _currentUser ?? AuthService.instance.currentUser;
+    if (user == null) {
+      throw StateError('No authenticated user is available.');
+    }
+    return user;
+  }
 
   void addAura(int points) {
-    _currentUser = _currentUser.copyWith(aura: _currentUser.aura + points);
+    final updatedUser = currentUser.copyWith(aura: currentUser.aura + points);
+    _currentUser = updatedUser;
     notifyListeners();
+    unawaited(MongoService.instance.updateUser(
+      updatedUser.id,
+      {'aura': updatedUser.aura},
+    ));
   }
 
   void updateBuilding(String building) {
-    _currentUser = UserModel(
-      id: _currentUser.id, name: _currentUser.name,
-      handle: _currentUser.handle, avatar: _currentUser.avatar,
-      color: _currentUser.color, aura: _currentUser.aura,
-      role: _currentUser.role, year: _currentUser.year,
-      building: building, stack: _currentUser.stack,
-      followers: _currentUser.followers, following: _currentUser.following,
-      bio: _currentUser.bio, college: _currentUser.college,
-    );
+    final updatedUser = currentUser.copyWith(building: building);
+    _currentUser = updatedUser;
     notifyListeners();
+    unawaited(MongoService.instance.updateUser(
+      updatedUser.id,
+      {'building': building},
+    ));
+  }
+
+  Future<void> signOut() => AuthService.instance.signOut();
+
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    super.dispose();
   }
 }

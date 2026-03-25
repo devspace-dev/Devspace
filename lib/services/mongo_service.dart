@@ -22,6 +22,9 @@ class MongoService {
   final _usersController = StreamController<List<UserModel>>.broadcast();
   final _postsController = StreamController<List<PostModel>>.broadcast();
 
+  Stream<List<UserModel>> get usersStream => _usersController.stream;
+  Stream<List<PostModel>> get feedStream => _postsController.stream;
+
   Future<void> init(String connectionUri) async {
     if (_isInitialized) return;
     _db = Db(connectionUri);
@@ -58,6 +61,11 @@ class MongoService {
     return doc == null ? null : UserModel.fromJson(doc);
   }
 
+  Future<UserModel?> getUserByHandle(String handle) async {
+    final doc = await _users.findOne({'handle': handle.toLowerCase()});
+    return doc == null ? null : UserModel.fromJson(doc);
+  }
+
   Future<UserModel?> getUserById(String id) async {
     final doc = await _users.findOne({'_id': ObjectId.parse(id)});
     return doc == null ? null : UserModel.fromJson(doc);
@@ -66,7 +74,7 @@ class MongoService {
   Future<UserModel> createUser({
     required String name,
     required String email,
-    required String passwordHash,
+    String? passwordHash,
     required String handle,
     String avatar = '',
     String college = '',
@@ -74,7 +82,8 @@ class MongoService {
     final doc = {
       'name': name,
       'email': email.toLowerCase(),
-      'passwordHash': passwordHash,
+      if (passwordHash != null && passwordHash.isNotEmpty)
+        'passwordHash': passwordHash,
       'handle': handle,
       'avatar': avatar,
       'color': 0xFF7C3AED, // Default violet

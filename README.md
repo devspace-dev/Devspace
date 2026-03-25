@@ -87,11 +87,18 @@ lib/
 ## Tech Stack
 - **Flutter 3** — cross-platform (Android, iOS, Web)
 - **Provider** — state management
+- **MongoDB Atlas** — app user profiles, posts, follows, notifications
+- **Google Sign-In** — optional authentication provider
 - **Google Fonts** — DM Sans typography
 - **timeago** — human-readable timestamps
 - **go_router** — navigation
 - **shared_preferences** — local storage
 - **uuid** — unique IDs
+
+## Auth Model
+- Email/password and Google sign-in are both supported.
+- The app always persists the MongoDB user ID locally in `SharedPreferences`.
+- Google sign-in resolves or auto-creates the same MongoDB user record, so both methods can land on one DevSpace profile.
 
 ## Next Steps
 - [ ] Connect to Firebase (Firestore + Auth)

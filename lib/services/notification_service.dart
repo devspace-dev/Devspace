@@ -1,4 +1,6 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'mongo_service.dart';
 
@@ -12,7 +14,7 @@ class NotificationService {
   NotificationService._();
   static final instance = NotificationService._();
 
-  final _fcm   = FirebaseMessaging.instance;
+  FirebaseMessaging get _fcm => FirebaseMessaging.instance;
   final _local = FlutterLocalNotificationsPlugin();
 
   static const _channel = AndroidNotificationChannel(
@@ -23,36 +25,45 @@ class NotificationService {
   );
 
   Future<void> init(String uid) async {
-    // Request permission (iOS + Android 13+)
-    await _fcm.requestPermission(alert: true, badge: true, sound: true);
-
-    // Local notifications setup
-    await _local.initialize(
-      const InitializationSettings(
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-        iOS: DarwinInitializationSettings(),
-      ),
-    );
-
-    // Create the high-priority Android channel
-    await _local
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(_channel);
-
-    // Save FCM token to MongoDB
-    final token = await _fcm.getToken();
-    if (token != null) {
-      await MongoService.instance.updateUser(uid, {'fcmToken': token});
+    if (Firebase.apps.isEmpty) {
+      debugPrint('Notification initialization skipped because Firebase is not configured.');
+      return;
     }
 
-    // Refresh token listener
-    _fcm.onTokenRefresh.listen((newToken) {
-      MongoService.instance.updateUser(uid, {'fcmToken': newToken});
-    });
+    try {
+    // Request permission (iOS + Android 13+)
+      await _fcm.requestPermission(alert: true, badge: true, sound: true);
 
-    // Foreground messages → show local notification
-    FirebaseMessaging.onMessage.listen(_showLocalNotification);
+      // Local notifications setup
+      await _local.initialize(
+        const InitializationSettings(
+          android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+          iOS: DarwinInitializationSettings(),
+        ),
+      );
+
+      // Create the high-priority Android channel
+      await _local
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(_channel);
+
+      // Save FCM token to MongoDB
+      final token = await _fcm.getToken();
+      if (token != null) {
+        await MongoService.instance.updateUser(uid, {'fcmToken': token});
+      }
+
+      // Refresh token listener
+      _fcm.onTokenRefresh.listen((newToken) {
+        MongoService.instance.updateUser(uid, {'fcmToken': newToken});
+      });
+
+      // Foreground messages → show local notification
+      FirebaseMessaging.onMessage.listen(_showLocalNotification);
+    } catch (e) {
+      debugPrint('Notification initialization failed: $e');
+    }
   }
 
   Future<void> _showLocalNotification(RemoteMessage message) async {
