@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "434428356345",
+    "project_id": "devspace-a778c",
+    "storage_bucket": "devspace-a778c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:434428356345:android:5f4962eed61c2804236428",
+        "android_client_info": {
+          "package_name": "com.rexxon.devspace"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCLWvaVA4uX4CVr85vLWefznGlyW7lgXq8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
