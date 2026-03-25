@@ -1,19 +1,19 @@
 import 'dart:io';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
+import 'mongo_service.dart';
 
 class StorageService {
   StorageService._();
   static final instance = StorageService._();
 
-  final _storage = FirebaseStorage.instance;
-  final _picker  = ImagePicker();
+  final _picker = ImagePicker();
 
   // ── Pick from camera or gallery ──────────────────
   Future<File?> pickImage({bool fromCamera = false}) async {
     final picked = await _picker.pickImage(
       source: fromCamera ? ImageSource.camera : ImageSource.gallery,
-      maxWidth:  1080,
+      maxWidth: 1080,
       maxHeight: 1080,
       imageQuality: 85,
     );
@@ -22,22 +22,18 @@ class StorageService {
 
   // ── Upload profile picture ───────────────────────
   Future<String> uploadProfilePhoto(String uid, File file) async {
-    final ref = _storage.ref('profile_photos/$uid.jpg');
-    final task = await ref.putFile(
-      file,
-      SettableMetadata(contentType: 'image/jpeg'),
-    );
-    return await task.ref.getDownloadURL();
+    final bytes = await file.readAsBytes();
+    final base64 = base64Encode(bytes);
+    final path = 'profile_photos/$uid.jpg';
+    return await MongoService.instance.uploadImage(path, base64);
   }
 
   // ── Upload post image ────────────────────────────
   Future<String> uploadPostImage(String postId, File file) async {
-    final ref  = _storage.ref('post_images/$postId.jpg');
-    final task = await ref.putFile(
-      file,
-      SettableMetadata(contentType: 'image/jpeg'),
-    );
-    return await task.ref.getDownloadURL();
+    final bytes = await file.readAsBytes();
+    final base64 = base64Encode(bytes);
+    final path = 'post_images/$postId.jpg';
+    return await MongoService.instance.uploadImage(path, base64);
   }
 
   /// Upload with progress callback — useful for showing a progress bar.
@@ -46,25 +42,24 @@ class StorageService {
     File file, {
     void Function(double progress)? onProgress,
   }) async {
-    final ref  = _storage.ref(path);
-    final task = ref.putFile(file, SettableMetadata(contentType: 'image/jpeg'));
-
-    task.snapshotEvents.listen((snap) {
-      if (onProgress != null && snap.totalBytes > 0) {
-        onProgress(snap.bytesTransferred / snap.totalBytes);
-      }
-    });
-
-    final snapshot = await task;
-    return await snapshot.ref.getDownloadURL();
+    if (onProgress != null) onProgress(0.1);
+    final bytes = await file.readAsBytes();
+    if (onProgress != null) onProgress(0.5);
+    final base64 = base64Encode(bytes);
+    if (onProgress != null) onProgress(0.9);
+    final result = await MongoService.instance.uploadImage(path, base64);
+    if (onProgress != null) onProgress(1.0);
+    return result;
   }
 
-  /// Delete a file (e.g. when replacing profile photo).
-  Future<void> deleteFile(String downloadUrl) async {
-    try {
-      await _storage.refFromURL(downloadUrl).delete();
-    } catch (_) {
-      // File may not exist — ignore silently
-    }
+  /// Delete a file.
+  Future<void> deleteFile(String path) async {
+    // In our simple Mongo implementation, we could remove the doc
+    // But for now, we'll just ignore or implement if needed.
+  }
+
+  /// Helper to get image data (since we store it in Mongo, we need to fetch it)
+  Future<String?> getImageBase64(String path) async {
+    return await MongoService.instance.getImage(path);
   }
 }

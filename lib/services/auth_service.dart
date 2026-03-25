@@ -1,10 +1,12 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'firebase_service.dart';
+import 'dart:async';
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'mongo_service.dart';
+import '../models/user_model.dart';
 
-/// Result wrapper — avoids throwing exceptions into UI code.
 class AuthResult {
-  final User? user;
+  final UserModel? user;
   final String? error;
   bool get success => user != null && error == null;
   const AuthResult({this.user, this.error});
@@ -14,123 +16,100 @@ class AuthService {
   AuthService._();
   static final instance = AuthService._();
 
-  final _auth   = FirebaseAuth.instance;
-  final _google = GoogleSignIn(scopes: ['email', 'profile']);
+  static const String _collegeDomain = 'mnit.ac.in'; // customize
+  UserModel? _currentUser;
+  final _authStateController = StreamController<UserModel?>.broadcast();
 
-  // ── Change this to your college email domain ─────
-  static const String _collegeDomain = 'mnit.ac.in';
+  UserModel? get currentUser => _currentUser;
+  Stream<UserModel?> get authStateChanges => _authStateController.stream;
 
-  User? get currentUser => _auth.currentUser;
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
+  Future<void> init() async {
+    final prefs = await SharedPreferences.getInstance();
+    final uid = prefs.getString('auth_uid');
+    if (uid != null) {
+      _currentUser = await MongoService.instance.getUserById(uid);
+      _authStateController.add(_currentUser);
+    }
+  }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // GOOGLE SIGN-IN  (with college email gate)
-  // ══════════════════════════════════════════════════════════════════════════
+  String _hashPassword(String password) {
+    return sha256.convert(utf8.encode(password)).toString();
+  }
 
-  Future<AuthResult> signInWithGoogle() async {
+  Future<AuthResult> signUpWithEmail({
+    required String name,
+    required String email,
+    required String password,
+  }) async {
     try {
-      // Trigger Google account picker
-      final googleUser = await _google.signIn();
-      if (googleUser == null) {
-        return const AuthResult(error: 'Sign-in cancelled');
+      if (!email.toLowerCase().endsWith('@$_collegeDomain')) {
+        return AuthResult(error: 'Please use your @$_collegeDomain college email.');
       }
 
-      // ── College email gate ──────────────────────
-      if (!googleUser.email.endsWith('@$_collegeDomain')) {
-        await _google.signOut();
-        return AuthResult(
-          error: 'Please use your @$_collegeDomain college email to sign in.',
-        );
+      final existing = await MongoService.instance.getUserByEmail(email);
+      if (existing != null) {
+        return const AuthResult(error: 'Email already in use.');
       }
 
-      // Exchange Google token for Firebase credential
-      final googleAuth = await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken:     googleAuth.idToken,
+      final handle = email.split('@').first.replaceAll('.', '_').toLowerCase();
+      final passwordHash = _hashPassword(password);
+
+      final user = await MongoService.instance.createUser(
+        name: name,
+        email: email,
+        passwordHash: passwordHash,
+        handle: handle,
+        college: 'MNIT Jaipur',
       );
 
-      final result = await _auth.signInWithCredential(credential);
-      final user   = result.user!;
+      _currentUser = user;
+      _authStateController.add(user);
 
-      // First sign-in: create Firestore user doc
-      if (result.additionalUserInfo?.isNewUser == true) {
-        await _createFirestoreProfile(user, googleUser.displayName ?? '');
-      }
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('auth_uid', user.id);
 
       return AuthResult(user: user);
-    } on FirebaseAuthException catch (e) {
-      return AuthResult(error: _friendlyError(e.code));
     } catch (e) {
-      return AuthResult(error: e.toString());
+      return AuthResult(error: 'Sign-up failed: $e');
     }
   }
 
-  Future<void> _createFirestoreProfile(User user, String displayName) async {
-    // Derive a readable handle from email prefix
-    final handle = user.email!
-        .split('@')
-        .first
-        .replaceAll('.', '_')
-        .toLowerCase();
+  Future<AuthResult> signInWithEmail({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final passwordHash = _hashPassword(password);
+      final isValid = await MongoService.instance.verifyPassword(email, passwordHash);
+      if (!isValid) {
+        return const AuthResult(error: 'Invalid email or password.');
+      }
 
-    await FirebaseService.instance.upsertUser(
-      // We pass minimal data; user can fill the rest in Edit Profile
-      _minimalUser(
-        uid:         user.uid,
-        name:        displayName.isNotEmpty ? displayName : handle,
-        handle:      handle,
-        email:       user.email!,
-        photoUrl:    user.photoURL ?? '',
-      ),
-    );
+      final user = await MongoService.instance.getUserByEmail(email);
+      if (user == null) {
+        return const AuthResult(error: 'User not found.');
+      }
+
+      _currentUser = user;
+      _authStateController.add(user);
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('auth_uid', user.id);
+
+      return AuthResult(user: user);
+    } catch (e) {
+      return AuthResult(error: 'Sign-in failed: $e');
+    }
   }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // SIGN OUT
-  // ══════════════════════════════════════════════════════════════════════════
 
   Future<void> signOut() async {
-    await Future.wait([_auth.signOut(), _google.signOut()]);
+    _currentUser = null;
+    _authStateController.add(null);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('auth_uid');
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // HELPERS
-  // ══════════════════════════════════════════════════════════════════════════
-
-  String _friendlyError(String code) {
-    switch (code) {
-      case 'account-exists-with-different-credential':
-        return 'This email is already linked to another sign-in method.';
-      case 'network-request-failed':
-        return 'No internet connection. Please try again.';
-      default:
-        return 'Sign-in failed. Please try again.';
-    }
+  void dispose() {
+    _authStateController.close();
   }
-
-  /// Minimal UserModel stub — only what Firestore needs at first sign-in.
-  dynamic _minimalUser({
-    required String uid,
-    required String name,
-    required String handle,
-    required String email,
-    required String photoUrl,
-  }) {
-    // We return a plain map here to avoid a circular import with UserModel.
-    // FirebaseService.upsertUser accepts a UserModel — swap this if preferred.
-    return _MinimalUser(
-      uid: uid, name: name, handle: handle, photoUrl: photoUrl);
-  }
-}
-
-/// Lightweight data class used only during first-time profile creation.
-class _MinimalUser {
-  final String uid;
-  final String name;
-  final String handle;
-  final String photoUrl;
-  const _MinimalUser({
-    required this.uid, required this.name,
-    required this.handle, required this.photoUrl});
 }

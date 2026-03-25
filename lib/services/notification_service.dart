@@ -1,12 +1,11 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'firebase_service.dart';
+import 'mongo_service.dart';
 
 /// Background message handler — must be a top-level function.
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // Firebase is already initialised by the time this runs.
-  // You can optionally update Firestore here (e.g. increment unread count).
+  // FCM background handling
 }
 
 class NotificationService {
@@ -16,7 +15,6 @@ class NotificationService {
   final _fcm   = FirebaseMessaging.instance;
   final _local = FlutterLocalNotificationsPlugin();
 
-  // Android channel
   static const _channel = AndroidNotificationChannel(
     'devspace_high',
     'DevSpace Notifications',
@@ -24,18 +22,9 @@ class NotificationService {
     importance: Importance.high,
   );
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // INITIALISE (call once in main.dart after Firebase.initializeApp)
-  // ══════════════════════════════════════════════════════════════════════════
-
   Future<void> init(String uid) async {
-    // Register background handler
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-
     // Request permission (iOS + Android 13+)
-    await _fcm.requestPermission(
-      alert: true, badge: true, sound: true,
-    );
+    await _fcm.requestPermission(alert: true, badge: true, sound: true);
 
     // Local notifications setup
     await _local.initialize(
@@ -51,24 +40,20 @@ class NotificationService {
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(_channel);
 
-    // Save FCM token to Firestore so backend can send targeted pushes
+    // Save FCM token to MongoDB
     final token = await _fcm.getToken();
     if (token != null) {
-      await FirebaseService.instance.updateUser(uid, {'fcmToken': token});
+      await MongoService.instance.updateUser(uid, {'fcmToken': token});
     }
 
     // Refresh token listener
     _fcm.onTokenRefresh.listen((newToken) {
-      FirebaseService.instance.updateUser(uid, {'fcmToken': newToken});
+      MongoService.instance.updateUser(uid, {'fcmToken': newToken});
     });
 
     // Foreground messages → show local notification
     FirebaseMessaging.onMessage.listen(_showLocalNotification);
   }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // SHOW LOCAL NOTIFICATION
-  // ══════════════════════════════════════════════════════════════════════════
 
   Future<void> _showLocalNotification(RemoteMessage message) async {
     final notification = message.notification;
@@ -92,20 +77,14 @@ class NotificationService {
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // SEND NOTIFICATION VIA FIRESTORE TRIGGER
-  // (In production you'd use Cloud Functions — this writes to Firestore
-  //  and a Cloud Function reads it and calls FCM server API.)
-  // ══════════════════════════════════════════════════════════════════════════
-
   Future<void> notifyLike({
     required String toUid,
     required String fromUid,
     required String postId,
     required String fromName,
   }) async {
-    if (toUid == fromUid) return; // don't notify yourself
-    await FirebaseService.instance.pushNotification(
+    if (toUid == fromUid) return;
+    await MongoService.instance.pushNotification(
       toUid:   toUid,
       fromUid: fromUid,
       type:    'like',
@@ -122,7 +101,7 @@ class NotificationService {
     required String commentText,
   }) async {
     if (toUid == fromUid) return;
-    await FirebaseService.instance.pushNotification(
+    await MongoService.instance.pushNotification(
       toUid:   toUid,
       fromUid: fromUid,
       type:    'comment',
@@ -137,7 +116,7 @@ class NotificationService {
     required String fromName,
   }) async {
     if (toUid == fromUid) return;
-    await FirebaseService.instance.pushNotification(
+    await MongoService.instance.pushNotification(
       toUid:   toUid,
       fromUid: fromUid,
       type:    'follow',

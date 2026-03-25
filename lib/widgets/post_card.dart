@@ -151,7 +151,7 @@ class _PostCardState extends State<PostCard> {
                       count: post.likes,
                       active: post.isLiked,
                       activeColor: AppColors.like,
-                      onTap: () => context.read<PostsProvider>().toggleLike(post.id),
+                      onTap: () => context.read<PostsProvider>().toggleLike(post.id, me.id),
                     ),
                     _ActionBtn(
                       icon: Icons.bookmark_border_rounded,

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../services/storage_service.dart';
@@ -100,13 +101,30 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
       imageContent = Image.file(_localFile!, fit: BoxFit.cover,
           width: widget.size, height: widget.size);
     } else if (widget.existingUrl != null && widget.existingUrl!.isNotEmpty) {
-      imageContent = CachedNetworkImage(
-        imageUrl: widget.existingUrl!,
-        fit: BoxFit.cover,
-        width: widget.size, height: widget.size,
-        placeholder: (_, __) => Container(color: AppColors.bg3),
-        errorWidget: (_, __, ___) => _placeholder(),
-      );
+      if (widget.existingUrl!.startsWith('http')) {
+        imageContent = CachedNetworkImage(
+          imageUrl: widget.existingUrl!,
+          fit: BoxFit.cover,
+          width: widget.size, height: widget.size,
+          placeholder: (_, __) => Container(color: AppColors.bg3),
+          errorWidget: (_, __, ___) => _placeholder(),
+        );
+      } else {
+        // Assume it's a MongoDB path - fetch Base64
+        imageContent = FutureBuilder<String?>(
+          future: StorageService.instance.getImageBase64(widget.existingUrl!),
+          builder: (context, snapshot) {
+            if (snapshot.hasData && snapshot.data != null) {
+              return Image.memory(
+                base64Decode(snapshot.data!),
+                fit: BoxFit.cover,
+                width: widget.size, height: widget.size,
+              );
+            }
+            return _placeholder();
+          },
+        );
+      }
     } else {
       imageContent = _placeholder();
     }

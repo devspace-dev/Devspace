@@ -1,14 +1,25 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
-import '../data/mock_users.dart';
+import '../services/mongo_service.dart';
 
 class UsersProvider extends ChangeNotifier {
-  final List<UserModel> _users = List.from(kUsers);
+  List<UserModel> _users = [];
+  bool _isLoading = false;
 
   List<UserModel> get users => List.unmodifiable(_users);
+  bool get isLoading => _isLoading;
 
-  UserModel? getUserById(int id) {
-    if (id == kMe.id) return kMe;
+  Future<void> fetchUsers() async {
+    _isLoading = true;
+    notifyListeners();
+    MongoService.instance.streamUsers().listen((newList) {
+      _users = newList;
+      _isLoading = false;
+      notifyListeners();
+    });
+  }
+
+  UserModel? getUserById(String id) {
     try {
       return _users.firstWhere((u) => u.id == id);
     } catch (_) {
@@ -16,15 +27,13 @@ class UsersProvider extends ChangeNotifier {
     }
   }
 
-  void toggleFollow(int userId) {
-    final i = _users.indexWhere((u) => u.id == userId);
-    if (i < 0) return;
-    final u = _users[i];
-    _users[i] = u.copyWith(
-      isFollowing: !u.isFollowing,
-      followers: u.isFollowing ? u.followers - 1 : u.followers + 1,
-    );
-    notifyListeners();
+  Future<void> toggleFollow(String fromUid, String toUid) async {
+    final following = await MongoService.instance.isFollowing(fromUid, toUid);
+    if (following) {
+      await MongoService.instance.unfollow(fromUid, toUid);
+    } else {
+      await MongoService.instance.follow(fromUid, toUid);
+    }
   }
 
   List<UserModel> search(String query) {

@@ -1,53 +1,46 @@
 import 'package:flutter/material.dart';
-import 'package:uuid/uuid.dart';
 import '../models/post_model.dart';
-import '../data/mock_posts.dart';
+import '../services/mongo_service.dart';
 
 class PostsProvider extends ChangeNotifier {
-  final List<PostModel> _posts = List.from(kMockPosts);
-  final _uuid = const Uuid();
+  List<PostModel> _posts = [];
+  bool _isLoading = false;
 
   List<PostModel> get posts => List.unmodifiable(_posts);
+  bool get isLoading => _isLoading;
 
-  void addPost(int userId, String content, List<String> tags) {
-    final post = PostModel(
-      id: _uuid.v4(), userId: userId,
-      content: content, tags: tags,
-      createdAt: DateTime.now(),
+  Future<void> fetchFeed() async {
+    _isLoading = true;
+    notifyListeners();
+    
+    // In a real app we'd use streams, but for this provider we'll fetch once or listen
+    MongoService.instance.streamFeed().listen((newList) {
+      _posts = newList;
+      _isLoading = false;
+      notifyListeners();
+    });
+  }
+
+  Future<void> addPost(String userId, String content, List<String> tags) async {
+    await MongoService.instance.createPost(
+      userId: userId,
+      content: content,
+      tags: tags,
     );
-    _posts.insert(0, post);
-    notifyListeners();
+    // Stream will handle the update
   }
 
-  void toggleLike(String postId) {
-    final i = _posts.indexWhere((p) => p.id == postId);
-    if (i < 0) return;
-    final p = _posts[i];
-    _posts[i] = p.copyWith(
-      isLiked: !p.isLiked,
-      likes: p.isLiked ? p.likes - 1 : p.likes + 1,
-    );
-    notifyListeners();
+  Future<void> toggleLike(String postId, String userId) async {
+    final hasLiked = await MongoService.instance.hasLiked(postId, userId);
+    if (hasLiked) {
+      await MongoService.instance.unlikePost(postId, userId);
+    } else {
+      await MongoService.instance.likePost(postId, userId);
+    }
+    // Refresh feed or handle local update
   }
 
-  void toggleBookmark(String postId) {
-    final i = _posts.indexWhere((p) => p.id == postId);
-    if (i < 0) return;
-    _posts[i] = _posts[i].copyWith(isBookmarked: !_posts[i].isBookmarked);
-    notifyListeners();
+  Future<void> toggleBookmark(String postId, String userId) async {
+    // Implement bookmarking if needed in MongoService
   }
-
-  void toggleRepost(String postId) {
-    final i = _posts.indexWhere((p) => p.id == postId);
-    if (i < 0) return;
-    final p = _posts[i];
-    _posts[i] = p.copyWith(
-      isReposted: !p.isReposted,
-      reposts: p.isReposted ? p.reposts - 1 : p.reposts + 1,
-    );
-    notifyListeners();
-  }
-
-  List<PostModel> postsForUser(int userId) =>
-      _posts.where((p) => p.userId == userId).toList();
 }
