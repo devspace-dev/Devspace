@@ -9,7 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  mongodb_dart: ^0.9.0
+  mongo_dart: ^0.10.5
   crypto: ^3.0.3
   realm: ^1.8.0
   shared_preferences: ^2.2.3
