@@ -71,6 +71,7 @@ create table if not exists public.posts (
   content text default '',
   tags text[] default '{}'::text[],
   image_url text default '',
+  quote_post_id uuid references public.posts(id) on delete set null,
   likes_count bigint default 0,
   comments_count bigint default 0,
   reposts_count bigint default 0,
@@ -81,6 +82,7 @@ alter table public.posts add column if not exists user_id uuid references public
 alter table public.posts add column if not exists content text default '';
 alter table public.posts add column if not exists tags text[] default '{}'::text[];
 alter table public.posts add column if not exists image_url text default '';
+alter table public.posts add column if not exists quote_post_id uuid references public.posts(id) on delete set null;
 alter table public.posts add column if not exists likes_count bigint default 0;
 alter table public.posts add column if not exists comments_count bigint default 0;
 alter table public.posts add column if not exists reposts_count bigint default 0;
@@ -166,6 +168,7 @@ alter table public.notifications add column if not exists created_at timestamp w
 
 create index if not exists idx_posts_user_id on public.posts(user_id);
 create index if not exists idx_posts_created_at on public.posts(created_at desc);
+create index if not exists idx_posts_quote_post_id on public.posts(quote_post_id);
 create index if not exists idx_comments_post_id on public.comments(post_id);
 create index if not exists idx_likes_post_id on public.likes(post_id);
 create index if not exists idx_follows_follower_id on public.follows(follower_id);

@@ -47,6 +47,18 @@ class _PostCardState extends State<PostCard> {
     final commentSubmitting = postsP.isCommentSubmitting(post.id);
     final commentError = postsP.commentError(post.id);
     final likeUpdating = postsP.isLikeUpdating(post.id);
+    final quotePostId = post.quotePostId;
+    final hasQuote = quotePostId != null && quotePostId.isNotEmpty;
+    final quotedPost = hasQuote ? postsP.quotedPost(quotePostId) : null;
+    final quotedPostLoading =
+        hasQuote ? postsP.isQuotedPostLoading(quotePostId) : false;
+
+    if (hasQuote && quotedPost == null && !quotedPostLoading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<PostsProvider>().ensureQuotedPostLoaded(quotePostId);
+      });
+    }
 
     return Container(
       decoration: const BoxDecoration(
@@ -126,6 +138,16 @@ class _PostCardState extends State<PostCard> {
                     ),
                   ),
                 )),
+                if (hasQuote) ...[
+                  const SizedBox(height: 12),
+                  _QuotedPostPreview(
+                    post: quotedPost,
+                    user: quotedPost == null
+                        ? null
+                        : _quoteUser(usersP, me, quotedPost),
+                    loading: quotedPostLoading,
+                  ),
+                ],
                 if (post.imageUrl != null && post.imageUrl!.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   ClipRRect(
@@ -202,9 +224,14 @@ class _PostCardState extends State<PostCard> {
                       icon: Icons.repeat_rounded,
                       activeIcon: Icons.repeat_rounded,
                       count: post.reposts,
-                      active: post.isReposted,
+                      active: false,
                       activeColor: AppColors.repost,
-                      onTap: () => context.read<PostsProvider>().toggleRepost(post.id),
+                      onTap: () => _openQuoteSheet(
+                        context: context,
+                        originalPost: post,
+                        currentUserId: me.id,
+                        originalAuthor: user,
+                      ),
                     ),
                     _ActionBtn(
                       icon: Icons.favorite_border_rounded,
@@ -340,6 +367,29 @@ class _PostCardState extends State<PostCard> {
     );
   }
 
+  Future<void> _openQuoteSheet({
+    required BuildContext context,
+    required PostModel originalPost,
+    required String currentUserId,
+    required UserModel originalAuthor,
+  }) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.bg2,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) {
+        return _QuotePostSheet(
+          originalPost: originalPost,
+          originalAuthor: originalAuthor,
+          currentUserId: currentUserId,
+        );
+      },
+    );
+  }
+
   Future<void> _submitComment(
     PostsProvider postsProvider,
     String postId,
@@ -387,6 +437,37 @@ class _PostCardState extends State<PostCard> {
 
     return UserModel(
       id: comment.userId,
+      name: 'Student',
+      handle: 'member',
+      email: '',
+      avatar: 'DS',
+      color: AppColors.primary,
+      aura: 0,
+      role: '',
+      year: '',
+      branch: '',
+      building: 'Building on DevSpace',
+      stack: const [],
+      followers: 0,
+      following: 0,
+      bio: '',
+      college: '',
+      githubHandle: '',
+      profileCompleted: false,
+    );
+  }
+
+  UserModel _quoteUser(
+    UsersProvider usersProvider,
+    UserModel currentUser,
+    PostModel quotedPost,
+  ) {
+    final knownUser = usersProvider.getUserById(quotedPost.userId);
+    if (knownUser != null) return knownUser;
+    if (quotedPost.userId == currentUser.id) return currentUser;
+
+    return UserModel(
+      id: quotedPost.userId,
       name: 'Student',
       handle: 'member',
       email: '',
@@ -469,6 +550,323 @@ class _CommentRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _QuotePostSheet extends StatefulWidget {
+  final PostModel originalPost;
+  final UserModel originalAuthor;
+  final String currentUserId;
+
+  const _QuotePostSheet({
+    required this.originalPost,
+    required this.originalAuthor,
+    required this.currentUserId,
+  });
+
+  @override
+  State<_QuotePostSheet> createState() => _QuotePostSheetState();
+}
+
+class _QuotePostSheetState extends State<_QuotePostSheet> {
+  final TextEditingController _textCtrl = TextEditingController();
+  bool _posting = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _textCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final content = _textCtrl.text.trim();
+    if (content.isEmpty) return;
+
+    setState(() {
+      _posting = true;
+      _error = null;
+    });
+
+    final result = await context.read<PostsProvider>().addQuotePost(
+          userId: widget.currentUserId,
+          content: content,
+          originalPostId: widget.originalPost.id,
+        );
+
+    if (!mounted) return;
+
+    if (!result.success) {
+      setState(() {
+        _posting = false;
+        _error = result.error;
+      });
+      return;
+    }
+
+    context.read<AuthProvider>().addAura(kAuraPost);
+    Navigator.of(context).pop();
+
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result.warning ?? '+10 aura for sharing your take'),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final canPost = !_posting && _textCtrl.text.trim().isNotEmpty;
+
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(20, 16, 20, 20 + bottomInset),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 42,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.border2,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              'Quote post',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                color: AppColors.text,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Add your take and share the original post with your network.',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.text2,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 18),
+            TextField(
+              controller: _textCtrl,
+              maxLines: 5,
+              minLines: 3,
+              onChanged: (_) => setState(() {}),
+              style: const TextStyle(color: AppColors.text, fontSize: 15),
+              decoration: InputDecoration(
+                hintText: 'What do you think about this post?',
+                filled: true,
+                fillColor: AppColors.bg3,
+                contentPadding: const EdgeInsets.all(16),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            _QuotedPostPreview(
+              post: widget.originalPost,
+              user: widget.originalAuthor,
+              loading: false,
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.red.withValues(alpha: 0.24),
+                  ),
+                ),
+                child: Text(
+                  _error!,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.redAccent,
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _posting ? null : () => Navigator.of(context).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton(
+                    onPressed: canPost ? _submit : null,
+                    child: _posting
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Share quote'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QuotedPostPreview extends StatelessWidget {
+  final PostModel? post;
+  final UserModel? user;
+  final bool loading;
+
+  const _QuotedPostPreview({
+    required this.post,
+    required this.user,
+    required this.loading,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.bg3,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: const Row(
+          children: [
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 12),
+            Text(
+              'Loading quoted post...',
+              style: TextStyle(color: AppColors.text3, fontSize: 13),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (post == null || user == null) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.bg3,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: const Text(
+          'Quoted post unavailable',
+          style: TextStyle(color: AppColors.text3, fontSize: 13),
+        ),
+      );
+    }
+
+    final quotedPost = post!;
+    final quotedUser = user!;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.bg3,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.format_quote_rounded,
+                size: 16,
+                color: AppColors.repost,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '${quotedUser.name} @${quotedUser.handle}',
+                  style: const TextStyle(
+                    color: AppColors.text,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          if (quotedPost.content.trim().isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              quotedPost.content.trim(),
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppColors.text2,
+                fontSize: 14,
+                height: 1.45,
+              ),
+            ),
+          ],
+          if (quotedPost.imageUrl != null && quotedPost.imageUrl!.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: SizedBox(
+                height: 140,
+                width: double.infinity,
+                child: CachedNetworkImage(
+                  imageUrl: quotedPost.imageUrl!,
+                  fit: BoxFit.cover,
+                  placeholder: (_, __) => Container(
+                    color: AppColors.bg,
+                    alignment: Alignment.center,
+                    child: const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                  errorWidget: (_, __, ___) => Container(
+                    color: AppColors.bg,
+                    alignment: Alignment.center,
+                    child: const Text(
+                      'Image unavailable',
+                      style: TextStyle(color: AppColors.text3, fontSize: 12),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

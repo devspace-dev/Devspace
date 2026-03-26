@@ -33,6 +33,7 @@ import '../models/comment_model.dart';
 ///   content text,
 ///   tags text[],
 ///   image_url text,
+///   quote_post_id uuid references posts(id) on delete set null,
 ///   likes_count bigint default 0,
 ///   comments_count bigint default 0,
 ///   reposts_count bigint default 0,
@@ -213,16 +214,23 @@ class SupabaseService {
     required String content,
     required List<String> tags,
     String? imageUrl,
+    String? quotePostId,
   }) async {
     final data = await _client.from('posts').insert({
       'user_id': userId,
       'content': content,
       'tags': tags,
       'image_url': imageUrl ?? '',
+      'quote_post_id': quotePostId,
       'likes_count': 0,
       'comments_count': 0,
       'reposts_count': 0,
     }).select().single();
+
+    if (quotePostId != null && quotePostId.isNotEmpty) {
+      await _syncPostRepostCount(quotePostId);
+    }
+
     return data['id'].toString();
   }
 
@@ -363,6 +371,16 @@ class SupabaseService {
     await _client
         .from('posts')
         .update({'comments_count': (data as List).length}).eq('id', postId);
+  }
+
+  Future<void> _syncPostRepostCount(String postId) async {
+    final data = await _client
+        .from('posts')
+        .select('id')
+        .eq('quote_post_id', postId);
+    await _client
+        .from('posts')
+        .update({'reposts_count': (data as List).length}).eq('id', postId);
   }
 
   Future<void> _syncFollowCounts(String fromUid, String toUid) async {
