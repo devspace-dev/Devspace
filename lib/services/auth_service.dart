@@ -23,6 +23,39 @@ class AuthService {
   UserModel? get currentUser => _currentUser;
   Stream<UserModel?> get authStateChanges => _authStateController.stream;
 
+  String _friendlySignUpError(AuthException e) {
+    if (e is AuthApiException) {
+      if (e.code == 'over_email_send_rate_limit') {
+        return 'Supabase email confirmation is rate-limited right now. Wait about a minute before retrying, or disable "Confirm email" in Supabase for testing.';
+      }
+
+      if (e.code == 'user_already_exists' ||
+          e.message.toLowerCase().contains('already registered')) {
+        return 'This email is already registered. If you already confirmed it, switch to Sign in.';
+      }
+    }
+
+    return 'Sign-up failed: ${e.message}';
+  }
+
+  String _friendlySignInError(AuthException e) {
+    if (e is AuthApiException &&
+        (e.code == 'email_not_confirmed' ||
+            e.message.toLowerCase().contains('email not confirmed'))) {
+      return 'Confirm your email first, then sign in.';
+    }
+
+    return 'Sign-in failed: ${e.message}';
+  }
+
+  String? _friendlyDatabaseError(Object error) {
+    if (error is PostgrestException && error.code == 'PGRST204') {
+      return 'Supabase schema is incomplete. Run supabase/devspace_schema.sql in the Supabase SQL editor, then retry sign in.';
+    }
+
+    return null;
+  }
+
   Future<void> init() async {
     // Check current session
     final session = _supabase.auth.currentSession;
@@ -164,12 +197,27 @@ class AuthService {
       final user = res.user;
       if (user == null) return const AuthResult(error: 'Sign-up failed.');
 
+      if (res.session == null && user.emailConfirmedAt == null) {
+        return const AuthResult(
+          error:
+              'Account created, but email confirmation is enabled for this Supabase project. For testing, disable "Confirm email" in Supabase Auth settings. Otherwise confirm the email, then sign in.',
+        );
+      }
+
       _currentUser = await _loadOrCreateProfile(user);
       _authStateController.add(_currentUser);
 
       return AuthResult(user: _currentUser);
+    } on AuthException catch (e) {
+      return AuthResult(error: _friendlySignUpError(e));
+    } on PostgrestException catch (e) {
+      return AuthResult(
+        error: _friendlyDatabaseError(e) ?? 'Sign-up failed: ${e.message}',
+      );
     } catch (e) {
-      return AuthResult(error: 'Sign-up failed: $e');
+      return AuthResult(
+        error: _friendlyDatabaseError(e) ?? 'Sign-up failed: $e',
+      );
     }
   }
 
@@ -190,8 +238,16 @@ class AuthService {
       _authStateController.add(_currentUser);
 
       return AuthResult(user: _currentUser);
+    } on AuthException catch (e) {
+      return AuthResult(error: _friendlySignInError(e));
+    } on PostgrestException catch (e) {
+      return AuthResult(
+        error: _friendlyDatabaseError(e) ?? 'Sign-in failed: ${e.message}',
+      );
     } catch (e) {
-      return AuthResult(error: 'Sign-in failed: $e');
+      return AuthResult(
+        error: _friendlyDatabaseError(e) ?? 'Sign-in failed: $e',
+      );
     }
   }
 
