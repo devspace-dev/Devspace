@@ -8,6 +8,7 @@ import '../models/user_model.dart';
 import '../providers/posts_provider.dart';
 import '../providers/users_provider.dart';
 import '../providers/auth_provider.dart';
+import '../screens/profile_screen.dart';
 import '../theme/app_colors.dart';
 import '../utils/constants.dart';
 import 'user_avatar.dart';
@@ -71,7 +72,10 @@ class _PostCardState extends State<PostCard> {
           // Avatar + thread line
           Column(
             children: [
-              UserAvatar(user: user, size: 42, showRing: false),
+              GestureDetector(
+                onTap: () => _openProfile(context, user.id),
+                child: UserAvatar(user: user, size: 42, showRing: false),
+              ),
               if (_showComments)
                 Container(
                   width: 1.5, height: 60,
@@ -98,11 +102,17 @@ class _PostCardState extends State<PostCard> {
                         crossAxisAlignment: WrapCrossAlignment.center,
                         spacing: 6,
                         children: [
-                          Text(user.name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700, fontSize: 15, color: AppColors.text)),
-                          Text('@${user.handle}',
-                              style: const TextStyle(fontSize: 13, color: AppColors.text3)),
+                          GestureDetector(
+                            onTap: () => _openProfile(context, user.id),
+                            child: Text(user.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700, fontSize: 15, color: AppColors.text)),
+                          ),
+                          GestureDetector(
+                            onTap: () => _openProfile(context, user.id),
+                            child: Text('@${user.handle}',
+                                style: const TextStyle(fontSize: 13, color: AppColors.text3)),
+                          ),
                           const Text('·',
                               style: TextStyle(fontSize: 12, color: AppColors.text4)),
                           Text(timeago.format(post.createdAt, locale: 'en_short'),
@@ -359,6 +369,14 @@ class _PostCardState extends State<PostCard> {
           currentUserId: currentUserId,
         );
       },
+    );
+  }
+
+  void _openProfile(BuildContext context, String userId) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ProfileScreen(userId: userId),
+      ),
     );
   }
 
