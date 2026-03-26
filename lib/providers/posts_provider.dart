@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/comment_model.dart';
 import '../models/post_model.dart';
+import '../services/auth_service.dart';
 import '../services/supabase_service.dart';
 
 class PostsProvider extends ChangeNotifier {
@@ -32,12 +33,27 @@ class PostsProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    SupabaseService.instance.streamFeed().listen((newList) {
-      _posts = newList;
+    _feedSub = SupabaseService.instance.streamFeed().listen((newList) async {
+      final currentUser = AuthService.instance.currentUser;
+      if (currentUser == null) {
+        _posts = newList;
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
+
+      final likedPostIds =
+          await SupabaseService.instance.getLikedPostIds(currentUser.id);
+      _posts = newList
+          .map(
+            (post) => post.copyWith(
+              isLiked: likedPostIds.contains(post.id),
+            ),
+          )
+          .toList();
       _isLoading = false;
       notifyListeners();
     });
-
   }
 
   Future<void> addPost(String userId, String content, List<String> tags) async {
@@ -50,13 +66,32 @@ class PostsProvider extends ChangeNotifier {
   }
 
   Future<void> toggleLike(String postId, String userId) async {
-    final hasLiked = await SupabaseService.instance.hasLiked(postId, userId);
-    if (hasLiked) {
-      await SupabaseService.instance.unlikePost(postId, userId);
-    } else {
-      await SupabaseService.instance.likePost(postId, userId);
+    final postIndex = _posts.indexWhere((post) => post.id == postId);
+    if (postIndex == -1) return;
+
+    final post = _posts[postIndex];
+    final nextIsLiked = !post.isLiked;
+    final nextLikes = nextIsLiked
+        ? post.likes + 1
+        : (post.likes > 0 ? post.likes - 1 : 0);
+
+    _posts[postIndex] = post.copyWith(
+      isLiked: nextIsLiked,
+      likes: nextLikes,
+    );
+    notifyListeners();
+
+    try {
+      if (nextIsLiked) {
+        await SupabaseService.instance.likePost(postId, userId);
+      } else {
+        await SupabaseService.instance.unlikePost(postId, userId);
+      }
+    } catch (e) {
+      _posts[postIndex] = post;
+      _commentErrors[postId] = 'Failed to update like: $e';
+      notifyListeners();
     }
-    // Refresh feed or handle local update
   }
 
   Future<void> fetchComments(String postId, {bool force = false}) async {
@@ -94,6 +129,10 @@ class PostsProvider extends ChangeNotifier {
       await SupabaseService.instance.addComment(postId, userId, trimmedText);
       final comments = await SupabaseService.instance.getCommentsForPost(postId);
       _commentsByPost[postId] = comments;
+      _posts = _posts.map((post) {
+        if (post.id != postId) return post;
+        return post.copyWith(comments: comments.length);
+      }).toList();
       return true;
     } catch (e) {
       _commentErrors[postId] = 'Failed to post comment: $e';

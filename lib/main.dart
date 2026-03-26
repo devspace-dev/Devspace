@@ -1,7 +1,7 @@
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_colors.dart';
@@ -13,18 +13,20 @@ import 'providers/aura_provider.dart';
 import 'screens/profile_setup_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
-import 'services/supabase_service.dart';
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // ── IMPORTANT ──────────────────────────────────────────────────────────
-  // REPLACE with your actual Supabase credentials!
-  // ───────────────────────────────────────────────────────────────────────
-  const String supabaseUrl = 'https://hybvsgxqstnxamdkijsk.supabase.co';
-  const String supabaseAnonKey = 'sb_publishable_PawpVpaKL2oGSMNT92IzkA_wjiORWQ4';
+  const String supabaseUrl = String.fromEnvironment(
+    'SUPABASE_URL',
+    defaultValue: 'https://hybvsgxqstnxamdkijsk.supabase.co',
+  );
+  const String supabaseAnonKey = String.fromEnvironment(
+    'SUPABASE_ANON_KEY',
+    defaultValue: 'sb_publishable_PawpVpaKL2oGSMNT92IzkA_wjiORWQ4',
+  );
   
   try {
     await Supabase.initialize(

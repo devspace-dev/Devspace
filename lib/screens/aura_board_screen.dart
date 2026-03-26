@@ -22,9 +22,9 @@ class AuraBoardScreen extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 20, 16, 14),
           decoration: const BoxDecoration(
             border: Border(bottom: BorderSide(color: AppColors.border))),
-          child: Column(
+          child: const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
+            children: [
               Text('Aura Leaderboard',
                   style: TextStyle(
                     fontSize: 22, fontWeight: FontWeight.w900,

@@ -11,7 +11,7 @@
     *   Add RLS policies to allow authenticated users to upload/delete their own files.
 5.  **Environment Variables**:
     *   Get your `Project URL` and `anon public` key from Settings -> API.
-    *   Update `lib/main.dart` with these credentials.
+    *   Pass them using `--dart-define=SUPABASE_URL=...` and `--dart-define=SUPABASE_ANON_KEY=...`, or keep the local dev defaults in `lib/main.dart`.
 6.  **Database Triggers (Optional but Recommended)**:
     *   Create a trigger to automatically insert a row into `public.users` when a user signs up.
     *   Create triggers for incrementing/decrementing follow and like counts.

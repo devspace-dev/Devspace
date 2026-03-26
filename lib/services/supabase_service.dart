@@ -15,12 +15,15 @@ import '../models/comment_model.dart';
 ///   aura bigint default 0,
 ///   role text,
 ///   year text,
+///   branch text,
 ///   building text,
 ///   stack text[],
 ///   followers bigint default 0,
 ///   following bigint default 0,
 ///   bio text,
 ///   college text,
+///   github_handle text default '',
+///   profile_completed boolean default false,
 ///   created_at timestamp with time zone default timezone('utc'::text, now())
 /// );
 ///
@@ -50,6 +53,14 @@ import '../models/comment_model.dart';
 ///   user_id uuid references users(id) on delete cascade,
 ///   created_at timestamp with time zone default timezone('utc'::text, now()),
 ///   unique(post_id, user_id)
+/// );
+///
+/// create table comments (
+///   id uuid default gen_random_uuid() primary key,
+///   post_id uuid references posts(id) on delete cascade,
+///   user_id uuid references users(id) on delete cascade,
+///   content text not null,
+///   created_at timestamp with time zone default timezone('utc'::text, now())
 /// );
 /// 
 /// create table notifications (
@@ -110,7 +121,15 @@ class SupabaseService {
     required String email,
     required String handle,
     String avatar = '',
+    String role = 'Student',
+    String year = '',
+    String branch = '',
+    String building = '',
+    List<String> stack = const [],
+    String bio = '',
     String college = '',
+    String githubHandle = '',
+    bool profileCompleted = false,
   }) async {
     await _client.from('users').insert({
       'id': id,
@@ -120,14 +139,17 @@ class SupabaseService {
       'avatar': avatar,
       'color': 0xFF7C3AED,
       'aura': 0,
-      'role': 'Developer',
-      'year': '1st Year',
-      'building': 'Not set',
-      'stack': [],
+      'role': role,
+      'year': year,
+      'branch': branch,
+      'building': building,
+      'stack': stack,
       'followers': 0,
       'following': 0,
-      'bio': '',
+      'bio': bio,
       'college': college,
+      'github_handle': githubHandle,
+      'profile_completed': profileCompleted,
     });
   }
 
@@ -143,6 +165,16 @@ class SupabaseService {
         .map((list) => list.map((d) => UserModel.fromJson(d)).toList());
   }
 
+  Future<Set<String>> getFollowingIds(String userId) async {
+    final data = await _client
+        .from('follows')
+        .select('following_id')
+        .eq('follower_id', userId);
+    return (data as List)
+        .map((row) => row['following_id'].toString())
+        .toSet();
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
   // SOCIAL
   // ══════════════════════════════════════════════════════════════════════════
@@ -152,13 +184,14 @@ class SupabaseService {
       'follower_id': fromUid,
       'following_id': toUid,
     });
-    // Triggers or RPC should be used to increment counts for better consistency
+    await _syncFollowCounts(fromUid, toUid);
   }
 
   Future<void> unfollow(String fromUid, String toUid) async {
     await _client.from('follows').delete()
       .eq('follower_id', fromUid)
       .eq('following_id', toUid);
+    await _syncFollowCounts(fromUid, toUid);
   }
 
   Future<bool> isFollowing(String fromUid, String toUid) async {
@@ -186,6 +219,9 @@ class SupabaseService {
       'content': content,
       'tags': tags,
       'image_url': imageUrl ?? '',
+      'likes_count': 0,
+      'comments_count': 0,
+      'reposts_count': 0,
     }).select().single();
     return data['id'].toString();
   }
@@ -217,10 +253,12 @@ class SupabaseService {
       'post_id': postId,
       'user_id': uid,
     });
+    await _syncPostLikeCount(postId);
   }
 
   Future<void> unlikePost(String postId, String uid) async {
     await _client.from('likes').delete().eq('post_id', postId).eq('user_id', uid);
+    await _syncPostLikeCount(postId);
   }
 
   Future<bool> hasLiked(String postId, String uid) async {
@@ -231,6 +269,16 @@ class SupabaseService {
         .eq('user_id', uid)
         .maybeSingle();
     return data != null;
+  }
+
+  Future<Set<String>> getLikedPostIds(String userId) async {
+    final data = await _client
+        .from('likes')
+        .select('post_id')
+        .eq('user_id', userId);
+    return (data as List)
+        .map((row) => row['post_id'].toString())
+        .toSet();
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -275,10 +323,48 @@ class SupabaseService {
   }
 
   Future<void> addComment(String postId, String userId, String content) async {
+    final trimmed = content.trim();
+    if (trimmed.isEmpty) {
+      throw StateError('Comment cannot be empty.');
+    }
     await _client.from('comments').insert({
       'post_id': postId,
       'user_id': userId,
-      'content': content,
+      'content': trimmed,
     });
+    await _syncPostCommentCount(postId);
+  }
+
+  Future<void> _syncPostLikeCount(String postId) async {
+    final data = await _client.from('likes').select('id').eq('post_id', postId);
+    await _client
+        .from('posts')
+        .update({'likes_count': (data as List).length}).eq('id', postId);
+  }
+
+  Future<void> _syncPostCommentCount(String postId) async {
+    final data =
+        await _client.from('comments').select('id').eq('post_id', postId);
+    await _client
+        .from('posts')
+        .update({'comments_count': (data as List).length}).eq('id', postId);
+  }
+
+  Future<void> _syncFollowCounts(String fromUid, String toUid) async {
+    final following = await _client
+        .from('follows')
+        .select('id')
+        .eq('follower_id', fromUid);
+    final followers = await _client
+        .from('follows')
+        .select('id')
+        .eq('following_id', toUid);
+
+    await _client.from('users').update({
+      'following': (following as List).length,
+    }).eq('id', fromUid);
+    await _client.from('users').update({
+      'followers': (followers as List).length,
+    }).eq('id', toUid);
   }
 }

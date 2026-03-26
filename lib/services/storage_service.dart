@@ -64,4 +64,9 @@ class StorageService {
   Future<void> deleteFile(String path) async {
     await _supabase.storage.from('images').remove([path]);
   }
+
+  String resolvePublicUrl(String pathOrUrl) {
+    if (pathOrUrl.startsWith('http')) return pathOrUrl;
+    return _supabase.storage.from('images').getPublicUrl(pathOrUrl);
+  }
 }

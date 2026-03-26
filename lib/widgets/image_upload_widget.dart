@@ -1,12 +1,11 @@
 import 'dart:io';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../services/storage_service.dart';
 import '../theme/app_colors.dart';
 
 /// A tappable image widget that lets the user pick and upload a photo.
-/// [onUploaded] is called with the Firebase Storage download URL.
+/// [onUploaded] is called with the Supabase Storage public URL.
 class ImageUploadWidget extends StatefulWidget {
   final String? existingUrl;
   final String uploadPath;           // e.g. 'post_images/postId.jpg'
@@ -101,30 +100,14 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
       imageContent = Image.file(_localFile!, fit: BoxFit.cover,
           width: widget.size, height: widget.size);
     } else if (widget.existingUrl != null && widget.existingUrl!.isNotEmpty) {
-      if (widget.existingUrl!.startsWith('http')) {
-        imageContent = CachedNetworkImage(
-          imageUrl: widget.existingUrl!,
-          fit: BoxFit.cover,
-          width: widget.size, height: widget.size,
-          placeholder: (_, __) => Container(color: AppColors.bg3),
-          errorWidget: (_, __, ___) => _placeholder(),
-        );
-      } else {
-        // Assume it's a MongoDB path - fetch Base64
-        imageContent = FutureBuilder<String?>(
-          future: StorageService.instance.getImageBase64(widget.existingUrl!),
-          builder: (context, snapshot) {
-            if (snapshot.hasData && snapshot.data != null) {
-              return Image.memory(
-                base64Decode(snapshot.data!),
-                fit: BoxFit.cover,
-                width: widget.size, height: widget.size,
-              );
-            }
-            return _placeholder();
-          },
-        );
-      }
+      imageContent = CachedNetworkImage(
+        imageUrl: StorageService.instance.resolvePublicUrl(widget.existingUrl!),
+        fit: BoxFit.cover,
+        width: widget.size,
+        height: widget.size,
+        placeholder: (_, __) => Container(color: AppColors.bg3),
+        errorWidget: (_, __, ___) => _placeholder(),
+      );
     } else {
       imageContent = _placeholder();
     }

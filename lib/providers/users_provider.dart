@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
+import '../services/auth_service.dart';
 import '../services/supabase_service.dart';
 
 class UsersProvider extends ChangeNotifier {
@@ -18,8 +19,21 @@ class UsersProvider extends ChangeNotifier {
     }
     _isLoading = true;
     notifyListeners();
-    SupabaseService.instance.streamUsers().listen((newList) {
-      _users = newList;
+    _usersSub = SupabaseService.instance.streamUsers().listen((newList) async {
+      final currentUser = AuthService.instance.currentUser;
+      if (currentUser == null) {
+        _users = newList;
+      } else {
+        final followingIds =
+            await SupabaseService.instance.getFollowingIds(currentUser.id);
+        _users = newList
+            .map(
+              (user) => user.copyWith(
+                isFollowing: followingIds.contains(user.id),
+              ),
+            )
+            .toList();
+      }
       _isLoading = false;
       notifyListeners();
     });
@@ -34,11 +48,31 @@ class UsersProvider extends ChangeNotifier {
   }
 
   Future<void> toggleFollow(String fromUid, String toUid) async {
-    final following = await SupabaseService.instance.isFollowing(fromUid, toUid);
-    if (following) {
-      await SupabaseService.instance.unfollow(fromUid, toUid);
-    } else {
-      await SupabaseService.instance.follow(fromUid, toUid);
+    final userIndex = _users.indexWhere((user) => user.id == toUid);
+    final existing = userIndex == -1 ? null : _users[userIndex];
+    final isFollowing = existing?.isFollowing ?? false;
+
+    if (existing != null) {
+      _users[userIndex] = existing.copyWith(
+        isFollowing: !isFollowing,
+        followers: !isFollowing
+            ? existing.followers + 1
+            : (existing.followers > 0 ? existing.followers - 1 : 0),
+      );
+      notifyListeners();
+    }
+
+    try {
+      if (isFollowing) {
+        await SupabaseService.instance.unfollow(fromUid, toUid);
+      } else {
+        await SupabaseService.instance.follow(fromUid, toUid);
+      }
+    } catch (_) {
+      if (existing != null) {
+        _users[userIndex] = existing;
+        notifyListeners();
+      }
     }
   }
 

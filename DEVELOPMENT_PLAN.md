@@ -12,14 +12,14 @@ Goal:
 
 Work:
 - replace placeholder local setup assumptions with real local-dev instructions
-- fix runtime/config blockers: MongoDB URI handling, missing setup notes, platform expectations
+- fix runtime/config blockers: Supabase credentials, missing setup notes, platform expectations
 - add sign-out/account exit path in the UI
 - stabilize profile/follow/like/comment state mismatches that already exist
 - stop treating web as a default target until the backend architecture supports it safely
 
 Founder split:
 - Founder A: UI cleanup, sign-out/settings surface, feed/profile interaction polish
-- Founder B: auth/runtime cleanup, MongoDB state consistency, local setup/documentation
+- Founder B: auth/runtime cleanup, Supabase state consistency, local setup/documentation
 
 Acceptance:
 - both founders can run the app locally
@@ -37,10 +37,10 @@ Work:
   - handle
   - year / branch
   - building
-  - stack
-  - bio
-  - GitHub handle
-- persist profile completion to MongoDB
+- stack
+- bio
+- GitHub handle
+- persist profile completion to Supabase
 - make People search/discovery depend on real profile data, not placeholders
 
 Founder split:
@@ -48,7 +48,7 @@ Founder split:
 - Founder B: persistence, validation, state refresh, handle uniqueness rules
 
 Acceptance:
-- a new user can complete a real profile without touching MongoDB manually
+- a new user can complete a real profile without touching Supabase manually
 - profile changes appear correctly in Profile and People screens
 
 ## Phase 3: Social Interaction MVP
@@ -64,7 +64,7 @@ Work:
 
 Founder split:
 - Founder A: post/comment UX, interaction states, empty/loading polish
-- Founder B: MongoDB read/write paths, counters, interaction persistence
+- Founder B: Supabase read/write paths, counters, interaction persistence
 
 Acceptance:
 - users can post, like, comment, follow, and browse without obvious broken states
@@ -107,5 +107,5 @@ Why this is the single best next move:
 ## Assumptions
 - MVP means a closed beta for one college, not app-store readiness
 - mobile is the real target for MVP
-- web is not required for MVP while `mongo_dart` is used directly in the client
+- web is not required for MVP while the current product is optimized around mobile-first flows
 - Q&A is optional for MVP if core social/profile flows are still weak

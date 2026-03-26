@@ -93,26 +93,6 @@ class _LoginScreenState extends State<LoginScreen>
     });
   }
 
-  Future<void> _signInWithGoogle() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-
-    final result = await AuthService.instance.signInWithGoogle();
-    if (!mounted) return;
-
-    if (result.success) {
-      widget.onSuccess();
-      return;
-    }
-
-    setState(() {
-      _loading = false;
-      _error = result.error;
-    });
-  }
-
   void _switchMode(_AuthMode mode) {
     if (_mode == mode) return;
     setState(() {
@@ -158,7 +138,7 @@ class _LoginScreenState extends State<LoginScreen>
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: AppColors.primary.withOpacity(0.3),
+                                  color: AppColors.primary.withValues(alpha: 0.3),
                                   blurRadius: 24,
                                   offset: const Offset(0, 8),
                                 ),
@@ -217,7 +197,7 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                         const SizedBox(height: 20),
                         if (_isSignUp) ...[
-                          _FieldLabel('NAME'),
+                          const _FieldLabel('NAME'),
                           const SizedBox(height: 8),
                           TextField(
                             controller: _nameCtrl,
@@ -229,7 +209,7 @@ class _LoginScreenState extends State<LoginScreen>
                           ),
                           const SizedBox(height: 14),
                         ],
-                        _FieldLabel('EMAIL'),
+                        const _FieldLabel('EMAIL'),
                         const SizedBox(height: 8),
                         TextField(
                           controller: _emailCtrl,
@@ -241,7 +221,7 @@ class _LoginScreenState extends State<LoginScreen>
                           ),
                         ),
                         const SizedBox(height: 14),
-                        _FieldLabel('PASSWORD'),
+                        const _FieldLabel('PASSWORD'),
                         const SizedBox(height: 8),
                         TextField(
                           controller: _passwordCtrl,
@@ -260,9 +240,11 @@ class _LoginScreenState extends State<LoginScreen>
                             width: double.infinity,
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: Colors.red.withOpacity(0.1),
+                              color: Colors.red.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.red.withOpacity(0.3)),
+                              border: Border.all(
+                                color: Colors.red.withValues(alpha: 0.3),
+                              ),
                             ),
                             child: Text(
                               _error!,
@@ -284,8 +266,8 @@ class _LoginScreenState extends State<LoginScreen>
                           ),
                         ),
                         const SizedBox(height: 16),
-                        Row(
-                          children: const [
+                        const Row(
+                          children: [
                             Expanded(child: Divider(color: AppColors.border)),
                             Padding(
                               padding: EdgeInsets.symmetric(horizontal: 12),
@@ -308,7 +290,7 @@ class _LoginScreenState extends State<LoginScreen>
                                   ),
                                 )
                               : OutlinedButton(
-                                  onPressed: _signInWithGoogle,
+                                  onPressed: null,
                                   style: OutlinedButton.styleFrom(
                                     side: const BorderSide(color: AppColors.border2),
                                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -343,8 +325,8 @@ class _LoginScreenState extends State<LoginScreen>
                         const SizedBox(height: 16),
                         Text(
                           _isSignUp
-                              ? 'Create an account with email/password or use your Google account.'
-                              : 'Use whichever sign-in method you prefer. Your DevSpace profile stays tied to one Mongo user record.',
+                              ? 'Create your account with email and password. Google sign-in is coming soon.'
+                              : 'Use email and password for now. Google sign-in is temporarily disabled during the Supabase migration.',
                           style: const TextStyle(
                             fontSize: 12,
                             color: AppColors.text3,

@@ -209,8 +209,12 @@ class _QAScreenState extends State<QAScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
           decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.08),
-            border: Border(bottom: BorderSide(color: AppColors.primary.withOpacity(0.2))),
+            color: AppColors.primary.withValues(alpha: 0.08),
+            border: Border(
+              bottom: BorderSide(
+                color: AppColors.primary.withValues(alpha: 0.2),
+              ),
+            ),
           ),
           child: Row(
             children: [
@@ -289,9 +293,11 @@ class _QAScreenState extends State<QAScreen> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: AppColors.solved.withOpacity(0.12),
+                                    color: AppColors.solved.withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(99),
-                                    border: Border.all(color: AppColors.solved.withOpacity(0.3)),
+                                    border: Border.all(
+                                      color: AppColors.solved.withValues(alpha: 0.3),
+                                    ),
                                   ),
                                   child: const Text('✓ Solved',
                                       style: TextStyle(
@@ -321,7 +327,7 @@ class _QAScreenState extends State<QAScreen> {
                                       fontWeight: FontWeight.w500))).toList(),
                               ),
                               const Spacer(),
-                              Icon(Icons.chat_bubble_outline_rounded,
+                              const Icon(Icons.chat_bubble_outline_rounded,
                                   size: 14, color: AppColors.text3),
                               const SizedBox(width: 4),
                               Text('${q.answerCount}',

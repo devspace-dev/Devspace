@@ -9,8 +9,7 @@ Build a stable MVP for launch inside one college, with real profiles, posting, f
 - [x] App shell with 5 tabs: Home, People, Q&A, Aura Board, Profile
 - [x] Splash screen and auth-gated app entry
 - [x] Email/password sign up and sign in
-- [x] Google sign-in flow
-- [x] MongoDB-backed user/session persistence
+- [x] Supabase-backed auth/session persistence
 - [x] Feed list rendering from backend stream
 - [x] Create text posts with tags
 - [x] People directory with search and branch filter
@@ -20,27 +19,27 @@ Build a stable MVP for launch inside one college, with real profiles, posting, f
 - [x] Basic ask-question UI
 - [x] Basic GitHub activity card scaffold
 - [x] Notification and image-upload scaffolding
+- [x] Onboarding / profile setup flow
+- [x] Editable profile flow
+- [x] Persistent comments in the feed
 
 ---
 
 ## In Progress
-- [ ] Real onboarding / profile setup flow
-- [ ] Editable profile flow
-- [ ] Fully persistent comments
 - [ ] Consistent likes state in the UI
 - [ ] Repost / bookmark persistence
 - [ ] Persistent Q&A data
 - [ ] Clean local runtime/setup flow
+- [ ] Supabase docs / schema polish
 
 ---
 
 ## Next Priority
-1. Build onboarding + editable profile setup
-2. Make comments fully persistent and visible in the feed
-3. Stabilize likes and follows state in the UI
+1. Stabilize likes and follows state in the UI
+2. Add image support to real post creation
+3. Add sign-out and basic account/session controls
 4. Add image support to real post creation
-5. Add sign-out and basic account/session controls
-6. Persist Q&A to MongoDB or cut it from MVP
+5. Persist Q&A to Supabase or cut it from MVP
 7. Add post types:
    - Project Update
    - Doubt / Question
