@@ -227,10 +227,6 @@ class SupabaseService {
       'reposts_count': 0,
     }).select().single();
 
-    if (quotePostId != null && quotePostId.isNotEmpty) {
-      await _syncPostRepostCount(quotePostId);
-    }
-
     return data['id'].toString();
   }
 
@@ -371,16 +367,6 @@ class SupabaseService {
     await _client
         .from('posts')
         .update({'comments_count': (data as List).length}).eq('id', postId);
-  }
-
-  Future<void> _syncPostRepostCount(String postId) async {
-    final data = await _client
-        .from('posts')
-        .select('id')
-        .eq('quote_post_id', postId);
-    await _client
-        .from('posts')
-        .update({'reposts_count': (data as List).length}).eq('id', postId);
   }
 
   Future<void> _syncFollowCounts(String fromUid, String toUid) async {

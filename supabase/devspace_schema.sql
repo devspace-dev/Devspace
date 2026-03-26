@@ -174,6 +174,55 @@ create index if not exists idx_likes_post_id on public.likes(post_id);
 create index if not exists idx_follows_follower_id on public.follows(follower_id);
 create index if not exists idx_follows_following_id on public.follows(following_id);
 
+create or replace function public.sync_repost_counts()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if tg_op = 'DELETE' and old.quote_post_id is not null then
+    update public.posts
+    set reposts_count = (
+      select count(*)
+      from public.posts
+      where quote_post_id = old.quote_post_id
+    )
+    where id = old.quote_post_id;
+  elsif tg_op = 'UPDATE'
+     and old.quote_post_id is not null
+     and old.quote_post_id is distinct from new.quote_post_id then
+    update public.posts
+    set reposts_count = (
+      select count(*)
+      from public.posts
+      where quote_post_id = old.quote_post_id
+    )
+    where id = old.quote_post_id;
+  end if;
+
+  if tg_op in ('INSERT', 'UPDATE') and new.quote_post_id is not null then
+    update public.posts
+    set reposts_count = (
+      select count(*)
+      from public.posts
+      where quote_post_id = new.quote_post_id
+    )
+    where id = new.quote_post_id;
+  end if;
+
+  return coalesce(new, old);
+end;
+$$;
+
+drop trigger if exists trg_sync_repost_counts on public.posts;
+
+create trigger trg_sync_repost_counts
+after insert or update of quote_post_id or delete
+on public.posts
+for each row
+execute function public.sync_repost_counts();
+
 alter table public.users enable row level security;
 alter table public.posts enable row level security;
 alter table public.follows enable row level security;
