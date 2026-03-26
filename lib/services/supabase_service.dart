@@ -244,6 +244,15 @@ class SupabaseService {
         .map((list) => list.map((d) => PostModel.fromJson(d)).toList());
   }
 
+  Future<PostModel?> getPostById(String postId) async {
+    final data = await _client
+        .from('posts')
+        .select()
+        .eq('id', postId)
+        .maybeSingle();
+    return data == null ? null : PostModel.fromJson(data);
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
   // LIKES & COMMENTS
   // ══════════════════════════════════════════════════════════════════════════

@@ -12,6 +12,8 @@ class PostsProvider extends ChangeNotifier {
   final Map<String, bool> _commentsLoading = {};
   final Map<String, bool> _commentSubmitting = {};
   final Map<String, String?> _commentErrors = {};
+  final Map<String, bool> _likeUpdating = {};
+  final Map<String, String?> _likeErrors = {};
   bool _isLoading = false;
   StreamSubscription<List<PostModel>>? _feedSub;
 
@@ -25,6 +27,8 @@ class PostsProvider extends ChangeNotifier {
   bool isCommentSubmitting(String postId) =>
       _commentSubmitting[postId] ?? false;
   String? commentError(String postId) => _commentErrors[postId];
+  bool isLikeUpdating(String postId) => _likeUpdating[postId] ?? false;
+  String? likeError(String postId) => _likeErrors[postId];
 
   Future<void> fetchFeed() async {
     if (_feedSub != null) {
@@ -45,11 +49,7 @@ class PostsProvider extends ChangeNotifier {
       final likedPostIds =
           await SupabaseService.instance.getLikedPostIds(currentUser.id);
       _posts = newList
-          .map(
-            (post) => post.copyWith(
-              isLiked: likedPostIds.contains(post.id),
-            ),
-          )
+          .map((post) => _mergeHydratedPost(post, likedPostIds))
           .toList();
       _isLoading = false;
       notifyListeners();
@@ -66,6 +66,8 @@ class PostsProvider extends ChangeNotifier {
   }
 
   Future<void> toggleLike(String postId, String userId) async {
+    if (_likeUpdating[postId] == true) return;
+
     final postIndex = _posts.indexWhere((post) => post.id == postId);
     if (postIndex == -1) return;
 
@@ -79,6 +81,8 @@ class PostsProvider extends ChangeNotifier {
       isLiked: nextIsLiked,
       likes: nextLikes,
     );
+    _likeUpdating[postId] = true;
+    _likeErrors[postId] = null;
     notifyListeners();
 
     try {
@@ -87,9 +91,12 @@ class PostsProvider extends ChangeNotifier {
       } else {
         await SupabaseService.instance.unlikePost(postId, userId);
       }
+      await _refreshPostLikeState(postId, userId);
     } catch (e) {
       _posts[postIndex] = post;
-      _commentErrors[postId] = 'Failed to update like: $e';
+      _likeErrors[postId] = 'Failed to update like: $e';
+    } finally {
+      _likeUpdating[postId] = false;
       notifyListeners();
     }
   }
@@ -164,6 +171,57 @@ class PostsProvider extends ChangeNotifier {
       return post.copyWith(isBookmarked: !post.isBookmarked);
     }).toList();
     notifyListeners();
+  }
+
+  PostModel _mergeHydratedPost(
+    PostModel hydratedPost,
+    Set<String> likedPostIds,
+  ) {
+    final existingPost = _findPost(hydratedPost.id);
+    if (existingPost == null) {
+      return hydratedPost.copyWith(
+        isLiked: likedPostIds.contains(hydratedPost.id),
+      );
+    }
+
+    if (_likeUpdating[hydratedPost.id] == true) {
+      return hydratedPost.copyWith(
+        isLiked: existingPost.isLiked,
+        likes: existingPost.likes,
+        isBookmarked: existingPost.isBookmarked,
+        isReposted: existingPost.isReposted,
+      );
+    }
+
+    return hydratedPost.copyWith(
+      isLiked: likedPostIds.contains(hydratedPost.id),
+      isBookmarked: existingPost.isBookmarked,
+      isReposted: existingPost.isReposted,
+    );
+  }
+
+  Future<void> _refreshPostLikeState(String postId, String userId) async {
+    final refreshedPost = await SupabaseService.instance.getPostById(postId);
+    if (refreshedPost == null) return;
+
+    final isLiked = await SupabaseService.instance.hasLiked(postId, userId);
+    _posts = _posts.map((post) {
+      if (post.id != postId) return post;
+      return refreshedPost.copyWith(
+        isLiked: isLiked,
+        isBookmarked: post.isBookmarked,
+        isReposted: post.isReposted,
+      );
+    }).toList();
+    _likeErrors[postId] = null;
+  }
+
+  PostModel? _findPost(String postId) {
+    try {
+      return _posts.firstWhere((post) => post.id == postId);
+    } catch (_) {
+      return null;
+    }
   }
 
   @override

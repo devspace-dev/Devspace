@@ -224,7 +224,17 @@ class AuthService {
     await _supabase.auth.signOut();
     _currentUser = null;
     _authStateController.add(null);
+  }
 
+  Future<void> refreshCurrentUser() async {
+    final user = _currentUser;
+    if (user == null) return;
+
+    final refreshedUser = await SupabaseService.instance.getUserById(user.id);
+    if (refreshedUser == null) return;
+
+    _currentUser = refreshedUser;
+    _authStateController.add(refreshedUser);
   }
 
   Future<AuthResult> updateCurrentUserProfile({

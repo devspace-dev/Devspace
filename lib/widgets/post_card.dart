@@ -44,6 +44,7 @@ class _PostCardState extends State<PostCard> {
     final commentsLoading = postsP.isCommentsLoading(post.id);
     final commentSubmitting = postsP.isCommentSubmitting(post.id);
     final commentError = postsP.commentError(post.id);
+    final likeUpdating = postsP.isLikeUpdating(post.id);
 
     return Container(
       decoration: const BoxDecoration(
@@ -164,7 +165,13 @@ class _PostCardState extends State<PostCard> {
                       count: post.likes,
                       active: post.isLiked,
                       activeColor: AppColors.like,
-                      onTap: () => context.read<PostsProvider>().toggleLike(post.id, me.id),
+                      disabled: likeUpdating,
+                      onTap: () => _handleLikeTap(
+                        context,
+                        postsP,
+                        post.id,
+                        me.id,
+                      ),
                     ),
                     _ActionBtn(
                       icon: Icons.bookmark_border_rounded,
@@ -293,6 +300,23 @@ class _PostCardState extends State<PostCard> {
     _commentCtrl.clear();
   }
 
+  Future<void> _handleLikeTap(
+    BuildContext context,
+    PostsProvider postsProvider,
+    String postId,
+    String userId,
+  ) async {
+    await postsProvider.toggleLike(postId, userId);
+    if (!context.mounted) return;
+
+    final error = postsProvider.likeError(postId);
+    if (error == null) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(error)),
+    );
+  }
+
   UserModel _commentUser(
     UsersProvider usersProvider,
     UserModel currentUser,
@@ -397,17 +421,19 @@ class _ActionBtn extends StatelessWidget {
   final bool active;
   final Color activeColor;
   final VoidCallback onTap;
+  final bool disabled;
 
   const _ActionBtn({
     required this.icon, required this.activeIcon,
     required this.count, required this.active,
     required this.activeColor, required this.onTap,
+    this.disabled = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: disabled ? null : onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Row(
@@ -415,7 +441,9 @@ class _ActionBtn extends StatelessWidget {
             Icon(
               active ? activeIcon : icon,
               size: 19,
-              color: active ? activeColor : AppColors.text3,
+              color: disabled
+                  ? AppColors.text4
+                  : (active ? activeColor : AppColors.text3),
             ),
             if (count != null) ...[
               const SizedBox(width: 4),
@@ -423,7 +451,9 @@ class _ActionBtn extends StatelessWidget {
                 '$count',
                 style: TextStyle(
                   fontSize: 13,
-                  color: active ? activeColor : AppColors.text3,
+                  color: disabled
+                      ? AppColors.text4
+                      : (active ? activeColor : AppColors.text3),
                   fontWeight: FontWeight.w600,
                 ),
               ),

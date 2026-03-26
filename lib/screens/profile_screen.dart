@@ -69,7 +69,19 @@ class ProfileScreen extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(right: 12),
                   child: GestureDetector(
-                    onTap: () => usersP.toggleFollow(me.id, user.id),
+                    onTap: usersP.isFollowUpdating(user.id)
+                        ? null
+                        : () async {
+                            await usersP.toggleFollow(me.id, user.id);
+                            if (!context.mounted) return;
+
+                            final error = usersP.followError(user.id);
+                            if (error == null) return;
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(error)),
+                            );
+                          },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
                       decoration: BoxDecoration(
@@ -79,7 +91,9 @@ class ProfileScreen extends StatelessWidget {
                           color: user.isFollowing ? AppColors.border2 : Colors.white),
                       ),
                       child: Text(
-                        user.isFollowing ? 'Following' : 'Follow',
+                        usersP.isFollowUpdating(user.id)
+                            ? 'Saving...'
+                            : (user.isFollowing ? 'Following' : 'Follow'),
                         style: TextStyle(
                           fontSize: 13, fontWeight: FontWeight.w700,
                           color: user.isFollowing ? AppColors.text : AppColors.bg,
