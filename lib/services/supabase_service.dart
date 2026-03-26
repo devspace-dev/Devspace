@@ -226,6 +226,12 @@ class SupabaseService {
     return data['id'].toString();
   }
 
+  Future<void> updatePostImage(String postId, String imageUrl) async {
+    await _client
+        .from('posts')
+        .update({'image_url': imageUrl}).eq('id', postId);
+  }
+
   Stream<List<PostModel>> streamFeed() {
     return _client
         .from('posts')

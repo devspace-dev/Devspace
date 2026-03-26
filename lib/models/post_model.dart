@@ -1,4 +1,3 @@
-
 class PostModel {
   final String id;
   final String userId;
@@ -29,6 +28,7 @@ class PostModel {
   });
 
   PostModel copyWith({
+    String? imageUrl,
     int? likes,
     int? comments,
     int? reposts,
@@ -41,7 +41,7 @@ class PostModel {
       userId: userId,
       content: content,
       tags: tags,
-      imageUrl: imageUrl,
+      imageUrl: imageUrl ?? this.imageUrl,
       createdAt: createdAt,
       likes: likes ?? this.likes,
       comments: comments ?? this.comments,

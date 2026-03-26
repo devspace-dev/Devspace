@@ -179,7 +179,13 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
 /// Compact inline image attach button for the compose box.
 class PostImagePicker extends StatefulWidget {
   final void Function(File file) onPicked;
-  const PostImagePicker({super.key, required this.onPicked});
+  final VoidCallback? onCleared;
+
+  const PostImagePicker({
+    super.key,
+    required this.onPicked,
+    this.onCleared,
+  });
 
   @override
   State<PostImagePicker> createState() => _PostImagePickerState();
@@ -208,7 +214,10 @@ class _PostImagePickerState extends State<PostImagePicker> {
           Positioned(
             top: 6, right: 6,
             child: GestureDetector(
-              onTap: () => setState(() => _preview = null),
+              onTap: () {
+                setState(() => _preview = null);
+                widget.onCleared?.call();
+              },
               child: Container(
                 padding: const EdgeInsets.all(4),
                 decoration: const BoxDecoration(

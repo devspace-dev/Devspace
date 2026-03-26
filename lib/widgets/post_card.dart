@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../models/comment_model.dart';
@@ -120,6 +121,44 @@ class _PostCardState extends State<PostCard> {
                     ),
                   ),
                 )),
+                if (post.imageUrl != null && post.imageUrl!.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 260),
+                      child: CachedNetworkImage(
+                        imageUrl: post.imageUrl!,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(
+                          width: double.infinity,
+                          height: 220,
+                          color: AppColors.bg3,
+                          alignment: Alignment.center,
+                          child: const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                        errorWidget: (_, __, ___) => Container(
+                          width: double.infinity,
+                          height: 220,
+                          color: AppColors.bg3,
+                          alignment: Alignment.center,
+                          child: const Text(
+                            'Image unavailable',
+                            style: TextStyle(
+                              color: AppColors.text3,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 10),
 
                 // Tags

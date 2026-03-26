@@ -1,10 +1,24 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import '../models/comment_model.dart';
 import '../models/post_model.dart';
 import '../services/auth_service.dart';
+import '../services/storage_service.dart';
 import '../services/supabase_service.dart';
+
+class PostCreateResult {
+  final bool success;
+  final String? error;
+  final String? warning;
+
+  const PostCreateResult({
+    required this.success,
+    this.error,
+    this.warning,
+  });
+}
 
 class PostsProvider extends ChangeNotifier {
   List<PostModel> _posts = [];
@@ -56,13 +70,41 @@ class PostsProvider extends ChangeNotifier {
     });
   }
 
-  Future<void> addPost(String userId, String content, List<String> tags) async {
-    await SupabaseService.instance.createPost(
-      userId: userId,
-      content: content,
-      tags: tags,
-    );
-    // Stream will handle the update
+  Future<PostCreateResult> addPost(
+    String userId,
+    String content,
+    List<String> tags, {
+    File? imageFile,
+  }) async {
+    try {
+      final postId = await SupabaseService.instance.createPost(
+        userId: userId,
+        content: content,
+        tags: tags,
+      );
+
+      if (imageFile == null) {
+        return const PostCreateResult(success: true);
+      }
+
+      try {
+        final imageUrl =
+            await StorageService.instance.uploadPostImage(postId, imageFile);
+        await SupabaseService.instance.updatePostImage(postId, imageUrl);
+        return const PostCreateResult(success: true);
+      } catch (e) {
+        return PostCreateResult(
+          success: true,
+          warning:
+              'Your post was published, but the image failed to upload: $e',
+        );
+      }
+    } catch (e) {
+      return PostCreateResult(
+        success: false,
+        error: 'Failed to publish post: $e',
+      );
+    }
   }
 
   Future<void> toggleLike(String postId, String userId) async {
