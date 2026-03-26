@@ -344,7 +344,7 @@ class _LoginScreenState extends State<LoginScreen>
                         Text(
                           _isSignUp
                               ? 'Create an account with email/password or use your Google account.'
-                              : 'Use whichever sign-in method you prefer. Your DevSpace profile stays tied to one Mongo user record.',
+                              : 'Use whichever sign-in method you prefer. Your DevSpace profile stays tied to one account.',
                           style: const TextStyle(
                             fontSize: 12,
                             color: AppColors.text3,
