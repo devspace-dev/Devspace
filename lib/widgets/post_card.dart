@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:timeago/timeago.dart' as timeago;
+import '../models/comment_model.dart';
 import '../models/post_model.dart';
+import '../models/user_model.dart';
 import '../providers/posts_provider.dart';
 import '../providers/users_provider.dart';
 import '../providers/auth_provider.dart';
@@ -20,7 +22,6 @@ class PostCard extends StatefulWidget {
 class _PostCardState extends State<PostCard> {
   bool _showComments = false;
   final _commentCtrl = TextEditingController();
-  final List<Map<String, String>> _localComments = [];
 
   @override
   void dispose() {
@@ -31,11 +32,18 @@ class _PostCardState extends State<PostCard> {
   @override
   Widget build(BuildContext context) {
     final postsP = context.watch<PostsProvider>();
-    final post   = postsP.posts.firstWhere((p) => p.id == widget.post.id, orElse: () => widget.post);
+    final post = postsP.posts.firstWhere(
+      (p) => p.id == widget.post.id,
+      orElse: () => widget.post,
+    );
     final usersP = context.read<UsersProvider>();
-    final me     = context.read<AuthProvider>().currentUser;
-    final user   = usersP.getUserById(post.userId) ?? me;
-    final lines  = post.content.split('\n').where((l) => l.isNotEmpty).toList();
+    final me = context.read<AuthProvider>().currentUser;
+    final user = usersP.getUserById(post.userId) ?? me;
+    final lines = post.content.split('\n').where((l) => l.isNotEmpty).toList();
+    final comments = postsP.commentsForPost(post.id);
+    final commentsLoading = postsP.isCommentsLoading(post.id);
+    final commentSubmitting = postsP.isCommentSubmitting(post.id);
+    final commentError = postsP.commentError(post.id);
 
     return Container(
       decoration: const BoxDecoration(
@@ -130,10 +138,16 @@ class _PostCardState extends State<PostCard> {
                     _ActionBtn(
                       icon: Icons.chat_bubble_outline_rounded,
                       activeIcon: Icons.chat_bubble_rounded,
-                      count: post.comments + _localComments.length,
+                      count: post.comments,
                       active: _showComments,
                       activeColor: AppColors.primary,
-                      onTap: () => setState(() => _showComments = !_showComments),
+                      onTap: () {
+                        final nextShowComments = !_showComments;
+                        setState(() => _showComments = nextShowComments);
+                        if (nextShowComments) {
+                          context.read<PostsProvider>().fetchComments(post.id);
+                        }
+                      },
                     ),
                     _ActionBtn(
                       icon: Icons.repeat_rounded,
@@ -167,28 +181,60 @@ class _PostCardState extends State<PostCard> {
                   const SizedBox(height: 12),
                   const Divider(color: AppColors.border, height: 1),
                   const SizedBox(height: 12),
-                  ..._localComments.map((c) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        UserAvatar(user: me, size: 28, showRing: true),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(me.name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.text)),
-                              Text(c['text'] ?? '',
-                                  style: const TextStyle(fontSize: 13, color: AppColors.text2, height: 1.5)),
-                            ],
-                          ),
+                  if (commentsLoading)
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 12),
+                      child: Center(
+                        child: SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         ),
-                      ],
+                      ),
+                    )
+                  else if (comments.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        'No comments yet. Start the conversation.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.text3,
+                        ),
+                      ),
+                    )
+                  else
+                    ...comments.map((comment) => Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _CommentRow(
+                            comment: comment,
+                            user: _commentUser(usersP, me, comment),
+                          ),
+                        )),
+                  if (commentError != null) ...[
+                    Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.red.withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: Text(
+                        commentError,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.redAccent,
+                        ),
+                      ),
                     ),
-                  )),
+                  ],
                   Row(
                     children: [
                       UserAvatar(user: me, size: 30, showRing: true),
@@ -201,14 +247,24 @@ class _PostCardState extends State<PostCard> {
                             hintText: 'Post a reply...',
                             contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           ),
-                          onSubmitted: (val) {
-                            if (val.trim().isEmpty) return;
-                            setState(() {
-                              _localComments.add({'text': val.trim()});
-                              _commentCtrl.clear();
-                            });
-                          },
+                          onSubmitted: (_) => _submitComment(postsP, post.id, me.id),
                         ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        onPressed: commentSubmitting
+                            ? null
+                            : () => _submitComment(postsP, post.id, me.id),
+                        icon: commentSubmitting
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(
+                                Icons.send_rounded,
+                                color: AppColors.primary,
+                              ),
                       ),
                     ],
                   ),
@@ -219,6 +275,116 @@ class _PostCardState extends State<PostCard> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _submitComment(
+    PostsProvider postsProvider,
+    String postId,
+    String userId,
+  ) async {
+    final success = await postsProvider.addComment(
+      postId,
+      userId,
+      _commentCtrl.text,
+    );
+    if (!mounted || !success) return;
+    _commentCtrl.clear();
+  }
+
+  UserModel _commentUser(
+    UsersProvider usersProvider,
+    UserModel currentUser,
+    CommentModel comment,
+  ) {
+    final knownUser = usersProvider.getUserById(comment.userId);
+    if (knownUser != null) return knownUser;
+    if (comment.userId == currentUser.id) return currentUser;
+
+    return UserModel(
+      id: comment.userId,
+      name: 'Student',
+      handle: 'member',
+      email: '',
+      avatar: 'DS',
+      color: AppColors.primary,
+      aura: 0,
+      role: '',
+      year: '',
+      branch: '',
+      building: 'Building on DevSpace',
+      stack: const [],
+      followers: 0,
+      following: 0,
+      bio: '',
+      college: '',
+      githubHandle: '',
+      profileCompleted: false,
+    );
+  }
+}
+
+class _CommentRow extends StatelessWidget {
+  final CommentModel comment;
+  final UserModel user;
+
+  const _CommentRow({
+    required this.comment,
+    required this.user,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        UserAvatar(user: user, size: 28, showRing: true),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 6,
+                children: [
+                  Text(
+                    user.name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  Text(
+                    '@${user.handle}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.text4,
+                    ),
+                  ),
+                  Text(
+                    timeago.format(comment.createdAt),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.text4,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                comment.text,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.text2,
+                  height: 1.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
