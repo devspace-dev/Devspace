@@ -110,11 +110,25 @@ class PostsProvider extends ChangeNotifier {
     File? imageFile,
     String? quotePostId,
   }) async {
+    final trimmedContent = content.trim();
+    final normalizedTags = tags
+        .map((tag) => tag.trim())
+        .where((tag) => tag.isNotEmpty)
+        .toSet()
+        .toList();
+
+    if (trimmedContent.isEmpty && imageFile == null) {
+      return const PostCreateResult(
+        success: false,
+        error: 'Add some text or attach an image to post.',
+      );
+    }
+
     try {
       final postId = await SupabaseService.instance.createPost(
         userId: userId,
-        content: content,
-        tags: tags,
+        content: trimmedContent,
+        tags: normalizedTags,
         quotePostId: quotePostId,
       );
 
