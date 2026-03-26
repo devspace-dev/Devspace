@@ -107,7 +107,8 @@ class MongoService {
   }
 
   Stream<List<UserModel>> streamUsers() async* {
-    final docs = await _users.find(where.sortBy('aura', descending: true)).toList();
+    final docs =
+        await _users.find(where.sortBy('aura', descending: true)).toList();
     yield docs.map((d) => UserModel.fromJson(d)).toList();
   }
 
@@ -121,8 +122,10 @@ class MongoService {
       'to': ObjectId.parse(toUid),
       'followedAt': DateTime.now().toUtc(),
     });
-    await _users.updateOne(where.eq('_id', ObjectId.parse(fromUid)), modify.inc('following', 1));
-    await _users.updateOne(where.eq('_id', ObjectId.parse(toUid)), modify.inc('followers', 1));
+    await _users.updateOne(
+        where.eq('_id', ObjectId.parse(fromUid)), modify.inc('following', 1));
+    await _users.updateOne(
+        where.eq('_id', ObjectId.parse(toUid)), modify.inc('followers', 1));
     _refreshStreams();
   }
 
@@ -131,8 +134,10 @@ class MongoService {
       'from': ObjectId.parse(fromUid),
       'to': ObjectId.parse(toUid),
     });
-    await _users.updateOne(where.eq('_id', ObjectId.parse(fromUid)), modify.inc('following', -1));
-    await _users.updateOne(where.eq('_id', ObjectId.parse(toUid)), modify.inc('followers', -1));
+    await _users.updateOne(
+        where.eq('_id', ObjectId.parse(fromUid)), modify.inc('following', -1));
+    await _users.updateOne(
+        where.eq('_id', ObjectId.parse(toUid)), modify.inc('followers', -1));
     _refreshStreams();
   }
 
@@ -170,12 +175,18 @@ class MongoService {
   }
 
   Stream<List<PostModel>> streamFeed() async* {
-    final docs = await _posts.find(where.sortBy('createdAt', descending: true).limit(50)).toList();
+    final docs = await _posts
+        .find(where.sortBy('createdAt', descending: true).limit(50))
+        .toList();
     yield docs.map((d) => PostModel.fromJson(d)).toList();
   }
 
   Stream<List<PostModel>> streamUserPosts(String userId) async* {
-    final docs = await _posts.find(where.eq('userId', ObjectId.parse(userId)).sortBy('createdAt', descending: true)).toList();
+    final docs = await _posts
+        .find(where
+            .eq('userId', ObjectId.parse(userId))
+            .sortBy('createdAt', descending: true))
+        .toList();
     yield docs.map((d) => PostModel.fromJson(d)).toList();
   }
 
@@ -188,7 +199,8 @@ class MongoService {
       'postId': ObjectId.parse(postId),
       'uid': ObjectId.parse(uid),
     });
-    await _posts.updateOne(where.id(ObjectId.parse(postId)), modify.inc('likes', 1));
+    await _posts.updateOne(
+        where.id(ObjectId.parse(postId)), modify.inc('likes', 1));
     _refreshStreams();
   }
 
@@ -197,7 +209,8 @@ class MongoService {
       'postId': ObjectId.parse(postId),
       'uid': ObjectId.parse(uid),
     });
-    await _posts.updateOne(where.id(ObjectId.parse(postId)), modify.inc('likes', -1));
+    await _posts.updateOne(
+        where.id(ObjectId.parse(postId)), modify.inc('likes', -1));
     _refreshStreams();
   }
 
@@ -216,12 +229,15 @@ class MongoService {
       'text': text,
       'createdAt': DateTime.now().toUtc(),
     });
-    await _posts.updateOne(where.id(ObjectId.parse(postId)), modify.inc('comments', 1));
+    await _posts.updateOne(
+        where.id(ObjectId.parse(postId)), modify.inc('comments', 1));
     _refreshStreams();
   }
 
   Stream<List<Map<String, dynamic>>> streamComments(String postId) async* {
-    final docs = await _comments.find(where.eq('postId', ObjectId.parse(postId)).sortBy('createdAt')).toList();
+    final docs = await _comments
+        .find(where.eq('postId', ObjectId.parse(postId)).sortBy('createdAt'))
+        .toList();
     yield docs;
   }
 
@@ -248,7 +264,12 @@ class MongoService {
   }
 
   Stream<List<Map<String, dynamic>>> streamNotifications(String uid) async* {
-    final docs = await _notifs.find(where.eq('toUid', ObjectId.parse(uid)).sortBy('createdAt', descending: true).limit(30)).toList();
+    final docs = await _notifs
+        .find(where
+            .eq('toUid', ObjectId.parse(uid))
+            .sortBy('createdAt', descending: true)
+            .limit(30))
+        .toList();
     yield docs;
   }
 

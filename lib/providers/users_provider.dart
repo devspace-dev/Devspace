@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
-import '../services/mongo_service.dart';
+import '../services/supabase_service.dart';
 
 class UsersProvider extends ChangeNotifier {
   List<UserModel> _users = [];
@@ -39,12 +39,13 @@ class UsersProvider extends ChangeNotifier {
   List<UserModel> search(String query) {
     if (query.isEmpty) return _users;
     final q = query.toLowerCase();
-    return _users.where((u) =>
-      u.name.toLowerCase().contains(q) ||
-      u.handle.toLowerCase().contains(q) ||
-      u.building.toLowerCase().contains(q) ||
-      u.stack.any((s) => s.toLowerCase().contains(q))
-    ).toList();
+    return _users
+        .where((u) =>
+            u.name.toLowerCase().contains(q) ||
+            u.handle.toLowerCase().contains(q) ||
+            u.building.toLowerCase().contains(q) ||
+            u.stack.any((s) => s.toLowerCase().contains(q)))
+        .toList();
   }
 
   List<UserModel> filterByBranch(String branch) {

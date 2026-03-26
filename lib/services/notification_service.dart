@@ -1,6 +1,6 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'mongo_service.dart';
+import 'supabase_service.dart';
 
 /// Background message handler — must be a top-level function.
 @pragma('vm:entry-point')
@@ -12,7 +12,7 @@ class NotificationService {
   NotificationService._();
   static final instance = NotificationService._();
 
-  final _fcm   = FirebaseMessaging.instance;
+  final _fcm = FirebaseMessaging.instance;
   final _local = FlutterLocalNotificationsPlugin();
 
   static const _channel = AndroidNotificationChannel(
@@ -85,10 +85,10 @@ class NotificationService {
   }) async {
     if (toUid == fromUid) return;
     await MongoService.instance.pushNotification(
-      toUid:   toUid,
+      toUid: toUid,
       fromUid: fromUid,
-      type:    'like',
-      postId:  postId,
+      type: 'like',
+      postId: postId,
       message: '$fromName liked your post',
     );
   }
@@ -102,10 +102,10 @@ class NotificationService {
   }) async {
     if (toUid == fromUid) return;
     await MongoService.instance.pushNotification(
-      toUid:   toUid,
+      toUid: toUid,
       fromUid: fromUid,
-      type:    'comment',
-      postId:  postId,
+      type: 'comment',
+      postId: postId,
       message: '$fromName commented: "$commentText"',
     );
   }
@@ -117,9 +117,9 @@ class NotificationService {
   }) async {
     if (toUid == fromUid) return;
     await MongoService.instance.pushNotification(
-      toUid:   toUid,
+      toUid: toUid,
       fromUid: fromUid,
-      type:    'follow',
+      type: 'follow',
       message: '$fromName started following you',
     );
   }

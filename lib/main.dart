@@ -10,7 +10,7 @@ import 'providers/users_provider.dart';
 import 'providers/aura_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
-import 'services/mongo_service.dart';
+import 'services/supabase_service.dart';
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
 
@@ -21,8 +21,9 @@ void main() async {
   // REPLACE with your actual MongoDB URI from Atlas!
   // Example: mongodb+srv://user:pass@cluster.mongodb.net/devspace
   // ───────────────────────────────────────────────────────────────────────
-  const String mongoUri = 'mongodb+srv://admin:admin123@cluster0.abcde.mongodb.net/devspace?retryWrites=true&w=majority';
-  
+  const String mongoUri =
+      'mongodb+srv://admin:admin123@cluster0.abcde.mongodb.net/devspace?retryWrites=true&w=majority';
+
   try {
     await MongoService.instance.init(mongoUri);
     await AuthService.instance.init();
@@ -100,7 +101,7 @@ class _RootState extends State<_Root> {
 
         // Initialize notifications (optional if using FCM)
         NotificationService.instance.init(user.id);
-        
+
         return const DevSpaceApp();
       },
     );

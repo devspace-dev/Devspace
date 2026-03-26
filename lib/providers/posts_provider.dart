@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/post_model.dart';
-import '../services/mongo_service.dart';
+import '../services/supabase_service.dart';
 
 class PostsProvider extends ChangeNotifier {
   List<PostModel> _posts = [];
@@ -12,7 +12,7 @@ class PostsProvider extends ChangeNotifier {
   Future<void> fetchFeed() async {
     _isLoading = true;
     notifyListeners();
-    
+
     // In a real app we'd use streams, but for this provider we'll fetch once or listen
     MongoService.instance.streamFeed().listen((newList) {
       _posts = newList;

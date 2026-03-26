@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
-import 'mongo_service.dart';
+import 'supabase_service.dart';
 
 class StorageService {
   StorageService._();

@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'mongo_service.dart';
+import 'supabase_service.dart';
 import '../models/user_model.dart';
 
 class AuthResult {
@@ -43,7 +43,8 @@ class AuthService {
   }) async {
     try {
       if (!email.toLowerCase().endsWith('@$_collegeDomain')) {
-        return AuthResult(error: 'Please use your @$_collegeDomain college email.');
+        return AuthResult(
+            error: 'Please use your @$_collegeDomain college email.');
       }
 
       final existing = await MongoService.instance.getUserByEmail(email);
@@ -80,7 +81,8 @@ class AuthService {
   }) async {
     try {
       final passwordHash = _hashPassword(password);
-      final isValid = await MongoService.instance.verifyPassword(email, passwordHash);
+      final isValid =
+          await MongoService.instance.verifyPassword(email, passwordHash);
       if (!isValid) {
         return const AuthResult(error: 'Invalid email or password.');
       }
