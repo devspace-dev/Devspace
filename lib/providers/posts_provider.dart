@@ -29,10 +29,12 @@ class PostsProvider extends ChangeNotifier {
   final Map<String, bool> _likeUpdating = {};
   final Map<String, String?> _likeErrors = {};
   bool _isLoading = false;
+  String? _feedError;
   StreamSubscription<List<PostModel>>? _feedSub;
 
   List<PostModel> get posts => List.unmodifiable(_posts);
   bool get isLoading => _isLoading;
+  String? get feedError => _feedError;
   List<PostModel> postsForUser(String userId) =>
       _posts.where((post) => post.userId == userId).toList();
   List<CommentModel> commentsForPost(String postId) =>
@@ -49,26 +51,53 @@ class PostsProvider extends ChangeNotifier {
       await _feedSub!.cancel();
     }
     _isLoading = true;
+    _feedError = null;
     notifyListeners();
 
-    _feedSub = SupabaseService.instance.streamFeed().listen((newList) async {
-      final currentUser = AuthService.instance.currentUser;
-      if (currentUser == null) {
-        _posts = newList;
+    final completer = Completer<void>();
+    late final StreamSubscription<List<PostModel>> subscription;
+
+    void completeOnce() {
+      if (!completer.isCompleted) {
+        completer.complete();
+      }
+    }
+
+    subscription = SupabaseService.instance.streamFeed().listen(
+      (newList) async {
+        try {
+          final currentUser = AuthService.instance.currentUser;
+          if (currentUser == null) {
+            _posts = newList;
+          } else {
+            final likedPostIds =
+                await SupabaseService.instance.getLikedPostIds(currentUser.id);
+            _posts = newList
+                .map((post) => _mergeHydratedPost(post, likedPostIds))
+                .toList();
+          }
+          _feedError = null;
+        } catch (e) {
+          _feedError = 'Failed to load feed: $e';
+        } finally {
+          _isLoading = false;
+          notifyListeners();
+          completeOnce();
+        }
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        _feedError = 'Failed to load feed: $error';
         _isLoading = false;
         notifyListeners();
-        return;
-      }
+        completeOnce();
+      },
+    );
 
-      final likedPostIds =
-          await SupabaseService.instance.getLikedPostIds(currentUser.id);
-      _posts = newList
-          .map((post) => _mergeHydratedPost(post, likedPostIds))
-          .toList();
-      _isLoading = false;
-      notifyListeners();
-    });
+    _feedSub = subscription;
+    await completer.future;
   }
+
+  Future<void> refreshFeed() => fetchFeed();
 
   Future<PostCreateResult> addPost(
     String userId,
@@ -178,6 +207,7 @@ class PostsProvider extends ChangeNotifier {
       await SupabaseService.instance.addComment(postId, userId, trimmedText);
       final comments = await SupabaseService.instance.getCommentsForPost(postId);
       _commentsByPost[postId] = comments;
+      _commentErrors[postId] = null;
       _posts = _posts.map((post) {
         if (post.id != postId) return post;
         return post.copyWith(comments: comments.length);

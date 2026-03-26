@@ -8,12 +8,14 @@ import '../services/supabase_service.dart';
 class UsersProvider extends ChangeNotifier {
   List<UserModel> _users = [];
   bool _isLoading = false;
+  String? _error;
   final Map<String, bool> _followUpdating = {};
   final Map<String, String?> _followErrors = {};
   StreamSubscription<List<UserModel>>? _usersSub;
 
   List<UserModel> get users => List.unmodifiable(_users);
   bool get isLoading => _isLoading;
+  String? get error => _error;
   bool isFollowUpdating(String userId) => _followUpdating[userId] ?? false;
   String? followError(String userId) => _followErrors[userId];
 
@@ -22,22 +24,53 @@ class UsersProvider extends ChangeNotifier {
       await _usersSub!.cancel();
     }
     _isLoading = true;
+    _error = null;
     notifyListeners();
-    _usersSub = SupabaseService.instance.streamUsers().listen((newList) async {
-      final currentUser = AuthService.instance.currentUser;
-      if (currentUser == null) {
-        _users = newList;
-      } else {
-        final followingIds =
-            await SupabaseService.instance.getFollowingIds(currentUser.id);
-        _users = newList
-            .map((user) => _mergeHydratedUser(user, followingIds))
-            .toList();
+
+    final completer = Completer<void>();
+    late final StreamSubscription<List<UserModel>> subscription;
+
+    void completeOnce() {
+      if (!completer.isCompleted) {
+        completer.complete();
       }
-      _isLoading = false;
-      notifyListeners();
-    });
+    }
+
+    subscription = SupabaseService.instance.streamUsers().listen(
+      (newList) async {
+        try {
+          final currentUser = AuthService.instance.currentUser;
+          if (currentUser == null) {
+            _users = newList;
+          } else {
+            final followingIds =
+                await SupabaseService.instance.getFollowingIds(currentUser.id);
+            _users = newList
+                .map((user) => _mergeHydratedUser(user, followingIds))
+                .toList();
+          }
+          _error = null;
+        } catch (e) {
+          _error = 'Failed to load developers: $e';
+        } finally {
+          _isLoading = false;
+          notifyListeners();
+          completeOnce();
+        }
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        _error = 'Failed to load developers: $error';
+        _isLoading = false;
+        notifyListeners();
+        completeOnce();
+      },
+    );
+
+    _usersSub = subscription;
+    await completer.future;
   }
+
+  Future<void> refreshUsers() => fetchUsers();
 
   UserModel? getUserById(String id) {
     try {

@@ -9,6 +9,7 @@ import '../providers/posts_provider.dart';
 import '../providers/users_provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
+import '../utils/constants.dart';
 import 'user_avatar.dart';
 import 'aura_pill.dart';
 
@@ -337,6 +338,11 @@ class _PostCardState extends State<PostCard> {
     );
     if (!mounted || !success) return;
     _commentCtrl.clear();
+    context.read<AuthProvider>().addAura(kAuraComment);
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('+5 aura for contributing')),
+    );
   }
 
   Future<void> _handleLikeTap(

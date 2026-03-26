@@ -76,9 +76,14 @@ class _ComposeBoxState extends State<ComposeBox> {
       _imagePickerVersion += 1;
     });
 
+    ScaffoldMessenger.of(context).clearSnackBars();
     if (result.warning != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result.warning!)),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('+10 aura for sharing your build')),
       );
     }
   }
