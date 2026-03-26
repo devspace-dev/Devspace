@@ -32,21 +32,12 @@ class PostsProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-<<<<<<< HEAD
-    // In a real app we'd use streams, but for this provider we'll fetch once or listen
     SupabaseService.instance.streamFeed().listen((newList) {
-=======
-    final initialPosts = await MongoService.instance.streamFeed().first;
-    _posts = initialPosts;
-    _isLoading = false;
-    notifyListeners();
-
-    _feedSub = MongoService.instance.feedStream.listen((newList) {
->>>>>>> acd7642f651b472e307dcf8fe64a0b520bad94f8
       _posts = newList;
       _isLoading = false;
       notifyListeners();
     });
+
   }
 
   Future<void> addPost(String userId, String content, List<String> tags) async {
@@ -68,10 +59,6 @@ class PostsProvider extends ChangeNotifier {
     // Refresh feed or handle local update
   }
 
-<<<<<<< HEAD
-  Future<void> toggleBookmark(String postId, String userId) async {
-    // Implement bookmarking if needed in SupabaseService
-=======
   Future<void> fetchComments(String postId, {bool force = false}) async {
     if (_commentsLoading[postId] == true) return;
     if (!force && _commentsByPost.containsKey(postId)) return;
@@ -81,7 +68,7 @@ class PostsProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final comments = await MongoService.instance.getCommentsForPost(postId);
+      final comments = await SupabaseService.instance.getCommentsForPost(postId);
       _commentsByPost[postId] = comments;
     } catch (e) {
       _commentErrors[postId] = 'Failed to load comments: $e';
@@ -104,8 +91,8 @@ class PostsProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await MongoService.instance.addComment(postId, userId, trimmedText);
-      final comments = await MongoService.instance.getCommentsForPost(postId);
+      await SupabaseService.instance.addComment(postId, userId, trimmedText);
+      final comments = await SupabaseService.instance.getCommentsForPost(postId);
       _commentsByPost[postId] = comments;
       return true;
     } catch (e) {
@@ -144,6 +131,5 @@ class PostsProvider extends ChangeNotifier {
   void dispose() {
     _feedSub?.cancel();
     super.dispose();
->>>>>>> acd7642f651b472e307dcf8fe64a0b520bad94f8
   }
 }

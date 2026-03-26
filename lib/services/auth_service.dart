@@ -91,7 +91,7 @@ class AuthService {
     var candidate = base;
     var suffix = 1;
 
-    while (await MongoService.instance.getUserByHandle(candidate) != null) {
+    while (await SupabaseService.instance.getUserByHandle(candidate) != null) {
       candidate = '${base}_$suffix';
       suffix += 1;
     }
@@ -179,42 +179,7 @@ class AuthService {
   }
 
   Future<AuthResult> signInWithGoogle() async {
-    try {
-      final account = await _googleSignIn.signIn();
-      if (account == null) {
-        return const AuthResult(error: 'Google sign-in was cancelled.');
-      }
-
-      final email = account.email.trim().toLowerCase();
-      if (!_isAllowedEmail(email)) {
-        await _googleSignIn.signOut();
-        return AuthResult(error: 'Please use your @$_collegeDomain college email.');
-      }
-
-      var user = await MongoService.instance.getUserByEmail(email);
-      user ??= await MongoService.instance.createUser(
-        name: (account.displayName?.trim().isNotEmpty ?? false)
-            ? account.displayName!.trim()
-            : email.split('@').first,
-        email: email,
-        handle: await _generateUniqueHandle(email),
-        avatar: _buildAvatar(account.displayName ?? '', email),
-        role: 'Student',
-        year: '',
-        branch: '',
-        building: '',
-        stack: const [],
-        bio: '',
-        college: 'Jaipur National University',
-        githubHandle: '',
-        profileCompleted: false,
-      );
-
-      await _persistSession(user);
-      return AuthResult(user: user);
-    } catch (e) {
-      return AuthResult(error: 'Google sign-in failed: $e');
-    }
+    return const AuthResult(error: 'Google sign-in is not yet implemented for Supabase.');
   }
 
   Future<void> signOut() async {
@@ -245,7 +210,7 @@ class AuthService {
     try {
       final normalizedHandle = _sanitizeHandleSeed(handle);
       final existingHandleUser =
-          await MongoService.instance.getUserByHandle(normalizedHandle);
+          await SupabaseService.instance.getUserByHandle(normalizedHandle);
       if (existingHandleUser != null && existingHandleUser.id != user.id) {
         return const AuthResult(error: 'That handle is already taken.');
       }
@@ -260,7 +225,7 @@ class AuthService {
               ? user.avatar
               : _buildAvatar(trimmedName, user.email));
 
-      await MongoService.instance.updateUser(user.id, {
+      await SupabaseService.instance.updateUser(user.id, {
         'name': trimmedName,
         'handle': normalizedHandle,
         'role': role,
@@ -275,12 +240,13 @@ class AuthService {
         'avatar': nextAvatar,
       });
 
-      final refreshedUser = await MongoService.instance.getUserById(user.id);
+      final refreshedUser = await SupabaseService.instance.getUserById(user.id);
       if (refreshedUser == null) {
         return const AuthResult(error: 'Failed to refresh updated profile.');
       }
 
-      await _persistSession(refreshedUser);
+      _currentUser = refreshedUser;
+      _authStateController.add(refreshedUser);
       return AuthResult(user: refreshedUser);
     } catch (e) {
       return AuthResult(error: 'Profile update failed: $e');

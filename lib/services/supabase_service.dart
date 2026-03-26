@@ -86,6 +86,15 @@ class SupabaseService {
     return data == null ? null : UserModel.fromJson(data);
   }
 
+  Future<UserModel?> getUserByHandle(String handle) async {
+    final data = await _client
+        .from('users')
+        .select()
+        .eq('handle', handle.toLowerCase())
+        .maybeSingle();
+    return data == null ? null : UserModel.fromJson(data);
+  }
+
   Future<UserModel?> getUserById(String id) async {
     final data = await _client
         .from('users')

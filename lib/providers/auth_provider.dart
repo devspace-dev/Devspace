@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
-import '../services/mongo_service.dart';
+import '../services/supabase_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   AuthProvider() {
@@ -30,7 +30,7 @@ class AuthProvider extends ChangeNotifier {
     final updatedUser = currentUser.copyWith(aura: currentUser.aura + points);
     _currentUser = updatedUser;
     notifyListeners();
-    unawaited(MongoService.instance.updateUser(
+    unawaited(SupabaseService.instance.updateUser(
       updatedUser.id,
       {'aura': updatedUser.aura},
     ));
@@ -40,7 +40,7 @@ class AuthProvider extends ChangeNotifier {
     final updatedUser = currentUser.copyWith(building: building);
     _currentUser = updatedUser;
     notifyListeners();
-    unawaited(MongoService.instance.updateUser(
+    unawaited(SupabaseService.instance.updateUser(
       updatedUser.id,
       {'building': building},
     ));
