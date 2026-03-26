@@ -19,7 +19,7 @@ class AppTheme {
         ThemeData.dark().textTheme,
       ).apply(bodyColor: AppColors.text, displayColor: AppColors.text),
       appBarTheme: AppBarTheme(
-        backgroundColor: AppColors.bg.withOpacity(0.85),
+        backgroundColor: AppColors.bg.withValues(alpha: 0.85),
         elevation: 0,
         systemOverlayStyle: SystemUiOverlayStyle.light,
         titleTextStyle: GoogleFonts.dmSans(

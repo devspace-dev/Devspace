@@ -1,6 +1,6 @@
-# DevSpace Flutter 🚀
+# DevSpace Flutter
 
-A social platform for college developers — built with Flutter for Android, iOS & Web.
+A social platform for college developers built with Flutter for mobile.
 
 ## Getting Started
 
@@ -8,6 +8,7 @@ A social platform for college developers — built with Flutter for Android, iOS
 - Flutter SDK `>=3.0.0`
 - Android Studio / Xcode (for device builds)
 - A device or emulator
+- Supabase project URL and anon key
 
 ### Run the App
 
@@ -21,14 +22,19 @@ flutter run -d android
 # 3. Run on iOS
 flutter run -d ios
 
-# 4. Run on Web
-flutter run -d chrome
-
-# 5. Build release APK (Android)
+# 4. Build release APK (Android)
 flutter build apk --release
 
-# 6. Build App Bundle (Play Store)
+# 5. Build App Bundle (Play Store)
 flutter build appbundle --release
+```
+
+Pass Supabase credentials at runtime if you are not using the checked-in dev values:
+
+```bash
+flutter run \
+  --dart-define=SUPABASE_URL=your-project-url \
+  --dart-define=SUPABASE_ANON_KEY=your-anon-key
 ```
 
 ## Project Structure
@@ -85,25 +91,22 @@ lib/
 | 🌟 Nova    | 5,000+        |
 
 ## Tech Stack
-- **Flutter 3** — cross-platform (Android, iOS, Web)
+- **Flutter 3** — mobile app framework
 - **Provider** — state management
-- **MongoDB Atlas** — app user profiles, posts, follows, notifications
-- **Google Sign-In** — optional authentication provider
-- **Google Fonts** — DM Sans typography
+- **Supabase** — auth, database, and storage
+- **Firebase Messaging** — deferred notification plumbing
+- **Google Fonts** — typography
 - **timeago** — human-readable timestamps
 - **go_router** — navigation
-- **shared_preferences** — local storage
 - **uuid** — unique IDs
 
 ## Auth Model
-- Email/password and Google sign-in are both supported.
-- The app always persists the MongoDB user ID locally in `SharedPreferences`.
-- Google sign-in resolves or auto-creates the same MongoDB user record, so both methods can land on one DevSpace profile.
+- Email/password is the active auth flow.
+- Supabase auth session is the source of truth for login state.
+- Google sign-in is not active in the current build.
 
 ## Next Steps
-- [ ] Connect to Firebase (Firestore + Auth)
 - [ ] Push notifications (FCM)
 - [ ] GitHub integration
-- [ ] DMs / Direct Messaging
 - [ ] Hackathon tracker
 - [ ] Camera / image uploads

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../models/comment_model.dart';
@@ -8,6 +9,7 @@ import '../providers/posts_provider.dart';
 import '../providers/users_provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
+import '../utils/constants.dart';
 import 'user_avatar.dart';
 import 'aura_pill.dart';
 
@@ -44,6 +46,7 @@ class _PostCardState extends State<PostCard> {
     final commentsLoading = postsP.isCommentsLoading(post.id);
     final commentSubmitting = postsP.isCommentSubmitting(post.id);
     final commentError = postsP.commentError(post.id);
+    final likeUpdating = postsP.isLikeUpdating(post.id);
 
     return Container(
       decoration: const BoxDecoration(
@@ -85,7 +88,8 @@ class _PostCardState extends State<PostCard> {
                           fontWeight: FontWeight.w800, fontSize: 15, color: AppColors.text)),
                     Text('@${user.handle}',
                         style: const TextStyle(fontSize: 12, color: AppColors.text3)),
-                    Text('·', style: const TextStyle(fontSize: 12, color: AppColors.border2)),
+                    const Text('·',
+                        style: TextStyle(fontSize: 12, color: AppColors.border2)),
                     Text(timeago.format(post.createdAt),
                         style: const TextStyle(fontSize: 12, color: AppColors.text3)),
                     AuraPill(aura: user.aura, small: true),
@@ -118,6 +122,44 @@ class _PostCardState extends State<PostCard> {
                     ),
                   ),
                 )),
+                if (post.imageUrl != null && post.imageUrl!.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 260),
+                      child: CachedNetworkImage(
+                        imageUrl: post.imageUrl!,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(
+                          width: double.infinity,
+                          height: 220,
+                          color: AppColors.bg3,
+                          alignment: Alignment.center,
+                          child: const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                        errorWidget: (_, __, ___) => Container(
+                          width: double.infinity,
+                          height: 220,
+                          color: AppColors.bg3,
+                          alignment: Alignment.center,
+                          child: const Text(
+                            'Image unavailable',
+                            style: TextStyle(
+                              color: AppColors.text3,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 10),
 
                 // Tags
@@ -163,7 +205,13 @@ class _PostCardState extends State<PostCard> {
                       count: post.likes,
                       active: post.isLiked,
                       activeColor: AppColors.like,
-                      onTap: () => context.read<PostsProvider>().toggleLike(post.id, me.id),
+                      disabled: likeUpdating,
+                      onTap: () => _handleLikeTap(
+                        context,
+                        postsP,
+                        post.id,
+                        me.id,
+                      ),
                     ),
                     _ActionBtn(
                       icon: Icons.bookmark_border_rounded,
@@ -290,6 +338,28 @@ class _PostCardState extends State<PostCard> {
     );
     if (!mounted || !success) return;
     _commentCtrl.clear();
+    context.read<AuthProvider>().addAura(kAuraComment);
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('+5 aura for contributing')),
+    );
+  }
+
+  Future<void> _handleLikeTap(
+    BuildContext context,
+    PostsProvider postsProvider,
+    String postId,
+    String userId,
+  ) async {
+    await postsProvider.toggleLike(postId, userId);
+    if (!context.mounted) return;
+
+    final error = postsProvider.likeError(postId);
+    if (error == null) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(error)),
+    );
   }
 
   UserModel _commentUser(
@@ -396,17 +466,19 @@ class _ActionBtn extends StatelessWidget {
   final bool active;
   final Color activeColor;
   final VoidCallback onTap;
+  final bool disabled;
 
   const _ActionBtn({
     required this.icon, required this.activeIcon,
     required this.count, required this.active,
     required this.activeColor, required this.onTap,
+    this.disabled = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: disabled ? null : onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Row(
@@ -414,7 +486,9 @@ class _ActionBtn extends StatelessWidget {
             Icon(
               active ? activeIcon : icon,
               size: 19,
-              color: active ? activeColor : AppColors.text3,
+              color: disabled
+                  ? AppColors.text4
+                  : (active ? activeColor : AppColors.text3),
             ),
             if (count != null) ...[
               const SizedBox(width: 4),
@@ -422,7 +496,9 @@ class _ActionBtn extends StatelessWidget {
                 '$count',
                 style: TextStyle(
                   fontSize: 13,
-                  color: active ? activeColor : AppColors.text3,
+                  color: disabled
+                      ? AppColors.text4
+                      : (active ? activeColor : AppColors.text3),
                   fontWeight: FontWeight.w600,
                 ),
               ),

@@ -27,7 +27,7 @@ class AuthService {
     // Check current session
     final session = _supabase.auth.currentSession;
     if (session != null) {
-      _currentUser = await SupabaseService.instance.getUserById(session.user.id);
+      _currentUser = await _loadOrCreateProfile(session.user);
       _authStateController.add(_currentUser);
     }
 
@@ -38,7 +38,7 @@ class AuthService {
 
       if (event == AuthChangeEvent.signedIn || event == AuthChangeEvent.tokenRefreshed) {
         if (session != null) {
-          _currentUser = await SupabaseService.instance.getUserById(session.user.id);
+          _currentUser = await _loadOrCreateProfile(session.user);
           _authStateController.add(_currentUser);
         }
       } else if (event == AuthChangeEvent.signedOut) {
@@ -99,12 +99,49 @@ class AuthService {
     return candidate;
   }
 
-  Future<void> _persistSession(UserModel user) async {
-    _currentUser = user;
-    _authStateController.add(user);
+  String _fallbackName(User user) {
+    final metadata = user.userMetadata;
+    final fullName = metadata?['full_name'] ?? metadata?['name'];
+    if (fullName is String && fullName.trim().isNotEmpty) {
+      return fullName.trim();
+    }
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('auth_uid', user.id);
+    final email = user.email ?? '';
+    if (email.contains('@')) {
+      return email.split('@').first.trim();
+    }
+
+    return 'DevSpace Student';
+  }
+
+  Future<UserModel?> _loadOrCreateProfile(User user) async {
+    final existing = await SupabaseService.instance.getUserById(user.id);
+    if (existing != null) return existing;
+
+    final email = user.email ?? '';
+    final name = _fallbackName(user);
+    final handle = await _generateUniqueHandle(
+      email.isNotEmpty ? email : user.id,
+    );
+
+    await SupabaseService.instance.createUser(
+      id: user.id,
+      name: name,
+      email: email,
+      handle: handle,
+      avatar: _buildAvatar(name, email),
+      role: 'Student',
+      year: '',
+      branch: '',
+      building: '',
+      stack: const [],
+      bio: '',
+      college: 'Jaipur National University',
+      githubHandle: '',
+      profileCompleted: false,
+    );
+
+    return SupabaseService.instance.getUserById(user.id);
   }
 
   Future<AuthResult> signUpWithEmail({
@@ -113,8 +150,8 @@ class AuthService {
     required String password,
   }) async {
     try {
-      if (!email.toLowerCase().endsWith('@$_collegeDomain')) {
-        return AuthResult(
+      if (!_isAllowedEmail(email)) {
+        return const AuthResult(
             error: 'Please use your @$_collegeDomain college email.');
       }
 
@@ -127,9 +164,8 @@ class AuthService {
       final user = res.user;
       if (user == null) return const AuthResult(error: 'Sign-up failed.');
 
-      final handle = email.split('@').first.replaceAll('.', '_').toLowerCase();
-      
-      // Create user profile in public.users table
+      final handle = await _generateUniqueHandle(email);
+
       await SupabaseService.instance.createUser(
         id: user.id,
         name: name,
@@ -147,7 +183,7 @@ class AuthService {
         profileCompleted: false,
       );
 
-      _currentUser = await SupabaseService.instance.getUserById(user.id);
+      _currentUser = await _loadOrCreateProfile(user);
       _authStateController.add(_currentUser);
 
       return AuthResult(user: _currentUser);
@@ -169,7 +205,7 @@ class AuthService {
       final user = res.user;
       if (user == null) return const AuthResult(error: 'User not found.');
 
-      _currentUser = await SupabaseService.instance.getUserById(user.id);
+      _currentUser = await _loadOrCreateProfile(user);
       _authStateController.add(_currentUser);
 
       return AuthResult(user: _currentUser);
@@ -179,14 +215,26 @@ class AuthService {
   }
 
   Future<AuthResult> signInWithGoogle() async {
-    return const AuthResult(error: 'Google sign-in is not yet implemented for Supabase.');
+    return const AuthResult(
+      error: 'Google sign-in is coming soon. Use email and password for now.',
+    );
   }
 
   Future<void> signOut() async {
     await _supabase.auth.signOut();
     _currentUser = null;
     _authStateController.add(null);
+  }
 
+  Future<void> refreshCurrentUser() async {
+    final user = _currentUser;
+    if (user == null) return;
+
+    final refreshedUser = await SupabaseService.instance.getUserById(user.id);
+    if (refreshedUser == null) return;
+
+    _currentUser = refreshedUser;
+    _authStateController.add(refreshedUser);
   }
 
   Future<AuthResult> updateCurrentUserProfile({
@@ -235,8 +283,8 @@ class AuthService {
         'stack': stack,
         'bio': trimmedBio,
         'college': college,
-        'githubHandle': trimmedGithub,
-        'profileCompleted': true,
+        'github_handle': trimmedGithub,
+        'profile_completed': true,
         'avatar': nextAvatar,
       });
 

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
 
 import '../models/user_model.dart';
 import '../models/badge_model.dart';
@@ -98,29 +97,12 @@ class _AvatarImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (avatar.startsWith('http')) {
-      return Image.network(
-        avatar,
-        fit: BoxFit.cover,
-        width: size,
-        height: size,
-        errorBuilder: (_, __, ___) => _fallback(),
-      );
-    }
-
-    return FutureBuilder<String?>(
-      future: StorageService.instance.getImageBase64(avatar),
-      builder: (context, snapshot) {
-        if (snapshot.hasData && snapshot.data != null) {
-          return Image.memory(
-            base64Decode(snapshot.data!),
-            fit: BoxFit.cover,
-            width: size,
-            height: size,
-          );
-        }
-        return _fallback();
-      },
+    return Image.network(
+      StorageService.instance.resolvePublicUrl(avatar),
+      fit: BoxFit.cover,
+      width: size,
+      height: size,
+      errorBuilder: (_, __, ___) => _fallback(),
     );
   }
 

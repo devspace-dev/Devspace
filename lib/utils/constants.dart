@@ -42,6 +42,7 @@ const List<String> kProfileRoles = [
 ];
 
 const int kAuraPost           = 10;
+const int kAuraComment        = 5;
 const int kAuraLikeReceived   = 2;
 const int kAuraCommentReceived = 5;
 const int kAuraRepostReceived  = 8;

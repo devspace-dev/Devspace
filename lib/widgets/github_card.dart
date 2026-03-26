@@ -66,7 +66,7 @@ class _GitHubCardState extends State<GitHubCard> {
                     Container(
                       width: 22, height: 22,
                       decoration: BoxDecoration(
-                        color: AppColors.text.withOpacity(0.08),
+                        color: AppColors.text.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: const Center(

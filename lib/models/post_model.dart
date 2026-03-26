@@ -1,5 +1,3 @@
-
-
 class PostModel {
   final String id;
   final String userId;
@@ -30,6 +28,7 @@ class PostModel {
   });
 
   PostModel copyWith({
+    String? imageUrl,
     int? likes,
     int? comments,
     int? reposts,
@@ -42,7 +41,7 @@ class PostModel {
       userId: userId,
       content: content,
       tags: tags,
-      imageUrl: imageUrl,
+      imageUrl: imageUrl ?? this.imageUrl,
       createdAt: createdAt,
       likes: likes ?? this.likes,
       comments: comments ?? this.comments,
@@ -66,16 +65,25 @@ class PostModel {
       };
 
   factory PostModel.fromJson(Map<String, dynamic> json) {
+    final createdAtValue = json['created_at'] ?? json['createdAt'];
     return PostModel(
-      id: json['id'] as String? ?? '0',
-      userId: json['userId'] as String? ?? '0',
+      id: (json['id'] ?? '0').toString(),
+      userId: (json['user_id'] ?? json['userId'] ?? '0').toString(),
       content: json['content'] as String? ?? '',
       tags: List<String>.from(json['tags'] as List? ?? []),
-      imageUrl: json['imageUrl'] as String?,
-      createdAt: (json['createdAt'] as DateTime).toLocal(),
-      likes: json['likes'] as int? ?? 0,
-      comments: json['comments'] as int? ?? 0,
-      reposts: json['reposts'] as int? ?? 0,
+      imageUrl: json['image_url'] as String? ?? json['imageUrl'] as String?,
+      createdAt: _parseDateTime(createdAtValue),
+      likes: (json['likes_count'] ?? json['likes'] ?? 0) as int,
+      comments: (json['comments_count'] ?? json['comments'] ?? 0) as int,
+      reposts: (json['reposts_count'] ?? json['reposts'] ?? 0) as int,
     );
+  }
+
+  static DateTime _parseDateTime(dynamic value) {
+    if (value is DateTime) return value.toLocal();
+    if (value is String) {
+      return DateTime.tryParse(value)?.toLocal() ?? DateTime.now();
+    }
+    return DateTime.now();
   }
 }

@@ -1,5 +1,3 @@
-import 'package:mongo_dart/mongo_dart.dart';
-
 class CommentModel {
   final String id;
   final String postId;
@@ -16,12 +14,21 @@ class CommentModel {
   });
 
   factory CommentModel.fromJson(Map<String, dynamic> json) {
+    final createdAtValue = json['created_at'] ?? json['createdAt'];
     return CommentModel(
-      id: (json['_id'] as ObjectId).oid,
-      postId: (json['postId'] as ObjectId).oid,
-      userId: (json['uid'] as ObjectId).oid,
-      text: json['text'] as String? ?? '',
-      createdAt: (json['createdAt'] as DateTime).toLocal(),
+      id: (json['id'] ?? '').toString(),
+      postId: (json['post_id'] ?? json['postId'] ?? '').toString(),
+      userId: (json['user_id'] ?? json['uid'] ?? '').toString(),
+      text: (json['content'] ?? json['text'] ?? '').toString(),
+      createdAt: _parseDateTime(createdAtValue),
     );
+  }
+
+  static DateTime _parseDateTime(dynamic value) {
+    if (value is DateTime) return value.toLocal();
+    if (value is String) {
+      return DateTime.tryParse(value)?.toLocal() ?? DateTime.now();
+    }
+    return DateTime.now();
   }
 }

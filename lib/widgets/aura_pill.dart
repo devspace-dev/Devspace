@@ -16,9 +16,9 @@ class AuraPill extends StatelessWidget {
         vertical: small ? 1 : 2,
       ),
       decoration: BoxDecoration(
-        color: badge.color.withOpacity(0.15),
+        color: badge.color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: badge.color.withOpacity(0.3)),
+        border: Border.all(color: badge.color.withValues(alpha: 0.3)),
       ),
       child: Text(
         '${badge.icon} ${aura.toString()}',

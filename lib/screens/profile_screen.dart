@@ -5,6 +5,7 @@ import '../providers/users_provider.dart';
 import '../providers/posts_provider.dart';
 import '../screens/profile_setup_screen.dart';
 import '../theme/app_colors.dart';
+import '../widgets/app_state_widgets.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/aura_bar.dart';
 import '../widgets/post_card.dart';
@@ -17,12 +18,55 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final me      = context.watch<AuthProvider>().currentUser;
-    final usersP  = context.watch<UsersProvider>();
-    final postsP  = context.watch<PostsProvider>();
-    final isMe    = userId == null || userId == me.id;
-    final user    = isMe ? me : (usersP.getUserById(userId!) ?? me);
-    final posts   = postsP.postsForUser(user.id);
+    final me = context.watch<AuthProvider>().currentUser;
+    final usersP = context.watch<UsersProvider>();
+    final postsP = context.watch<PostsProvider>();
+    final isMe = userId == null || userId == me.id;
+    final user = isMe ? me : usersP.getUserById(userId!);
+
+    if (!isMe && user == null && usersP.isLoading) {
+      return const Scaffold(
+        backgroundColor: AppColors.bg,
+        body: AppLoadingState(
+          title: 'Loading profile',
+          message: 'Fetching this builder profile from DevSpace.',
+        ),
+      );
+    }
+
+    if (!isMe && user == null && usersP.error != null) {
+      return Scaffold(
+        backgroundColor: AppColors.bg,
+        appBar: AppBar(backgroundColor: AppColors.bg),
+        body: AppErrorState(
+          title: 'Profile unavailable',
+          message: usersP.error!,
+          actionLabel: 'Retry',
+          onAction: () {
+            usersP.refreshUsers();
+          },
+        ),
+      );
+    }
+
+    if (!isMe && user == null) {
+      return Scaffold(
+        backgroundColor: AppColors.bg,
+        appBar: AppBar(backgroundColor: AppColors.bg),
+        body: AppEmptyState(
+          icon: Icons.person_search_rounded,
+          title: 'Profile unavailable',
+          message: 'We could not find this student profile.',
+          actionLabel: 'Refresh',
+          onAction: () {
+            usersP.refreshUsers();
+          },
+        ),
+      );
+    }
+
+    final profileUser = user ?? me;
+    final posts = postsP.postsForUser(profileUser.id);
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -38,7 +82,7 @@ class ProfileScreen extends StatelessWidget {
                     onPressed: () => Navigator.pop(context),
                   )
                 : null,
-            title: Text(user.name,
+            title: Text(profileUser.name,
                 style: const TextStyle(
                   fontWeight: FontWeight.w900, fontSize: 16, color: AppColors.text)),
             actions: [
@@ -55,13 +99,13 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ),
                     icon: Icon(
-                      user.profileCompleted
+                      profileUser.profileCompleted
                           ? Icons.edit_rounded
                           : Icons.auto_fix_high_rounded,
                       size: 16,
                     ),
                     label: Text(
-                      user.profileCompleted ? 'Edit' : 'Finish',
+                      profileUser.profileCompleted ? 'Edit' : 'Finish',
                     ),
                   ),
                 )
@@ -69,20 +113,34 @@ class ProfileScreen extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(right: 12),
                   child: GestureDetector(
-                    onTap: () => usersP.toggleFollow(me.id, user.id),
+                    onTap: usersP.isFollowUpdating(profileUser.id)
+                        ? null
+                        : () async {
+                            await usersP.toggleFollow(me.id, profileUser.id);
+                            if (!context.mounted) return;
+
+                            final error = usersP.followError(profileUser.id);
+                            if (error == null) return;
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(error)),
+                            );
+                          },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
                       decoration: BoxDecoration(
-                        color: user.isFollowing ? Colors.transparent : Colors.white,
+                        color: profileUser.isFollowing ? Colors.transparent : Colors.white,
                         borderRadius: BorderRadius.circular(99),
                         border: Border.all(
-                          color: user.isFollowing ? AppColors.border2 : Colors.white),
+                          color: profileUser.isFollowing ? AppColors.border2 : Colors.white),
                       ),
                       child: Text(
-                        user.isFollowing ? 'Following' : 'Follow',
+                        usersP.isFollowUpdating(profileUser.id)
+                            ? 'Saving...'
+                            : (profileUser.isFollowing ? 'Following' : 'Follow'),
                         style: TextStyle(
                           fontSize: 13, fontWeight: FontWeight.w700,
-                          color: user.isFollowing ? AppColors.text : AppColors.bg,
+                          color: profileUser.isFollowing ? AppColors.text : AppColors.bg,
                         ),
                       ),
                     ),
@@ -97,7 +155,7 @@ class ProfileScreen extends StatelessWidget {
               height: 100,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [user.color.withValues(alpha: 0.3), AppColors.bg2],
+                  colors: [profileUser.color.withValues(alpha: 0.3), AppColors.bg2],
                   begin: Alignment.topLeft, end: Alignment.bottomRight,
                 ),
               ),
@@ -118,7 +176,7 @@ class ProfileScreen extends StatelessWidget {
                         shape: BoxShape.circle,
                         border: Border.all(color: AppColors.bg, width: 4),
                       ),
-                      child: UserAvatar(user: user, size: 76, showStory: true),
+                      child: UserAvatar(user: profileUser, size: 76, showStory: true),
                     ),
                   ),
                   Transform.translate(
@@ -126,28 +184,28 @@ class ProfileScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(user.name,
+                        Text(profileUser.name,
                             style: const TextStyle(
                               fontSize: 22, fontWeight: FontWeight.w900,
                               color: AppColors.text, letterSpacing: -0.5)),
                         const SizedBox(height: 2),
-                        Text('@${user.handle}',
+                        Text('@${profileUser.handle}',
                             style: const TextStyle(fontSize: 14, color: AppColors.text3)),
                         const SizedBox(height: 10),
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
                           children: [
-                            _MetaChip(label: user.role),
-                            if (user.year.isNotEmpty || user.branch.isNotEmpty)
-                              _MetaChip(label: user.academicLabel),
+                            _MetaChip(label: profileUser.role),
+                            if (profileUser.year.isNotEmpty || profileUser.branch.isNotEmpty)
+                              _MetaChip(label: profileUser.academicLabel),
                           ],
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          user.bio.isEmpty
+                          profileUser.bio.isEmpty
                               ? 'This student has not added a bio yet.'
-                              : user.bio,
+                              : profileUser.bio,
                           style: const TextStyle(
                             fontSize: 14,
                             color: AppColors.text2,
@@ -155,7 +213,7 @@ class ProfileScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 10),
-                        if (isMe && !user.profileCompleted)
+                        if (isMe && !profileUser.profileCompleted)
                           Container(
                             width: double.infinity,
                             margin: const EdgeInsets.only(bottom: 14),
@@ -205,16 +263,16 @@ class ProfileScreen extends StatelessWidget {
                         Wrap(
                           spacing: 16, runSpacing: 4,
                           children: [
-                            if (user.academicLabel.isNotEmpty)
-                              _InfoChip(icon: '📍', label: user.academicLabel),
-                            _InfoChip(icon: '🛠', label: user.building),
-                            _InfoChip(icon: '🎓', label: user.college),
+                            if (profileUser.academicLabel.isNotEmpty)
+                              _InfoChip(icon: '📍', label: profileUser.academicLabel),
+                            _InfoChip(icon: '🛠', label: profileUser.building),
+                            _InfoChip(icon: '🎓', label: profileUser.college),
                           ],
                         ),
                         const SizedBox(height: 10),
                         Wrap(
                           spacing: 6, runSpacing: 4,
-                          children: user.stack.map((s) => Container(
+                          children: profileUser.stack.map((s) => Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                             decoration: BoxDecoration(
                               color: AppColors.primary.withValues(alpha: 0.12),
@@ -239,16 +297,16 @@ class ProfileScreen extends StatelessWidget {
                             borderRadius: BorderRadius.circular(14),
                             border: Border.all(color: AppColors.border),
                           ),
-                          child: AuraBar(aura: user.aura),
+                          child: AuraBar(aura: profileUser.aura),
                         ),
                         const SizedBox(height: 14),
 
                         // Stats row
                         Row(
                           children: [
-                            _Stat(count: user.followers, label: 'followers'),
+                            _Stat(count: profileUser.followers, label: 'followers'),
                             const SizedBox(width: 20),
-                            _Stat(count: user.following, label: 'following'),
+                            _Stat(count: profileUser.following, label: 'following'),
                             const SizedBox(width: 20),
                             _Stat(count: posts.length, label: 'posts'),
                           ],
@@ -256,7 +314,7 @@ class ProfileScreen extends StatelessWidget {
                         const SizedBox(height: 16),
 
                         // GitHub activity card
-                        GitHubCard(githubHandle: user.githubHandle),
+                        GitHubCard(githubHandle: profileUser.githubHandle),
                       ],
                     ),
                   ),
@@ -269,7 +327,31 @@ class ProfileScreen extends StatelessWidget {
             child: Divider(color: AppColors.border, height: 1)),
 
           // Posts
-          posts.isEmpty
+          postsP.isLoading && postsP.posts.isEmpty
+              ? const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.all(40),
+                    child: AppLoadingState(
+                      title: 'Loading posts',
+                      message: 'Fetching recent updates from this builder.',
+                    ),
+                  ),
+                )
+              : postsP.feedError != null && postsP.posts.isEmpty
+              ? SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(40),
+                    child: AppErrorState(
+                      title: 'Posts unavailable',
+                      message: postsP.feedError!,
+                      actionLabel: 'Retry',
+                      onAction: () {
+                        postsP.refreshFeed();
+                      },
+                    ),
+                  ),
+                )
+              : posts.isEmpty
               ? const SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.all(40),

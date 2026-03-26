@@ -2,12 +2,11 @@ import 'package:devspace/screens/login_screen.dart';
 import 'package:devspace/models/user_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mongo_dart/mongo_dart.dart';
 
 void main() {
   testWidgets('login screen renders both auth methods', (tester) async {
     await tester.pumpWidget(
-      MaterialApp(
+      const MaterialApp(
         home: LoginScreen(onSuccess: _noop),
       ),
     );
@@ -19,7 +18,7 @@ void main() {
 
   test('user model splits legacy academic text into year and branch', () {
     final user = UserModel.fromJson({
-      '_id': ObjectId.fromHexString('65a123456789abcdef123456'),
+      'id': 'user-1',
       'name': 'Mohammad',
       'email': 'm@example.com',
       'handle': 'mohammad',
@@ -34,6 +33,7 @@ void main() {
       'following': 0,
       'bio': '',
       'college': 'Jaipur National University',
+      'profile_completed': true,
     });
 
     expect(user.year, '3rd Year');

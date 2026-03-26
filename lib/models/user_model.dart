@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-
 class UserModel {
   final String id;
   final String name;
@@ -124,7 +123,7 @@ class UserModel {
     final parsedAcademic = _parseAcademicInfo(rawYear, rawBranch);
     final building = json['building'] as String? ?? '';
     final stack = List<String>.from(json['stack'] as List? ?? []);
-    final explicitCompleted = json['profileCompleted'] as bool?;
+    final explicitCompleted = (json['profile_completed'] ?? json['profileCompleted']) as bool?;
     final inferredCompleted = explicitCompleted ??
         (parsedAcademic.year.isNotEmpty &&
             parsedAcademic.branch.isNotEmpty &&
@@ -135,7 +134,7 @@ class UserModel {
             (json['college'] as String? ?? '').isNotEmpty);
 
     return UserModel(
-      id: json['id'] as String? ?? '0',
+      id: (json['id'] ?? '0').toString(),
       name: json['name'] as String? ?? 'Unknown',
       email: json['email'] as String? ?? '',
       handle: json['handle'] as String? ?? '',
@@ -151,7 +150,8 @@ class UserModel {
       following: json['following'] as int? ?? 0,
       bio: json['bio'] as String? ?? '',
       college: json['college'] as String? ?? '',
-      githubHandle: json['githubHandle'] as String? ?? '',
+      githubHandle:
+          (json['github_handle'] ?? json['githubHandle'] ?? '') as String,
       profileCompleted: inferredCompleted,
     );
   }

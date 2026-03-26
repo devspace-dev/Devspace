@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/users_provider.dart';
 import '../theme/app_colors.dart';
 import '../utils/constants.dart';
+import '../widgets/app_state_widgets.dart';
 import '../widgets/profile_card.dart';
 import 'profile_screen.dart';
 
@@ -27,10 +28,11 @@ class _PeopleScreenState extends State<PeopleScreen> {
   @override
   Widget build(BuildContext context) {
     final usersP = context.watch<UsersProvider>();
-    var users    = usersP.search(_query);
+    var users = usersP.search(_query);
     if (_branch != 'All') {
       users = users.where((u) => u.branch == _branch).toList();
     }
+    final hasSearchOrFilter = _query.isNotEmpty || _branch != 'All';
 
     return Column(
       children: [
@@ -95,10 +97,38 @@ class _PeopleScreenState extends State<PeopleScreen> {
 
         // User list
         Expanded(
-          child: users.isEmpty
-              ? Center(
-                  child: Text('No developers found for "$_query"',
-                      style: const TextStyle(color: AppColors.text3, fontSize: 14)))
+          child: usersP.isLoading && usersP.users.isEmpty
+              ? const AppLoadingState(
+                  title: 'Loading developers',
+                  message:
+                      'Pulling in student builders and their latest profiles.',
+                )
+              : usersP.error != null && usersP.users.isEmpty
+              ? AppErrorState(
+                  title: 'Developers unavailable',
+                  message: usersP.error!,
+                  actionLabel: 'Retry',
+                  onAction: () {
+                    usersP.refreshUsers();
+                  },
+                )
+              : usersP.users.isEmpty
+              ? const AppEmptyState(
+                  icon: Icons.groups_rounded,
+                  title: 'No developers yet',
+                  message:
+                      'Once students join DevSpace, their profiles will show up here.',
+                )
+              : users.isEmpty
+              ? AppEmptyState(
+                  icon: Icons.search_off_rounded,
+                  title: hasSearchOrFilter
+                      ? 'No matching developers'
+                      : 'No developers found',
+                  message: hasSearchOrFilter
+                      ? 'Try another name, branch, or stack keyword.'
+                      : 'No developer profiles are available yet.',
+                )
               : ListView.builder(
                   itemCount: users.length,
                   itemBuilder: (context, i) => ProfileCard(

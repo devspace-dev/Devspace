@@ -115,9 +115,31 @@ class _FollowButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currentUserId = context.read<AuthProvider>().currentUser.id;
+    final usersProvider = context.watch<UsersProvider>();
+    final isUpdating = usersProvider.isFollowUpdating(user.id);
+    final isCurrentUser = currentUserId == user.id;
+
+    if (isCurrentUser) {
+      return const SizedBox.shrink();
+    }
 
     return GestureDetector(
-      onTap: () => context.read<UsersProvider>().toggleFollow(currentUserId, user.id),
+      onTap: isUpdating
+          ? null
+          : () async {
+              await context
+                  .read<UsersProvider>()
+                  .toggleFollow(currentUserId, user.id);
+              if (!context.mounted) return;
+
+              final error =
+                  context.read<UsersProvider>().followError(user.id);
+              if (error == null) return;
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(error)),
+              );
+            },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
@@ -132,7 +154,9 @@ class _FollowButton extends StatelessWidget {
           ),
         ),
         child: Text(
-          user.isFollowing ? 'Following' : 'Follow',
+          isUpdating
+              ? 'Saving...'
+              : (user.isFollowing ? 'Following' : 'Follow'),
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w700,
