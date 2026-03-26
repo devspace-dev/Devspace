@@ -24,15 +24,15 @@ class UserAvatar extends StatelessWidget {
     final badge = getBadge(user.aura);
     final borderColor = showStory
         ? badge.color
-        : (showRing ? user.color : user.color.withValues(alpha: 0.3));
-    final borderWidth = showStory ? 2.5 : (showRing ? 2.0 : 1.5);
+        : (showRing ? AppColors.border2 : AppColors.border);
+    final borderWidth = showStory ? 2.0 : 1.0;
 
     Widget avatar = Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: user.color.withValues(alpha: 0.15),
+        color: AppColors.bg3,
         border: Border.all(color: borderColor, width: borderWidth),
       ),
       child: user.hasImageAvatar
@@ -47,10 +47,10 @@ class UserAvatar extends StatelessWidget {
               child: Text(
                 user.avatar,
                 style: TextStyle(
-                  fontSize: size * 0.32,
-                  fontWeight: FontWeight.w900,
+                  fontSize: size * 0.35,
+                  fontWeight: FontWeight.w700,
                   color: user.color,
-                  letterSpacing: -0.5,
+                  letterSpacing: -0.2,
                 ),
               ),
             ),
@@ -58,17 +58,17 @@ class UserAvatar extends StatelessWidget {
 
     if (showStory) {
       return Container(
-        width: size + 10,
-        height: size + 10,
+        width: size + 8,
+        height: size + 8,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           border: Border.all(
-            color: badge.color.withValues(alpha: 0.5),
-            width: 2.5,
+            color: badge.color.withValues(alpha: 0.4),
+            width: 1.5,
           ),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(2.5),
+          padding: const EdgeInsets.all(2.0),
           child: Container(
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
@@ -110,7 +110,7 @@ class _AvatarImage extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      color: color.withValues(alpha: 0.18),
+      color: color.withValues(alpha: 0.1),
       child: Icon(
         Icons.person_rounded,
         color: color,

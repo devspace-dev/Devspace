@@ -53,31 +53,29 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
         title: _tab == 0
             ? Row(children: [
                 Container(
-                  width: 28, height: 28,
+                  width: 24, height: 24,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    gradient: const LinearGradient(
-                      colors: [AppColors.primary, AppColors.secondary],
-                      begin: Alignment.topLeft, end: Alignment.bottomRight,
-                    ),
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const Center(child: Text('⌥', style: TextStyle(fontSize: 15))),
+                  child: const Center(child: Text('⌥', style: TextStyle(fontSize: 14, color: Colors.white))),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 const Text('DevSpace',
                     style: TextStyle(
-                      fontWeight: FontWeight.w900, fontSize: 19,
-                      color: AppColors.text, letterSpacing: -0.5)),
-                const SizedBox(width: 6),
+                      fontWeight: FontWeight.w800, fontSize: 18,
+                      color: AppColors.text, letterSpacing: -0.4)),
+                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: AppColors.bg3,
-                    borderRadius: BorderRadius.circular(99),
+                    color: AppColors.bg2,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: AppColors.border),
                   ),
                   child: const Text('BETA',
-                      style: TextStyle(fontSize: 9, color: AppColors.text3,
-                          fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+                      style: TextStyle(fontSize: 9, color: AppColors.text4,
+                          fontWeight: FontWeight.w800, letterSpacing: 0.6)),
                 ),
               ])
             : Text(_titles[_tab]),
@@ -87,18 +85,24 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(99),
+                    color: AppColors.bg2,
+                    borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: AppColors.primary.withValues(alpha: 0.3),
+                      color: AppColors.border,
                     ),
                   ),
-                  child: Text(
-                    '⚡ ${me.aura}',
-                    style: const TextStyle(
-                      fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary),
+                  child: Row(
+                    children: [
+                      const Text('⚡', style: TextStyle(fontSize: 10)),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${me.aura}',
+                        style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.text2),
+                      ),
+                    ],
                   ),
                 ),
               ],

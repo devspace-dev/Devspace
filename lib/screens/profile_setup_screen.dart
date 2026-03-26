@@ -349,7 +349,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               Center(
                 child: ImageUploadWidget(
                   existingUrl: _avatarPath,
-                  uploadPath: 'profile_photos/$uid.jpg',
+                  uploadPath: 'profiles/$uid.jpg',
                   size: 112,
                   isCircle: true,
                   onUploaded: (url) => setState(() => _avatarPath = url),

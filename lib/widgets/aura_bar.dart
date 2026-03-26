@@ -23,7 +23,7 @@ class AuraBar extends StatelessWidget {
             Text(
               '${badge.icon} ${badge.name}',
               style: TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w700, color: badge.color,
+                fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.text,
               ),
             ),
             Text(
@@ -32,25 +32,21 @@ class AuraBar extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 5),
+        const SizedBox(height: 6),
         ClipRRect(
-          borderRadius: BorderRadius.circular(99),
+          borderRadius: BorderRadius.circular(4),
           child: LinearProgressIndicator(
             value: progress.clamp(0.0, 1.0),
-            minHeight: 5,
-            backgroundColor: AppColors.border,
-            valueColor: AlwaysStoppedAnimation<Color>(
-              next != null
-                  ? badge.color
-                  : badge.color,
-            ),
+            minHeight: 4,
+            backgroundColor: AppColors.bg3,
+            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
           ),
         ),
         if (next != null) ...[
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
             auraProgressLabel(aura),
-            style: const TextStyle(fontSize: 11, color: AppColors.text3),
+            style: const TextStyle(fontSize: 11, color: AppColors.text4),
           ),
         ],
       ],

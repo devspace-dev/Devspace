@@ -127,25 +127,14 @@ class _LoginScreenState extends State<LoginScreen>
                       children: [
                         Center(
                           child: Container(
-                            width: 76,
-                            height: 76,
+                            width: 64,
+                            height: 64,
                             decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(22),
-                              gradient: const LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [AppColors.primary, AppColors.secondary],
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.primary.withValues(alpha: 0.3),
-                                  blurRadius: 24,
-                                  offset: const Offset(0, 8),
-                                ),
-                              ],
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(16),
                             ),
                             child: const Center(
-                              child: Text('⌥', style: TextStyle(fontSize: 38)),
+                              child: Text('⌥', style: TextStyle(fontSize: 32, color: Colors.white)),
                             ),
                           ),
                         ),
@@ -153,15 +142,15 @@ class _LoginScreenState extends State<LoginScreen>
                         const Text(
                           'DevSpace',
                           style: TextStyle(
-                            fontSize: 34,
-                            fontWeight: FontWeight.w900,
+                            fontSize: 32,
+                            fontWeight: FontWeight.w800,
                             color: AppColors.text,
-                            letterSpacing: -1.1,
+                            letterSpacing: -0.8,
                           ),
                         ),
                         const SizedBox(height: 8),
                         const Text(
-                          'A social network for engineering students to share what they are building.',
+                          'A professional space for engineering students to showcase their work.',
                           style: TextStyle(
                             fontSize: 14,
                             color: AppColors.text3,
@@ -173,7 +162,7 @@ class _LoginScreenState extends State<LoginScreen>
                           padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
                             color: AppColors.bg3,
-                            borderRadius: BorderRadius.circular(99),
+                            borderRadius: BorderRadius.circular(12),
                             border: Border.all(color: AppColors.border),
                           ),
                           child: Row(

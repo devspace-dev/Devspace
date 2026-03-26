@@ -50,20 +50,20 @@ class _PostCardState extends State<PostCard> {
 
     return Container(
       decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.border)),
+        border: Border(bottom: BorderSide(color: AppColors.border, width: 0.8)),
       ),
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Avatar + thread line
           Column(
             children: [
-              UserAvatar(user: user, size: 44, showRing: true),
+              UserAvatar(user: user, size: 42, showRing: false),
               if (_showComments)
                 Container(
-                  width: 2, height: 60,
-                  margin: const EdgeInsets.only(top: 6),
+                  width: 1.5, height: 60,
+                  margin: const EdgeInsets.only(top: 8),
                   decoration: BoxDecoration(
                     color: AppColors.border,
                     borderRadius: BorderRadius.circular(2),
@@ -79,33 +79,36 @@ class _PostCardState extends State<PostCard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Header row
-                Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 6,
+                Row(
                   children: [
-                    Text(user.name,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800, fontSize: 15, color: AppColors.text)),
-                    Text('@${user.handle}',
-                        style: const TextStyle(fontSize: 12, color: AppColors.text3)),
-                    const Text('·',
-                        style: TextStyle(fontSize: 12, color: AppColors.border2)),
-                    Text(timeago.format(post.createdAt),
-                        style: const TextStyle(fontSize: 12, color: AppColors.text3)),
+                    Expanded(
+                      child: Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 6,
+                        children: [
+                          Text(user.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700, fontSize: 15, color: AppColors.text)),
+                          Text('@${user.handle}',
+                              style: const TextStyle(fontSize: 13, color: AppColors.text3)),
+                          const Text('·',
+                              style: TextStyle(fontSize: 12, color: AppColors.text4)),
+                          Text(timeago.format(post.createdAt, locale: 'en_short'),
+                              style: const TextStyle(fontSize: 13, color: AppColors.text3)),
+                        ],
+                      ),
+                    ),
                     AuraPill(aura: user.aura, small: true),
                   ],
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 2),
 
                 // Building status
                 Row(
                   children: [
-                    const Text('🛠 ', style: TextStyle(fontSize: 11)),
-                    Expanded(
-                      child: Text(user.building,
-                          style: const TextStyle(fontSize: 11, color: AppColors.text4),
-                          overflow: TextOverflow.ellipsis),
-                    ),
+                    Text(user.building,
+                        style: const TextStyle(fontSize: 12, color: AppColors.text4),
+                        overflow: TextOverflow.ellipsis),
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -118,34 +121,35 @@ class _PostCardState extends State<PostCard> {
                     style: TextStyle(
                       fontSize: 15,
                       color: e.key == 0 ? AppColors.text : AppColors.text2,
-                      height: 1.6,
+                      height: 1.5,
+                      letterSpacing: 0.1,
                     ),
                   ),
                 )),
                 if (post.imageUrl != null && post.imageUrl!.isNotEmpty) ...[
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(12),
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxHeight: 260),
+                      constraints: const BoxConstraints(maxHeight: 300),
                       child: CachedNetworkImage(
                         imageUrl: post.imageUrl!,
                         width: double.infinity,
                         fit: BoxFit.cover,
                         placeholder: (_, __) => Container(
                           width: double.infinity,
-                          height: 220,
+                          height: 200,
                           color: AppColors.bg3,
                           alignment: Alignment.center,
                           child: const SizedBox(
-                            width: 22,
-                            height: 22,
+                            width: 20,
+                            height: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           ),
                         ),
                         errorWidget: (_, __, ___) => Container(
                           width: double.infinity,
-                          height: 220,
+                          height: 200,
                           color: AppColors.bg3,
                           alignment: Alignment.center,
                           child: const Text(
@@ -160,22 +164,25 @@ class _PostCardState extends State<PostCard> {
                     ),
                   ),
                 ],
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
 
                 // Tags
                 if (post.tags.isNotEmpty)
-                  Wrap(
-                    spacing: 10,
-                    children: post.tags.map((t) => Text(
-                      '#$t',
-                      style: const TextStyle(
-                        fontSize: 13, color: AppColors.primary, fontWeight: FontWeight.w500),
-                    )).toList(),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Wrap(
+                      spacing: 12,
+                      children: post.tags.map((t) => Text(
+                        '#$t',
+                        style: const TextStyle(
+                          fontSize: 13, color: AppColors.primary, fontWeight: FontWeight.w500),
+                      )).toList(),
+                    ),
                   ),
-                const SizedBox(height: 10),
 
                 // Action bar
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     _ActionBtn(
                       icon: Icons.chat_bubble_outline_rounded,
@@ -227,11 +234,9 @@ class _PostCardState extends State<PostCard> {
                 // Comments section
                 if (_showComments) ...[
                   const SizedBox(height: 12),
-                  const Divider(color: AppColors.border, height: 1),
-                  const SizedBox(height: 12),
                   if (commentsLoading)
                     const Padding(
-                      padding: EdgeInsets.only(bottom: 12),
+                      padding: EdgeInsets.symmetric(vertical: 12),
                       child: Center(
                         child: SizedBox(
                           width: 18,
@@ -242,9 +247,9 @@ class _PostCardState extends State<PostCard> {
                     )
                   else if (comments.isEmpty)
                     const Padding(
-                      padding: EdgeInsets.only(bottom: 12),
+                      padding: EdgeInsets.only(bottom: 16, top: 8),
                       child: Text(
-                        'No comments yet. Start the conversation.',
+                        'No comments yet.',
                         style: TextStyle(
                           fontSize: 13,
                           color: AppColors.text3,
@@ -252,26 +257,28 @@ class _PostCardState extends State<PostCard> {
                       ),
                     )
                   else
-                    ...comments.map((comment) => Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: _CommentRow(
-                            comment: comment,
-                            user: _commentUser(usersP, me, comment),
-                          ),
-                        )),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Column(
+                        children: comments.map((comment) => Padding(
+                              padding: const EdgeInsets.only(bottom: 14),
+                              child: _CommentRow(
+                                comment: comment,
+                                user: _commentUser(usersP, me, comment),
+                              ),
+                            )).toList(),
+                      ),
+                    ),
                   if (commentError != null) ...[
                     Container(
                       width: double.infinity,
-                      margin: const EdgeInsets.only(bottom: 10),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: Colors.red.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: Colors.red.withValues(alpha: 0.25),
+                          color: Colors.red.withValues(alpha: 0.2),
                         ),
                       ),
                       child: Text(
@@ -285,20 +292,26 @@ class _PostCardState extends State<PostCard> {
                   ],
                   Row(
                     children: [
-                      UserAvatar(user: me, size: 30, showRing: true),
-                      const SizedBox(width: 8),
+                      UserAvatar(user: me, size: 28, showRing: false),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: TextField(
                           controller: _commentCtrl,
-                          style: const TextStyle(fontSize: 13, color: AppColors.text),
-                          decoration: const InputDecoration(
+                          style: const TextStyle(fontSize: 14, color: AppColors.text),
+                          decoration: InputDecoration(
                             hintText: 'Post a reply...',
-                            contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            filled: true,
+                            fillColor: AppColors.bg2,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
                           ),
                           onSubmitted: (_) => _submitComment(postsP, post.id, me.id),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 4),
                       IconButton(
                         onPressed: commentSubmitting
                             ? null
@@ -312,11 +325,12 @@ class _PostCardState extends State<PostCard> {
                             : const Icon(
                                 Icons.send_rounded,
                                 color: AppColors.primary,
+                                size: 20,
                               ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                 ],
               ],
             ),
@@ -408,8 +422,8 @@ class _CommentRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        UserAvatar(user: user, size: 28, showRing: true),
-        const SizedBox(width: 8),
+        UserAvatar(user: user, size: 28, showRing: false),
+        const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -430,11 +444,11 @@ class _CommentRow extends StatelessWidget {
                     '@${user.handle}',
                     style: const TextStyle(
                       fontSize: 12,
-                      color: AppColors.text4,
+                      color: AppColors.text3,
                     ),
                   ),
                   Text(
-                    timeago.format(comment.createdAt),
+                    timeago.format(comment.createdAt, locale: 'en_short'),
                     style: const TextStyle(
                       fontSize: 12,
                       color: AppColors.text4,
@@ -446,9 +460,9 @@ class _CommentRow extends StatelessWidget {
               Text(
                 comment.text,
                 style: const TextStyle(
-                  fontSize: 13,
+                  fontSize: 14,
                   color: AppColors.text2,
-                  height: 1.5,
+                  height: 1.4,
                 ),
               ),
             ],
@@ -479,19 +493,20 @@ class _ActionBtn extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: disabled ? null : onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(
           children: [
             Icon(
               active ? activeIcon : icon,
-              size: 19,
+              size: 18,
               color: disabled
                   ? AppColors.text4
                   : (active ? activeColor : AppColors.text3),
             ),
             if (count != null) ...[
-              const SizedBox(width: 4),
+              const SizedBox(width: 6),
               Text(
                 '$count',
                 style: TextStyle(
@@ -499,7 +514,7 @@ class _ActionBtn extends StatelessWidget {
                   color: disabled
                       ? AppColors.text4
                       : (active ? activeColor : AppColors.text3),
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],

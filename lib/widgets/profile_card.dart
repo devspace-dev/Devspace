@@ -23,14 +23,14 @@ class ProfileCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: AppColors.border)),
+          border: Border(bottom: BorderSide(color: AppColors.border, width: 0.8)),
         ),
         padding: const EdgeInsets.all(16),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            UserAvatar(user: liveUser, size: 50, showStory: true),
-            const SizedBox(width: 12),
+            UserAvatar(user: liveUser, size: 48, showStory: false),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -46,12 +46,13 @@ class ProfileCard extends StatelessWidget {
                               children: [
                                 Text(liveUser.name,
                                     style: const TextStyle(
-                                      fontWeight: FontWeight.w800,
+                                      fontWeight: FontWeight.w700,
                                       fontSize: 15, color: AppColors.text)),
-                                const SizedBox(width: 6),
+                                const SizedBox(width: 8),
                                 AuraPill(aura: liveUser.aura, small: true),
                               ],
                             ),
+                            const SizedBox(height: 2),
                             Text(
                                 '@${liveUser.handle} · ${liveUser.academicLabel.isEmpty ? liveUser.role : liveUser.academicLabel}',
                                 style: const TextStyle(
@@ -63,13 +64,12 @@ class ProfileCard extends StatelessWidget {
                       _FollowButton(user: liveUser),
                     ],
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   Text(liveUser.bio,
-                      style: const TextStyle(fontSize: 13, color: AppColors.text2)),
-                  const SizedBox(height: 6),
+                      style: const TextStyle(fontSize: 13, color: AppColors.text2, height: 1.4)),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
-                      const Text('🛠 ', style: TextStyle(fontSize: 11)),
                       Expanded(
                         child: Text(liveUser.building,
                             style: const TextStyle(
@@ -78,25 +78,25 @@ class ProfileCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
+                    spacing: 8,
+                    runSpacing: 6,
                     children: liveUser.stack.map((s) => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(99),
+                        color: AppColors.bg3,
+                        borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                          color: AppColors.primary.withValues(alpha: 0.25),
+                          color: AppColors.border,
                         ),
                       ),
                       child: Text(s,
                           style: const TextStyle(
-                            fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.w600)),
+                            fontSize: 11, color: AppColors.text2, fontWeight: FontWeight.w600)),
                     )).toList(),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 14),
                   AuraBar(aura: liveUser.aura),
                 ],
               ),
@@ -141,26 +141,22 @@ class _FollowButton extends StatelessWidget {
               );
             },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: user.isFollowing
-              ? Colors.transparent
-              : AppColors.primary.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(99),
+          color: user.isFollowing ? Colors.transparent : AppColors.primary,
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: user.isFollowing
-                ? AppColors.border2
-                : AppColors.primary.withValues(alpha: 0.4),
+            color: user.isFollowing ? AppColors.border : AppColors.primary,
           ),
         ),
         child: Text(
           isUpdating
-              ? 'Saving...'
+              ? '...'
               : (user.isFollowing ? 'Following' : 'Follow'),
           style: TextStyle(
-            fontSize: 13,
+            fontSize: 12,
             fontWeight: FontWeight.w700,
-            color: user.isFollowing ? AppColors.text4 : AppColors.primary,
+            color: user.isFollowing ? AppColors.text2 : Colors.white,
           ),
         ),
       ),

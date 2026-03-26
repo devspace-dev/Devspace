@@ -18,17 +18,18 @@ class AppTheme {
       textTheme: GoogleFonts.dmSansTextTheme(
         ThemeData.dark().textTheme,
       ).apply(bodyColor: AppColors.text, displayColor: AppColors.text),
-      appBarTheme: AppBarTheme(
-        backgroundColor: AppColors.bg.withValues(alpha: 0.85),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: AppColors.bg,
         elevation: 0,
+        scrolledUnderElevation: 0,
         systemOverlayStyle: SystemUiOverlayStyle.light,
-        titleTextStyle: GoogleFonts.dmSans(
+        titleTextStyle: TextStyle(
           color: AppColors.text,
           fontSize: 18,
-          fontWeight: FontWeight.w900,
-          letterSpacing: -0.5,
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.4,
         ),
-        iconTheme: const IconThemeData(color: AppColors.text),
+        iconTheme: IconThemeData(color: AppColors.text),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: AppColors.bg,
@@ -41,33 +42,34 @@ class AppTheme {
       ),
       dividerTheme: const DividerThemeData(
         color: AppColors.border,
-        thickness: 1,
+        thickness: 0.8,
         space: 0,
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.bg3,
+        fillColor: AppColors.bg2,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(99),
+          borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(99),
+          borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(99),
-          borderSide: const BorderSide(color: AppColors.primary),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
         ),
-        hintStyle: const TextStyle(color: AppColors.text3),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        hintStyle: const TextStyle(color: AppColors.text3, fontSize: 14),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
-          shape: const StadiumBorder(),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           textStyle: GoogleFonts.dmSans(fontWeight: FontWeight.w700, fontSize: 14),
         ),
       ),

@@ -49,10 +49,10 @@ class _GitHubCardState extends State<GitHubCard> {
         final data = snap.data!;
 
         return Container(
-          margin: const EdgeInsets.symmetric(vertical: 4),
+          margin: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: AppColors.bg3,
-            borderRadius: BorderRadius.circular(14),
+            color: AppColors.bg2,
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppColors.border),
           ),
           child: Column(
@@ -60,64 +60,53 @@ class _GitHubCardState extends State<GitHubCard> {
             children: [
               // Header
               Padding(
-                padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
                 child: Row(
                   children: [
-                    Container(
-                      width: 22, height: 22,
-                      decoration: BoxDecoration(
-                        color: AppColors.text.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Center(
-                        child: Text('⌥',
-                            style: TextStyle(fontSize: 13, color: AppColors.text2)),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
+                    const Icon(Icons.code_rounded, size: 18, color: AppColors.text3),
+                    const SizedBox(width: 10),
                     Text(
-                      '@${widget.githubHandle}',
+                      'GitHub · ${widget.githubHandle}',
                       style: const TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 14,
-                        color: AppColors.text),
+                        fontWeight: FontWeight.w700, fontSize: 13,
+                        color: AppColors.text2),
                     ),
                     const Spacer(),
                     if (data.stats != null) ...[
                       _StatChip(
-                          icon: Icons.star_rounded,
-                          label: '${data.stats!['public_repos'] ?? 0} repos'),
-                      const SizedBox(width: 8),
-                      _StatChip(
-                          icon: Icons.people_outline_rounded,
-                          label: '${data.stats!['followers'] ?? 0}'),
+                          icon: Icons.star_outline_rounded,
+                          label: '${data.stats!['public_repos'] ?? 0}'),
                     ],
                   ],
                 ),
               ),
 
+              const SizedBox(height: 12),
+              const Divider(color: AppColors.border, height: 1),
+
               // Recent commits
               if (data.commits.isNotEmpty) ...[
                 const Padding(
-                  padding: EdgeInsets.fromLTRB(14, 12, 14, 4),
-                  child: Text('Recent commits',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
-                          color: AppColors.text3, letterSpacing: 0.5)),
+                  padding: EdgeInsets.fromLTRB(16, 14, 16, 8),
+                  child: Text('RECENT COMMITS',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800,
+                          color: AppColors.text4, letterSpacing: 1.0)),
                 ),
-                ...data.commits.take(3).map((c) => _CommitRow(commit: c)),
+                ...data.commits.take(2).map((c) => _CommitRow(commit: c)),
               ],
 
               // Top repos
               if (data.repos.isNotEmpty) ...[
                 const Padding(
-                  padding: EdgeInsets.fromLTRB(14, 12, 14, 4),
-                  child: Text('Top repositories',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
-                          color: AppColors.text3, letterSpacing: 0.5)),
+                  padding: EdgeInsets.fromLTRB(16, 14, 16, 8),
+                  child: Text('TOP REPOSITORIES',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800,
+                          color: AppColors.text4, letterSpacing: 1.0)),
                 ),
-                ...data.repos.take(3).map((r) => _RepoRow(repo: r)),
+                ...data.repos.take(2).map((r) => _RepoRow(repo: r)),
               ],
 
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
             ],
           ),
         );
@@ -135,17 +124,10 @@ class _CommitRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            margin: const EdgeInsets.only(top: 4),
-            width: 6, height: 6,
-            decoration: const BoxDecoration(
-              color: AppColors.primary, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -157,8 +139,8 @@ class _CommitRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${commit.repo.split('/').last} · ${timeago.format(commit.date)}',
-                  style: const TextStyle(fontSize: 11, color: AppColors.text3),
+                  '${commit.repo.split('/').last} · ${timeago.format(commit.date, locale: 'en_short')}',
+                  style: const TextStyle(fontSize: 12, color: AppColors.text3),
                 ),
               ],
             ),
@@ -175,24 +157,10 @@ class _RepoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final langColors = {
-      'Dart': const Color(0xFF00B4AB),
-      'JavaScript': const Color(0xFFF1E05A),
-      'TypeScript': const Color(0xFF3178C6),
-      'Python': const Color(0xFF3572A5),
-      'Go': const Color(0xFF00ADD8),
-      'Rust': const Color(0xFFDEA584),
-      'Swift': const Color(0xFFFA7343),
-      'Kotlin': const Color(0xFF7F52FF),
-    };
-    final langColor = langColors[repo.language] ?? AppColors.text3;
-
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Row(
         children: [
-          const Icon(Icons.folder_rounded, size: 16, color: AppColors.text3),
-          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -204,26 +172,18 @@ class _RepoRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis),
                 if (repo.description.isNotEmpty)
                   Text(repo.description,
-                      style: const TextStyle(fontSize: 11, color: AppColors.text3),
+                      style: const TextStyle(fontSize: 12, color: AppColors.text3),
                       maxLines: 1, overflow: TextOverflow.ellipsis),
               ],
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 12),
           Row(
             children: [
-              Container(
-                width: 8, height: 8,
-                decoration: BoxDecoration(color: langColor, shape: BoxShape.circle),
-              ),
+              const Icon(Icons.star_outline_rounded, size: 14, color: AppColors.text3),
               const SizedBox(width: 4),
-              Text(repo.language,
-                  style: const TextStyle(fontSize: 11, color: AppColors.text3)),
-              const SizedBox(width: 8),
-              const Icon(Icons.star_rounded, size: 13, color: AppColors.text3),
-              const SizedBox(width: 2),
               Text('${repo.stars}',
-                  style: const TextStyle(fontSize: 11, color: AppColors.text3)),
+                  style: const TextStyle(fontSize: 12, color: AppColors.text3)),
             ],
           ),
         ],
@@ -241,9 +201,9 @@ class _StatChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 13, color: AppColors.text3),
-        const SizedBox(width: 3),
-        Text(label, style: const TextStyle(fontSize: 11, color: AppColors.text3)),
+        Icon(icon, size: 14, color: AppColors.text3),
+        const SizedBox(width: 4),
+        Text(label, style: const TextStyle(fontSize: 12, color: AppColors.text3)),
       ],
     );
   }
@@ -255,11 +215,11 @@ class _GitHubSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 80,
-      margin: const EdgeInsets.symmetric(vertical: 4),
+      height: 100,
+      margin: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        color: AppColors.bg3,
-        borderRadius: BorderRadius.circular(14),
+        color: AppColors.bg2,
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.border),
       ),
       child: const Center(
