@@ -20,7 +20,7 @@ class _QAScreenState extends State<QAScreen> {
   final _uuid = const Uuid();
   List<QuestionModel> _questions = [
     QuestionModel(
-      id: '1', userId: 3,
+      id: '1', userId: '507f1f77bcf86cd799439014',
       title: 'How do I handle state management in Flutter for a complex app?',
       body: "I'm building a food delivery app and my widget tree is getting messy. Should I use Provider, Riverpod, or BLoC? Any real experience with these?",
       tags: ['Flutter', 'StateManagement', 'Dart'],
@@ -28,7 +28,7 @@ class _QAScreenState extends State<QAScreen> {
       votes: 12, answerCount: 3,
     ),
     QuestionModel(
-      id: '2', userId: 1,
+      id: '2', userId: '507f1f77bcf86cd799439012',
       title: 'Best way to implement JWT refresh token rotation in Node.js?',
       body: 'Currently storing refresh tokens in httpOnly cookies. Should I keep a blacklist in Redis or use a rotating token family approach?',
       tags: ['NodeJS', 'JWT', 'Security'],
@@ -36,7 +36,7 @@ class _QAScreenState extends State<QAScreen> {
       votes: 28, answerCount: 5, isSolved: true,
     ),
     QuestionModel(
-      id: '3', userId: 4,
+      id: '3', userId: '507f1f77bcf86cd799439015',
       title: 'How to structure a Vue 3 design system for reusability?',
       body: "Building a component library for college projects. Should I use Composition API throughout or mix with Options API for simpler components?",
       tags: ['Vue', 'DesignSystem', 'Components'],
@@ -171,7 +171,8 @@ class _QAScreenState extends State<QAScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final usersP = context.read<UsersProvider>();
+    final usersP = context.watch<UsersProvider>();
+    final me = context.read<AuthProvider>().currentUser;
 
     return Column(
       children: [
@@ -235,8 +236,7 @@ class _QAScreenState extends State<QAScreen> {
             itemCount: _questions.length,
             itemBuilder: (context, i) {
               final q    = _questions[i];
-              final user = usersP.getUserById(q.userId);
-              if (user == null) return const SizedBox.shrink();
+              final user = usersP.getUserById(q.userId) ?? me;
 
               return Container(
                 decoration: const BoxDecoration(

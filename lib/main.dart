@@ -1,13 +1,16 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'app.dart';
 import 'theme/app_theme.dart';
+import 'theme/app_colors.dart';
 import 'models/user_model.dart';
 import 'providers/auth_provider.dart';
 import 'providers/posts_provider.dart';
 import 'providers/users_provider.dart';
 import 'providers/aura_provider.dart';
+import 'screens/profile_setup_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/supabase_service.dart';
@@ -22,7 +25,7 @@ void main() async {
   // ───────────────────────────────────────────────────────────────────────
   const String supabaseUrl = 'https://hybvsgxqstnxamdkijsk.supabase.co';
   const String supabaseAnonKey = 'sb_publishable_PawpVpaKL2oGSMNT92IzkA_wjiORWQ4';
-
+  
   try {
     await Supabase.initialize(
       url: supabaseUrl,
@@ -75,6 +78,101 @@ class _Root extends StatefulWidget {
 
 class _RootState extends State<_Root> {
   bool _showSplash = true;
+  String? _notificationsInitializedForUid;
+  String? _profilePromptShownForUid;
+  bool _showingProfilePrompt = false;
+
+  void _maybePromptProfileCompletion(UserModel user) {
+    if (user.profileCompleted ||
+        _profilePromptShownForUid == user.id ||
+        _showingProfilePrompt) {
+      return;
+    }
+
+    _profilePromptShownForUid = user.id;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      _showingProfilePrompt = true;
+
+      final openSetup = await showModalBottomSheet<bool>(
+        context: context,
+        backgroundColor: AppColors.bg2,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        builder: (sheetContext) {
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 42,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.border2,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  const Text(
+                    'Complete your profile',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Good profiles make discovery, follows, and collaboration much better. Add your year, branch, stack, and what you are building.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.text2,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(sheetContext, false),
+                          child: const Text('Later'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(sheetContext, true),
+                          child: const Text('Complete profile'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+
+      _showingProfilePrompt = false;
+
+      if (!mounted || openSetup != true) return;
+
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const ProfileSetupScreen(
+            mode: ProfileSetupMode.onboarding,
+          ),
+        ),
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -85,25 +183,21 @@ class _RootState extends State<_Root> {
     // Gate on Supabase auth state
     return StreamBuilder<UserModel?>(
       stream: AuthService.instance.authStateChanges,
+      initialData: AuthService.instance.currentUser,
       builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            backgroundColor: Color(0xFF09090B),
-            body: Center(
-              child: CircularProgressIndicator(color: Color(0xFF7C3AED)),
-            ),
-          );
-        }
-
-        final user = snap.data;
+        final user = snap.data ?? AuthService.instance.currentUser;
 
         if (user == null) {
           return LoginScreen(onSuccess: () {});
         }
 
-        // Initialize notifications (optional if using FCM)
-        NotificationService.instance.init(user.id);
+        if (_notificationsInitializedForUid != user.id) {
+          _notificationsInitializedForUid = user.id;
+          NotificationService.instance.init(user.id);
+        }
 
+        _maybePromptProfileCompletion(user);
+        
         return const DevSpaceApp();
       },
     );

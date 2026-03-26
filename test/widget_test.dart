@@ -1,30 +1,45 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
+import 'package:devspace/screens/login_screen.dart';
+import 'package:devspace/models/user_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:devspace/main.dart';
+import 'package:mongo_dart/mongo_dart.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('login screen renders both auth methods', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LoginScreen(onSuccess: _noop),
+      ),
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    expect(find.text('DevSpace'), findsOneWidget);
+    expect(find.text('Sign in with email'), findsOneWidget);
+    expect(find.text('Continue with Google'), findsOneWidget);
+  });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+  test('user model splits legacy academic text into year and branch', () {
+    final user = UserModel.fromJson({
+      '_id': ObjectId.fromHexString('65a123456789abcdef123456'),
+      'name': 'Mohammad',
+      'email': 'm@example.com',
+      'handle': 'mohammad',
+      'avatar': '',
+      'color': const Color(0xFF0E0F12).toARGB32(),
+      'aura': 12,
+      'role': 'Student',
+      'year': '3rd Year · CSE',
+      'building': 'Low-latency campus tools',
+      'stack': ['Flutter'],
+      'followers': 0,
+      'following': 0,
+      'bio': '',
+      'college': 'Jaipur National University',
+    });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(user.year, '3rd Year');
+    expect(user.branch, 'CSE');
+    expect(user.profileCompleted, isTrue);
   });
 }
+
+void _noop() {}

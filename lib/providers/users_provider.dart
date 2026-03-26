@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/supabase_service.dart';
@@ -5,11 +7,15 @@ import '../services/supabase_service.dart';
 class UsersProvider extends ChangeNotifier {
   List<UserModel> _users = [];
   bool _isLoading = false;
+  StreamSubscription<List<UserModel>>? _usersSub;
 
   List<UserModel> get users => List.unmodifiable(_users);
   bool get isLoading => _isLoading;
 
   Future<void> fetchUsers() async {
+    if (_usersSub != null) {
+      await _usersSub!.cancel();
+    }
     _isLoading = true;
     notifyListeners();
     SupabaseService.instance.streamUsers().listen((newList) {
@@ -39,23 +45,30 @@ class UsersProvider extends ChangeNotifier {
   List<UserModel> search(String query) {
     if (query.isEmpty) return _users;
     final q = query.toLowerCase();
-    return _users
-        .where((u) =>
-            u.name.toLowerCase().contains(q) ||
-            u.handle.toLowerCase().contains(q) ||
-            u.building.toLowerCase().contains(q) ||
-            u.stack.any((s) => s.toLowerCase().contains(q)))
-        .toList();
+    return _users.where((u) =>
+      u.name.toLowerCase().contains(q) ||
+      u.handle.toLowerCase().contains(q) ||
+      u.branch.toLowerCase().contains(q) ||
+      u.building.toLowerCase().contains(q) ||
+      u.role.toLowerCase().contains(q) ||
+      u.stack.any((s) => s.toLowerCase().contains(q))
+    ).toList();
   }
 
   List<UserModel> filterByBranch(String branch) {
     if (branch == 'All') return _users;
-    return _users.where((u) => u.year.contains(branch)).toList();
+    return _users.where((u) => u.branch == branch).toList();
   }
 
   List<UserModel> get leaderboard {
     final sorted = List<UserModel>.from(_users);
     sorted.sort((a, b) => b.aura.compareTo(a.aura));
     return sorted;
+  }
+
+  @override
+  void dispose() {
+    _usersSub?.cancel();
+    super.dispose();
   }
 }

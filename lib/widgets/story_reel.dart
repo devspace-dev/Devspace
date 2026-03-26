@@ -12,7 +12,10 @@ class StoryReel extends StatelessWidget {
   Widget build(BuildContext context) {
     final me    = context.watch<AuthProvider>().currentUser;
     final users = context.watch<UsersProvider>().users;
-    final all   = [me, ...users].take(7).toList();
+    final all = [
+      me,
+      ...users.where((user) => user.id != me.id),
+    ].take(7).toList();
 
     return Container(
       height: 90,

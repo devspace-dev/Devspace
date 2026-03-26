@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'providers/posts_provider.dart';
+import 'providers/users_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/people_screen.dart';
 import 'screens/qa_screen.dart';
@@ -22,6 +24,16 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
   static const List<String> _titles = [
     'DevSpace', 'Developers', 'Q & A', 'Aura Board', 'Profile',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<UsersProvider>().fetchUsers();
+      context.read<PostsProvider>().fetchFeed();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

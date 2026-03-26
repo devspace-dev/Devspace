@@ -3,15 +3,15 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/users_provider.dart';
 import '../providers/posts_provider.dart';
+import '../screens/profile_setup_screen.dart';
 import '../theme/app_colors.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/aura_bar.dart';
 import '../widgets/post_card.dart';
 import '../widgets/github_card.dart';
-import '../widgets/image_upload_widget.dart';
 
 class ProfileScreen extends StatelessWidget {
-  final int? userId; // null = current user
+  final String? userId; // null = current user
 
   const ProfileScreen({super.key, this.userId});
 
@@ -31,7 +31,7 @@ class ProfileScreen extends StatelessWidget {
           // App bar with back button
           SliverAppBar(
             pinned: true,
-            backgroundColor: AppColors.bg.withOpacity(0.9),
+            backgroundColor: AppColors.bg.withValues(alpha: 0.9),
             leading: userId != null
                 ? IconButton(
                     icon: const Icon(Icons.arrow_back_rounded, color: AppColors.text),
@@ -42,11 +42,34 @@ class ProfileScreen extends StatelessWidget {
                 style: const TextStyle(
                   fontWeight: FontWeight.w900, fontSize: 16, color: AppColors.text)),
             actions: [
-              if (!isMe)
+              if (isMe)
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: TextButton.icon(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ProfileSetupScreen(
+                          mode: ProfileSetupMode.edit,
+                        ),
+                      ),
+                    ),
+                    icon: Icon(
+                      user.profileCompleted
+                          ? Icons.edit_rounded
+                          : Icons.auto_fix_high_rounded,
+                      size: 16,
+                    ),
+                    label: Text(
+                      user.profileCompleted ? 'Edit' : 'Finish',
+                    ),
+                  ),
+                )
+              else
                 Padding(
                   padding: const EdgeInsets.only(right: 12),
                   child: GestureDetector(
-                    onTap: () => usersP.toggleFollow(user.id),
+                    onTap: () => usersP.toggleFollow(me.id, user.id),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
                       decoration: BoxDecoration(
@@ -74,7 +97,7 @@ class ProfileScreen extends StatelessWidget {
               height: 100,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [user.color.withOpacity(0.3), AppColors.bg2],
+                  colors: [user.color.withValues(alpha: 0.3), AppColors.bg2],
                   begin: Alignment.topLeft, end: Alignment.bottomRight,
                 ),
               ),
@@ -110,15 +133,80 @@ class ProfileScreen extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text('@${user.handle}',
                             style: const TextStyle(fontSize: 14, color: AppColors.text3)),
-                        const SizedBox(height: 8),
-                        Text(user.bio,
-                            style: const TextStyle(
-                              fontSize: 14, color: AppColors.text2, height: 1.6)),
                         const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _MetaChip(label: user.role),
+                            if (user.year.isNotEmpty || user.branch.isNotEmpty)
+                              _MetaChip(label: user.academicLabel),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          user.bio.isEmpty
+                              ? 'This student has not added a bio yet.'
+                              : user.bio,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: AppColors.text2,
+                            height: 1.6,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        if (isMe && !user.profileCompleted)
+                          Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(bottom: 14),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: AppColors.primary.withValues(alpha: 0.24),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Complete your builder profile',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.text,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                const Text(
+                                  'Add your branch, stack, and what you are building so students can discover you properly.',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: AppColors.text2,
+                                    height: 1.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                ElevatedButton(
+                                  onPressed: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const ProfileSetupScreen(
+                                        mode: ProfileSetupMode.onboarding,
+                                      ),
+                                    ),
+                                  ),
+                                  child: const Text('Complete profile'),
+                                ),
+                              ],
+                            ),
+                          ),
                         Wrap(
                           spacing: 16, runSpacing: 4,
                           children: [
-                            _InfoChip(icon: '📍', label: user.year),
+                            if (user.academicLabel.isNotEmpty)
+                              _InfoChip(icon: '📍', label: user.academicLabel),
                             _InfoChip(icon: '🛠', label: user.building),
                             _InfoChip(icon: '🎓', label: user.college),
                           ],
@@ -129,9 +217,11 @@ class ProfileScreen extends StatelessWidget {
                           children: user.stack.map((s) => Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                             decoration: BoxDecoration(
-                              color: AppColors.primary.withOpacity(0.12),
+                              color: AppColors.primary.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(99),
-                              border: Border.all(color: AppColors.primary.withOpacity(0.25)),
+                              border: Border.all(
+                                color: AppColors.primary.withValues(alpha: 0.25),
+                              ),
                             ),
                             child: Text(s,
                                 style: const TextStyle(
@@ -166,7 +256,7 @@ class ProfileScreen extends StatelessWidget {
                         const SizedBox(height: 16),
 
                         // GitHub activity card
-                        GitHubCard(githubHandle: 'torvalds'), // replace with user.githubHandle
+                        GitHubCard(githubHandle: user.githubHandle),
                       ],
                     ),
                   ),
@@ -197,6 +287,32 @@ class ProfileScreen extends StatelessWidget {
 
           const SliverToBoxAdapter(child: SizedBox(height: 20)),
         ],
+      ),
+    );
+  }
+}
+
+class _MetaChip extends StatelessWidget {
+  final String label;
+
+  const _MetaChip({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: AppColors.bg3,
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: AppColors.text2,
+        ),
       ),
     );
   }

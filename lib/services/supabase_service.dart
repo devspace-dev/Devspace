@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
 import '../models/post_model.dart';
+import '../models/comment_model.dart';
 
 /// SQL Schema for Supabase (Run this in Supabase SQL Editor):
 /// 
@@ -250,5 +251,25 @@ class SupabaseService {
         .eq('to_uid', uid)
         .order('created_at', ascending: false)
         .limit(30);
+  }
+  // ══════════════════════════════════════════════════════════════════════════
+  // COMMENTS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  Future<List<CommentModel>> getCommentsForPost(String postId) async {
+    final data = await _client
+        .from('comments')
+        .select()
+        .eq('post_id', postId)
+        .order('created_at', ascending: true);
+    return (data as List).map((d) => CommentModel.fromJson(d)).toList();
+  }
+
+  Future<void> addComment(String postId, String userId, String content) async {
+    await _client.from('comments').insert({
+      'post_id': postId,
+      'user_id': userId,
+      'content': content,
+    });
   }
 }
