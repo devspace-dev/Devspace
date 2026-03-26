@@ -12,7 +12,7 @@ class UsersProvider extends ChangeNotifier {
   Future<void> fetchUsers() async {
     _isLoading = true;
     notifyListeners();
-    MongoService.instance.streamUsers().listen((newList) {
+    SupabaseService.instance.streamUsers().listen((newList) {
       _users = newList;
       _isLoading = false;
       notifyListeners();
@@ -28,11 +28,11 @@ class UsersProvider extends ChangeNotifier {
   }
 
   Future<void> toggleFollow(String fromUid, String toUid) async {
-    final following = await MongoService.instance.isFollowing(fromUid, toUid);
+    final following = await SupabaseService.instance.isFollowing(fromUid, toUid);
     if (following) {
-      await MongoService.instance.unfollow(fromUid, toUid);
+      await SupabaseService.instance.unfollow(fromUid, toUid);
     } else {
-      await MongoService.instance.follow(fromUid, toUid);
+      await SupabaseService.instance.follow(fromUid, toUid);
     }
   }
 

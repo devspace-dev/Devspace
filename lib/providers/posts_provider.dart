@@ -14,7 +14,7 @@ class PostsProvider extends ChangeNotifier {
     notifyListeners();
 
     // In a real app we'd use streams, but for this provider we'll fetch once or listen
-    MongoService.instance.streamFeed().listen((newList) {
+    SupabaseService.instance.streamFeed().listen((newList) {
       _posts = newList;
       _isLoading = false;
       notifyListeners();
@@ -22,7 +22,7 @@ class PostsProvider extends ChangeNotifier {
   }
 
   Future<void> addPost(String userId, String content, List<String> tags) async {
-    await MongoService.instance.createPost(
+    await SupabaseService.instance.createPost(
       userId: userId,
       content: content,
       tags: tags,
@@ -31,16 +31,16 @@ class PostsProvider extends ChangeNotifier {
   }
 
   Future<void> toggleLike(String postId, String userId) async {
-    final hasLiked = await MongoService.instance.hasLiked(postId, userId);
+    final hasLiked = await SupabaseService.instance.hasLiked(postId, userId);
     if (hasLiked) {
-      await MongoService.instance.unlikePost(postId, userId);
+      await SupabaseService.instance.unlikePost(postId, userId);
     } else {
-      await MongoService.instance.likePost(postId, userId);
+      await SupabaseService.instance.likePost(postId, userId);
     }
     // Refresh feed or handle local update
   }
 
   Future<void> toggleBookmark(String postId, String userId) async {
-    // Implement bookmarking if needed in MongoService
+    // Implement bookmarking if needed in SupabaseService
   }
 }

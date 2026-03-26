@@ -1,6 +1,6 @@
 class QuestionModel {
   final String id;
-  final int userId;
+  final String userId;
   final String title;
   final String body;
   final List<String> tags;

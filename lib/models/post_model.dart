@@ -1,4 +1,4 @@
-import 'package:mongo_dart/mongo_dart.dart';
+
 
 class PostModel {
   final String id;
@@ -54,8 +54,8 @@ class PostModel {
   }
 
   Map<String, dynamic> toJson() => {
-        '_id': ObjectId.fromHexString(id),
-        'userId': ObjectId.fromHexString(userId),
+        'id': id,
+        'userId': userId,
         'content': content,
         'tags': tags,
         'imageUrl': imageUrl,
@@ -67,8 +67,8 @@ class PostModel {
 
   factory PostModel.fromJson(Map<String, dynamic> json) {
     return PostModel(
-      id: (json['_id'] as ObjectId).hexString,
-      userId: (json['userId'] as ObjectId).hexString,
+      id: json['id'] as String? ?? '0',
+      userId: json['userId'] as String? ?? '0',
       content: json['content'] as String? ?? '',
       tags: List<String>.from(json['tags'] as List? ?? []),
       imageUrl: json['imageUrl'] as String?,

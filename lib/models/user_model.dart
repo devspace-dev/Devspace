@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mongo_dart/mongo_dart.dart';
+
 
 class UserModel {
   final String id;
@@ -77,7 +77,7 @@ class UserModel {
   }
 
   Map<String, dynamic> toJson() => {
-        '_id': ObjectId.fromHexString(id),
+        'id': id,
         'name': name,
         'email': email,
         'handle': handle,
@@ -96,7 +96,7 @@ class UserModel {
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
-      id: (json['_id'] as ObjectId).hexString,
+      id: json['id'] as String? ?? '0',
       name: json['name'] as String? ?? 'Unknown',
       email: json['email'] as String? ?? '',
       handle: json['handle'] as String? ?? '',

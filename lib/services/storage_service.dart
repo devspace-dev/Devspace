@@ -1,13 +1,13 @@
 import 'dart:io';
-import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
-import 'supabase_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class StorageService {
   StorageService._();
   static final instance = StorageService._();
 
   final _picker = ImagePicker();
+  final _supabase = Supabase.instance.client;
 
   // ── Pick from camera or gallery ──────────────────
   Future<File?> pickImage({bool fromCamera = false}) async {
@@ -22,44 +22,46 @@ class StorageService {
 
   // ── Upload profile picture ───────────────────────
   Future<String> uploadProfilePhoto(String uid, File file) async {
-    final bytes = await file.readAsBytes();
-    final base64 = base64Encode(bytes);
-    final path = 'profile_photos/$uid.jpg';
-    return await MongoService.instance.uploadImage(path, base64);
+    final path = 'profiles/$uid.jpg';
+    await _supabase.storage.from('images').upload(
+          path,
+          file,
+          fileOptions: const FileOptions(upsert: true),
+        );
+    return _supabase.storage.from('images').getPublicUrl(path);
   }
 
   // ── Upload post image ────────────────────────────
   Future<String> uploadPostImage(String postId, File file) async {
-    final bytes = await file.readAsBytes();
-    final base64 = base64Encode(bytes);
-    final path = 'post_images/$postId.jpg';
-    return await MongoService.instance.uploadImage(path, base64);
+    final path = 'posts/$postId.jpg';
+    await _supabase.storage.from('images').upload(
+          path,
+          file,
+          fileOptions: const FileOptions(upsert: true),
+        );
+    return _supabase.storage.from('images').getPublicUrl(path);
   }
 
-  /// Upload with progress callback — useful for showing a progress bar.
+  /// Upload with progress callback.
   Future<String> uploadWithProgress(
     String path,
     File file, {
     void Function(double progress)? onProgress,
   }) async {
+    // Supabase flutter doesn't support progress in upload yet easily without custom implementation
+    // But we'll do our best.
     if (onProgress != null) onProgress(0.1);
-    final bytes = await file.readAsBytes();
-    if (onProgress != null) onProgress(0.5);
-    final base64 = base64Encode(bytes);
-    if (onProgress != null) onProgress(0.9);
-    final result = await MongoService.instance.uploadImage(path, base64);
+    await _supabase.storage.from('images').upload(
+          path,
+          file,
+          fileOptions: const FileOptions(upsert: true),
+        );
     if (onProgress != null) onProgress(1.0);
-    return result;
+    return _supabase.storage.from('images').getPublicUrl(path);
   }
 
   /// Delete a file.
   Future<void> deleteFile(String path) async {
-    // In our simple Mongo implementation, we could remove the doc
-    // But for now, we'll just ignore or implement if needed.
-  }
-
-  /// Helper to get image data (since we store it in Mongo, we need to fetch it)
-  Future<String?> getImageBase64(String path) async {
-    return await MongoService.instance.getImage(path);
+    await _supabase.storage.from('images').remove([path]);
   }
 }

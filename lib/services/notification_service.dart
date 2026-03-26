@@ -43,12 +43,12 @@ class NotificationService {
     // Save FCM token to MongoDB
     final token = await _fcm.getToken();
     if (token != null) {
-      await MongoService.instance.updateUser(uid, {'fcmToken': token});
+      await SupabaseService.instance.updateUser(uid, {'fcmToken': token});
     }
 
     // Refresh token listener
     _fcm.onTokenRefresh.listen((newToken) {
-      MongoService.instance.updateUser(uid, {'fcmToken': newToken});
+      SupabaseService.instance.updateUser(uid, {'fcmToken': newToken});
     });
 
     // Foreground messages → show local notification
@@ -84,7 +84,7 @@ class NotificationService {
     required String fromName,
   }) async {
     if (toUid == fromUid) return;
-    await MongoService.instance.pushNotification(
+    await SupabaseService.instance.pushNotification(
       toUid: toUid,
       fromUid: fromUid,
       type: 'like',
@@ -101,7 +101,7 @@ class NotificationService {
     required String commentText,
   }) async {
     if (toUid == fromUid) return;
-    await MongoService.instance.pushNotification(
+    await SupabaseService.instance.pushNotification(
       toUid: toUid,
       fromUid: fromUid,
       type: 'comment',
@@ -116,7 +116,7 @@ class NotificationService {
     required String fromName,
   }) async {
     if (toUid == fromUid) return;
-    await MongoService.instance.pushNotification(
+    await SupabaseService.instance.pushNotification(
       toUid: toUid,
       fromUid: fromUid,
       type: 'follow',

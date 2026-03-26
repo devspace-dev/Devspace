@@ -1,83 +1,114 @@
-import 'dart:async';
-import 'package:mongo_dart/mongo_dart.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
 import '../models/post_model.dart';
 
-class MongoService {
-  MongoService._internal();
-  static final MongoService instance = MongoService._internal();
+/// SQL Schema for Supabase (Run this in Supabase SQL Editor):
+/// 
+/// create table users (
+///   id uuid references auth.users not null primary key,
+///   name text,
+///   email text unique,
+///   handle text unique,
+///   avatar text,
+///   color bigint,
+///   aura bigint default 0,
+///   role text,
+///   year text,
+///   building text,
+///   stack text[],
+///   followers bigint default 0,
+///   following bigint default 0,
+///   bio text,
+///   college text,
+///   created_at timestamp with time zone default timezone('utc'::text, now())
+/// );
+///
+/// create table posts (
+///   id uuid default gen_random_uuid() primary key,
+///   user_id uuid references users(id) on delete cascade,
+///   content text,
+///   tags text[],
+///   image_url text,
+///   likes_count bigint default 0,
+///   comments_count bigint default 0,
+///   reposts_count bigint default 0,
+///   created_at timestamp with time zone default timezone('utc'::text, now())
+/// );
+/// 
+/// create table follows (
+///   id uuid default gen_random_uuid() primary key,
+///   follower_id uuid references users(id) on delete cascade,
+///   following_id uuid references users(id) on delete cascade,
+///   created_at timestamp with time zone default timezone('utc'::text, now()),
+///   unique(follower_id, following_id)
+/// );
+/// 
+/// create table likes (
+///   id uuid default gen_random_uuid() primary key,
+///   post_id uuid references posts(id) on delete cascade,
+///   user_id uuid references users(id) on delete cascade,
+///   created_at timestamp with time zone default timezone('utc'::text, now()),
+///   unique(post_id, user_id)
+/// );
+/// 
+/// create table notifications (
+///   id uuid default gen_random_uuid() primary key,
+///   to_uid uuid references users(id) on delete cascade,
+///   from_uid uuid references users(id) on delete cascade,
+///   type text,
+///   post_id uuid references posts(id) on delete set null,
+///   message text,
+///   read boolean default false,
+///   created_at timestamp with time zone default timezone('utc'::text, now())
+/// );
 
-  late final Db _db;
-  late final DbCollection _users;
-  late final DbCollection _posts;
-  late final DbCollection _notifs;
-  late final DbCollection _comments;
-  late final DbCollection _likes;
-  late final DbCollection _follows;
-  late final DbCollection _images;
+class SupabaseService {
+  SupabaseService._internal();
+  static final SupabaseService instance = SupabaseService._internal();
 
-  bool _isInitialized = false;
+  SupabaseClient get _client => Supabase.instance.client;
 
-  // Local broadcasters for real-time feel (since mongo_dart doesn't have listeners like Firestore)
-  final _usersController = StreamController<List<UserModel>>.broadcast();
-  final _postsController = StreamController<List<PostModel>>.broadcast();
-
-  Future<void> init(String connectionUri) async {
-    if (_isInitialized) return;
-    _db = Db(connectionUri);
-    await _db.open();
-    _users = _db.collection('users');
-    _posts = _db.collection('posts');
-    _notifs = _db.collection('notifications');
-    _comments = _db.collection('comments');
-    _likes = _db.collection('likes');
-    _follows = _db.collection('follows');
-    _images = _db.collection('images');
-
-    await _users.createIndex(keys: {'email': 1}, unique: true);
-    await _users.createIndex(keys: {'handle': 1}, unique: true);
-    await _posts.createIndex(keys: {'createdAt': -1});
-
-    _isInitialized = true;
-    _refreshStreams();
+  Future<void> init() async {
+    // Handled in main.dart initialization
   }
-
-  void _refreshStreams() {
-    streamUsers().first.then((list) => _usersController.add(list));
-    streamFeed().first.then((list) => _postsController.add(list));
-  }
-
-  Future<void> close() async => await _db.close();
 
   // ══════════════════════════════════════════════════════════════════════════
   // USERS
   // ══════════════════════════════════════════════════════════════════════════
 
   Future<UserModel?> getUserByEmail(String email) async {
-    final doc = await _users.findOne({'email': email.toLowerCase()});
-    return doc == null ? null : UserModel.fromJson(doc);
+    final data = await _client
+        .from('users')
+        .select()
+        .eq('email', email.toLowerCase())
+        .maybeSingle();
+    return data == null ? null : UserModel.fromJson(data);
   }
 
   Future<UserModel?> getUserById(String id) async {
-    final doc = await _users.findOne({'_id': ObjectId.parse(id)});
-    return doc == null ? null : UserModel.fromJson(doc);
+    final data = await _client
+        .from('users')
+        .select()
+        .eq('id', id)
+        .maybeSingle();
+    return data == null ? null : UserModel.fromJson(data);
   }
 
-  Future<UserModel> createUser({
+  Future<void> createUser({
+    required String id,
     required String name,
     required String email,
-    required String passwordHash,
     required String handle,
     String avatar = '',
     String college = '',
   }) async {
-    final doc = {
+    await _client.from('users').insert({
+      'id': id,
       'name': name,
       'email': email.toLowerCase(),
-      'passwordHash': passwordHash,
       'handle': handle,
       'avatar': avatar,
-      'color': 0xFF7C3AED, // Default violet
+      'color': 0xFF7C3AED,
       'aura': 0,
       'role': 'Developer',
       'year': '1st Year',
@@ -87,66 +118,47 @@ class MongoService {
       'following': 0,
       'bio': '',
       'college': college,
-      'createdAt': DateTime.now().toUtc(),
-    };
-    final result = await _users.insertOne(doc);
-    final user = UserModel.fromJson({
-      ...doc,
-      '_id': result.id as ObjectId,
     });
-    _refreshStreams();
-    return user;
   }
 
   Future<void> updateUser(String uid, Map<String, dynamic> data) async {
-    await _users.updateOne(
-      where.eq('_id', ObjectId.parse(uid)),
-      modify.setAll(data),
-    );
-    _refreshStreams();
+    await _client.from('users').update(data).eq('id', uid);
   }
 
-  Stream<List<UserModel>> streamUsers() async* {
-    final docs =
-        await _users.find(where.sortBy('aura', descending: true)).toList();
-    yield docs.map((d) => UserModel.fromJson(d)).toList();
+  Stream<List<UserModel>> streamUsers() {
+    return _client
+        .from('users')
+        .stream(primaryKey: ['id'])
+        .order('aura', ascending: false)
+        .map((list) => list.map((d) => UserModel.fromJson(d)).toList());
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // SOCIAL (Follow/Unfollow)
+  // SOCIAL
   // ══════════════════════════════════════════════════════════════════════════
 
   Future<void> follow(String fromUid, String toUid) async {
-    await _follows.insertOne({
-      'from': ObjectId.parse(fromUid),
-      'to': ObjectId.parse(toUid),
-      'followedAt': DateTime.now().toUtc(),
+    await _client.from('follows').insert({
+      'follower_id': fromUid,
+      'following_id': toUid,
     });
-    await _users.updateOne(
-        where.eq('_id', ObjectId.parse(fromUid)), modify.inc('following', 1));
-    await _users.updateOne(
-        where.eq('_id', ObjectId.parse(toUid)), modify.inc('followers', 1));
-    _refreshStreams();
+    // Triggers or RPC should be used to increment counts for better consistency
   }
 
   Future<void> unfollow(String fromUid, String toUid) async {
-    await _follows.remove({
-      'from': ObjectId.parse(fromUid),
-      'to': ObjectId.parse(toUid),
-    });
-    await _users.updateOne(
-        where.eq('_id', ObjectId.parse(fromUid)), modify.inc('following', -1));
-    await _users.updateOne(
-        where.eq('_id', ObjectId.parse(toUid)), modify.inc('followers', -1));
-    _refreshStreams();
+    await _client.from('follows').delete()
+      .eq('follower_id', fromUid)
+      .eq('following_id', toUid);
   }
 
   Future<bool> isFollowing(String fromUid, String toUid) async {
-    final doc = await _follows.findOne({
-      'from': ObjectId.parse(fromUid),
-      'to': ObjectId.parse(toUid),
-    });
-    return doc != null;
+    final data = await _client
+        .from('follows')
+        .select()
+        .eq('follower_id', fromUid)
+        .eq('following_id', toUid)
+        .maybeSingle();
+    return data != null;
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -159,35 +171,31 @@ class MongoService {
     required List<String> tags,
     String? imageUrl,
   }) async {
-    final doc = {
-      'userId': ObjectId.parse(userId),
+    final data = await _client.from('posts').insert({
+      'user_id': userId,
       'content': content,
       'tags': tags,
-      'imageUrl': imageUrl ?? '',
-      'likes': 0,
-      'comments': 0,
-      'reposts': 0,
-      'createdAt': DateTime.now().toUtc(),
-    };
-    final result = await _posts.insertOne(doc);
-    _refreshStreams();
-    return (result.id as ObjectId).hexString;
+      'image_url': imageUrl ?? '',
+    }).select().single();
+    return data['id'].toString();
   }
 
-  Stream<List<PostModel>> streamFeed() async* {
-    final docs = await _posts
-        .find(where.sortBy('createdAt', descending: true).limit(50))
-        .toList();
-    yield docs.map((d) => PostModel.fromJson(d)).toList();
+  Stream<List<PostModel>> streamFeed() {
+    return _client
+        .from('posts')
+        .stream(primaryKey: ['id'])
+        .order('created_at', ascending: false)
+        .limit(50)
+        .map((list) => list.map((d) => PostModel.fromJson(d)).toList());
   }
 
-  Stream<List<PostModel>> streamUserPosts(String userId) async* {
-    final docs = await _posts
-        .find(where
-            .eq('userId', ObjectId.parse(userId))
-            .sortBy('createdAt', descending: true))
-        .toList();
-    yield docs.map((d) => PostModel.fromJson(d)).toList();
+  Stream<List<PostModel>> streamUserPosts(String userId) {
+    return _client
+        .from('posts')
+        .stream(primaryKey: ['id'])
+        .eq('user_id', userId)
+        .order('created_at', ascending: false)
+        .map((list) => list.map((d) => PostModel.fromJson(d)).toList());
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -195,50 +203,24 @@ class MongoService {
   // ══════════════════════════════════════════════════════════════════════════
 
   Future<void> likePost(String postId, String uid) async {
-    await _likes.insertOne({
-      'postId': ObjectId.parse(postId),
-      'uid': ObjectId.parse(uid),
+    await _client.from('likes').insert({
+      'post_id': postId,
+      'user_id': uid,
     });
-    await _posts.updateOne(
-        where.id(ObjectId.parse(postId)), modify.inc('likes', 1));
-    _refreshStreams();
   }
 
   Future<void> unlikePost(String postId, String uid) async {
-    await _likes.remove({
-      'postId': ObjectId.parse(postId),
-      'uid': ObjectId.parse(uid),
-    });
-    await _posts.updateOne(
-        where.id(ObjectId.parse(postId)), modify.inc('likes', -1));
-    _refreshStreams();
+    await _client.from('likes').delete().eq('post_id', postId).eq('user_id', uid);
   }
 
   Future<bool> hasLiked(String postId, String uid) async {
-    final doc = await _likes.findOne({
-      'postId': ObjectId.parse(postId),
-      'uid': ObjectId.parse(uid),
-    });
-    return doc != null;
-  }
-
-  Future<void> addComment(String postId, String uid, String text) async {
-    await _comments.insertOne({
-      'postId': ObjectId.parse(postId),
-      'uid': ObjectId.parse(uid),
-      'text': text,
-      'createdAt': DateTime.now().toUtc(),
-    });
-    await _posts.updateOne(
-        where.id(ObjectId.parse(postId)), modify.inc('comments', 1));
-    _refreshStreams();
-  }
-
-  Stream<List<Map<String, dynamic>>> streamComments(String postId) async* {
-    final docs = await _comments
-        .find(where.eq('postId', ObjectId.parse(postId)).sortBy('createdAt'))
-        .toList();
-    yield docs;
+    final data = await _client
+        .from('likes')
+        .select()
+        .eq('post_id', postId)
+        .eq('user_id', uid)
+        .maybeSingle();
+    return data != null;
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -252,44 +234,21 @@ class MongoService {
     String? postId,
     String? message,
   }) async {
-    await _notifs.insertOne({
-      'toUid': ObjectId.parse(toUid),
-      'fromUid': ObjectId.parse(fromUid),
+    await _client.from('notifications').insert({
+      'to_uid': toUid,
+      'from_uid': fromUid,
       'type': type,
-      'postId': postId != null ? ObjectId.parse(postId) : null,
+      'post_id': postId,
       'message': message ?? '',
-      'read': false,
-      'createdAt': DateTime.now().toUtc(),
     });
   }
 
-  Stream<List<Map<String, dynamic>>> streamNotifications(String uid) async* {
-    final docs = await _notifs
-        .find(where
-            .eq('toUid', ObjectId.parse(uid))
-            .sortBy('createdAt', descending: true)
-            .limit(30))
-        .toList();
-    yield docs;
-  }
-
-  Future<String> uploadImage(String path, String base64Data) async {
-    await _images.update(
-      where.eq('path', path),
-      modify.set('data', base64Data),
-      upsert: true,
-    );
-    return path; // or return a URL-like string
-  }
-
-  Future<String?> getImage(String path) async {
-    final doc = await _images.findOne(where.eq('path', path));
-    return doc?['data'] as String?;
-  }
-
-  Future<bool> verifyPassword(String email, String passwordHash) async {
-    final doc = await _users.findOne({'email': email.toLowerCase()});
-    if (doc == null) return false;
-    return doc['passwordHash'] == passwordHash;
+  Stream<List<Map<String, dynamic>>> streamNotifications(String uid) {
+    return _client
+        .from('notifications')
+        .stream(primaryKey: ['id'])
+        .eq('to_uid', uid)
+        .order('created_at', ascending: false)
+        .limit(30);
   }
 }

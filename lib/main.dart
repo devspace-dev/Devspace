@@ -16,16 +16,18 @@ import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
+  
   // ── IMPORTANT ──────────────────────────────────────────────────────────
-  // REPLACE with your actual MongoDB URI from Atlas!
-  // Example: mongodb+srv://user:pass@cluster.mongodb.net/devspace
+  // REPLACE with your actual Supabase credentials!
   // ───────────────────────────────────────────────────────────────────────
-  const String mongoUri =
-      'mongodb+srv://admin:admin123@cluster0.abcde.mongodb.net/devspace?retryWrites=true&w=majority';
+  const String supabaseUrl = 'https://hybvsgxqstnxamdkijsk.supabase.co';
+  const String supabaseAnonKey = 'sb_publishable_PawpVpaKL2oGSMNT92IzkA_wjiORWQ4';
 
   try {
-    await MongoService.instance.init(mongoUri);
+    await Supabase.initialize(
+      url: supabaseUrl,
+      anonKey: supabaseAnonKey,
+    );
     await AuthService.instance.init();
   } catch (e) {
     debugPrint('Database initialization failed: $e');
@@ -80,7 +82,7 @@ class _RootState extends State<_Root> {
       return SplashScreen(onDone: () => setState(() => _showSplash = false));
     }
 
-    // Gate on MongoDB auth state
+    // Gate on Supabase auth state
     return StreamBuilder<UserModel?>(
       stream: AuthService.instance.authStateChanges,
       builder: (context, snap) {
