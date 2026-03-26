@@ -113,8 +113,8 @@ class UserModel {
         'following': following,
         'bio': bio,
         'college': college,
-        'githubHandle': githubHandle,
-        'profileCompleted': profileCompleted,
+        'github_handle': githubHandle,
+        'profile_completed': profileCompleted,
       };
 
   factory UserModel.fromJson(Map<String, dynamic> json) {

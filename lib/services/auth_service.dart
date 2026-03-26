@@ -164,25 +164,6 @@ class AuthService {
       final user = res.user;
       if (user == null) return const AuthResult(error: 'Sign-up failed.');
 
-      final handle = await _generateUniqueHandle(email);
-
-      await SupabaseService.instance.createUser(
-        id: user.id,
-        name: name,
-        email: email,
-        handle: handle,
-        avatar: _buildAvatar(name, email),
-        role: 'Student',
-        year: '',
-        branch: '',
-        building: '',
-        stack: const [],
-        bio: '',
-        college: 'Jaipur National University',
-        githubHandle: '',
-        profileCompleted: false,
-      );
-
       _currentUser = await _loadOrCreateProfile(user);
       _authStateController.add(_currentUser);
 
