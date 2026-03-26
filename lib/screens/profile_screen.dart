@@ -16,6 +16,39 @@ class ProfileScreen extends StatelessWidget {
 
   const ProfileScreen({super.key, this.userId});
 
+  Future<void> _handleSignOut(BuildContext context) async {
+    final shouldSignOut = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) {
+            return AlertDialog(
+              backgroundColor: AppColors.bg2,
+              title: const Text(
+                'Sign out?',
+                style: TextStyle(color: AppColors.text),
+              ),
+              content: const Text(
+                'You will return to the login screen on this device.',
+                style: TextStyle(color: AppColors.text2),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(dialogContext, true),
+                  child: const Text('Sign out'),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+
+    if (!shouldSignOut || !context.mounted) return;
+    await context.read<AuthProvider>().signOut();
+  }
+
   @override
   Widget build(BuildContext context) {
     final me = context.watch<AuthProvider>().currentUser;
@@ -87,27 +120,37 @@ class ProfileScreen extends StatelessWidget {
                   fontWeight: FontWeight.w900, fontSize: 16, color: AppColors.text)),
             actions: [
               if (isMe)
-                Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: TextButton.icon(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const ProfileSetupScreen(
-                          mode: ProfileSetupMode.edit,
+                Row(
+                  children: [
+                    TextButton.icon(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ProfileSetupScreen(
+                            mode: ProfileSetupMode.edit,
+                          ),
                         ),
                       ),
+                      icon: Icon(
+                        profileUser.profileCompleted
+                            ? Icons.edit_rounded
+                            : Icons.auto_fix_high_rounded,
+                        size: 16,
+                      ),
+                      label: Text(
+                        profileUser.profileCompleted ? 'Edit' : 'Finish',
+                      ),
                     ),
-                    icon: Icon(
-                      profileUser.profileCompleted
-                          ? Icons.edit_rounded
-                          : Icons.auto_fix_high_rounded,
-                      size: 16,
+                    IconButton(
+                      tooltip: 'Sign out',
+                      icon: const Icon(
+                        Icons.logout_rounded,
+                        color: AppColors.text,
+                      ),
+                      onPressed: () => _handleSignOut(context),
                     ),
-                    label: Text(
-                      profileUser.profileCompleted ? 'Edit' : 'Finish',
-                    ),
-                  ),
+                    const SizedBox(width: 4),
+                  ],
                 )
               else
                 Padding(
