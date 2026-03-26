@@ -150,40 +150,12 @@ class _PostCardState extends State<PostCard> {
                 ],
                 if (post.imageUrl != null && post.imageUrl!.isNotEmpty) ...[
                   const SizedBox(height: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxHeight: 300),
-                      child: CachedNetworkImage(
-                        imageUrl: post.imageUrl!,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        placeholder: (_, __) => Container(
-                          width: double.infinity,
-                          height: 200,
-                          color: AppColors.bg3,
-                          alignment: Alignment.center,
-                          child: const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        ),
-                        errorWidget: (_, __, ___) => Container(
-                          width: double.infinity,
-                          height: 200,
-                          color: AppColors.bg3,
-                          alignment: Alignment.center,
-                          child: const Text(
-                            'Image unavailable',
-                            style: TextStyle(
-                              color: AppColors.text3,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
+                  _PostImageThumbnail(
+                    imageUrl: post.imageUrl!,
+                    heroTag: 'post-image-${post.id}',
+                    maxHeight: 460,
+                    fit: BoxFit.contain,
+                    backgroundColor: Colors.black,
                   ),
                 ],
                 const SizedBox(height: 12),
@@ -836,36 +808,169 @@ class _QuotedPostPreview extends StatelessWidget {
           ],
           if (quotedPost.imageUrl != null && quotedPost.imageUrl!.isNotEmpty) ...[
             const SizedBox(height: 10),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: SizedBox(
-                height: 140,
+            _PostImageThumbnail(
+              imageUrl: quotedPost.imageUrl!,
+              heroTag: 'quoted-image-${quotedPost.id}',
+              maxHeight: 140,
+              backgroundColor: AppColors.bg,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _PostImageThumbnail extends StatelessWidget {
+  final String imageUrl;
+  final String heroTag;
+  final double maxHeight;
+  final Color backgroundColor;
+  final BoxFit fit;
+
+  const _PostImageThumbnail({
+    required this.imageUrl,
+    required this.heroTag,
+    required this.maxHeight,
+    this.backgroundColor = AppColors.bg3,
+    this.fit = BoxFit.cover,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(
+        PageRouteBuilder<void>(
+          opaque: false,
+          pageBuilder: (_, __, ___) => _PostImageViewerScreen(
+            imageUrl: imageUrl,
+            heroTag: heroTag,
+          ),
+          transitionsBuilder: (_, animation, __, child) {
+            return FadeTransition(
+              opacity: CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutCubic,
+              ),
+              child: child,
+            );
+          },
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          color: backgroundColor,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxHeight),
+            child: Hero(
+              tag: heroTag,
+              child: CachedNetworkImage(
+                imageUrl: imageUrl,
                 width: double.infinity,
-                child: CachedNetworkImage(
-                  imageUrl: quotedPost.imageUrl!,
-                  fit: BoxFit.cover,
-                  placeholder: (_, __) => Container(
-                    color: AppColors.bg,
-                    alignment: Alignment.center,
-                    child: const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
+                fit: fit,
+                placeholder: (_, __) => Container(
+                  width: double.infinity,
+                  height: maxHeight.clamp(120.0, 220.0),
+                  color: backgroundColor,
+                  alignment: Alignment.center,
+                  child: const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   ),
-                  errorWidget: (_, __, ___) => Container(
-                    color: AppColors.bg,
-                    alignment: Alignment.center,
-                    child: const Text(
-                      'Image unavailable',
-                      style: TextStyle(color: AppColors.text3, fontSize: 12),
+                ),
+                errorWidget: (_, __, ___) => Container(
+                  width: double.infinity,
+                  height: maxHeight.clamp(120.0, 220.0),
+                  color: backgroundColor,
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'Image unavailable',
+                    style: TextStyle(
+                      color: AppColors.text3,
+                      fontSize: 13,
                     ),
                   ),
                 ),
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PostImageViewerScreen extends StatelessWidget {
+  final String imageUrl;
+  final String heroTag;
+
+  const _PostImageViewerScreen({
+    required this.imageUrl,
+    required this.heroTag,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () => Navigator.of(context).pop(),
+                child: InteractiveViewer(
+                  minScale: 1,
+                  maxScale: 4,
+                  child: Center(
+                    child: Hero(
+                      tag: heroTag,
+                      child: CachedNetworkImage(
+                        imageUrl: imageUrl,
+                        fit: BoxFit.contain,
+                        placeholder: (_, __) => const Center(
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white70,
+                            ),
+                          ),
+                        ),
+                        errorWidget: (_, __, ___) => const Center(
+                          child: Text(
+                            'Image unavailable',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.black.withValues(alpha: 0.42),
+                ),
+                icon: const Icon(
+                  Icons.close_rounded,
+                  color: Colors.white,
+                ),
+              ),
+            ),
           ],
-        ],
+        ),
       ),
     );
   }
