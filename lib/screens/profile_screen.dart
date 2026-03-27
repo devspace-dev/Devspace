@@ -5,6 +5,7 @@ import '../providers/auth_provider.dart';
 import '../providers/posts_provider.dart';
 import '../providers/users_provider.dart';
 import '../screens/profile_setup_screen.dart';
+import '../screens/settings_screen.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_state_widgets.dart';
 import '../widgets/aura_bar.dart';
@@ -16,39 +17,6 @@ class ProfileScreen extends StatelessWidget {
   final String? userId; // null = current user
 
   const ProfileScreen({super.key, this.userId});
-
-  Future<void> _handleSignOut(BuildContext context) async {
-    final shouldSignOut = await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) {
-            return AlertDialog(
-              backgroundColor: AppColors.bg2,
-              title: const Text(
-                'Sign out?',
-                style: TextStyle(color: AppColors.text),
-              ),
-              content: const Text(
-                'You will return to the login screen on this device.',
-                style: TextStyle(color: AppColors.text2),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext, false),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(dialogContext, true),
-                  child: const Text('Sign out'),
-                ),
-              ],
-            );
-          },
-        ) ??
-        false;
-
-    if (!shouldSignOut || !context.mounted) return;
-    await context.read<AuthProvider>().signOut();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -150,12 +118,18 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ),
                     IconButton(
-                      tooltip: 'Sign out',
+                      tooltip: 'Settings',
                       icon: const Icon(
-                        Icons.logout_rounded,
+                        Icons.settings_outlined,
                         color: AppColors.text,
                       ),
-                      onPressed: () => _handleSignOut(context),
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const SettingsScreen(),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(width: 4),
                   ],

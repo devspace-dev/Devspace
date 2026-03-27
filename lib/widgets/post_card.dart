@@ -49,6 +49,7 @@ class _PostCardState extends State<PostCard> {
     final commentSubmitting = postsP.isCommentSubmitting(post.id);
     final commentError = postsP.commentError(post.id);
     final likeUpdating = postsP.isLikeUpdating(post.id);
+    final bookmarkUpdating = postsP.isBookmarkUpdating(post.id);
     final quotePostId = post.quotePostId;
     final hasQuote = quotePostId != null && quotePostId.isNotEmpty;
     final quotedPost = hasQuote ? postsP.quotedPost(quotePostId) : null;
@@ -285,9 +286,15 @@ class _PostCardState extends State<PostCard> {
                       count: null,
                       active: post.isBookmarked,
                       activeColor: AppColors.primary,
+                      disabled: bookmarkUpdating,
                       onTap: () {
                         HapticFeedback.lightImpact();
-                        context.read<PostsProvider>().toggleBookmark(post.id);
+                        _handleBookmarkTap(
+                          context,
+                          postsP,
+                          post.id,
+                          me.id,
+                        );
                       },
                     ),
                   ],
@@ -552,6 +559,23 @@ class _PostCardState extends State<PostCard> {
     if (!context.mounted) return;
 
     final error = postsProvider.likeError(postId);
+    if (error == null) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(error), behavior: SnackBarBehavior.floating),
+    );
+  }
+
+  Future<void> _handleBookmarkTap(
+    BuildContext context,
+    PostsProvider postsProvider,
+    String postId,
+    String userId,
+  ) async {
+    await postsProvider.toggleBookmark(postId, userId);
+    if (!context.mounted) return;
+
+    final error = postsProvider.bookmarkError(postId);
     if (error == null) return;
 
     ScaffoldMessenger.of(context).showSnackBar(

@@ -59,6 +59,14 @@ import '../models/question_reply_model.dart';
 ///   unique(post_id, user_id)
 /// );
 ///
+/// create table bookmarks (
+///   id uuid default gen_random_uuid() primary key,
+///   post_id uuid references posts(id) on delete cascade,
+///   user_id uuid references users(id) on delete cascade,
+///   created_at timestamp with time zone default timezone('utc'::text, now()),
+///   unique(post_id, user_id)
+/// );
+///
 /// create table comments (
 ///   id uuid default gen_random_uuid() primary key,
 ///   post_id uuid references posts(id) on delete cascade,
@@ -341,6 +349,63 @@ class SupabaseService {
     return (data as List)
         .map((row) => row['post_id'].toString())
         .toSet();
+  }
+
+  Future<void> bookmarkPost(String postId, String userId) async {
+    await _client.from('bookmarks').upsert(
+      {
+        'post_id': postId,
+        'user_id': userId,
+      },
+      onConflict: 'post_id,user_id',
+    );
+  }
+
+  Future<void> removeBookmark(String postId, String userId) async {
+    await _client
+        .from('bookmarks')
+        .delete()
+        .eq('post_id', postId)
+        .eq('user_id', userId);
+  }
+
+  Future<Set<String>> getBookmarkedPostIds(String userId) async {
+    final data = await _client
+        .from('bookmarks')
+        .select('post_id')
+        .eq('user_id', userId);
+    return (data as List)
+        .map((row) => row['post_id'].toString())
+        .toSet();
+  }
+
+  Future<List<PostModel>> getBookmarkedPosts(String userId) async {
+    final bookmarkRows = await _client
+        .from('bookmarks')
+        .select('post_id')
+        .eq('user_id', userId)
+        .order('created_at', ascending: false);
+
+    final postIds = (bookmarkRows as List)
+        .map((row) => row['post_id'].toString())
+        .where((id) => id.isNotEmpty)
+        .toList();
+    if (postIds.isEmpty) return const [];
+
+    final postRows = await _client
+        .from('posts')
+        .select()
+        .inFilter('id', postIds);
+
+    final postsById = {
+      for (final row in postRows as List)
+        row['id'].toString(): PostModel.fromJson(row as Map<String, dynamic>),
+    };
+
+    return postIds
+        .map((postId) => postsById[postId])
+        .whereType<PostModel>()
+        .toList();
   }
 
   // ══════════════════════════════════════════════════════════════════════════

@@ -22,6 +22,7 @@ class PostCreateResult {
 
 class PostsProvider extends ChangeNotifier {
   List<PostModel> _posts = [];
+  List<PostModel> _savedPosts = [];
   final Map<String, PostModel> _quotedPosts = {};
   final Map<String, List<CommentModel>> _commentsByPost = {};
   final Map<String, bool> _commentsLoading = {};
@@ -29,14 +30,22 @@ class PostsProvider extends ChangeNotifier {
   final Map<String, String?> _commentErrors = {};
   final Map<String, bool> _likeUpdating = {};
   final Map<String, String?> _likeErrors = {};
+  final Map<String, bool> _bookmarkUpdating = {};
+  final Map<String, String?> _bookmarkErrors = {};
   final Map<String, bool> _quoteLoading = {};
   bool _isLoading = false;
+  bool _savedPostsLoading = false;
+  bool _savedPostsLoaded = false;
   String? _feedError;
+  String? _savedPostsError;
   StreamSubscription<List<PostModel>>? _feedSub;
 
   List<PostModel> get posts => List.unmodifiable(_posts);
+  List<PostModel> get savedPosts => List.unmodifiable(_savedPosts);
   bool get isLoading => _isLoading;
+  bool get isSavedPostsLoading => _savedPostsLoading;
   String? get feedError => _feedError;
+  String? get savedPostsError => _savedPostsError;
   List<PostModel> postsForUser(String userId) =>
       _posts.where((post) => post.userId == userId).toList();
   List<CommentModel> commentsForPost(String postId) =>
@@ -47,6 +56,8 @@ class PostsProvider extends ChangeNotifier {
   String? commentError(String postId) => _commentErrors[postId];
   bool isLikeUpdating(String postId) => _likeUpdating[postId] ?? false;
   String? likeError(String postId) => _likeErrors[postId];
+  bool isBookmarkUpdating(String postId) => _bookmarkUpdating[postId] ?? false;
+  String? bookmarkError(String postId) => _bookmarkErrors[postId];
   PostModel? quotedPost(String postId) => _quotedPosts[postId] ?? _findPost(postId);
   bool isQuotedPostLoading(String postId) => _quoteLoading[postId] ?? false;
 
@@ -78,11 +89,19 @@ class PostsProvider extends ChangeNotifier {
           if (currentUser == null) {
             _posts = newList;
           } else {
-            final likedPostIds =
-                await SupabaseService.instance.getLikedPostIds(currentUser.id);
+            final results = await Future.wait<dynamic>([
+              SupabaseService.instance.getLikedPostIds(currentUser.id),
+              SupabaseService.instance.getBookmarkedPostIds(currentUser.id),
+            ]);
+            final likedPostIds = results[0] as Set<String>;
+            final bookmarkedPostIds = results[1] as Set<String>;
             _posts = newList
-                .map((post) => _mergeHydratedPost(post, likedPostIds))
+                .map(
+                  (post) =>
+                      _mergeHydratedPost(post, likedPostIds, bookmarkedPostIds),
+                )
                 .toList();
+            _rehydrateSavedPosts(likedPostIds, bookmarkedPostIds);
           }
           _feedError = null;
         } catch (e) {
@@ -321,36 +340,109 @@ class PostsProvider extends ChangeNotifier {
   }
 
   Future<void> toggleBookmark(String postId, [String? userId]) async {
-    _posts = _posts.map((post) {
-      if (post.id != postId) return post;
-      return post.copyWith(isBookmarked: !post.isBookmarked);
-    }).toList();
+    final resolvedUserId = userId ?? AuthService.instance.currentUser?.id;
+    if (resolvedUserId == null) {
+      _bookmarkErrors[postId] = 'You need to be signed in to save posts.';
+      notifyListeners();
+      return;
+    }
+    if (_bookmarkUpdating[postId] == true) return;
+
+    final currentPost = _findPost(postId) ?? _findSavedPost(postId);
+    if (currentPost == null) return;
+
+    final nextIsBookmarked = !currentPost.isBookmarked;
+    _applyBookmarkState(
+      postId,
+      nextIsBookmarked,
+      sourcePost: currentPost,
+    );
+    _bookmarkUpdating[postId] = true;
+    _bookmarkErrors[postId] = null;
     notifyListeners();
+
+    try {
+      if (nextIsBookmarked) {
+        await SupabaseService.instance.bookmarkPost(postId, resolvedUserId);
+      } else {
+        await SupabaseService.instance.removeBookmark(postId, resolvedUserId);
+      }
+      _bookmarkErrors[postId] = null;
+      if (_savedPostsLoaded) {
+        await fetchBookmarkedPosts(resolvedUserId, force: true);
+      }
+    } catch (e) {
+      _applyBookmarkState(
+        postId,
+        currentPost.isBookmarked,
+        sourcePost: currentPost,
+      );
+      _bookmarkErrors[postId] = 'Failed to update saved post: $e';
+    } finally {
+      _bookmarkUpdating[postId] = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchBookmarkedPosts(String userId, {bool force = false}) async {
+    if (_savedPostsLoading) return;
+    if (_savedPostsLoaded && !force) return;
+
+    _savedPostsLoading = true;
+    _savedPostsError = null;
+    notifyListeners();
+
+    try {
+      final results = await Future.wait<dynamic>([
+        SupabaseService.instance.getBookmarkedPosts(userId),
+        SupabaseService.instance.getLikedPostIds(userId),
+      ]);
+      final bookmarkedPosts = results[0] as List<PostModel>;
+      final likedPostIds = results[1] as Set<String>;
+      _savedPosts = bookmarkedPosts
+          .map((post) {
+            final feedPost = _findPost(post.id);
+            final mergedPost = feedPost ?? post;
+            return mergedPost.copyWith(
+              isLiked: likedPostIds.contains(post.id),
+              isBookmarked: true,
+            );
+          })
+          .toList();
+      _savedPostsLoaded = true;
+      _savedPostsError = null;
+    } catch (e) {
+      _savedPostsError = 'Failed to load saved posts: $e';
+    } finally {
+      _savedPostsLoading = false;
+      notifyListeners();
+    }
   }
 
   PostModel _mergeHydratedPost(
     PostModel hydratedPost,
     Set<String> likedPostIds,
+    Set<String> bookmarkedPostIds,
   ) {
     final existingPost = _findPost(hydratedPost.id);
     if (existingPost == null) {
       return hydratedPost.copyWith(
         isLiked: likedPostIds.contains(hydratedPost.id),
+        isBookmarked: bookmarkedPostIds.contains(hydratedPost.id),
       );
     }
 
-    if (_likeUpdating[hydratedPost.id] == true) {
-      return hydratedPost.copyWith(
-        isLiked: existingPost.isLiked,
-        likes: existingPost.likes,
-        isBookmarked: existingPost.isBookmarked,
-        isReposted: existingPost.isReposted,
-      );
-    }
+    final likeUpdating = _likeUpdating[hydratedPost.id] == true;
+    final bookmarkUpdating = _bookmarkUpdating[hydratedPost.id] == true;
 
     return hydratedPost.copyWith(
-      isLiked: likedPostIds.contains(hydratedPost.id),
-      isBookmarked: existingPost.isBookmarked,
+      isLiked: likeUpdating
+          ? existingPost.isLiked
+          : likedPostIds.contains(hydratedPost.id),
+      likes: likeUpdating ? existingPost.likes : hydratedPost.likes,
+      isBookmarked: bookmarkUpdating
+          ? existingPost.isBookmarked
+          : bookmarkedPostIds.contains(hydratedPost.id),
       isReposted: existingPost.isReposted,
     );
   }
@@ -368,12 +460,75 @@ class PostsProvider extends ChangeNotifier {
         isReposted: post.isReposted,
       );
     }).toList();
+    _savedPosts = _savedPosts.map((post) {
+      if (post.id != postId) return post;
+      return refreshedPost.copyWith(
+        isLiked: isLiked,
+        isBookmarked: post.isBookmarked,
+        isReposted: post.isReposted,
+      );
+    }).toList();
     _likeErrors[postId] = null;
+  }
+
+  void _applyBookmarkState(
+    String postId,
+    bool isBookmarked, {
+    required PostModel sourcePost,
+  }) {
+    _posts = _posts.map((post) {
+      if (post.id != postId) return post;
+      return post.copyWith(isBookmarked: isBookmarked);
+    }).toList();
+
+    final savedPostIndex = _savedPosts.indexWhere((post) => post.id == postId);
+    if (isBookmarked) {
+      if (savedPostIndex >= 0) {
+        _savedPosts[savedPostIndex] = _savedPosts[savedPostIndex].copyWith(
+          isBookmarked: true,
+        );
+      } else if (_savedPostsLoaded) {
+        _savedPosts = [
+          sourcePost.copyWith(isBookmarked: true),
+          ..._savedPosts,
+        ];
+      }
+      return;
+    }
+
+    _savedPosts = _savedPosts.where((post) => post.id != postId).toList();
+  }
+
+  void _rehydrateSavedPosts(
+    Set<String> likedPostIds,
+    Set<String> bookmarkedPostIds,
+  ) {
+    if (!_savedPostsLoaded && _savedPosts.isEmpty) return;
+
+    _savedPosts = _savedPosts
+        .map((post) {
+          final feedPost = _findPost(post.id);
+          final basePost = feedPost ?? post;
+          return basePost.copyWith(
+            isLiked: likedPostIds.contains(post.id),
+            isBookmarked: bookmarkedPostIds.contains(post.id),
+          );
+        })
+        .where((post) => post.isBookmarked)
+        .toList();
   }
 
   PostModel? _findPost(String postId) {
     try {
       return _posts.firstWhere((post) => post.id == postId);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  PostModel? _findSavedPost(String postId) {
+    try {
+      return _savedPosts.firstWhere((post) => post.id == postId);
     } catch (_) {
       return null;
     }

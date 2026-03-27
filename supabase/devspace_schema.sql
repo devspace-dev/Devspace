@@ -134,6 +134,30 @@ begin
 end
 $$;
 
+create table if not exists public.bookmarks (
+  id uuid default gen_random_uuid() primary key,
+  post_id uuid references public.posts(id) on delete cascade,
+  user_id uuid references public.users(id) on delete cascade,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+alter table public.bookmarks add column if not exists post_id uuid references public.posts(id) on delete cascade;
+alter table public.bookmarks add column if not exists user_id uuid references public.users(id) on delete cascade;
+alter table public.bookmarks add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'bookmarks_post_id_user_id_key'
+  ) then
+    alter table public.bookmarks
+      add constraint bookmarks_post_id_user_id_key unique (post_id, user_id);
+  end if;
+end
+$$;
+
 create table if not exists public.comments (
   id uuid default gen_random_uuid() primary key,
   post_id uuid references public.posts(id) on delete cascade,
@@ -245,6 +269,9 @@ create index if not exists idx_posts_created_at on public.posts(created_at desc)
 create index if not exists idx_posts_quote_post_id on public.posts(quote_post_id);
 create index if not exists idx_comments_post_id on public.comments(post_id);
 create index if not exists idx_likes_post_id on public.likes(post_id);
+create index if not exists idx_bookmarks_user_id on public.bookmarks(user_id);
+create index if not exists idx_bookmarks_post_id on public.bookmarks(post_id);
+create index if not exists idx_bookmarks_created_at on public.bookmarks(created_at desc);
 create index if not exists idx_follows_follower_id on public.follows(follower_id);
 create index if not exists idx_follows_following_id on public.follows(following_id);
 create index if not exists idx_questions_user_id on public.questions(user_id);
@@ -430,6 +457,7 @@ alter table public.users enable row level security;
 alter table public.posts enable row level security;
 alter table public.follows enable row level security;
 alter table public.likes enable row level security;
+alter table public.bookmarks enable row level security;
 alter table public.comments enable row level security;
 alter table public.questions enable row level security;
 alter table public.question_replies enable row level security;
@@ -754,6 +782,57 @@ begin
   ) then
     create policy likes_delete_owner
       on public.likes
+      for delete
+      to authenticated
+      using (auth.uid() = user_id);
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'bookmarks'
+      and policyname = 'bookmarks_select_owner'
+  ) then
+    create policy bookmarks_select_owner
+      on public.bookmarks
+      for select
+      to authenticated
+      using (auth.uid() = user_id);
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'bookmarks'
+      and policyname = 'bookmarks_insert_owner'
+  ) then
+    create policy bookmarks_insert_owner
+      on public.bookmarks
+      for insert
+      to authenticated
+      with check (auth.uid() = user_id);
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'bookmarks'
+      and policyname = 'bookmarks_delete_owner'
+  ) then
+    create policy bookmarks_delete_owner
+      on public.bookmarks
       for delete
       to authenticated
       using (auth.uid() = user_id);
