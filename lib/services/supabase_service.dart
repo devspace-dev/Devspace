@@ -123,6 +123,7 @@ class SupabaseService {
     required String email,
     required String handle,
     String avatar = '',
+    String coverUrl = '',
     String role = 'Student',
     String year = '',
     String branch = '',
@@ -139,6 +140,7 @@ class SupabaseService {
       'email': email.toLowerCase(),
       'handle': handle,
       'avatar': avatar,
+      'cover_url': coverUrl,
       'color': 0xFF7C3AED,
       'aura': 0,
       'role': role,
@@ -262,6 +264,16 @@ class SupabaseService {
         .eq('id', postId)
         .maybeSingle();
     return data == null ? null : PostModel.fromJson(data);
+  }
+
+  Future<void> updatePost(String postId, String content) async {
+    await _client.from('posts').update({
+      'content': content,
+    }).eq('id', postId);
+  }
+
+  Future<void> deletePost(String postId) async {
+    await _client.from('posts').delete().eq('id', postId);
   }
 
   // ══════════════════════════════════════════════════════════════════════════

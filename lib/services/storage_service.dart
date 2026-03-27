@@ -13,7 +13,7 @@ class StorageService {
   Future<File?> pickImage({bool fromCamera = false}) async {
     final picked = await _picker.pickImage(
       source: fromCamera ? ImageSource.camera : ImageSource.gallery,
-      maxWidth: 1080,
+      maxWidth: 1920, // Increased for cover photos
       maxHeight: 1080,
       imageQuality: 85,
     );
@@ -23,6 +23,17 @@ class StorageService {
   // ── Upload profile picture ───────────────────────
   Future<String> uploadProfilePhoto(String uid, File file) async {
     final path = 'profiles/$uid.jpg';
+    await _supabase.storage.from('images').upload(
+          path,
+          file,
+          fileOptions: const FileOptions(upsert: true),
+        );
+    return _supabase.storage.from('images').getPublicUrl(path);
+  }
+
+  // ── Upload cover photo ───────────────────────────
+  Future<String> uploadCoverPhoto(String uid, File file) async {
+    final path = 'covers/$uid.jpg';
     await _supabase.storage.from('images').upload(
           path,
           file,
@@ -48,8 +59,6 @@ class StorageService {
     File file, {
     void Function(double progress)? onProgress,
   }) async {
-    // Supabase flutter doesn't support progress in upload yet easily without custom implementation
-    // But we'll do our best.
     if (onProgress != null) onProgress(0.1);
     await _supabase.storage.from('images').upload(
           path,

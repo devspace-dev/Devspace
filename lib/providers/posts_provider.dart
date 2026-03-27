@@ -169,6 +169,33 @@ class PostsProvider extends ChangeNotifier {
     );
   }
 
+  Future<bool> editPost(String postId, String content) async {
+    try {
+      await SupabaseService.instance.updatePost(postId, content);
+      _posts = _posts.map((post) {
+        if (post.id == postId) {
+          return post.copyWith(content: content);
+        }
+        return post;
+      }).toList();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> deletePost(String postId) async {
+    try {
+      await SupabaseService.instance.deletePost(postId);
+      _posts = _posts.where((post) => post.id != postId).toList();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   Future<void> toggleLike(String postId, String userId) async {
     if (_likeUpdating[postId] == true) return;
 

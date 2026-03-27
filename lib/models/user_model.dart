@@ -6,6 +6,7 @@ class UserModel {
   final String handle;
   final String email;
   final String avatar;
+  final String coverUrl;
   final Color color;
   int aura;
   final String role;
@@ -27,6 +28,7 @@ class UserModel {
     required this.handle,
     required this.email,
     required this.avatar,
+    this.coverUrl = '',
     required this.color,
     required this.aura,
     required this.role,
@@ -58,6 +60,7 @@ class UserModel {
     String? handle,
     String? email,
     String? avatar,
+    String? coverUrl,
     Color? color,
     int? aura,
     String? role,
@@ -79,6 +82,7 @@ class UserModel {
       handle: handle ?? this.handle,
       email: email ?? this.email,
       avatar: avatar ?? this.avatar,
+      coverUrl: coverUrl ?? this.coverUrl,
       color: color ?? this.color,
       aura: aura ?? this.aura,
       role: role ?? this.role,
@@ -102,6 +106,7 @@ class UserModel {
         'email': email,
         'handle': handle,
         'avatar': avatar,
+        'cover_url': coverUrl,
         'color': color.toARGB32(),
         'aura': aura,
         'role': role,
@@ -139,6 +144,7 @@ class UserModel {
       email: json['email'] as String? ?? '',
       handle: json['handle'] as String? ?? '',
       avatar: json['avatar'] as String? ?? '',
+      coverUrl: (json['cover_url'] ?? json['coverUrl'] ?? '') as String,
       color: Color(json['color'] as int? ?? 0xFF7C3AED),
       aura: json['aura'] as int? ?? 0,
       role: json['role'] as String? ?? '',

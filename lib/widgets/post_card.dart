@@ -54,6 +54,7 @@ class _PostCardState extends State<PostCard> {
     final quotedPost = hasQuote ? postsP.quotedPost(quotePostId) : null;
     final quotedPostLoading =
         hasQuote ? postsP.isQuotedPostLoading(quotePostId) : false;
+    final isMe = post.userId == me.id;
 
     if (hasQuote && quotedPost == null && !quotedPostLoading) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -122,6 +123,50 @@ class _PostCardState extends State<PostCard> {
                       ),
                     ),
                     AuraPill(aura: user.aura, small: true),
+                    if (isMe)
+                      PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_horiz_rounded,
+                            size: 18, color: AppColors.text3),
+                        color: AppColors.bg2,
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        onSelected: (val) {
+                          if (val == 'edit') {
+                            _handleEditPost(context, post);
+                          } else if (val == 'delete') {
+                            _handleDeletePost(context, post);
+                          }
+                        },
+                        itemBuilder: (_) => [
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit_rounded,
+                                    size: 18, color: AppColors.text2),
+                                SizedBox(width: 12),
+                                Text('Edit Post',
+                                    style: TextStyle(
+                                        color: AppColors.text, fontSize: 14)),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                Icon(Icons.delete_outline_rounded,
+                                    size: 18, color: Colors.redAccent),
+                                SizedBox(width: 12),
+                                Text('Delete',
+                                    style: TextStyle(
+                                        color: Colors.redAccent, fontSize: 14)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                   ],
                 ),
                 const SizedBox(height: 2),
@@ -369,6 +414,78 @@ class _PostCardState extends State<PostCard> {
     );
   }
 
+  Future<void> _handleEditPost(BuildContext context, PostModel post) async {
+    final ctrl = TextEditingController(text: post.content);
+    final nextContent = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bg2,
+        title: const Text('Edit Post', style: TextStyle(color: AppColors.text)),
+        content: TextField(
+          controller: ctrl,
+          maxLines: 5,
+          style: const TextStyle(color: AppColors.text),
+          decoration: InputDecoration(
+            hintText: 'What\'s on your mind?',
+            filled: true,
+            fillColor: AppColors.bg3,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (nextContent == null || nextContent.isEmpty || !context.mounted) return;
+
+    final success =
+        await context.read<PostsProvider>().editPost(post.id, nextContent);
+    if (!success && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to update post')),
+      );
+    }
+  }
+
+  Future<void> _handleDeletePost(BuildContext context, PostModel post) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bg2,
+        title: const Text('Delete Post?',
+            style: TextStyle(color: AppColors.text)),
+        content: const Text('This action cannot be undone.',
+            style: TextStyle(color: AppColors.text2)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !context.mounted) return;
+
+    final success = await context.read<PostsProvider>().deletePost(post.id);
+    if (!success && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to delete post')),
+      );
+    }
+  }
+
   Future<void> _openQuoteSheet({
     required BuildContext context,
     required PostModel originalPost,
@@ -501,6 +618,580 @@ class _PostCardState extends State<PostCard> {
       college: '',
       githubHandle: '',
       profileCompleted: false,
+    );
+  }
+}
+
+class _CommentRow extends StatelessWidget {
+  final CommentModel comment;
+  final UserModel user;
+
+  const _CommentRow({
+    required this.comment,
+    required this.user,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        UserAvatar(user: user, size: 28, showRing: false),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 6,
+                children: [
+                  Text(
+                    user.name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  Text(
+                    '@${user.handle}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.text3,
+                    ),
+                  ),
+                  Text(
+                    timeago.format(comment.createdAt, locale: 'en_short'),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.text4,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                comment.text,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.text2,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _QuotePostSheet extends StatefulWidget {
+  final PostModel originalPost;
+  final UserModel originalAuthor;
+  final String currentUserId;
+
+  const _QuotePostSheet({
+    required this.originalPost,
+    required this.originalAuthor,
+    required this.currentUserId,
+  });
+
+  @override
+  State<_QuotePostSheet> createState() => _QuotePostSheetState();
+}
+
+class _QuotePostSheetState extends State<_QuotePostSheet> {
+  final TextEditingController _textCtrl = TextEditingController();
+  bool _posting = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _textCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final content = _textCtrl.text.trim();
+    if (content.isEmpty) return;
+
+    setState(() {
+      _posting = true;
+      _error = null;
+    });
+
+    final result = await context.read<PostsProvider>().addQuotePost(
+          userId: widget.currentUserId,
+          content: content,
+          originalPostId: widget.originalPost.id,
+        );
+
+    if (!mounted) return;
+
+    if (!result.success) {
+      setState(() {
+        _posting = false;
+        _error = result.error;
+      });
+      return;
+    }
+
+    context.read<AuthProvider>().addAura(kAuraPost);
+    Navigator.of(context).pop();
+
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result.warning ?? '+10 aura for sharing your take'),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final canPost = !_posting && _textCtrl.text.trim().isNotEmpty;
+
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(20, 16, 20, 20 + bottomInset),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 42,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.border2,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              'Quote post',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                color: AppColors.text,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Add your take and share the original post with your network.',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.text2,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 18),
+            TextField(
+              controller: _textCtrl,
+              maxLines: 5,
+              minLines: 3,
+              onChanged: (_) => setState(() {}),
+              style: const TextStyle(color: AppColors.text, fontSize: 15),
+              decoration: InputDecoration(
+                hintText: 'What do you think about this post?',
+                filled: true,
+                fillColor: AppColors.bg3,
+                contentPadding: const EdgeInsets.all(16),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            _QuotedPostPreview(
+              post: widget.originalPost,
+              user: widget.originalAuthor,
+              loading: false,
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.red.withValues(alpha: 0.24),
+                  ),
+                ),
+                child: Text(
+                  _error!,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.redAccent,
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _posting ? null : () => Navigator.of(context).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton(
+                    onPressed: canPost ? _submit : null,
+                    child: _posting
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Share quote'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QuotedPostPreview extends StatelessWidget {
+  final PostModel? post;
+  final UserModel? user;
+  final bool loading;
+
+  const _QuotedPostPreview({
+    required this.post,
+    required this.user,
+    required this.loading,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.bg3,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: const Row(
+          children: [
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 12),
+            Text(
+              'Loading quoted post...',
+              style: TextStyle(color: AppColors.text3, fontSize: 13),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (post == null || user == null) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.bg3,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: const Text(
+          'Quoted post unavailable',
+          style: TextStyle(color: AppColors.text3, fontSize: 13),
+        ),
+      );
+    }
+
+    final quotedPost = post!;
+    final quotedUser = user!;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.bg3,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.format_quote_rounded,
+                size: 16,
+                color: AppColors.repost,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '${quotedUser.name} @${quotedUser.handle}',
+                  style: const TextStyle(
+                    color: AppColors.text,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          if (quotedPost.content.trim().isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              quotedPost.content.trim(),
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppColors.text2,
+                fontSize: 14,
+                height: 1.45,
+              ),
+            ),
+          ],
+          if (quotedPost.imageUrl != null && quotedPost.imageUrl!.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _PostImageThumbnail(
+              imageUrl: quotedPost.imageUrl!,
+              heroTag: 'quoted-image-${quotedPost.id}',
+              maxHeight: 140,
+              backgroundColor: AppColors.bg,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _PostImageThumbnail extends StatelessWidget {
+  final String imageUrl;
+  final String heroTag;
+  final double maxHeight;
+  final Color backgroundColor;
+  final BoxFit fit;
+
+  const _PostImageThumbnail({
+    required this.imageUrl,
+    required this.heroTag,
+    required this.maxHeight,
+    this.backgroundColor = AppColors.bg3,
+    this.fit = BoxFit.cover,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(
+        PageRouteBuilder<void>(
+          opaque: false,
+          pageBuilder: (_, __, ___) => _PostImageViewerScreen(
+            imageUrl: imageUrl,
+            heroTag: heroTag,
+          ),
+          transitionsBuilder: (_, animation, __, child) {
+            return FadeTransition(
+              opacity: CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutCubic,
+              ),
+              child: child,
+            );
+          },
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          color: backgroundColor,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxHeight),
+            child: Hero(
+              tag: heroTag,
+              child: CachedNetworkImage(
+                imageUrl: imageUrl,
+                width: double.infinity,
+                fit: fit,
+                placeholder: (_, __) => Container(
+                  width: double.infinity,
+                  height: maxHeight.clamp(120.0, 220.0),
+                  color: backgroundColor,
+                  alignment: Alignment.center,
+                  child: const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+                errorWidget: (_, __, ___) => Container(
+                  width: double.infinity,
+                  height: maxHeight.clamp(120.0, 220.0),
+                  color: backgroundColor,
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'Image unavailable',
+                    style: TextStyle(
+                      color: AppColors.text3,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PostImageViewerScreen extends StatelessWidget {
+  final String imageUrl;
+  final String heroTag;
+
+  const _PostImageViewerScreen({
+    required this.imageUrl,
+    required this.heroTag,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () => Navigator.of(context).pop(),
+                child: InteractiveViewer(
+                  minScale: 1,
+                  maxScale: 4,
+                  child: Center(
+                    child: Hero(
+                      tag: heroTag,
+                      child: CachedNetworkImage(
+                        imageUrl: imageUrl,
+                        fit: BoxFit.contain,
+                        placeholder: (_, __) => const Center(
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white70,
+                            ),
+                          ),
+                        ),
+                        errorWidget: (_, __, ___) => const Center(
+                          child: Text(
+                            'Image unavailable',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.black.withValues(alpha: 0.42),
+                ),
+                icon: const Icon(
+                  Icons.close_rounded,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionBtn extends StatelessWidget {
+  final IconData icon;
+  final IconData activeIcon;
+  final int? count;
+  final bool active;
+  final Color activeColor;
+  final VoidCallback onTap;
+  final bool disabled;
+
+  const _ActionBtn({
+    required this.icon, required this.activeIcon,
+    required this.count, required this.active,
+    required this.activeColor, required this.onTap,
+    this.disabled = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: disabled ? null : onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              transitionBuilder: (child, animation) {
+                return ScaleTransition(scale: animation, child: child);
+              },
+              child: Icon(
+                active ? activeIcon : icon,
+                key: ValueKey(active),
+                size: 18,
+                color: disabled
+                    ? AppColors.text4
+                    : (active ? activeColor : AppColors.text3),
+              ),
+            ),
+            if (count != null) ...[
+              const SizedBox(width: 6),
+              Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: disabled
+                      ? AppColors.text4
+                      : (active ? activeColor : AppColors.text3),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

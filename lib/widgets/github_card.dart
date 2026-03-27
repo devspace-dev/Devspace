@@ -47,71 +47,171 @@ class _GitHubCardState extends State<GitHubCard> {
         if (snap.hasError || !snap.hasData) return const SizedBox.shrink();
 
         final data = snap.data!;
+        final totalStars = data.repos.fold<int>(0, (sum, r) => sum + r.stars);
 
         return Container(
           margin: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
             color: AppColors.bg2,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.border),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.bg2,
+                AppColors.bg2.withValues(alpha: 0.8),
+              ],
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
                 child: Row(
                   children: [
-                    const Icon(Icons.code_rounded, size: 18, color: AppColors.text3),
-                    const SizedBox(width: 10),
-                    Flexible(
-                      child: Text(
-                        'GitHub · ${widget.githubHandle}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.bg3,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Image.network(
+                        'https://cdn-icons-png.flaticon.com/512/25/25231.png',
+                        width: 18,
+                        height: 18,
+                        color: AppColors.text,
+                        errorBuilder: (_, __, ___) => const Icon(
+                          Icons.code_rounded,
+                          size: 18,
                           color: AppColors.text2,
                         ),
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    if (data.stats != null) ...[
-                      _StatChip(
-                          icon: Icons.star_outline_rounded,
-                          label: '${data.stats!['public_repos'] ?? 0}'),
-                    ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'GitHub Developer Stats',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14,
+                              color: AppColors.text,
+                            ),
+                          ),
+                          Text(
+                            'github.com/${widget.githubHandle}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.text3,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
 
-              const SizedBox(height: 12),
               const Divider(color: AppColors.border, height: 1),
 
-              // Recent commits
+              // Stats Grid
+              if (data.stats != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _StatItem(
+                        icon: Icons.library_books_rounded,
+                        label: 'Repos',
+                        value: '${data.stats!['public_repos'] ?? 0}',
+                      ),
+                      _StatItem(
+                        icon: Icons.star_rounded,
+                        label: 'Stars',
+                        value: '$totalStars',
+                      ),
+                      _StatItem(
+                        icon: Icons.people_alt_rounded,
+                        label: 'Followers',
+                        value: '${data.stats!['followers'] ?? 0}',
+                      ),
+                      _StatItem(
+                        icon: Icons.person_add_rounded,
+                        label: 'Following',
+                        value: '${data.stats!['following'] ?? 0}',
+                      ),
+                    ],
+                  ),
+                ),
+
+              // Latest contribution
               if (data.commits.isNotEmpty) ...[
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 14, 16, 8),
-                  child: Text('RECENT COMMITS',
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800,
-                          color: AppColors.text4, letterSpacing: 1.0)),
+                const Divider(color: AppColors.border, height: 1),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.history_rounded, size: 14, color: AppColors.primary),
+                          const SizedBox(width: 8),
+                          Text(
+                            'LATEST PUSH · ${timeago.format(data.commits.first.date, locale: 'en_short')}',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.text3,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      _CommitRow(commit: data.commits.first),
+                    ],
+                  ),
                 ),
-                ...data.commits.take(2).map((c) => _CommitRow(commit: c)),
               ],
 
-              // Top repos
+              // Top repo showcase
               if (data.repos.isNotEmpty) ...[
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 14, 16, 8),
-                  child: Text('TOP REPOSITORIES',
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800,
-                          color: AppColors.text4, letterSpacing: 1.0)),
+                if (data.commits.isEmpty) const Divider(color: AppColors.border, height: 1),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.bg3.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'FEATURED REPOSITORY',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.text4,
+                            letterSpacing: 1.0,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        _RepoRow(repo: data.repos.first),
+                      ],
+                    ),
+                  ),
                 ),
-                ...data.repos.take(2).map((r) => _RepoRow(repo: r)),
               ],
-
-              const SizedBox(height: 12),
             ],
           ),
         );
@@ -122,36 +222,78 @@ class _GitHubCardState extends State<GitHubCard> {
 
 // ── Sub-widgets ──────────────────────────────────────────────────────────────
 
+class _StatItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _StatItem({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Icon(icon, size: 20, color: AppColors.primary.withValues(alpha: 0.8)),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w900,
+            color: AppColors.text,
+          ),
+        ),
+        Text(
+          label.toUpperCase(),
+          style: const TextStyle(
+            fontSize: 9,
+            fontWeight: FontWeight.w700,
+            color: AppColors.text3,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _CommitRow extends StatelessWidget {
   final GitHubCommit commit;
   const _CommitRow({required this.commit});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  commit.message,
-                  style: const TextStyle(fontSize: 13, color: AppColors.text, height: 1.4),
-                  maxLines: 1, overflow: TextOverflow.ellipsis,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                commit.message,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.text,
+                  fontWeight: FontWeight.w500,
+                  height: 1.4,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  '${commit.repo.split('/').last} · ${timeago.format(commit.date, locale: 'en_short')}',
-                  style: const TextStyle(fontSize: 12, color: AppColors.text3),
-                ),
-              ],
-            ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'in ${commit.repo.split('/').last}',
+                style: const TextStyle(fontSize: 12, color: AppColors.text3),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -162,37 +304,57 @@ class _RepoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(repo.name,
-                    style: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w600,
-                      color: AppColors.primary),
-                    overflow: TextOverflow.ellipsis),
-                if (repo.description.isNotEmpty)
-                  Text(repo.description,
-                      style: const TextStyle(fontSize: 12, color: AppColors.text3),
-                      maxLines: 1, overflow: TextOverflow.ellipsis),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Row(
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.star_outline_rounded, size: 14, color: AppColors.text3),
-              const SizedBox(width: 4),
-              Text('${repo.stars}',
-                  style: const TextStyle(fontSize: 12, color: AppColors.text3)),
+              Text(
+                repo.name,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (repo.description.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    repo.description,
+                    style: const TextStyle(fontSize: 12, color: AppColors.text2),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
             ],
           ),
-        ],
-      ),
+        ),
+        const SizedBox(width: 12),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppColors.bg,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.star_rounded, size: 14, color: AppColors.spark),
+              const SizedBox(width: 4),
+              Text(
+                '${repo.stars}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.text,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

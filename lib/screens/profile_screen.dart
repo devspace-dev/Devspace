@@ -11,42 +11,39 @@ import '../widgets/aura_bar.dart';
 import '../widgets/post_card.dart';
 import '../widgets/github_card.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   final String? userId; // null = current user
 
   const ProfileScreen({super.key, this.userId});
 
-  Future<void> _handleSignOut(BuildContext context) async {
-    final shouldSignOut = await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) {
-            return AlertDialog(
-              backgroundColor: AppColors.bg2,
-              title: const Text(
-                'Sign out?',
-                style: TextStyle(color: AppColors.text),
-              ),
-              content: const Text(
-                'You will return to the login screen on this device.',
-                style: TextStyle(color: AppColors.text2),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext, false),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(dialogContext, true),
-                  child: const Text('Sign out'),
-                ),
-              ],
-            );
-          },
-        ) ??
-        false;
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
 
-    if (!shouldSignOut || !context.mounted) return;
-    await context.read<AuthProvider>().signOut();
+class _ProfileScreenState extends State<ProfileScreen> {
+  bool _isUploadingCover = false;
+
+  Future<void> _updateCover(String userId) async {
+    final file = await StorageService.instance.pickImage();
+    if (file == null) return;
+
+    setState(() => _isUploadingCover = true);
+    try {
+      final url = await StorageService.instance.uploadCoverPhoto(userId, file);
+      await SupabaseService.instance.updateUser(userId, {'cover_url': url});
+      if (mounted) {
+        context.read<UsersProvider>().refreshUsers();
+        await AuthService.instance.refreshCurrentUser();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update cover: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUploadingCover = false);
+    }
   }
 
   @override
@@ -54,8 +51,8 @@ class ProfileScreen extends StatelessWidget {
     final me = context.watch<AuthProvider>().currentUser;
     final usersP = context.watch<UsersProvider>();
     final postsP = context.watch<PostsProvider>();
-    final isMe = userId == null || userId == me.id;
-    final user = isMe ? me : usersP.getUserById(userId!);
+    final isMe = widget.userId == null || widget.userId == me.id;
+    final user = isMe ? me : usersP.getUserById(widget.userId!);
 
     if (!isMe && user == null && usersP.isLoading) {
       return const Scaffold(
@@ -63,21 +60,6 @@ class ProfileScreen extends StatelessWidget {
         body: AppLoadingState(
           title: 'Loading profile',
           message: 'Fetching this builder profile from DevSpace.',
-        ),
-      );
-    }
-
-    if (!isMe && user == null && usersP.error != null) {
-      return Scaffold(
-        backgroundColor: AppColors.bg,
-        appBar: AppBar(backgroundColor: AppColors.bg),
-        body: AppErrorState(
-          title: 'Profile unavailable',
-          message: usersP.error!,
-          actionLabel: 'Retry',
-          onAction: () {
-            usersP.refreshUsers();
-          },
         ),
       );
     }
@@ -91,9 +73,7 @@ class ProfileScreen extends StatelessWidget {
           title: 'Profile unavailable',
           message: 'We could not find this student profile.',
           actionLabel: 'Refresh',
-          onAction: () {
-            usersP.refreshUsers();
-          },
+          onAction: () => usersP.refreshUsers(),
         ),
       );
     }
@@ -105,93 +85,80 @@ class ProfileScreen extends StatelessWidget {
       backgroundColor: AppColors.bg,
       body: CustomScrollView(
         slivers: [
-          // Top padding for transparent AppBar
-          SliverToBoxAdapter(
-            child: SizedBox(height: MediaQuery.of(context).padding.top + kToolbarHeight),
-          ),
-          // App bar with back button
           SliverAppBar(
+            expandedHeight: 180,
             pinned: true,
-            backgroundColor: Colors.transparent,
+            backgroundColor: AppColors.bg,
             elevation: 0,
-            leading: userId != null
+            leading: widget.userId != null
                 ? IconButton(
-                    icon: const Icon(Icons.arrow_back_rounded, color: AppColors.text),
+                    icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
                     onPressed: () => Navigator.pop(context),
                   )
                 : null,
-            title: Text(profileUser.name,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w900, fontSize: 16, color: AppColors.text)),
+            flexibleSpace: FlexibleSpaceBar(
+              background: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (profileUser.coverUrl.isNotEmpty)
+                    Image.network(profileUser.coverUrl, fit: BoxFit.cover)
+                  else
+                    Container(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [AppColors.primary, AppColors.bg2],
+                        ),
+                      ),
+                    ),
+                  // Overlay for better visibility of back button
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.center,
+                        colors: [
+                          Colors.black.withValues(alpha: 0.3),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (isMe)
+                    Positioned(
+                      bottom: 12,
+                      right: 12,
+                      child: GestureDetector(
+                        onTap: _isUploadingCover ? null : () => _updateCover(profileUser.id),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.black45,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: _isUploadingCover
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Icon(Icons.camera_alt_rounded,
+                                  color: Colors.white, size: 20),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
             actions: [
               if (isMe)
-                Row(
-                  children: [
-                    TextButton.icon(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const ProfileSetupScreen(
-                            mode: ProfileSetupMode.edit,
-                          ),
-                        ),
-                      ),
-                      icon: Icon(
-                        profileUser.profileCompleted
-                            ? Icons.edit_rounded
-                            : Icons.auto_fix_high_rounded,
-                        size: 16,
-                      ),
-                      label: Text(
-                        profileUser.profileCompleted ? 'Edit' : 'Finish',
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: 'Sign out',
-                      icon: const Icon(
-                        Icons.logout_rounded,
-                        color: AppColors.text,
-                      ),
-                      onPressed: () => _handleSignOut(context),
-                    ),
-                    const SizedBox(width: 4),
-                  ],
-                )
-              else
-                Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: GestureDetector(
-                    onTap: usersP.isFollowUpdating(profileUser.id)
-                        ? null
-                        : () async {
-                            await usersP.toggleFollow(me.id, profileUser.id);
-                            if (!context.mounted) return;
-
-                            final error = usersP.followError(profileUser.id);
-                            if (error == null) return;
-
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(error)),
-                            );
-                          },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: profileUser.isFollowing ? Colors.transparent : Colors.white,
-                        borderRadius: BorderRadius.circular(99),
-                        border: Border.all(
-                          color: profileUser.isFollowing ? AppColors.border2 : Colors.white),
-                      ),
-                      child: Text(
-                        usersP.isFollowUpdating(profileUser.id)
-                            ? 'Saving...'
-                            : (profileUser.isFollowing ? 'Following' : 'Follow'),
-                        style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w700,
-                          color: profileUser.isFollowing ? AppColors.text : AppColors.bg,
-                        ),
-                      ),
-                    ),
+                IconButton(
+                  icon: const Icon(Icons.settings_outlined, color: Colors.white),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SettingsScreen()),
                   ),
                 ),
             ],
@@ -200,99 +167,79 @@ class ProfileScreen extends StatelessWidget {
           // Avatar + info
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.bg, width: 4),
-                    ),
-                    child: UserAvatar(user: profileUser, size: 76, showStory: true),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Transform.translate(
+                        offset: const Offset(0, -32),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppColors.bg, width: 4),
+                          ),
+                          child: UserAvatar(user: profileUser, size: 80, showStory: true),
+                        ),
+                      ),
+                      const Spacer(),
+                      if (isMe)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const ProfileSetupScreen(
+                                  mode: ProfileSetupMode.edit,
+                                ),
+                              ),
+                            ),
+                            child: const Text('Edit Profile'),
+                          ),
+                        )
+                      else
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: _FollowButton(fromUid: me.id, toUid: profileUser.id),
+                        ),
+                    ],
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 0),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(profileUser.name,
-                          style: const TextStyle(
-                            fontSize: 22, fontWeight: FontWeight.w900,
-                            color: AppColors.text, letterSpacing: -0.5)),
+                      Row(
+                        children: [
+                          Text(profileUser.name,
+                              style: const TextStyle(
+                                fontSize: 22, fontWeight: FontWeight.w900,
+                                color: AppColors.text, letterSpacing: -0.5)),
+                          const SizedBox(width: 8),
+                          AuraPill(aura: profileUser.aura),
+                        ],
+                      ),
                       const SizedBox(height: 2),
                       Text('@${profileUser.handle}',
                           style: const TextStyle(fontSize: 14, color: AppColors.text3)),
-                      const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          _MetaChip(label: profileUser.role),
-                          if (profileUser.year.isNotEmpty || profileUser.branch.isNotEmpty)
-                            _MetaChip(label: profileUser.academicLabel),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        profileUser.bio.isEmpty
-                            ? 'This student has not added a bio yet.'
-                            : profileUser.bio,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: AppColors.text2,
-                          height: 1.6,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      if (isMe && !profileUser.profileCompleted)
-                        Container(
-                          width: double.infinity,
-                          margin: const EdgeInsets.only(bottom: 14),
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: AppColors.primary.withValues(alpha: 0.24),
+                      const SizedBox(height: 12),
+                      if (profileUser.bio.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Text(
+                            profileUser.bio,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: AppColors.text2,
+                              height: 1.5,
                             ),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Complete your builder profile',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.text,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              const Text(
-                                'Add your branch, stack, and what you are building so students can discover you properly.',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: AppColors.text2,
-                                  height: 1.5,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              ElevatedButton(
-                                onPressed: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const ProfileSetupScreen(
-                                      mode: ProfileSetupMode.onboarding,
-                                    ),
-                                  ),
-                                ),
-                                child: const Text('Complete profile'),
-                              ),
-                            ],
-                          ),
                         ),
+                      
                       Wrap(
-                        spacing: 16, runSpacing: 4,
+                        spacing: 16, runSpacing: 8,
                         children: [
                           if (profileUser.academicLabel.isNotEmpty)
                             _InfoChip(icon: '📍', label: profileUser.academicLabel),
@@ -300,7 +247,7 @@ class ProfileScreen extends StatelessWidget {
                           _InfoChip(icon: '🎓', label: profileUser.college),
                         ],
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
                       Wrap(
                         spacing: 6,
                         runSpacing: 4,
@@ -330,19 +277,7 @@ class ProfileScreen extends StatelessWidget {
                             )
                             .toList(),
                       ),
-                      const SizedBox(height: 14),
-
-                      // Aura card
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: AppColors.bg3,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: AppColors.border),
-                        ),
-                        child: AuraBar(aura: profileUser.aura),
-                      ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 16),
 
                       // Stats row
                       Row(
@@ -354,7 +289,7 @@ class ProfileScreen extends StatelessWidget {
                           _Stat(count: posts.length, label: 'posts'),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
 
                       // GitHub activity card
                       GitHubCard(githubHandle: profileUser.githubHandle),
