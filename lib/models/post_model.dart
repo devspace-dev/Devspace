@@ -4,6 +4,7 @@ class PostModel {
   final String content;
   final List<String> tags;
   final String? imageUrl;
+  final String? quotePostId;
   final DateTime createdAt;
   int likes;
   int comments;
@@ -18,6 +19,7 @@ class PostModel {
     required this.content,
     required this.tags,
     this.imageUrl,
+    this.quotePostId,
     required this.createdAt,
     this.likes = 0,
     this.comments = 0,
@@ -29,6 +31,7 @@ class PostModel {
 
   PostModel copyWith({
     String? imageUrl,
+    String? quotePostId,
     int? likes,
     int? comments,
     int? reposts,
@@ -42,6 +45,7 @@ class PostModel {
       content: content,
       tags: tags,
       imageUrl: imageUrl ?? this.imageUrl,
+      quotePostId: quotePostId ?? this.quotePostId,
       createdAt: createdAt,
       likes: likes ?? this.likes,
       comments: comments ?? this.comments,
@@ -58,6 +62,7 @@ class PostModel {
         'content': content,
         'tags': tags,
         'imageUrl': imageUrl,
+        'quotePostId': quotePostId,
         'likes': likes,
         'comments': comments,
         'reposts': reposts,
@@ -72,6 +77,7 @@ class PostModel {
       content: json['content'] as String? ?? '',
       tags: List<String>.from(json['tags'] as List? ?? []),
       imageUrl: json['image_url'] as String? ?? json['imageUrl'] as String?,
+      quotePostId: (json['quote_post_id'] ?? json['quotePostId'])?.toString(),
       createdAt: _parseDateTime(createdAtValue),
       likes: (json['likes_count'] ?? json['likes'] ?? 0) as int,
       comments: (json['comments_count'] ?? json['comments'] ?? 0) as int,

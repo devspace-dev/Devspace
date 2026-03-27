@@ -22,12 +22,14 @@ class PostCreateResult {
 
 class PostsProvider extends ChangeNotifier {
   List<PostModel> _posts = [];
+  final Map<String, PostModel> _quotedPosts = {};
   final Map<String, List<CommentModel>> _commentsByPost = {};
   final Map<String, bool> _commentsLoading = {};
   final Map<String, bool> _commentSubmitting = {};
   final Map<String, String?> _commentErrors = {};
   final Map<String, bool> _likeUpdating = {};
   final Map<String, String?> _likeErrors = {};
+  final Map<String, bool> _quoteLoading = {};
   bool _isLoading = false;
   String? _feedError;
   StreamSubscription<List<PostModel>>? _feedSub;
@@ -45,6 +47,8 @@ class PostsProvider extends ChangeNotifier {
   String? commentError(String postId) => _commentErrors[postId];
   bool isLikeUpdating(String postId) => _likeUpdating[postId] ?? false;
   String? likeError(String postId) => _likeErrors[postId];
+  PostModel? quotedPost(String postId) => _quotedPosts[postId] ?? _findPost(postId);
+  bool isQuotedPostLoading(String postId) => _quoteLoading[postId] ?? false;
 
   Future<void> fetchFeed() async {
     if (_feedSub != null) {
@@ -104,12 +108,28 @@ class PostsProvider extends ChangeNotifier {
     String content,
     List<String> tags, {
     File? imageFile,
+    String? quotePostId,
   }) async {
+    final trimmedContent = content.trim();
+    final normalizedTags = tags
+        .map((tag) => tag.trim())
+        .where((tag) => tag.isNotEmpty)
+        .toSet()
+        .toList();
+
+    if (trimmedContent.isEmpty && imageFile == null) {
+      return const PostCreateResult(
+        success: false,
+        error: 'Add some text or attach an image to post.',
+      );
+    }
+
     try {
       final postId = await SupabaseService.instance.createPost(
         userId: userId,
-        content: content,
-        tags: tags,
+        content: trimmedContent,
+        tags: normalizedTags,
+        quotePostId: quotePostId,
       );
 
       if (imageFile == null) {
@@ -134,6 +154,19 @@ class PostsProvider extends ChangeNotifier {
         error: 'Failed to publish post: $e',
       );
     }
+  }
+
+  Future<PostCreateResult> addQuotePost({
+    required String userId,
+    required String content,
+    required String originalPostId,
+  }) {
+    return addPost(
+      userId,
+      content,
+      const [],
+      quotePostId: originalPostId,
+    );
   }
 
   Future<void> toggleLike(String postId, String userId) async {
@@ -235,6 +268,25 @@ class PostsProvider extends ChangeNotifier {
       );
     }).toList();
     notifyListeners();
+  }
+
+  Future<void> ensureQuotedPostLoaded(String postId) async {
+    if (postId.isEmpty) return;
+    if (_findPost(postId) != null || _quotedPosts.containsKey(postId)) return;
+    if (_quoteLoading[postId] == true) return;
+
+    _quoteLoading[postId] = true;
+    notifyListeners();
+
+    try {
+      final post = await SupabaseService.instance.getPostById(postId);
+      if (post != null) {
+        _quotedPosts[postId] = post;
+      }
+    } finally {
+      _quoteLoading[postId] = false;
+      notifyListeners();
+    }
   }
 
   Future<void> toggleBookmark(String postId, [String? userId]) async {
