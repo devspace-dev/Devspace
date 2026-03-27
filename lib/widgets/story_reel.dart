@@ -35,13 +35,16 @@ class StoryReel extends StatelessWidget {
               children: [
                 UserAvatar(user: u, size: 48, showStory: true),
                 const SizedBox(height: 4),
-                SizedBox(
-                  width: 54,
-                  child: Text(
-                    i == 0 ? 'You' : u.name.split(' ').first,
-                    style: const TextStyle(fontSize: 10, color: AppColors.text4),
-                    textAlign: TextAlign.center,
-                    overflow: TextOverflow.ellipsis,
+                Flexible(
+                  child: SizedBox(
+                    width: 54,
+                    child: Text(
+                      i == 0 ? 'You' : u.name.split(' ').first,
+                      style: const TextStyle(fontSize: 10, color: AppColors.text4),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ),
               ],

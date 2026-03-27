@@ -16,6 +16,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
+  final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
@@ -55,14 +56,11 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _submitEmailAuth() async {
+    if (!_formKey.currentState!.validate()) return;
+
     final email = _emailCtrl.text.trim();
     final password = _passwordCtrl.text.trim();
     final name = _nameCtrl.text.trim();
-
-    if (email.isEmpty || password.isEmpty || (_isSignUp && name.isEmpty)) {
-      setState(() => _error = 'Fill in the required fields first.');
-      return;
-    }
 
     setState(() {
       _loading = true;
@@ -99,6 +97,7 @@ class _LoginScreenState extends State<LoginScreen>
       _mode = mode;
       _error = null;
     });
+    _formKey.currentState?.reset();
   }
 
   @override
@@ -122,208 +121,275 @@ class _LoginScreenState extends State<LoginScreen>
                       borderRadius: BorderRadius.circular(24),
                       border: Border.all(color: AppColors.border),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Center(
-                          child: Container(
-                            width: 64,
-                            height: 64,
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: const Center(
-                              child: Text('⌥', style: TextStyle(fontSize: 32, color: Colors.white)),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        const Text(
-                          'DevSpace',
-                          style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.text,
-                            letterSpacing: -0.8,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'A professional space for engineering students to showcase their work.',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppColors.text3,
-                            height: 1.5,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: AppColors.bg3,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppColors.border),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: _ModeButton(
-                                  label: 'Sign in',
-                                  active: !_isSignUp,
-                                  onTap: () => _switchMode(_AuthMode.signIn),
-                                ),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Center(
+                            child: Container(
+                              width: 64,
+                              height: 64,
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                borderRadius: BorderRadius.circular(16),
                               ),
-                              Expanded(
-                                child: _ModeButton(
-                                  label: 'Create account',
-                                  active: _isSignUp,
-                                  onTap: () => _switchMode(_AuthMode.signUp),
-                                ),
+                              child: const Center(
+                                child: Text('⌥',
+                                    style: TextStyle(
+                                        fontSize: 32, color: Colors.white)),
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 20),
-                        if (_isSignUp) ...[
-                          const _FieldLabel('NAME'),
+                          const SizedBox(height: 24),
+                          const Text(
+                            'DevSpace',
+                            style: TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.text,
+                              letterSpacing: -0.8,
+                            ),
+                          ),
                           const SizedBox(height: 8),
-                          TextField(
-                            controller: _nameCtrl,
+                          const Text(
+                            'A professional space for engineering students to showcase their work.',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppColors.text3,
+                              height: 1.5,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: AppColors.bg3,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: _ModeButton(
+                                    label: 'Sign in',
+                                    active: !_isSignUp,
+                                    onTap: () => _switchMode(_AuthMode.signIn),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: _ModeButton(
+                                    label: 'Create account',
+                                    active: _isSignUp,
+                                    onTap: () => _switchMode(_AuthMode.signUp),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 300),
+                            transitionBuilder: (child, animation) {
+                              return FadeTransition(
+                                opacity: animation,
+                                child: SizeTransition(
+                                  sizeFactor: animation,
+                                  axisAlignment: -1,
+                                  child: child,
+                                ),
+                              );
+                            },
+                            child: _isSignUp
+                                ? Column(
+                                    key: const ValueKey('signup-name'),
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const _FieldLabel('NAME'),
+                                      const SizedBox(height: 8),
+                                      TextFormField(
+                                        controller: _nameCtrl,
+                                        textInputAction: TextInputAction.next,
+                                        style: const TextStyle(
+                                            color: AppColors.text),
+                                        decoration: const InputDecoration(
+                                          hintText: 'Your full name',
+                                        ),
+                                        validator: (v) => (v == null || v.isEmpty)
+                                            ? 'Name is required'
+                                            : null,
+                                      ),
+                                      const SizedBox(height: 14),
+                                    ],
+                                  )
+                                : const SizedBox.shrink(),
+                          ),
+                          const _FieldLabel('EMAIL'),
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: _emailCtrl,
+                            keyboardType: TextInputType.emailAddress,
                             textInputAction: TextInputAction.next,
                             style: const TextStyle(color: AppColors.text),
                             decoration: const InputDecoration(
-                              hintText: 'Your full name',
+                              hintText: 'you@example.com',
                             ),
+                            validator: (v) {
+                              if (v == null || v.isEmpty) return 'Email is required';
+                              if (!v.contains('@')) return 'Invalid email format';
+                              return null;
+                            },
                           ),
                           const SizedBox(height: 14),
-                        ],
-                        const _FieldLabel('EMAIL'),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: _emailCtrl,
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.next,
-                          style: const TextStyle(color: AppColors.text),
-                          decoration: const InputDecoration(
-                            hintText: 'you@example.com',
+                          const _FieldLabel('PASSWORD'),
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: _passwordCtrl,
+                            obscureText: true,
+                            onFieldSubmitted: (_) => _submitEmailAuth(),
+                            style: const TextStyle(color: AppColors.text),
+                            decoration: InputDecoration(
+                              hintText: _isSignUp
+                                  ? 'Create a password'
+                                  : 'Enter your password',
+                            ),
+                            validator: (v) {
+                              if (v == null || v.isEmpty) {
+                                return 'Password is required';
+                              }
+                              if (_isSignUp && v.length < 6) {
+                                return 'Password must be at least 6 characters';
+                              }
+                              return null;
+                            },
                           ),
-                        ),
-                        const SizedBox(height: 14),
-                        const _FieldLabel('PASSWORD'),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: _passwordCtrl,
-                          obscureText: true,
-                          onSubmitted: (_) => _submitEmailAuth(),
-                          style: const TextStyle(color: AppColors.text),
-                          decoration: InputDecoration(
-                            hintText: _isSignUp
-                                ? 'Create a password'
-                                : 'Enter your password',
-                          ),
-                        ),
-                        if (_error != null) ...[
-                          const SizedBox(height: 16),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: Colors.red.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: Colors.red.withValues(alpha: 0.3),
+                          if (_error != null) ...[
+                            const SizedBox(height: 16),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.red.withValues(alpha: 0.3),
+                                ),
                               ),
-                            ),
-                            child: Text(
-                              _error!,
-                              style: const TextStyle(
-                                color: Colors.redAccent,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                        ],
-                        const SizedBox(height: 18),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: _loading ? null : _submitEmailAuth,
-                            child: Text(
-                              _isSignUp ? 'Create account' : 'Sign in with email',
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        const Row(
-                          children: [
-                            Expanded(child: Divider(color: AppColors.border)),
-                            Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 12),
                               child: Text(
-                                'or',
-                                style: TextStyle(color: AppColors.text3, fontSize: 12),
+                                _error!,
+                                style: const TextStyle(
+                                  color: Colors.redAccent,
+                                  fontSize: 13,
+                                ),
                               ),
                             ),
-                            Expanded(child: Divider(color: AppColors.border)),
                           ],
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: _loading
-                              ? const Center(
-                                  child: CircularProgressIndicator(
-                                    color: AppColors.primary,
-                                    strokeWidth: 2.5,
-                                  ),
-                                )
-                              : OutlinedButton(
-                                  onPressed: null,
-                                  style: OutlinedButton.styleFrom(
-                                    side: const BorderSide(color: AppColors.border2),
-                                    padding: const EdgeInsets.symmetric(vertical: 14),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(14),
+                          const SizedBox(height: 24),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: _loading ? null : _submitEmailAuth,
+                              child: _loading
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : Text(
+                                      _isSignUp
+                                          ? 'Create account'
+                                          : 'Sign in with email',
+                                    ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          const Row(
+                            children: [
+                              Expanded(child: Divider(color: AppColors.border)),
+                              Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 12),
+                                child: Text(
+                                  'or',
+                                  style: TextStyle(
+                                      color: AppColors.text3, fontSize: 12),
+                                ),
+                              ),
+                              Expanded(child: Divider(color: AppColors.border)),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton(
+                              onPressed: _loading
+                                  ? null
+                                  : () async {
+                                      setState(() {
+                                        _loading = true;
+                                        _error = null;
+                                      });
+                                      final res = await AuthService.instance
+                                          .signInWithGoogle();
+                                      if (!mounted) return;
+                                      setState(() => _loading = false);
+                                      if (res.success) {
+                                        widget.onSuccess();
+                                      } else {
+                                        setState(() => _error = res.error);
+                                      }
+                                    },
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: AppColors.border2),
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Image.network(
+                                    'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
+                                    height: 18,
+                                    errorBuilder: (c, e, s) => const Text(
+                                      'G',
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF4285F4),
+                                      ),
                                     ),
                                   ),
-                                  child: const Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        'G',
-                                        style: TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.w700,
-                                          color: Color(0xFF4285F4),
-                                        ),
-                                      ),
-                                      SizedBox(width: 10),
-                                      Text(
-                                        'Continue with Google',
-                                        style: TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w700,
-                                          color: AppColors.text,
-                                        ),
-                                      ),
-                                    ],
+                                  const SizedBox(width: 12),
+                                  const Text(
+                                    'Continue with Google',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.text,
+                                    ),
                                   ),
-                                ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          _isSignUp
-                              ? 'Create an account with email/password or use your Google account.'
-                              : 'Use whichever sign-in method you prefer. Your DevSpace profile stays tied to one Mongo user record.',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.text3,
-                            height: 1.5,
+                                ],
+                              ),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                          const SizedBox(height: 20),
+                          Text(
+                            _isSignUp
+                                ? 'Create an account with email/password or use your Google account.'
+                                : 'Use whichever sign-in method you prefer. Your DevSpace profile stays tied to one account.',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.text3,
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                  ),
                   ),
                 ),
               ),

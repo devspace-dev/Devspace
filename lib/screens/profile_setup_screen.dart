@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
@@ -21,6 +22,9 @@ class ProfileSetupScreen extends StatefulWidget {
 }
 
 class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
+  final _pageController = PageController();
+  final _formKey = GlobalKey<FormState>();
+
   final _nameCtrl = TextEditingController();
   final _handleCtrl = TextEditingController();
   final _buildingCtrl = TextEditingController();
@@ -47,22 +51,20 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     final user = context.read<AuthProvider>().currentUser;
     _nameCtrl.text = user.name;
     _handleCtrl.text = user.handle;
-    _buildingCtrl.text =
-        user.building == 'Not set' ? '' : user.building;
+    _buildingCtrl.text = user.building == 'Not set' ? '' : user.building;
     _bioCtrl.text = user.bio;
     _githubCtrl.text = user.githubHandle;
     _role = user.role.isNotEmpty ? user.role : kProfileRoles.first;
     _year = user.year;
     _branch = user.branch;
-    _college = user.college.isNotEmpty
-        ? user.college
-        : kCollegeOptions.first;
+    _college = user.college.isNotEmpty ? user.college : kCollegeOptions.first;
     _stack = List<String>.from(user.stack);
     _avatarPath = user.hasImageAvatar ? user.avatar : null;
   }
 
   @override
   void dispose() {
+    _pageController.dispose();
     _nameCtrl.dispose();
     _handleCtrl.dispose();
     _buildingCtrl.dispose();
@@ -72,28 +74,23 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     super.dispose();
   }
 
-  bool get _isIdentityValid =>
-      _nameCtrl.text.trim().isNotEmpty &&
-      _handleCtrl.text.trim().isNotEmpty &&
-      _role.isNotEmpty &&
-      _year.isNotEmpty &&
-      _branch.isNotEmpty &&
-      _college.isNotEmpty;
-
-  bool get _isBuilderValid =>
-      _buildingCtrl.text.trim().isNotEmpty && _stack.isNotEmpty;
-
-  bool get _canContinue {
-    switch (_step) {
-      case 0:
-        return _isIdentityValid;
-      case 1:
-        return _isBuilderValid;
-      case 2:
-        return true;
-      default:
+  bool _validateStep() {
+    if (_step == 0) {
+      if (_nameCtrl.text.trim().isEmpty ||
+          _handleCtrl.text.trim().isEmpty ||
+          _year.isEmpty ||
+          _branch.isEmpty) {
+        setState(() => _error = 'Please fill in all identity fields.');
         return false;
+      }
+    } else if (_step == 1) {
+      if (_buildingCtrl.text.trim().isEmpty || _stack.isEmpty) {
+        setState(() => _error = 'Please add what you are building and at least one skill.');
+        return false;
+      }
     }
+    setState(() => _error = null);
+    return true;
   }
 
   String get _title {
@@ -128,6 +125,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       _stackCtrl.clear();
       return;
     }
+    HapticFeedback.lightImpact();
     setState(() {
       _stack = [..._stack, tag];
       _stackCtrl.clear();
@@ -135,6 +133,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   }
 
   void _removeStackTag(String tag) {
+    HapticFeedback.selectionClick();
     setState(() {
       _stack = _stack.where((item) => item != tag).toList();
     });
@@ -174,14 +173,27 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   }
 
   void _next() {
+    if (!_validateStep()) return;
+
     if (_step < 2) {
-      setState(() {
-        _error = null;
-        _step += 1;
-      });
+      HapticFeedback.mediumImpact();
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOutCubic,
+      );
       return;
     }
     _submit();
+  }
+
+  void _back() {
+    if (_step > 0) {
+      HapticFeedback.lightImpact();
+      _pageController.previousPage(
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOutCubic,
+      );
+    }
   }
 
   @override
@@ -199,422 +211,504 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         title: Text(_isOnboarding ? 'Complete Profile' : 'Edit Profile'),
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    user.color.withValues(alpha: 0.28),
-                    AppColors.bg2,
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                border: const Border(
-                  bottom: BorderSide(color: AppColors.border),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _title,
-                    style: const TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.text,
-                      letterSpacing: -0.8,
-                    ),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      user.color.withValues(alpha: 0.15),
+                      AppColors.bg,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _subtitle,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: AppColors.text2,
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Row(
-                    children: List.generate(3, (index) {
-                      final active = index <= _step;
-                      return Expanded(
-                        child: Container(
-                          height: 6,
-                          margin: EdgeInsets.only(right: index == 2 ? 0 : 8),
-                          decoration: BoxDecoration(
-                            color: active
-                                ? AppColors.primary
-                                : AppColors.bg3,
-                            borderRadius: BorderRadius.circular(99),
-                          ),
-                        ),
-                      );
-                    }),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Step ${_step + 1} of 3',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.text3,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 240),
-                  child: _buildStep(user.id),
-                ),
-              ),
-            ),
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
-                  ),
-                  child: Text(
-                    _error!,
-                    style: const TextStyle(
-                      color: Colors.redAccent,
-                      fontSize: 13,
-                    ),
+                  border: const Border(
+                    bottom: BorderSide(color: AppColors.border),
                   ),
                 ),
-              ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-              child: Row(
-                children: [
-                  if (_step > 0)
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: _saving
-                            ? null
-                            : () => setState(() {
-                                  _error = null;
-                                  _step -= 1;
-                                }),
-                        child: const Text('Back'),
-                      ),
-                    ),
-                  if (_step > 0) const SizedBox(width: 12),
-                  Expanded(
-                    flex: 2,
-                    child: ElevatedButton(
-                      onPressed: (_saving || !_canContinue) ? null : _next,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
                       child: Text(
-                        _saving
-                            ? 'Saving...'
-                            : _step == 2
-                                ? (_isOnboarding
-                                    ? 'Finish setup'
-                                    : 'Save changes')
-                                : 'Continue',
+                        _title,
+                        key: ValueKey(_title),
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.text,
+                          letterSpacing: -0.8,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      child: Text(
+                        _subtitle,
+                        key: ValueKey(_subtitle),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.text2,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: List.generate(3, (index) {
+                        final active = index <= _step;
+                        return Expanded(
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 400),
+                            height: 6,
+                            margin: EdgeInsets.only(right: index == 2 ? 0 : 8),
+                            decoration: BoxDecoration(
+                              color: active ? AppColors.primary : AppColors.bg3,
+                              borderRadius: BorderRadius.circular(99),
+                              boxShadow: active
+                                  ? [
+                                      BoxShadow(
+                                        color: AppColors.primary.withValues(alpha: 0.3),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
+                                      )
+                                    ]
+                                  : null,
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Step ${_step + 1} of 3',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.text3,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: PageView(
+                  controller: _pageController,
+                  physics: const NeverScrollableScrollPhysics(),
+                  onPageChanged: (i) => setState(() => _step = i),
+                  children: [
+                    _buildStep0(user.id),
+                    _buildStep1(),
+                    _buildStep2(),
+                  ],
+                ),
+              ),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+                    ),
+                    child: Text(
+                      _error!,
+                      style: const TextStyle(
+                        color: Colors.redAccent,
+                        fontSize: 13,
                       ),
                     ),
                   ),
-                ],
+                ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                child: Row(
+                  children: [
+                    if (_step > 0)
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _saving ? null : _back,
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                          child: const Text('Back'),
+                        ),
+                      ),
+                    if (_step > 0) const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton(
+                        onPressed: _saving ? null : _next,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: _saving
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Text(
+                                _step == 2
+                                    ? (_isOnboarding ? 'Finish setup' : 'Save changes')
+                                    : 'Continue',
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildStep(String uid) {
-    switch (_step) {
-      case 0:
-        return KeyedSubtree(
-          key: const ValueKey('identity-step'),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: ImageUploadWidget(
+  Widget _buildStep0(String uid) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Stack(
+              children: [
+                ImageUploadWidget(
                   existingUrl: _avatarPath,
                   uploadPath: 'profiles/$uid.jpg',
                   size: 112,
                   isCircle: true,
-                  onUploaded: (url) => setState(() => _avatarPath = url),
+                  onUploaded: (url) {
+                    HapticFeedback.mediumImpact();
+                    setState(() => _avatarPath = url);
+                  },
                 ),
-              ),
-              const SizedBox(height: 12),
-              const Center(
-                child: Text(
-                  'Add a photo if you want. You can skip it and keep your initials too.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: AppColors.text3),
-                ),
-              ),
-              const SizedBox(height: 24),
-              _sectionLabel('NAME'),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _nameCtrl,
-                onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(
-                  hintText: 'Your full name',
-                ),
-              ),
-              const SizedBox(height: 16),
-              _sectionLabel('HANDLE'),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _handleCtrl,
-                onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(
-                  hintText: 'your_handle',
-                  prefixText: '@',
-                ),
-              ),
-              const SizedBox(height: 16),
-              _sectionLabel('ROLE'),
-              const SizedBox(height: 10),
-              _ChoiceWrap(
-                options: kProfileRoles,
-                value: _role,
-                onSelected: (value) => setState(() => _role = value),
-              ),
-              const SizedBox(height: 18),
-              _sectionLabel('YEAR'),
-              const SizedBox(height: 10),
-              _ChoiceWrap(
-                options: kAcademicYears,
-                value: _year,
-                onSelected: (value) => setState(() => _year = value),
-              ),
-              const SizedBox(height: 18),
-              _sectionLabel('BRANCH'),
-              const SizedBox(height: 10),
-              _ChoiceWrap(
-                options: kBranches,
-                value: _branch,
-                onSelected: (value) => setState(() => _branch = value),
-              ),
-              const SizedBox(height: 18),
-              _sectionLabel('COLLEGE'),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                initialValue: kCollegeOptions.contains(_college)
-                    ? _college
-                    : kCollegeOptions.first,
-                items: kCollegeOptions
-                    .map((college) => DropdownMenuItem<String>(
-                          value: college,
-                          child: Text(college),
-                        ))
-                    .toList(),
-                onChanged: (value) {
-                  if (value == null) return;
-                  setState(() => _college = value);
-                },
-              ),
-            ],
-          ),
-        );
-      case 1:
-        return KeyedSubtree(
-          key: const ValueKey('builder-step'),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _sectionLabel('WHAT ARE YOU BUILDING?'),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _buildingCtrl,
-                onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(
-                  hintText: 'Ex: Placement prep app, ML attendance system...',
-                ),
-              ),
-              const SizedBox(height: 18),
-              _sectionLabel('STACK'),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _stackCtrl,
-                onSubmitted: (_) => _addStackTag(),
-                decoration: InputDecoration(
-                  hintText: 'Add a skill or tool, then tap +',
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.add_rounded),
-                    onPressed: _addStackTag,
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: const BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.camera_alt_rounded, size: 16, color: Colors.white),
                   ),
                 ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Center(
+            child: Text(
+              'A professional photo helps you build trust.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: AppColors.text3),
+            ),
+          ),
+          const SizedBox(height: 32),
+          _sectionLabel('NAME'),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _nameCtrl,
+            style: const TextStyle(color: AppColors.text),
+            decoration: const InputDecoration(hintText: 'Your full name'),
+            validator: (v) => (v == null || v.isEmpty) ? 'Name is required' : null,
+          ),
+          const SizedBox(height: 18),
+          _sectionLabel('HANDLE'),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _handleCtrl,
+            style: const TextStyle(color: AppColors.text),
+            decoration: const InputDecoration(
+              hintText: 'your_handle',
+              prefixText: '@ ',
+              prefixStyle: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+            ),
+            validator: (v) => (v == null || v.isEmpty) ? 'Handle is required' : null,
+          ),
+          const SizedBox(height: 20),
+          _sectionLabel('ROLE'),
+          const SizedBox(height: 10),
+          _ChoiceWrap(
+            options: kProfileRoles,
+            value: _role,
+            onSelected: (value) {
+              HapticFeedback.selectionClick();
+              setState(() => _role = value);
+            },
+          ),
+          const SizedBox(height: 20),
+          _sectionLabel('YEAR'),
+          const SizedBox(height: 10),
+          _ChoiceWrap(
+            options: kAcademicYears,
+            value: _year,
+            onSelected: (value) {
+              HapticFeedback.selectionClick();
+              setState(() => _year = value);
+            },
+          ),
+          const SizedBox(height: 20),
+          _sectionLabel('BRANCH'),
+          const SizedBox(height: 10),
+          _ChoiceWrap(
+            options: kBranches,
+            value: _branch,
+            onSelected: (value) {
+              HapticFeedback.selectionClick();
+              setState(() => _branch = value);
+            },
+          ),
+          const SizedBox(height: 20),
+          _sectionLabel('COLLEGE'),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<String>(
+            value: kCollegeOptions.contains(_college) ? _college : kCollegeOptions.first,
+            decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 16)),
+            items: kCollegeOptions
+                .map((college) => DropdownMenuItem<String>(
+                      value: college,
+                      child: Text(college, style: const TextStyle(fontSize: 14)),
+                    ))
+                .toList(),
+            onChanged: (value) {
+              if (value == null) return;
+              setState(() => _college = value);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStep1() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionLabel('WHAT ARE YOU BUILDING?'),
+          const SizedBox(height: 10),
+          TextFormField(
+            controller: _buildingCtrl,
+            style: const TextStyle(color: AppColors.text),
+            decoration: const InputDecoration(
+              hintText: 'Ex: Placement prep app, ML attendance system...',
+            ),
+            validator: (v) => (v == null || v.isEmpty) ? 'Tell us what you are building' : null,
+          ),
+          const SizedBox(height: 24),
+          _sectionLabel('STACK & SKILLS'),
+          const SizedBox(height: 10),
+          TextFormField(
+            controller: _stackCtrl,
+            style: const TextStyle(color: AppColors.text),
+            onFieldSubmitted: (_) => _addStackTag(),
+            decoration: InputDecoration(
+              hintText: 'Add a skill, then tap +',
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.add_circle_rounded, color: AppColors.primary),
+                onPressed: _addStackTag,
               ),
-              const SizedBox(height: 12),
-              if (_stack.isNotEmpty)
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _stack
-                      .map(
-                        (tag) => GestureDetector(
-                          onTap: () => _removeStackTag(tag),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 7,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(99),
-                              border: Border.all(
-                                color: AppColors.primary.withValues(alpha: 0.25),
-                              ),
-                            ),
-                            child: Text(
-                              '$tag  ×',
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (_stack.isNotEmpty)
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: _stack
+                  .map(
+                    (tag) => GestureDetector(
+                      onTap: () => _removeStackTag(tag),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(99),
+                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              tag,
                               style: const TextStyle(
-                                fontSize: 12,
+                                fontSize: 13,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.primary,
                               ),
                             ),
-                          ),
+                            const SizedBox(width: 6),
+                            const Icon(Icons.close_rounded, size: 14, color: AppColors.primary),
+                          ],
                         ),
-                      )
-                      .toList(),
-                ),
-              const SizedBox(height: 18),
-              _sectionLabel('BIO'),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _bioCtrl,
-                maxLines: 5,
-                decoration: const InputDecoration(
-                  hintText: 'What do you like building? What do you want people to know?',
-                ),
-              ),
-            ],
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          const SizedBox(height: 28),
+          _sectionLabel('BIO'),
+          const SizedBox(height: 10),
+          TextFormField(
+            controller: _bioCtrl,
+            maxLines: 4,
+            style: const TextStyle(color: AppColors.text, height: 1.5),
+            decoration: const InputDecoration(
+              hintText: 'What do you like building? What do you want people to know about you?',
+            ),
           ),
-        );
-      case 2:
-      default:
-        return KeyedSubtree(
-          key: const ValueKey('proof-step'),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _sectionLabel('GITHUB HANDLE'),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _githubCtrl,
-                decoration: const InputDecoration(
-                  hintText: 'github username',
-                  prefixText: '@',
-                ),
-              ),
-              const SizedBox(height: 24),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: AppColors.bg2,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStep2() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionLabel('GITHUB'),
+          const SizedBox(height: 10),
+          TextFormField(
+            controller: _githubCtrl,
+            style: const TextStyle(color: AppColors.text),
+            decoration: const InputDecoration(
+              hintText: 'github_username',
+              prefixText: '@ ',
+              prefixStyle: TextStyle(color: AppColors.text3),
+            ),
+          ),
+          const SizedBox(height: 32),
+          _sectionLabel('PREVIEW'),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.bg2,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: AppColors.border),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                )
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    const Text(
-                      'Review',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.text3,
-                        letterSpacing: 0.7,
+                    Container(
+                      width: 54,
+                      height: 54,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 2),
+                      ),
+                      child: Center(
+                        child: Text(
+                          _nameCtrl.text.isNotEmpty ? _nameCtrl.text[0].toUpperCase() : '?',
+                          style: const TextStyle(
+                              fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.primary),
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      _nameCtrl.text.trim().isEmpty ? 'Your name' : _nameCtrl.text.trim(),
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.text,
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _nameCtrl.text.isEmpty ? 'Your Name' : _nameCtrl.text,
+                            style: const TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.text),
+                          ),
+                          Text(
+                            '@${_handleCtrl.text.isEmpty ? 'handle' : _handleCtrl.text}',
+                            style: const TextStyle(fontSize: 13, color: AppColors.text3),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '@${_handleCtrl.text.trim().isEmpty ? 'your_handle' : _handleCtrl.text.trim()}',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.text3,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 8,
-                      children: [
-                        _ReviewChip(icon: '🎓', label: _college),
-                        _ReviewChip(icon: '📍', label: '$_year · $_branch'),
-                        _ReviewChip(icon: '🧩', label: _role),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    Text(
-                      _buildingCtrl.text.trim().isEmpty
-                          ? 'No current project added'
-                          : _buildingCtrl.text.trim(),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: AppColors.text2,
-                        height: 1.5,
-                      ),
-                    ),
-                    if (_stack.isNotEmpty) ...[
-                      const SizedBox(height: 14),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: _stack
-                            .map(
-                              (tag) => Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.bg3,
-                                  borderRadius: BorderRadius.circular(99),
-                                ),
-                                child: Text(
-                                  tag,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.text2,
-                                  ),
-                                ),
-                              ),
-                            )
-                            .toList(),
-                      ),
-                    ],
                   ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 18),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 8,
+                  children: [
+                    _ReviewChip(icon: '🎓', label: _college),
+                    _ReviewChip(icon: '📍', label: '$_year · $_branch'),
+                    _ReviewChip(icon: '🧩', label: _role),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Divider(color: AppColors.border),
+                const SizedBox(height: 14),
+                const Text(
+                  'CURRENTLY BUILDING',
+                  style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.text3,
+                      letterSpacing: 0.5),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  _buildingCtrl.text.isEmpty ? 'No project described yet' : _buildingCtrl.text,
+                  style: const TextStyle(fontSize: 15, color: AppColors.text2, height: 1.4),
+                ),
+                if (_stack.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _stack
+                        .take(5)
+                        .map((tag) => Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: AppColors.bg3,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                tag,
+                                style: const TextStyle(fontSize: 12, color: AppColors.text2),
+                              ),
+                            ))
+                        .toList(),
+                  ),
+                ],
+              ],
+            ),
           ),
-        );
-    }
+        ],
+      ),
+    );
   }
 
   Widget _sectionLabel(String text) {
@@ -622,9 +716,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       text,
       style: const TextStyle(
         fontSize: 11,
-        fontWeight: FontWeight.w800,
+        fontWeight: FontWeight.w900,
         color: AppColors.text3,
-        letterSpacing: 0.8,
+        letterSpacing: 1.2,
       ),
     );
   }
@@ -651,20 +745,30 @@ class _ChoiceWrap extends StatelessWidget {
         return GestureDetector(
           onTap: () => onSelected(option),
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: active ? AppColors.primary : AppColors.bg3,
-              borderRadius: BorderRadius.circular(99),
+              color: active ? AppColors.primary : AppColors.bg2,
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: active ? AppColors.primary : AppColors.border,
+                width: 1.5,
               ),
+              boxShadow: active
+                  ? [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.2),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      )
+                    ]
+                  : null,
             ),
             child: Text(
               option,
               style: TextStyle(
                 fontSize: 13,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w800,
                 color: active ? Colors.white : AppColors.text2,
               ),
             ),
@@ -689,8 +793,9 @@ class _ReviewChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: AppColors.bg3,
-        borderRadius: BorderRadius.circular(99),
+        color: AppColors.bg3.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
       ),
       child: Text(
         '$icon  $label',

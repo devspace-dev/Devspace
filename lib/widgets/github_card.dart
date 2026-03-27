@@ -65,13 +65,18 @@ class _GitHubCardState extends State<GitHubCard> {
                   children: [
                     const Icon(Icons.code_rounded, size: 18, color: AppColors.text3),
                     const SizedBox(width: 10),
-                    Text(
-                      'GitHub · ${widget.githubHandle}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 13,
-                        color: AppColors.text2),
+                    Flexible(
+                      child: Text(
+                        'GitHub · ${widget.githubHandle}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: AppColors.text2,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    const Spacer(),
+                    const SizedBox(width: 8),
                     if (data.stats != null) ...[
                       _StatChip(
                           icon: Icons.star_outline_rounded,

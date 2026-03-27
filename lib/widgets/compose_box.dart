@@ -183,53 +183,61 @@ class _ComposeBoxState extends State<ComposeBox> {
                   ),
                   const SizedBox(height: 10),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        _selectedImage == null
-                            ? 'Add one image if it helps explain the build.'
-                            : 'Image attached',
-                        style: const TextStyle(
-                          color: AppColors.text3,
-                          fontSize: 12,
+                      Expanded(
+                        child: Text(
+                          _selectedImage == null
+                              ? 'Add one image if it helps explain the build.'
+                              : 'Image attached',
+                          style: const TextStyle(
+                            color: AppColors.text3,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
-                      Row(
-                        children: [
-                          TextButton(
-                            onPressed: _posting ? null : _cancelCompose,
-                            child: const Text('Cancel',
-                                style: TextStyle(color: AppColors.text3, fontSize: 13)),
-                          ),
-                          const SizedBox(width: 8),
-                          ElevatedButton(
-                            onPressed: !_posting && _textCtrl.text.trim().isNotEmpty
-                                ? _submit
-                                : null,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: !_posting &&
-                                      _textCtrl.text.trim().isNotEmpty
-                                  ? AppColors.primary
-                                  : AppColors.border2,
-                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
-                              minimumSize: Size.zero,
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            TextButton(
+                              onPressed: _posting ? null : _cancelCompose,
+                              child: const Text('Cancel',
+                                  style: TextStyle(
+                                      color: AppColors.text3, fontSize: 13)),
                             ),
-                            child: _posting
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Text('Post',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 14,
-                                    )),
-                          ),
-                        ],
+                            const SizedBox(width: 4),
+                            ElevatedButton(
+                              onPressed:
+                                  !_posting && _textCtrl.text.trim().isNotEmpty
+                                      ? _submit
+                                      : null,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: !_posting &&
+                                        _textCtrl.text.trim().isNotEmpty
+                                    ? AppColors.primary
+                                    : AppColors.border2,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 8),
+                                minimumSize: Size.zero,
+                              ),
+                              child: _posting
+                                  ? const SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Text('Post',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 14,
+                                      )),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),

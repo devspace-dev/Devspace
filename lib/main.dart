@@ -178,19 +178,48 @@ class _RootState extends State<_Root> {
 
   @override
   Widget build(BuildContext context) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 600),
+      switchInCurve: Curves.easeInOutCubic,
+      switchOutCurve: Curves.easeInOutCubic,
+      transitionBuilder: (child, animation) {
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.02),
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
+          ),
+        );
+      },
+      child: _buildCurrentScreen(),
+    );
+  }
+
+  Widget _buildCurrentScreen() {
     if (_showSplash) {
-      return SplashScreen(onDone: () => setState(() => _showSplash = false));
+      return SplashScreen(
+        key: const ValueKey('splash'),
+        onDone: () {
+          if (mounted) setState(() => _showSplash = false);
+        },
+      );
     }
 
-    // Gate on Supabase auth state
     return StreamBuilder<UserModel?>(
+      key: const ValueKey('auth-gate'),
       stream: AuthService.instance.authStateChanges,
       initialData: AuthService.instance.currentUser,
       builder: (context, snap) {
         final user = snap.data ?? AuthService.instance.currentUser;
 
         if (user == null) {
-          return LoginScreen(onSuccess: () {});
+          return LoginScreen(
+            key: const ValueKey('login'),
+            onSuccess: () {},
+          );
         }
 
         if (_notificationsInitializedForUid != user.id) {
@@ -199,8 +228,8 @@ class _RootState extends State<_Root> {
         }
 
         _maybePromptProfileCompletion(user);
-        
-        return const DevSpaceApp();
+
+        return const DevSpaceApp(key: ValueKey('app'));
       },
     );
   }

@@ -44,19 +44,30 @@ class ProfileCard extends StatelessWidget {
                           children: [
                             Row(
                               children: [
-                                Text(liveUser.name,
+                                Flexible(
+                                  child: Text(
+                                    liveUser.name,
                                     style: const TextStyle(
                                       fontWeight: FontWeight.w700,
-                                      fontSize: 15, color: AppColors.text)),
+                                      fontSize: 15,
+                                      color: AppColors.text,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
                                 const SizedBox(width: 8),
                                 AuraPill(aura: liveUser.aura, small: true),
                               ],
                             ),
                             const SizedBox(height: 2),
                             Text(
-                                '@${liveUser.handle} · ${liveUser.academicLabel.isEmpty ? liveUser.role : liveUser.academicLabel}',
-                                style: const TextStyle(
-                                  fontSize: 12, color: AppColors.text3)),
+                              '@${liveUser.handle} · ${liveUser.academicLabel.isEmpty ? liveUser.role : liveUser.academicLabel}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.text3,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ],
                         ),
                       ),

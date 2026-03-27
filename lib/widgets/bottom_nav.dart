@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme/app_colors.dart';
 
 class DevSpaceBottomNav extends StatelessWidget {
@@ -16,12 +17,12 @@ class DevSpaceBottomNav extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.bg,
-        border: Border(top: BorderSide(color: AppColors.border)),
+        border: Border(top: BorderSide(color: AppColors.border, width: 0.5)),
       ),
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 56,
+          height: 60,
           child: Row(
             children: [
               _NavItem(icon: Icons.home_rounded,
@@ -66,26 +67,38 @@ class _NavItem extends StatelessWidget {
     final active = index == current;
     return Expanded(
       child: GestureDetector(
-        onTap: () => onTap(index),
+        onTap: () {
+          if (!active) HapticFeedback.selectionClick();
+          onTap(index);
+        },
         behavior: HitTestBehavior.opaque,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              active ? activeIcon : icon,
-              size: 23,
-              color: active ? AppColors.primary : AppColors.text3,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: active ? FontWeight.w700 : FontWeight.w400,
-                color: active ? AppColors.primary : AppColors.text3,
+        child: AnimatedScale(
+          scale: active ? 1.0 : 0.95,
+          duration: const Duration(milliseconds: 200),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: Icon(
+                  active ? activeIcon : icon,
+                  key: ValueKey(active),
+                  size: 24,
+                  color: active ? AppColors.primary : AppColors.text3,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: active ? FontWeight.w800 : FontWeight.w500,
+                  color: active ? AppColors.primary : AppColors.text3,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
