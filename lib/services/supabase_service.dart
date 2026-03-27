@@ -226,14 +226,12 @@ class SupabaseService {
       'follower_id': fromUid,
       'following_id': toUid,
     });
-    await _syncFollowCounts(fromUid, toUid);
   }
 
   Future<void> unfollow(String fromUid, String toUid) async {
     await _client.from('follows').delete()
       .eq('follower_id', fromUid)
       .eq('following_id', toUid);
-    await _syncFollowCounts(fromUid, toUid);
   }
 
   Future<bool> isFollowing(String fromUid, String toUid) async {
@@ -592,21 +590,4 @@ class SupabaseService {
         .update({'comments_count': (data as List).length}).eq('id', postId);
   }
 
-  Future<void> _syncFollowCounts(String fromUid, String toUid) async {
-    final following = await _client
-        .from('follows')
-        .select('id')
-        .eq('follower_id', fromUid);
-    final followers = await _client
-        .from('follows')
-        .select('id')
-        .eq('following_id', toUid);
-
-    await _client.from('users').update({
-      'following': (following as List).length,
-    }).eq('id', fromUid);
-    await _client.from('users').update({
-      'followers': (followers as List).length,
-    }).eq('id', toUid);
-  }
 }

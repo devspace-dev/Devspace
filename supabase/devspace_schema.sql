@@ -332,6 +332,63 @@ on public.posts
 for each row
 execute function public.sync_repost_counts();
 
+create or replace function public.sync_follow_counts()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  follower_user_id uuid;
+  following_user_id uuid;
+begin
+  follower_user_id := coalesce(new.follower_id, old.follower_id);
+  following_user_id := coalesce(new.following_id, old.following_id);
+
+  if follower_user_id is not null then
+    update public.users
+    set following = (
+      select count(*)
+      from public.follows
+      where follower_id = follower_user_id
+    )
+    where id = follower_user_id;
+  end if;
+
+  if following_user_id is not null then
+    update public.users
+    set followers = (
+      select count(*)
+      from public.follows
+      where following_id = following_user_id
+    )
+    where id = following_user_id;
+  end if;
+
+  return coalesce(new, old);
+end;
+$$;
+
+drop trigger if exists trg_sync_follow_counts on public.follows;
+
+create trigger trg_sync_follow_counts
+after insert or delete
+on public.follows
+for each row
+execute function public.sync_follow_counts();
+
+update public.users as u
+set following = (
+  select count(*)
+  from public.follows f
+  where f.follower_id = u.id
+),
+followers = (
+  select count(*)
+  from public.follows f
+  where f.following_id = u.id
+);
+
 create or replace function public.sync_question_upvote_counts()
 returns trigger
 language plpgsql
