@@ -22,12 +22,12 @@ void main() async {
   String? bootstrapError;
 
   const String supabaseUrl = String.fromEnvironment(
-    'SUPABASE_URL : https://hybvsgxqstnxamdkijsk.supabase.co',
-    defaultValue: '',
+    'SUPABASE_URL',
+    defaultValue: 'https://hybvsgxqstnxamdkijsk.supabase.co',
   );
   const String supabaseAnonKey = String.fromEnvironment(
-    'SUPABASE_ANON_KEY : sb_publishable_PawpVpaKL2oGSMNT92IzkA_wjiORWQ4',
-    defaultValue: '',
+    'SUPABASE_ANON_KEY',
+    defaultValue: 'sb_publishable_PawpVpaKL2oGSMNT92IzkA_wjiORWQ4',
   );
 
   if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
