@@ -15,18 +15,18 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final postsP = context.watch<PostsProvider>();
     final posts = postsP.posts;
-    const double topInset = kToolbarHeight + 8;
+    final topInset = MediaQuery.of(context).padding.top + kToolbarHeight;
 
     return RefreshIndicator(
       color: AppColors.primary,
       backgroundColor: AppColors.bg2,
       onRefresh: postsP.refreshFeed,
-      edgeOffset: kToolbarHeight,
+      edgeOffset: topInset,
       child: CustomScrollView(
         slivers: [
-          // The shell already handles the status bar area.
-          // Keep only a compact inset under the glass app bar here.
-          const SliverToBoxAdapter(
+          // Offset content by the full visible glass app bar height.
+          // Do not reduce this to toolbar-only spacing or headers will clip.
+          SliverToBoxAdapter(
             child: SizedBox(height: topInset),
           ),
 

@@ -28,7 +28,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
   @override
   Widget build(BuildContext context) {
     final usersP = context.watch<UsersProvider>();
-    const double topInset = kToolbarHeight + 8;
+    final topInset = MediaQuery.of(context).padding.top + kToolbarHeight;
     var users = usersP.search(_query);
     if (_branch != 'All') {
       users = users.where((u) => u.branch == _branch).toList();
@@ -37,7 +37,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
 
     return Column(
       children: [
-        const SizedBox(height: topInset),
+        SizedBox(height: topInset),
         // Search bar
         Container(
           padding: const EdgeInsets.all(14),

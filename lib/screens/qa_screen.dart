@@ -234,16 +234,16 @@ class _QAScreenState extends State<QAScreen> {
     final usersP = context.watch<UsersProvider>();
     final currentUser = context.read<AuthProvider>().currentUser;
     final questions = questionsP.questions;
-    const double topInset = kToolbarHeight + 8;
+    final topInset = MediaQuery.of(context).padding.top + kToolbarHeight;
 
     return RefreshIndicator(
       color: AppColors.primary,
       backgroundColor: AppColors.bg2,
       onRefresh: questionsP.refreshQuestions,
-      edgeOffset: kToolbarHeight,
+      edgeOffset: topInset,
       child: CustomScrollView(
         slivers: [
-          const SliverToBoxAdapter(
+          SliverToBoxAdapter(
             child: SizedBox(
               height: topInset,
             ),
