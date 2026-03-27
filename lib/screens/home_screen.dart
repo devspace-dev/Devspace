@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import '../providers/posts_provider.dart';
 import '../theme/app_colors.dart';
 import '../utils/constants.dart';
@@ -17,98 +16,54 @@ class HomeScreen extends StatelessWidget {
     final posts = postsP.posts;
     final topInset = MediaQuery.of(context).padding.top + kToolbarHeight;
 
-    return RefreshIndicator(
+    return RefreshIndicator.adaptive(
       color: AppColors.primary,
-      backgroundColor: AppColors.bg2,
       onRefresh: postsP.refreshFeed,
       edgeOffset: topInset,
       child: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
         slivers: [
-          // Offset content by the full visible glass app bar height.
           SliverToBoxAdapter(
-            child: SizedBox(height: topInset + 10),
+            child: SizedBox(height: topInset),
           ),
 
-          // Compose box
           const SliverToBoxAdapter(child: ComposeBox()),
 
-          // Trending tags horizontal strip
           SliverToBoxAdapter(
             child: Container(
-              height: 54,
-              margin: const EdgeInsets.only(top: 8, bottom: 4),
+              height: 48,
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: AppColors.border, width: 0.5)),
+              ),
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 itemCount: kTrendingTags.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
-                itemBuilder: (context, i) => Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.bg3,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: AppColors.border,
-                      width: 1.5,
-                    ),
+                separatorBuilder: (_, __) => const SizedBox(width: 20),
+                itemBuilder: (context, i) => Text(
+                  kTrendingTags[i],
+                  style: const TextStyle(
+                    fontSize: 14, 
+                    color: AppColors.text3, 
+                    fontWeight: FontWeight.w600,
                   ),
-                  child: Center(
-                    child: Text(
-                      kTrendingTags[i],
-                      style: const TextStyle(
-                        fontSize: 13, 
-                        color: AppColors.text2, 
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.2,
-                      ),
-                    ),
-                  ),
-                ).animate().scale(delay: (i * 50).ms, duration: 400.ms, curve: Curves.elasticOut),
+                ),
               ),
             ),
           ),
 
-          if (postsP.feedError != null && posts.isNotEmpty)
-            SliverToBoxAdapter(
-              child: _InlineWarningBanner(
-                message: postsP.feedError!,
-                actionLabel: 'Retry',
-                onAction: () {
-                  postsP.refreshFeed();
-                },
-              ),
-            ),
-
-          // Posts feed
           if (postsP.isLoading && posts.isEmpty)
             const SliverFillRemaining(
-              hasScrollBody: false,
               child: AppLoadingState(
-                title: 'Syncing Lab',
-                message: 'Pulling in the latest builds from your campus.',
-              ),
-            )
-          else if (postsP.feedError != null && posts.isEmpty)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: AppErrorState(
-                title: 'Lab Offline',
-                message: postsP.feedError!,
-                actionLabel: 'Reconnect',
-                onAction: () {
-                  postsP.refreshFeed();
-                },
+                title: 'Loading',
+                message: 'Fetching the latest updates...',
               ),
             )
           else if (posts.isEmpty)
             const SliverFillRemaining(
-              hasScrollBody: false,
               child: AppEmptyState(
-                icon: Icons.rocket_launch_rounded,
-                title: 'Silence in the Lab',
-                message:
-                    'Be the first to share what you are building with other student developers.',
+                icon: Icons.auto_awesome_rounded,
+                title: 'No Posts',
+                message: 'Be the first to share an update.',
               ),
             )
           else
@@ -119,65 +74,9 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
 
-          // Bottom padding
           const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
     );
-  }
-}
-
-class _InlineWarningBanner extends StatelessWidget {
-  final String message;
-  final String actionLabel;
-  final VoidCallback onAction;
-
-  const _InlineWarningBanner({
-    required this.message,
-    required this.actionLabel,
-    required this.onAction,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.2),
-          width: 2,
-        ),
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.info_outline_rounded,
-            size: 20,
-            color: AppColors.primary,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(
-                color: AppColors.text,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: onAction,
-            child: Text(
-              actionLabel,
-              style: const TextStyle(fontWeight: FontWeight.w800),
-            ),
-          ),
-        ],
-      ),
-    ).animate().shake();
   }
 }

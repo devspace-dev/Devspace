@@ -62,18 +62,20 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
+        initialChildSize: 0.75,
         minChildSize: 0.5,
         maxChildSize: 0.95,
         builder: (context, scrollController) => GlassContainer(
           color: AppColors.bg,
-          opacity: 0.95,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
+          opacity: 0.8,
+          blur: 25,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          border: const Border(top: BorderSide(color: AppColors.border, width: 0.5)),
           child: Column(
             children: [
               const SizedBox(height: 12),
               Container(
-                width: 48,
+                width: 36,
                 height: 5,
                 decoration: BoxDecoration(
                   color: AppColors.border2,
@@ -81,7 +83,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -89,9 +91,9 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                       'Notifications',
                       style: TextStyle(
                         fontSize: 24,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w800,
                         color: AppColors.text,
-                        letterSpacing: -0.6,
+                        letterSpacing: -0.8,
                       ),
                     ),
                     TextButton(
@@ -100,7 +102,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                             .read<NotificationsProvider>()
                             .markAllAsRead(me.id);
                       },
-                      child: const Text('Clear All'),
+                      child: const Text('Mark all as read'),
                     ),
                   ],
                 ),
@@ -109,41 +111,35 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                 child: Consumer<NotificationsProvider>(
                   builder: (context, provider, _) {
                     if (provider.isLoading && provider.notifications.isEmpty) {
-                      return const Center(child: CircularProgressIndicator());
+                      return const Center(child: CircularProgressIndicator.adaptive());
                     }
                     if (provider.notifications.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.notifications_off_rounded, size: 48, color: AppColors.text4),
-                            const SizedBox(height: 16),
-                            const Text(
-                              'All caught up!',
-                              style: TextStyle(color: AppColors.text3, fontWeight: FontWeight.w600),
-                            ),
-                          ],
+                      return const Center(
+                        child: Text(
+                          'No new notifications',
+                          style: TextStyle(color: AppColors.text3),
                         ),
                       );
                     }
                     return ListView.separated(
                       controller: scrollController,
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
                       itemCount: provider.notifications.length,
                       separatorBuilder: (_, __) =>
                           const Divider(height: 1, color: AppColors.border),
                       itemBuilder: (context, i) {
                         final n = provider.notifications[i];
-                        final color = n.read ? AppColors.text3 : AppColors.primary;
                         return ListTile(
                           onTap: () {
                             if (!n.read) provider.markAsRead(n.id);
                           },
-                          contentPadding: const EdgeInsets.symmetric(vertical: 8),
                           leading: Container(
-                            padding: const EdgeInsets.all(10),
+                            width: 40,
+                            height: 40,
                             decoration: BoxDecoration(
-                              color: color.withValues(alpha: 0.1),
+                              color: n.read
+                                  ? AppColors.bg2
+                                  : AppColors.primary.withValues(alpha: 0.1),
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
@@ -152,8 +148,9 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                                   : n.type == 'comment'
                                       ? Icons.comment_rounded
                                       : Icons.person_add_rounded,
-                              size: 20,
-                              color: color,
+                              size: 18,
+                              color:
+                                  n.read ? AppColors.text3 : AppColors.primary,
                             ),
                           ),
                           title: Text(
@@ -162,25 +159,25 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                               fontSize: 15,
                               color: n.read ? AppColors.text2 : AppColors.text,
                               fontWeight:
-                                  n.read ? FontWeight.w500 : FontWeight.w800,
+                                  n.read ? FontWeight.w400 : FontWeight.w600,
                             ),
                           ),
                           subtitle: Text(
                             _formatTime(n.createdAt),
                             style: const TextStyle(
-                                fontSize: 12, color: AppColors.text4, fontWeight: FontWeight.w700),
+                                fontSize: 13, color: AppColors.text3),
                           ),
                           trailing: !n.read
                               ? Container(
-                                  width: 10,
-                                  height: 10,
+                                  width: 8,
+                                  height: 8,
                                   decoration: const BoxDecoration(
                                     color: AppColors.primary,
                                     shape: BoxShape.circle,
                                   ),
                                 )
                               : null,
-                        ).animate().fadeIn(delay: (i * 30).ms).slideX(begin: 0.1, end: 0);
+                        ).animate().fadeIn(duration: 300.ms, delay: (i * 20).ms);
                       },
                     );
                   },
@@ -195,16 +192,15 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
 
   String _formatTime(DateTime dt) {
     final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    return '${diff.inDays}d ago';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
+    if (diff.inHours < 24) return '${diff.inHours}h';
+    return '${diff.inDays}d';
   }
 
   @override
   Widget build(BuildContext context) {
     final me = context.watch<AuthProvider>().currentUserOrNull;
     final unreadCount = context.watch<NotificationsProvider>().unreadCount;
-    final topPadding = MediaQuery.of(context).padding.top;
 
     final List<Widget> screens = [
       const HomeScreen(),
@@ -219,99 +215,65 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
       extendBody: true,
       extendBodyBehindAppBar: true,
       appBar: PreferredSize(
-        preferredSize: Size.fromHeight(kToolbarHeight + topPadding),
+        preferredSize: const Size.fromHeight(kToolbarHeight),
         child: GlassContainer(
           color: AppColors.bg,
-          opacity: 0.85,
+          opacity: 0.7,
           blur: 20,
           borderRadius: BorderRadius.zero,
-          border: const Border(
-              bottom: BorderSide(color: AppColors.border, width: 2)),
+          border: const Border(bottom: BorderSide(color: AppColors.border, width: 0.5)),
           child: AppBar(
             backgroundColor: Colors.transparent,
             elevation: 0,
             scrolledUnderElevation: 0,
-            primary: true,
             title: _tab == 0
-                ? Row(children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        gradient: AppColors.tropicalGradient,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Center(
-                          child: Text('⌥',
-                              style: TextStyle(
-                                  fontSize: 18, color: Colors.white, fontWeight: FontWeight.w900))),
+                ? const Text(
+                    'DevSpace',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 22,
+                      letterSpacing: -0.8,
+                      color: AppColors.text,
                     ),
-                    const SizedBox(width: 12),
-                    const Text('DevSpace',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 22,
-                            color: AppColors.text,
-                            letterSpacing: -0.8)),
-                    const SizedBox(width: 10),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-                      ),
-                      child: const Text('BETA',
-                          style: TextStyle(
-                              fontSize: 10,
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 0.8)),
-                    ),
-                  ])
-                : Text(_titles[_tab], style: const TextStyle(fontWeight: FontWeight.w900, letterSpacing: -0.6)),
+                  )
+                : Text(_titles[_tab]),
             actions: [
               IconButton(
                 onPressed: () => _showNotifications(context),
                 icon: Badge(
                   isLabelVisible: unreadCount > 0,
                   label: Text('$unreadCount'),
-                  backgroundColor: AppColors.primary,
-                  child: const Icon(Icons.notifications_none_rounded, size: 26),
+                  child: const Icon(Icons.notifications_none_rounded),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.only(right: 16, left: 4),
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AppColors.yellow.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppColors.yellow.withValues(alpha: 0.4),
-                        width: 1.5,
+              if (me != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.bg2,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.border, width: 0.5),
                       ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text('⚡', style: TextStyle(fontSize: 12)),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${me?.aura ?? 0}',
-                          style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w900,
-                              color: AppColors.yellow),
-                        ),
-                      ],
+                      child: Row(
+                        children: [
+                          const Text('⚡', style: TextStyle(fontSize: 11)),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${me.aura}',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.text,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
             ],
           ),
         ),

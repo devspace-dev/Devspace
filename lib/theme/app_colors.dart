@@ -1,43 +1,44 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // Tropical Punch Palette
-  static const primary   = Color(0xFFFF3366); // Vibrant Strawberry
-  static const secondary = Color(0xFF118AB2); // Deep Sea Blue
-  static const orange    = Color(0xFFFF6B35); // Zesty Orange
-  static const yellow    = Color(0xFFFFD23F); // Sunny Yellow
-  static const mint      = Color(0xFF06D6A0); // Emerald Mint
+  // Midnight Pro (Pure Apple Style)
+  static const primary   = Color(0xFF0A84FF); // Apple SF Blue (Vibrant Blue on Dark)
+  static const secondary = Color(0xFF8E8E93); // System Gray
+  static const blue      = Color(0xFF0A84FF);
+  static const indigo    = Color(0xFF5E5CE6);
+  static const purple    = Color(0xFFBF5AF2); // System Purple
+  static const mint      = Color(0xFF63E6E2);
 
-  // Background layers (Deep Midnight / Plum)
-  static const bg        = Color(0xFF0F0C1B); // Deep Midnight
-  static const bg2       = Color(0xFF1B1731); // Deep Plum Surface
-  static const bg3       = Color(0xFF252041); // Accent Surface
+  // Background layers
+  static const bg        = Color(0xFF000000); // Pure Black for OLED
+  static const bg2       = Color(0xFF1C1C1E); // System Background Secondary
+  static const bg3       = Color(0xFF2C2C2E); // System Background Tertiary
 
-  // Borders
-  static const border    = Color(0xFF352F5A); 
-  static const border2   = Color(0xFF4A427F);
+  // Borders & Dividers
+  static const border    = Color(0xFF38383A); // Standard Separator
+  static const border2   = Color(0xFF48484A); // Stronger Separator
 
   // Text
-  static const text      = Color(0xFFF8F7FF); // Bright Lavender/White
-  static const text2     = Color(0xFFB8B2E0); // Soft Lavender
-  static const text3     = Color(0xFF8A82B8); // Muted Purple
-  static const text4     = Color(0xFF6A6298); // Dark Muted Purple
+  static const text      = Color(0xFFFFFFFF); // Primary Text
+  static const text2     = Color(0xFFEBEBF5); // Secondary Text (60% white)
+  static const text3     = Color(0xFF8E8E93); // Tertiary Text (30% white)
+  static const text4     = Color(0xFF48484A); // Quaternary Text
 
-  // Aura badge colours (Tropical variants)
-  static const sprout    = Color(0xFF06D6A0); // Mint
-  static const spark     = Color(0xFFFFD23F); // Yellow
-  static const flame     = Color(0xFFFF6B35); // Orange
-  static const voltage   = Color(0xFFFF3366); // Strawberry
-  static const nova      = Color(0xFF118AB2); // Blue
+  // Aura badge colors (Refined iOS style)
+  static const sprout    = Color(0xFF32D74B); // System Green
+  static const spark     = Color(0xFFFFD60A); // System Yellow
+  static const flame     = Color(0xFFFF453A); // System Red
+  static const voltage   = Color(0xFFBF5AF2); // System Purple
+  static const nova      = Color(0xFFFF375F); // System Pink
 
   // Semantic
-  static const like      = Color(0xFFFF3366);
-  static const repost    = Color(0xFF06D6A0);
-  static const solved    = Color(0xFF06D6A0);
+  static const like      = Color(0xFFFF453A); // Heart Red
+  static const repost    = Color(0xFF32D74B); // Success Green
+  static const solved    = Color(0xFF32D74B);
   
-  // Gradients
-  static const tropicalGradient = LinearGradient(
-    colors: [primary, orange, yellow],
+  // Gradients (Subtle Apple-style)
+  static const premiumGradient = LinearGradient(
+    colors: [Color(0xFF0A84FF), Color(0xFF5E5CE6)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
