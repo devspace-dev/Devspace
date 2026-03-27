@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/posts_provider.dart';
+import 'providers/questions_provider.dart';
 import 'providers/users_provider.dart';
 import 'providers/notifications_provider.dart';
 import 'screens/home_screen.dart';
@@ -41,6 +42,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
       context.read<UsersProvider>().fetchUsers();
       context.read<PostsProvider>().fetchFeed();
       try {
+        context.read<QuestionsProvider>().fetchQuestions();
         context.read<NotificationsProvider>().init(auth.currentUser.id);
       } catch (_) {/* no user yet */}
     });
@@ -283,7 +285,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                           const Text('⚡', style: TextStyle(fontSize: 10)),
                           const SizedBox(width: 4),
                           Text(
-                            '${me?.aura ?? 0}',
+                            '${me.aura}',
                             style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,

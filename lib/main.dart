@@ -8,6 +8,7 @@ import 'theme/app_colors.dart';
 import 'models/user_model.dart';
 import 'providers/auth_provider.dart';
 import 'providers/posts_provider.dart';
+import 'providers/questions_provider.dart';
 import 'providers/users_provider.dart';
 import 'providers/aura_provider.dart';
 import 'providers/notifications_provider.dart';
@@ -71,6 +72,7 @@ class DevSpaceRoot extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => PostsProvider()),
+        ChangeNotifierProvider(create: (_) => QuestionsProvider()),
         ChangeNotifierProvider(create: (_) => UsersProvider()),
         ChangeNotifierProvider(create: (_) => AuraProvider()),
         ChangeNotifierProvider(create: (_) => NotificationsProvider()),

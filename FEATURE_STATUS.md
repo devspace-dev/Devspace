@@ -8,6 +8,7 @@
 - Feed loading / empty / error states
 - Text-only, image-only, and text + image posting
 - Quote posts
+- Persistent Q&A with questions, replies, upvotes, and solved answers
 - Persistent comments
 - Likes and follows with stabilized interaction state
 - Sign-out from profile
@@ -17,13 +18,11 @@
 
 ## Partial
 - Google sign-in is visible but intentionally disabled
-- Q&A UI exists, but content is still local-only
 - GitHub profile card is useful scaffold, not a finished identity system
 - Notifications plumbing exists, but there is no real inbox/product flow
 - Automated coverage exists, but it is still light for a production beta
 
 ## Missing
-- Real persistent Q&A and answers
 - Settings/account surface beyond sign-out
 - Notifications screen/inbox
 - Post type system

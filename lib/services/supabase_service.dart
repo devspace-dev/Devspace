@@ -3,6 +3,8 @@ import '../models/user_model.dart';
 import '../models/post_model.dart';
 import '../models/comment_model.dart';
 import '../models/notification_model.dart';
+import '../models/question_model.dart';
+import '../models/question_reply_model.dart';
 
 /// SQL Schema for Supabase (Run this in Supabase SQL Editor):
 /// 
@@ -63,6 +65,34 @@ import '../models/notification_model.dart';
 ///   user_id uuid references users(id) on delete cascade,
 ///   content text not null,
 ///   created_at timestamp with time zone default timezone('utc'::text, now())
+/// );
+///
+/// create table questions (
+///   id uuid default gen_random_uuid() primary key,
+///   user_id uuid references users(id) on delete cascade,
+///   title text not null,
+///   body text not null,
+///   tags text[],
+///   upvotes_count bigint default 0,
+///   replies_count bigint default 0,
+///   solved_reply_id uuid,
+///   created_at timestamp with time zone default timezone('utc'::text, now())
+/// );
+///
+/// create table question_replies (
+///   id uuid default gen_random_uuid() primary key,
+///   question_id uuid references questions(id) on delete cascade,
+///   user_id uuid references users(id) on delete cascade,
+///   content text not null,
+///   created_at timestamp with time zone default timezone('utc'::text, now())
+/// );
+///
+/// create table question_votes (
+///   id uuid default gen_random_uuid() primary key,
+///   question_id uuid references questions(id) on delete cascade,
+///   user_id uuid references users(id) on delete cascade,
+///   created_at timestamp with time zone default timezone('utc'::text, now()),
+///   unique(question_id, user_id)
 /// );
 /// 
 /// create table notifications (
@@ -311,6 +341,112 @@ class SupabaseService {
     return (data as List)
         .map((row) => row['post_id'].toString())
         .toSet();
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // QUESTIONS & REPLIES
+  // ══════════════════════════════════════════════════════════════════════════
+
+  Stream<List<QuestionModel>> streamQuestions() {
+    return _client
+        .from('questions')
+        .stream(primaryKey: ['id'])
+        .order('created_at', ascending: false)
+        .limit(50)
+        .map((list) => list.map((d) => QuestionModel.fromJson(d)).toList());
+  }
+
+  Future<QuestionModel?> getQuestionById(String questionId) async {
+    final data = await _client
+        .from('questions')
+        .select()
+        .eq('id', questionId)
+        .maybeSingle();
+    return data == null ? null : QuestionModel.fromJson(data);
+  }
+
+  Future<String> createQuestion({
+    required String userId,
+    required String title,
+    required String body,
+    required List<String> tags,
+  }) async {
+    final data = await _client.from('questions').insert({
+      'user_id': userId,
+      'title': title,
+      'body': body,
+      'tags': tags,
+      'upvotes_count': 0,
+      'replies_count': 0,
+    }).select().single();
+
+    return data['id'].toString();
+  }
+
+  Future<List<QuestionReplyModel>> getRepliesForQuestion(String questionId) async {
+    final data = await _client
+        .from('question_replies')
+        .select()
+        .eq('question_id', questionId)
+        .order('created_at', ascending: true);
+    return (data as List)
+        .map((d) => QuestionReplyModel.fromJson(d))
+        .toList();
+  }
+
+  Future<void> addQuestionReply({
+    required String questionId,
+    required String userId,
+    required String content,
+  }) async {
+    final trimmed = content.trim();
+    if (trimmed.isEmpty) {
+      throw StateError('Reply cannot be empty.');
+    }
+
+    await _client.from('question_replies').insert({
+      'question_id': questionId,
+      'user_id': userId,
+      'content': trimmed,
+    });
+  }
+
+  Future<void> upvoteQuestion(String questionId, String userId) async {
+    await _client.from('question_votes').insert({
+      'question_id': questionId,
+      'user_id': userId,
+    });
+  }
+
+  Future<void> removeQuestionUpvote(String questionId, String userId) async {
+    await _client
+        .from('question_votes')
+        .delete()
+        .eq('question_id', questionId)
+        .eq('user_id', userId);
+  }
+
+  Future<Set<String>> getUpvotedQuestionIds(String userId) async {
+    final data = await _client
+        .from('question_votes')
+        .select('question_id')
+        .eq('user_id', userId);
+    return (data as List)
+        .map((row) => row['question_id'].toString())
+        .toSet();
+  }
+
+  Future<void> markSolvedReply({
+    required String questionId,
+    required String replyId,
+  }) async {
+    await _client.rpc(
+      'mark_question_reply_solved',
+      params: {
+        'p_question_id': questionId,
+        'p_reply_id': replyId,
+      },
+    );
   }
 
   // ══════════════════════════════════════════════════════════════════════════

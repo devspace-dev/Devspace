@@ -6,6 +6,7 @@ The current build focuses on:
 - email/password auth
 - onboarding and editable profiles
 - feed posting with text, image, and quote posts
+- persistent Q&A with replies and solved answers
 - likes, comments, follows, and aura feedback
 - people discovery and profile browsing
 
@@ -17,12 +18,12 @@ Implemented:
 - home feed with real posts
 - text-only, image-only, and text + image posts
 - quote posts
+- Q&A with real questions, replies, upvotes, and solved answers
 - persistent comments
 - likes and follows
 - sign-out from profile
 
 Not complete yet:
-- real Q&A persistence
 - settings surface beyond sign-out
 - notifications inbox/product flow
 - Google sign-in
@@ -68,6 +69,6 @@ The app no longer relies on checked-in Supabase defaults. If those runtime value
 ## Current Focus
 
 The next product step is Phase 4 work:
-- make Q&A real or cut it from MVP
 - founder device testing and bug triage
 - beta-readiness cleanup
+- minimal settings/account surface and stronger regression coverage

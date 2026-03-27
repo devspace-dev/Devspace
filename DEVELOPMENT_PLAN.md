@@ -13,15 +13,15 @@ Goal:
 - make the product safe for first-college testing without founder hand-holding
 
 Work:
-- either persist Q&A properly or remove it from MVP navigation
 - run device-level founder testing across auth, profile, posting, and interactions
+- run device-level founder testing across auth, profile, posting, Q&A, and interactions
 - fix the top beta-blocking bugs found in that testing
 - add a minimal settings/account surface if sign-out alone is not enough
 - tighten beta onboarding docs for teammates and testers
 
 Founder split:
 - Founder A: bug triage, usability polish, tester flow, settings/account surface
-- Founder B: Q&A persistence or cut, backend reliability, setup/release readiness
+- Founder B: backend reliability, regression coverage, setup/release readiness
 
 Acceptance:
 - no fake top-level surfaces remain in MVP
@@ -29,18 +29,18 @@ Acceptance:
 - the app survives real student testing without constant manual fixes
 
 ## Best Next Product Decision
-Decide Q&A now.
+Close the last beta-readiness gaps now.
 
 Why:
-- it already exists as a top-level tab
-- today it is still local/demo behavior
-- leaving a fake top-level surface in a beta is riskier than delaying another new feature
+- Q&A is now real, so the product should shift from feature completion to bug pressure and release reliability
+- the remaining work is horizontal polish, not another major surface
+- first-college testing will expose setup and mobile-flow issues faster than another feature will
 
 Preferred path:
-- make Q&A real with Supabase persistence
+- device testing, settings/account cleanup, and regression coverage
 
 Fallback path:
-- if Q&A cannot be made real quickly, remove it from MVP navigation until it is ready
+- if any surface proves too unstable in founder testing, cut or simplify it before broader beta
 
 ## What Not To Build Yet
 - DMs

@@ -147,6 +147,80 @@ alter table public.comments add column if not exists user_id uuid references pub
 alter table public.comments add column if not exists content text not null default '';
 alter table public.comments add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
 
+create table if not exists public.questions (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references public.users(id) on delete cascade,
+  title text not null default '',
+  body text not null default '',
+  tags text[] default '{}'::text[],
+  upvotes_count bigint default 0,
+  replies_count bigint default 0,
+  solved_reply_id uuid,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+alter table public.questions add column if not exists user_id uuid references public.users(id) on delete cascade;
+alter table public.questions add column if not exists title text not null default '';
+alter table public.questions add column if not exists body text not null default '';
+alter table public.questions add column if not exists tags text[] default '{}'::text[];
+alter table public.questions add column if not exists upvotes_count bigint default 0;
+alter table public.questions add column if not exists replies_count bigint default 0;
+alter table public.questions add column if not exists solved_reply_id uuid;
+alter table public.questions add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
+
+create table if not exists public.question_replies (
+  id uuid default gen_random_uuid() primary key,
+  question_id uuid references public.questions(id) on delete cascade,
+  user_id uuid references public.users(id) on delete cascade,
+  content text not null default '',
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+alter table public.question_replies add column if not exists question_id uuid references public.questions(id) on delete cascade;
+alter table public.question_replies add column if not exists user_id uuid references public.users(id) on delete cascade;
+alter table public.question_replies add column if not exists content text not null default '';
+alter table public.question_replies add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
+
+create table if not exists public.question_votes (
+  id uuid default gen_random_uuid() primary key,
+  question_id uuid references public.questions(id) on delete cascade,
+  user_id uuid references public.users(id) on delete cascade,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+alter table public.question_votes add column if not exists question_id uuid references public.questions(id) on delete cascade;
+alter table public.question_votes add column if not exists user_id uuid references public.users(id) on delete cascade;
+alter table public.question_votes add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'question_votes_question_id_user_id_key'
+  ) then
+    alter table public.question_votes
+      add constraint question_votes_question_id_user_id_key unique (question_id, user_id);
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'questions_solved_reply_id_fkey'
+  ) then
+    alter table public.questions
+      add constraint questions_solved_reply_id_fkey
+      foreign key (solved_reply_id)
+      references public.question_replies(id)
+      on delete set null;
+  end if;
+end
+$$;
+
 create table if not exists public.notifications (
   id uuid default gen_random_uuid() primary key,
   to_uid uuid references public.users(id) on delete cascade,
@@ -173,6 +247,14 @@ create index if not exists idx_comments_post_id on public.comments(post_id);
 create index if not exists idx_likes_post_id on public.likes(post_id);
 create index if not exists idx_follows_follower_id on public.follows(follower_id);
 create index if not exists idx_follows_following_id on public.follows(following_id);
+create index if not exists idx_questions_user_id on public.questions(user_id);
+create index if not exists idx_questions_created_at on public.questions(created_at desc);
+create index if not exists idx_questions_solved_reply_id on public.questions(solved_reply_id);
+create index if not exists idx_question_replies_question_id on public.question_replies(question_id);
+create index if not exists idx_question_replies_user_id on public.question_replies(user_id);
+create index if not exists idx_question_replies_created_at on public.question_replies(created_at desc);
+create index if not exists idx_question_votes_question_id on public.question_votes(question_id);
+create index if not exists idx_question_votes_user_id on public.question_votes(user_id);
 
 create or replace function public.sync_repost_counts()
 returns trigger
@@ -223,11 +305,135 @@ on public.posts
 for each row
 execute function public.sync_repost_counts();
 
+create or replace function public.sync_question_upvote_counts()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target_question_id uuid;
+begin
+  target_question_id := coalesce(new.question_id, old.question_id);
+
+  update public.questions
+  set upvotes_count = (
+    select count(*)
+    from public.question_votes
+    where question_id = target_question_id
+  )
+  where id = target_question_id;
+
+  return coalesce(new, old);
+end;
+$$;
+
+drop trigger if exists trg_sync_question_upvote_counts on public.question_votes;
+
+create trigger trg_sync_question_upvote_counts
+after insert or delete
+on public.question_votes
+for each row
+execute function public.sync_question_upvote_counts();
+
+create or replace function public.sync_question_reply_counts()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target_question_id uuid;
+begin
+  target_question_id := coalesce(new.question_id, old.question_id);
+
+  update public.questions
+  set replies_count = (
+    select count(*)
+    from public.question_replies
+    where question_id = target_question_id
+  )
+  where id = target_question_id;
+
+  return coalesce(new, old);
+end;
+$$;
+
+drop trigger if exists trg_sync_question_reply_counts on public.question_replies;
+
+create trigger trg_sync_question_reply_counts
+after insert or delete
+on public.question_replies
+for each row
+execute function public.sync_question_reply_counts();
+
+create or replace function public.mark_question_reply_solved(
+  p_question_id uuid,
+  p_reply_id uuid
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  question_owner_id uuid;
+  existing_solved_reply_id uuid;
+  reply_owner_id uuid;
+begin
+  select user_id, solved_reply_id
+  into question_owner_id, existing_solved_reply_id
+  from public.questions
+  where id = p_question_id;
+
+  if question_owner_id is null then
+    raise exception 'Question not found';
+  end if;
+
+  if auth.uid() <> question_owner_id then
+    raise exception 'Only the question owner can mark a reply as solved';
+  end if;
+
+  select user_id
+  into reply_owner_id
+  from public.question_replies
+  where id = p_reply_id
+    and question_id = p_question_id;
+
+  if reply_owner_id is null then
+    raise exception 'Reply does not belong to this question';
+  end if;
+
+  if existing_solved_reply_id is not null then
+    if existing_solved_reply_id = p_reply_id then
+      return existing_solved_reply_id;
+    end if;
+
+    raise exception 'This question is already solved';
+  end if;
+
+  update public.questions
+  set solved_reply_id = p_reply_id
+  where id = p_question_id;
+
+  update public.users
+  set aura = aura + 20
+  where id = reply_owner_id;
+
+  return p_reply_id;
+end;
+$$;
+
+grant execute on function public.mark_question_reply_solved(uuid, uuid) to authenticated;
+
 alter table public.users enable row level security;
 alter table public.posts enable row level security;
 alter table public.follows enable row level security;
 alter table public.likes enable row level security;
 alter table public.comments enable row level security;
+alter table public.questions enable row level security;
+alter table public.question_replies enable row level security;
+alter table public.question_votes enable row level security;
 alter table public.notifications enable row level security;
 
 do $$
@@ -243,6 +449,125 @@ begin
       for select
       to authenticated
       using (true);
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'questions'
+      and policyname = 'questions_select_authenticated'
+  ) then
+    create policy questions_select_authenticated
+      on public.questions
+      for select
+      to authenticated
+      using (true);
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'questions'
+      and policyname = 'questions_insert_owner'
+  ) then
+    create policy questions_insert_owner
+      on public.questions
+      for insert
+      to authenticated
+      with check (auth.uid() = user_id);
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'question_replies'
+      and policyname = 'question_replies_select_authenticated'
+  ) then
+    create policy question_replies_select_authenticated
+      on public.question_replies
+      for select
+      to authenticated
+      using (true);
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'question_replies'
+      and policyname = 'question_replies_insert_owner'
+  ) then
+    create policy question_replies_insert_owner
+      on public.question_replies
+      for insert
+      to authenticated
+      with check (auth.uid() = user_id);
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'question_votes'
+      and policyname = 'question_votes_select_authenticated'
+  ) then
+    create policy question_votes_select_authenticated
+      on public.question_votes
+      for select
+      to authenticated
+      using (true);
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'question_votes'
+      and policyname = 'question_votes_insert_owner'
+  ) then
+    create policy question_votes_insert_owner
+      on public.question_votes
+      for insert
+      to authenticated
+      with check (auth.uid() = user_id);
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'question_votes'
+      and policyname = 'question_votes_delete_owner'
+  ) then
+    create policy question_votes_delete_owner
+      on public.question_votes
+      for delete
+      to authenticated
+      using (auth.uid() = user_id);
   end if;
 end
 $$;
