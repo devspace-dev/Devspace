@@ -1,112 +1,73 @@
-# DevSpace Flutter
+# DevSpace
 
-A social platform for college developers built with Flutter for mobile.
+DevSpace is a mobile-first student developer community app for one-college launch.
 
-## Getting Started
+The current build focuses on:
+- email/password auth
+- onboarding and editable profiles
+- feed posting with text, image, and quote posts
+- likes, comments, follows, and aura feedback
+- people discovery and profile browsing
 
-### Prerequisites
-- Flutter SDK `>=3.0.0`
-- Android Studio / Xcode (for device builds)
-- A device or emulator
-- Supabase project URL and anon key
+## Current Product Truth
 
-### Run the App
+Implemented:
+- email/password auth with Supabase
+- profile setup and edit flow
+- home feed with real posts
+- text-only, image-only, and text + image posts
+- quote posts
+- persistent comments
+- likes and follows
+- sign-out from profile
+
+Not complete yet:
+- real Q&A persistence
+- settings surface beyond sign-out
+- notifications inbox/product flow
+- Google sign-in
+
+## Prerequisites
+
+- Flutter SDK
+- Android Studio or Xcode for device builds
+- a Supabase project
+
+## Local Setup
+
+1. Run [`supabase/devspace_schema.sql`](/Users/mohammad/Desktop/devspace/supabase/devspace_schema.sql) in Supabase SQL Editor.
+2. Create a public storage bucket named `images`.
+3. Get your Supabase project URL and anon key.
+4. Read [SUPABASE_SETUP.md](/Users/mohammad/Desktop/devspace/SUPABASE_SETUP.md) for auth and storage notes.
+
+## Run The App
 
 ```bash
-# 1. Install dependencies
 flutter pub get
-
-# 2. Run on Android
-flutter run -d android
-
-# 3. Run on iOS
-flutter run -d ios
-
-# 4. Build release APK (Android)
-flutter build apk --release
-
-# 5. Build App Bundle (Play Store)
-flutter build appbundle --release
-```
-
-Pass Supabase credentials at runtime if you are not using the checked-in dev values:
-
-```bash
-flutter run \
+flutter devices
+flutter run -d <device-id> \
   --dart-define=SUPABASE_URL=your-project-url \
   --dart-define=SUPABASE_ANON_KEY=your-anon-key
 ```
 
-## Project Structure
-
-```
-lib/
-├── main.dart             # Entry point + providers
-├── app.dart              # Shell with bottom nav
-├── models/               # Data models
-│   ├── user_model.dart
-│   ├── post_model.dart
-│   ├── badge_model.dart
-│   └── question_model.dart
-├── providers/            # State management (Provider)
-│   ├── auth_provider.dart
-│   ├── posts_provider.dart
-│   ├── users_provider.dart
-│   └── aura_provider.dart
-├── screens/              # Full pages
-│   ├── splash_screen.dart
-│   ├── home_screen.dart
-│   ├── people_screen.dart
-│   ├── profile_screen.dart
-│   ├── aura_board_screen.dart
-│   └── qa_screen.dart
-├── widgets/              # Reusable components
-│   ├── user_avatar.dart
-│   ├── aura_pill.dart
-│   ├── aura_bar.dart
-│   ├── post_card.dart
-│   ├── story_reel.dart
-│   ├── compose_box.dart
-│   ├── profile_card.dart
-│   └── bottom_nav.dart
-├── theme/
-│   ├── app_theme.dart
-│   └── app_colors.dart
-├── data/                 # Mock data
-│   ├── mock_users.dart
-│   └── mock_posts.dart
-└── utils/
-    ├── constants.dart
-    └── aura_helpers.dart
-```
-
-## Aura System
-
-| Badge    | Aura Range    |
-|----------|---------------|
-| 🌱 Sprout  | 0 – 999       |
-| ✨ Spark   | 1,000 – 1,999 |
-| 🔥 Flame   | 2,000 – 2,999 |
-| ⚡ Voltage | 3,000 – 4,999 |
-| 🌟 Nova    | 5,000+        |
+The app no longer relies on checked-in Supabase defaults. If those runtime values are missing, the app will stop on a setup screen with the required command.
 
 ## Tech Stack
-- **Flutter 3** — mobile app framework
-- **Provider** — state management
-- **Supabase** — auth, database, and storage
-- **Firebase Messaging** — deferred notification plumbing
-- **Google Fonts** — typography
-- **timeago** — human-readable timestamps
-- **go_router** — navigation
-- **uuid** — unique IDs
+
+- Flutter
+- Provider
+- Supabase Auth / Database / Storage
+- Firebase Messaging plumbing for deferred notification work
 
 ## Auth Model
-- Email/password is the active auth flow.
-- Supabase auth session is the source of truth for login state.
-- Google sign-in is not active in the current build.
 
-## Next Steps
-- [ ] Push notifications (FCM)
-- [ ] GitHub integration
-- [ ] Hackathon tracker
-- [ ] Camera / image uploads
+- email/password is the active auth flow
+- Supabase auth session is the source of truth
+- Google sign-in is visible but intentionally disabled in the current build
+
+## Current Focus
+
+The next product step is Phase 4 work:
+- make Q&A real or cut it from MVP
+- founder device testing and bug triage
+- beta-readiness cleanup

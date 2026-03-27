@@ -19,24 +19,31 @@ import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+  String? bootstrapError;
+
   const String supabaseUrl = String.fromEnvironment(
     'SUPABASE_URL',
-    defaultValue: 'https://hybvsgxqstnxamdkijsk.supabase.co',
+    defaultValue: '',
   );
   const String supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
-    defaultValue: 'sb_publishable_PawpVpaKL2oGSMNT92IzkA_wjiORWQ4',
+    defaultValue: '',
   );
-  
-  try {
-    await Supabase.initialize(
-      url: supabaseUrl,
-      anonKey: supabaseAnonKey,
-    );
-    await AuthService.instance.init();
-  } catch (e) {
-    debugPrint('Database initialization failed: $e');
+
+  if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
+    bootstrapError =
+        'Missing Supabase runtime config. Run with SUPABASE_URL and SUPABASE_ANON_KEY using --dart-define.';
+  } else {
+    try {
+      await Supabase.initialize(
+        url: supabaseUrl,
+        anonKey: supabaseAnonKey,
+      );
+      await AuthService.instance.init();
+    } catch (e) {
+      bootstrapError = 'Supabase initialization failed: $e';
+      debugPrint(bootstrapError);
+    }
   }
 
   SystemChrome.setPreferredOrientations([
@@ -48,7 +55,11 @@ void main() async {
     statusBarIconBrightness: Brightness.light,
   ));
 
-  runApp(const DevSpaceRoot());
+  runApp(
+    bootstrapError == null
+        ? const DevSpaceRoot()
+        : DevSpaceSetupApp(error: bootstrapError),
+  );
 }
 
 class DevSpaceRoot extends StatelessWidget {
@@ -70,6 +81,25 @@ class DevSpaceRoot extends StatelessWidget {
         theme: AppTheme.dark,
         home: const _Root(),
       ),
+    );
+  }
+}
+
+class DevSpaceSetupApp extends StatelessWidget {
+  final String error;
+
+  const DevSpaceSetupApp({
+    super.key,
+    required this.error,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'DevSpace',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.dark,
+      home: _SetupRequiredScreen(error: error),
     );
   }
 }
@@ -233,6 +263,118 @@ class _RootState extends State<_Root> {
 
         return const DevSpaceApp(key: ValueKey('app'));
       },
+    );
+  }
+}
+
+class _SetupRequiredScreen extends StatelessWidget {
+  final String error;
+
+  const _SetupRequiredScreen({
+    required this.error,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 460),
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: AppColors.bg2,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'DevSpace setup required',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.text,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'This build needs explicit Supabase runtime values before it can start.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 1.5,
+                        color: AppColors.text2,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    const _SetupCodeBlock(
+                      lines: [
+                        'flutter run \\',
+                        '  --dart-define=SUPABASE_URL=your-project-url \\',
+                        '  --dart-define=SUPABASE_ANON_KEY=your-anon-key',
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    const Text(
+                      'Current error',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.4,
+                        color: AppColors.text3,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      error,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        height: 1.5,
+                        color: AppColors.text,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SetupCodeBlock extends StatelessWidget {
+  final List<String> lines;
+
+  const _SetupCodeBlock({
+    required this.lines,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.bg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Text(
+        lines.join('\n'),
+        style: const TextStyle(
+          fontFamily: 'monospace',
+          fontSize: 12,
+          height: 1.5,
+          color: AppColors.text,
+        ),
+      ),
     );
   }
 }

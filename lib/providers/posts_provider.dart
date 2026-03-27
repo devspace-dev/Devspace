@@ -50,6 +50,10 @@ class PostsProvider extends ChangeNotifier {
   PostModel? quotedPost(String postId) => _quotedPosts[postId] ?? _findPost(postId);
   bool isQuotedPostLoading(String postId) => _quoteLoading[postId] ?? false;
 
+  static bool canCreatePost(String content, {File? imageFile}) {
+    return content.trim().isNotEmpty || imageFile != null;
+  }
+
   Future<void> fetchFeed() async {
     if (_feedSub != null) {
       await _feedSub!.cancel();
@@ -117,7 +121,7 @@ class PostsProvider extends ChangeNotifier {
         .toSet()
         .toList();
 
-    if (trimmedContent.isEmpty && imageFile == null) {
+    if (!canCreatePost(trimmedContent, imageFile: imageFile)) {
       return const PostCreateResult(
         success: false,
         error: 'Add some text or attach an image to post.',
