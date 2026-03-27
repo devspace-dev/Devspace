@@ -285,7 +285,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                           const Text('⚡', style: TextStyle(fontSize: 10)),
                           const SizedBox(width: 4),
                           Text(
-                            '${me.aura}',
+                            '${me?.aura ?? 0}',
                             style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
