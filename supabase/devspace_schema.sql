@@ -134,6 +134,30 @@ begin
 end
 $$;
 
+create table if not exists public.bookmarks (
+  id uuid default gen_random_uuid() primary key,
+  post_id uuid references public.posts(id) on delete cascade,
+  user_id uuid references public.users(id) on delete cascade,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+alter table public.bookmarks add column if not exists post_id uuid references public.posts(id) on delete cascade;
+alter table public.bookmarks add column if not exists user_id uuid references public.users(id) on delete cascade;
+alter table public.bookmarks add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'bookmarks_post_id_user_id_key'
+  ) then
+    alter table public.bookmarks
+      add constraint bookmarks_post_id_user_id_key unique (post_id, user_id);
+  end if;
+end
+$$;
+
 create table if not exists public.comments (
   id uuid default gen_random_uuid() primary key,
   post_id uuid references public.posts(id) on delete cascade,
@@ -173,12 +197,16 @@ create table if not exists public.question_replies (
   question_id uuid references public.questions(id) on delete cascade,
   user_id uuid references public.users(id) on delete cascade,
   content text not null default '',
+  parent_reply_id uuid references public.question_replies(id) on delete cascade,
+  replying_to_user_id uuid references public.users(id) on delete set null,
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
 
 alter table public.question_replies add column if not exists question_id uuid references public.questions(id) on delete cascade;
 alter table public.question_replies add column if not exists user_id uuid references public.users(id) on delete cascade;
 alter table public.question_replies add column if not exists content text not null default '';
+alter table public.question_replies add column if not exists parent_reply_id uuid references public.question_replies(id) on delete cascade;
+alter table public.question_replies add column if not exists replying_to_user_id uuid references public.users(id) on delete set null;
 alter table public.question_replies add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
 
 create table if not exists public.question_votes (
@@ -245,6 +273,9 @@ create index if not exists idx_posts_created_at on public.posts(created_at desc)
 create index if not exists idx_posts_quote_post_id on public.posts(quote_post_id);
 create index if not exists idx_comments_post_id on public.comments(post_id);
 create index if not exists idx_likes_post_id on public.likes(post_id);
+create index if not exists idx_bookmarks_user_id on public.bookmarks(user_id);
+create index if not exists idx_bookmarks_post_id on public.bookmarks(post_id);
+create index if not exists idx_bookmarks_created_at on public.bookmarks(created_at desc);
 create index if not exists idx_follows_follower_id on public.follows(follower_id);
 create index if not exists idx_follows_following_id on public.follows(following_id);
 create index if not exists idx_questions_user_id on public.questions(user_id);
@@ -252,6 +283,8 @@ create index if not exists idx_questions_created_at on public.questions(created_
 create index if not exists idx_questions_solved_reply_id on public.questions(solved_reply_id);
 create index if not exists idx_question_replies_question_id on public.question_replies(question_id);
 create index if not exists idx_question_replies_user_id on public.question_replies(user_id);
+create index if not exists idx_question_replies_parent_reply_id on public.question_replies(parent_reply_id);
+create index if not exists idx_question_replies_replying_to_user_id on public.question_replies(replying_to_user_id);
 create index if not exists idx_question_replies_created_at on public.question_replies(created_at desc);
 create index if not exists idx_question_votes_question_id on public.question_votes(question_id);
 create index if not exists idx_question_votes_user_id on public.question_votes(user_id);
@@ -304,6 +337,63 @@ after insert or update of quote_post_id or delete
 on public.posts
 for each row
 execute function public.sync_repost_counts();
+
+create or replace function public.sync_follow_counts()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  follower_user_id uuid;
+  following_user_id uuid;
+begin
+  follower_user_id := coalesce(new.follower_id, old.follower_id);
+  following_user_id := coalesce(new.following_id, old.following_id);
+
+  if follower_user_id is not null then
+    update public.users
+    set following = (
+      select count(*)
+      from public.follows
+      where follower_id = follower_user_id
+    )
+    where id = follower_user_id;
+  end if;
+
+  if following_user_id is not null then
+    update public.users
+    set followers = (
+      select count(*)
+      from public.follows
+      where following_id = following_user_id
+    )
+    where id = following_user_id;
+  end if;
+
+  return coalesce(new, old);
+end;
+$$;
+
+drop trigger if exists trg_sync_follow_counts on public.follows;
+
+create trigger trg_sync_follow_counts
+after insert or delete
+on public.follows
+for each row
+execute function public.sync_follow_counts();
+
+update public.users as u
+set following = (
+  select count(*)
+  from public.follows f
+  where f.follower_id = u.id
+),
+followers = (
+  select count(*)
+  from public.follows f
+  where f.following_id = u.id
+);
 
 create or replace function public.sync_question_upvote_counts()
 returns trigger
@@ -430,6 +520,7 @@ alter table public.users enable row level security;
 alter table public.posts enable row level security;
 alter table public.follows enable row level security;
 alter table public.likes enable row level security;
+alter table public.bookmarks enable row level security;
 alter table public.comments enable row level security;
 alter table public.questions enable row level security;
 alter table public.question_replies enable row level security;
@@ -754,6 +845,57 @@ begin
   ) then
     create policy likes_delete_owner
       on public.likes
+      for delete
+      to authenticated
+      using (auth.uid() = user_id);
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'bookmarks'
+      and policyname = 'bookmarks_select_owner'
+  ) then
+    create policy bookmarks_select_owner
+      on public.bookmarks
+      for select
+      to authenticated
+      using (auth.uid() = user_id);
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'bookmarks'
+      and policyname = 'bookmarks_insert_owner'
+  ) then
+    create policy bookmarks_insert_owner
+      on public.bookmarks
+      for insert
+      to authenticated
+      with check (auth.uid() = user_id);
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'bookmarks'
+      and policyname = 'bookmarks_delete_owner'
+  ) then
+    create policy bookmarks_delete_owner
+      on public.bookmarks
       for delete
       to authenticated
       using (auth.uid() = user_id);

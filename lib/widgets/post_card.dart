@@ -48,6 +48,7 @@ class _PostCardState extends State<PostCard> {
     final commentsLoading = postsP.isCommentsLoading(post.id);
     final commentSubmitting = postsP.isCommentSubmitting(post.id);
     final likeUpdating = postsP.isLikeUpdating(post.id);
+    final bookmarkUpdating = postsP.isBookmarkUpdating(post.id);
     final quotePostId = post.quotePostId;
     final hasQuote = quotePostId != null && quotePostId.isNotEmpty;
     final quotedPost = hasQuote ? postsP.quotedPost(quotePostId) : null;
@@ -149,6 +150,9 @@ class _PostCardState extends State<PostCard> {
               child: _PostImageThumbnail(
                 imageUrl: post.imageUrl!,
                 heroTag: 'post-image-${post.id}',
+                maxHeight: 460,
+                fit: BoxFit.contain,
+                backgroundColor: Colors.black,
               ),
             ),
           ],
@@ -174,24 +178,29 @@ class _PostCardState extends State<PostCard> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 _ActionBtn(
                   icon: Icons.chat_bubble_outline_rounded,
+                  activeIcon: Icons.chat_bubble_rounded,
                   count: post.comments,
                   active: _showComments,
+                  activeColor: AppColors.primary,
                   onTap: () {
                     HapticFeedback.lightImpact();
-                    setState(() => _showComments = !_showComments);
-                    if (_showComments) {
+                    final nextShowComments = !_showComments;
+                    setState(() => _showComments = nextShowComments);
+                    if (nextShowComments) {
                       context.read<PostsProvider>().fetchComments(post.id);
                     }
                   },
                 ),
                 _ActionBtn(
                   icon: Icons.repeat_rounded,
+                  activeIcon: Icons.repeat_rounded,
                   count: post.reposts,
                   active: false,
+                  activeColor: AppColors.repost,
                   onTap: () => _openQuoteSheet(
                     context: context,
                     originalPost: post,
@@ -200,22 +209,38 @@ class _PostCardState extends State<PostCard> {
                   ),
                 ),
                 _ActionBtn(
-                  icon: post.isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                  icon: Icons.favorite_border_rounded,
+                  activeIcon: Icons.favorite_rounded,
                   count: post.likes,
                   active: post.isLiked,
                   activeColor: AppColors.like,
                   disabled: likeUpdating,
                   onTap: () {
                     HapticFeedback.mediumImpact();
-                    context.read<PostsProvider>().toggleLike(post.id, me.id);
+                    _handleLikeTap(
+                      context,
+                      postsP,
+                      post.id,
+                      me.id,
+                    );
                   },
                 ),
                 _ActionBtn(
-                  icon: post.isBookmarked ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                  icon: Icons.bookmark_border_rounded,
+                  activeIcon: Icons.bookmark_rounded,
                   count: null,
                   active: post.isBookmarked,
                   activeColor: AppColors.primary,
-                  onTap: () => context.read<PostsProvider>().toggleBookmark(post.id),
+                  disabled: bookmarkUpdating,
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    _handleBookmarkTap(
+                      context,
+                      postsP,
+                      post.id,
+                      me.id,
+                    );
+                  },
                 ),
               ],
             ),
@@ -403,12 +428,100 @@ class _PostCardState extends State<PostCard> {
     if (success) _commentCtrl.clear();
   }
 
-  UserModel _commentUser(UsersProvider usersProvider, UserModel currentUser, CommentModel comment) {
-    return usersProvider.getUserById(comment.userId) ?? currentUser;
+  Future<void> _handleLikeTap(
+    BuildContext context,
+    PostsProvider postsProvider,
+    String postId,
+    String userId,
+  ) async {
+    await postsProvider.toggleLike(postId, userId);
+    if (!context.mounted) return;
+
+    final error = postsProvider.likeError(postId);
+    if (error == null) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(error), behavior: SnackBarBehavior.floating),
+    );
   }
 
-  UserModel _quoteUser(UsersProvider usersProvider, UserModel currentUser, PostModel quotedPost) {
-    return usersProvider.getUserById(quotedPost.userId) ?? currentUser;
+  Future<void> _handleBookmarkTap(
+    BuildContext context,
+    PostsProvider postsProvider,
+    String postId,
+    String userId,
+  ) async {
+    await postsProvider.toggleBookmark(postId, userId);
+    if (!context.mounted) return;
+
+    final error = postsProvider.bookmarkError(postId);
+    if (error == null) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(error), behavior: SnackBarBehavior.floating),
+    );
+  }
+
+  UserModel _commentUser(
+    UsersProvider usersProvider,
+    UserModel currentUser,
+    CommentModel comment,
+  ) {
+    final knownUser = usersProvider.getUserById(comment.userId);
+    if (knownUser != null) return knownUser;
+    if (comment.userId == currentUser.id) return currentUser;
+
+    return UserModel(
+      id: comment.userId,
+      name: 'Student',
+      handle: 'member',
+      email: '',
+      avatar: 'DS',
+      color: AppColors.primary,
+      aura: 0,
+      role: '',
+      year: '',
+      branch: '',
+      building: 'Building on DevSpace',
+      stack: const [],
+      followers: 0,
+      following: 0,
+      bio: '',
+      college: '',
+      githubHandle: '',
+      profileCompleted: false,
+    );
+  }
+
+  UserModel _quoteUser(
+    UsersProvider usersProvider,
+    UserModel currentUser,
+    PostModel quotedPost,
+  ) {
+    final knownUser = usersProvider.getUserById(quotedPost.userId);
+    if (knownUser != null) return knownUser;
+    if (quotedPost.userId == currentUser.id) return currentUser;
+
+    return UserModel(
+      id: quotedPost.userId,
+      name: 'Student',
+      handle: 'member',
+      email: '',
+      avatar: 'DS',
+      color: AppColors.primary,
+      aura: 0,
+      role: '',
+      year: '',
+      branch: '',
+      building: 'Building on DevSpace',
+      stack: const [],
+      followers: 0,
+      following: 0,
+      bio: '',
+      college: '',
+      githubHandle: '',
+      profileCompleted: false,
+    );
   }
 }
 
@@ -573,21 +686,43 @@ class _QuotedPostPreview extends StatelessWidget {
 class _PostImageThumbnail extends StatelessWidget {
   final String imageUrl;
   final String heroTag;
+  final double? maxHeight;
+  final BoxFit fit;
+  final Color? backgroundColor;
 
-  const _PostImageThumbnail({required this.imageUrl, required this.heroTag});
+  const _PostImageThumbnail({
+    required this.imageUrl,
+    required this.heroTag,
+    this.maxHeight,
+    this.fit = BoxFit.cover,
+    this.backgroundColor,
+  });
 
   @override
   Widget build(BuildContext context) {
+    Widget image = CachedNetworkImage(
+      imageUrl: imageUrl,
+      width: double.infinity,
+      height: maxHeight,
+      fit: fit,
+      placeholder: (_, __) => Container(
+        color: AppColors.bg2,
+        height: maxHeight ?? 200,
+      ),
+    );
+
+    if (backgroundColor != null) {
+      image = Container(
+        color: backgroundColor,
+        child: image,
+      );
+    }
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: Hero(
         tag: heroTag,
-        child: CachedNetworkImage(
-          imageUrl: imageUrl,
-          width: double.infinity,
-          fit: BoxFit.cover,
-          placeholder: (_, __) => Container(color: AppColors.bg2, height: 200),
-        ),
+        child: image,
       ),
     );
   }
@@ -595,6 +730,7 @@ class _PostImageThumbnail extends StatelessWidget {
 
 class _ActionBtn extends StatelessWidget {
   final IconData icon;
+  final IconData? activeIcon;
   final int? count;
   final bool active;
   final Color? activeColor;
@@ -602,13 +738,20 @@ class _ActionBtn extends StatelessWidget {
   final bool disabled;
 
   const _ActionBtn({
-    required this.icon, required this.count, required this.active,
-    required this.onTap, this.activeColor, this.disabled = false,
+    required this.icon,
+    this.activeIcon,
+    required this.count,
+    required this.active,
+    required this.onTap,
+    this.activeColor,
+    this.disabled = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final color = active ? (activeColor ?? AppColors.primary) : AppColors.text3;
+    final displayIcon = active && activeIcon != null ? activeIcon! : icon;
+    
     return GestureDetector(
       onTap: disabled ? null : onTap,
       behavior: HitTestBehavior.opaque,
@@ -616,10 +759,12 @@ class _ActionBtn extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
           children: [
-            Icon(icon, size: 18, color: color),
+            Icon(displayIcon, size: 18, color: color),
             if (count != null && count! > 0) ...[
               const SizedBox(width: 6),
-              Text('$count', style: TextStyle(fontSize: 13, color: color, fontWeight: FontWeight.w500)),
+              Text('$count',
+                  style: TextStyle(
+                      fontSize: 13, color: color, fontWeight: FontWeight.w500)),
             ],
           ],
         ),
