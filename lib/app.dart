@@ -9,6 +9,7 @@ import 'screens/qa_screen.dart';
 import 'screens/aura_board_screen.dart';
 import 'screens/profile_screen.dart';
 import 'providers/auth_provider.dart';
+import 'models/user_model.dart';
 import 'theme/app_colors.dart';
 import 'widgets/bottom_nav.dart';
 import 'widgets/glass_container.dart';
@@ -24,7 +25,11 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
   int _tab = 0;
 
   static const List<String> _titles = [
-    'DevSpace', 'Developers', 'Q & A', 'Aura Board', 'Profile',
+    'DevSpace',
+    'Developers',
+    'Q & A',
+    'Aura Board',
+    'Profile',
   ];
 
   @override
@@ -35,15 +40,19 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
       final auth = context.read<AuthProvider>();
       context.read<UsersProvider>().fetchUsers();
       context.read<PostsProvider>().fetchFeed();
-      if (auth.currentUser != null) {
-        context.read<NotificationsProvider>().init(auth.currentUser!.id);
-      }
+      try {
+        context.read<NotificationsProvider>().init(auth.currentUser.id);
+      } catch (_) {/* no user yet */}
     });
   }
 
   void _showNotifications(BuildContext context) {
-    final me = context.read<AuthProvider>().currentUser;
-    if (me == null) return;
+    late final UserModel me;
+    try {
+      me = context.read<AuthProvider>().currentUser;
+    } catch (_) {
+      return;
+    }
 
     showModalBottomSheet(
       context: context,
@@ -83,7 +92,9 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                     ),
                     TextButton(
                       onPressed: () {
-                        context.read<NotificationsProvider>().markAllAsRead(me.id);
+                        context
+                            .read<NotificationsProvider>()
+                            .markAllAsRead(me.id);
                       },
                       child: const Text('Mark all as read'),
                     ),
@@ -108,7 +119,8 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                       controller: scrollController,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       itemCount: provider.notifications.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.border),
+                      separatorBuilder: (_, __) =>
+                          const Divider(height: 1, color: AppColors.border),
                       itemBuilder: (context, i) {
                         final n = provider.notifications[i];
                         return ListTile(
@@ -117,13 +129,18 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                             // Navigate if needed
                           },
                           leading: CircleAvatar(
-                            backgroundColor: n.read ? AppColors.bg2 : AppColors.primary.withValues(alpha: 0.1),
+                            backgroundColor: n.read
+                                ? AppColors.bg2
+                                : AppColors.primary.withValues(alpha: 0.1),
                             child: Icon(
-                              n.type == 'like' ? Icons.favorite_rounded :
-                              n.type == 'comment' ? Icons.comment_rounded :
-                              Icons.person_add_rounded,
+                              n.type == 'like'
+                                  ? Icons.favorite_rounded
+                                  : n.type == 'comment'
+                                      ? Icons.comment_rounded
+                                      : Icons.person_add_rounded,
                               size: 18,
-                              color: n.read ? AppColors.text3 : AppColors.primary,
+                              color:
+                                  n.read ? AppColors.text3 : AppColors.primary,
                             ),
                           ),
                           title: Text(
@@ -131,20 +148,25 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                             style: TextStyle(
                               fontSize: 14,
                               color: n.read ? AppColors.text2 : AppColors.text,
-                              fontWeight: n.read ? FontWeight.w400 : FontWeight.w600,
+                              fontWeight:
+                                  n.read ? FontWeight.w400 : FontWeight.w600,
                             ),
                           ),
                           subtitle: Text(
                             _formatTime(n.createdAt),
-                            style: const TextStyle(fontSize: 12, color: AppColors.text3),
+                            style: const TextStyle(
+                                fontSize: 12, color: AppColors.text3),
                           ),
-                          trailing: !n.read ? Container(
-                            width: 8, height: 8,
-                            decoration: const BoxDecoration(
-                              color: AppColors.primary,
-                              shape: BoxShape.circle,
-                            ),
-                          ) : null,
+                          trailing: !n.read
+                              ? Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.primary,
+                                    shape: BoxShape.circle,
+                                  ),
+                                )
+                              : null,
                         );
                       },
                     );
@@ -167,7 +189,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
 
   @override
   Widget build(BuildContext context) {
-    final me = context.watch<AuthProvider>().currentUser;
+    final me = context.watch<AuthProvider>().currentUserOrNull;
     final unreadCount = context.watch<NotificationsProvider>().unreadCount;
 
     final List<Widget> screens = [
@@ -188,7 +210,8 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
           color: AppColors.bg,
           opacity: 0.8,
           blur: 15,
-          border: const Border(bottom: BorderSide(color: AppColors.border, width: 0.5)),
+          border: const Border(
+              bottom: BorderSide(color: AppColors.border, width: 0.5)),
           child: AppBar(
             backgroundColor: Colors.transparent,
             elevation: 0,
@@ -196,29 +219,39 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
             title: _tab == 0
                 ? Row(children: [
                     Container(
-                      width: 24, height: 24,
+                      width: 24,
+                      height: 24,
                       decoration: BoxDecoration(
                         color: AppColors.primary,
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: const Center(child: Text('⌥', style: TextStyle(fontSize: 14, color: Colors.white))),
+                      child: const Center(
+                          child: Text('⌥',
+                              style: TextStyle(
+                                  fontSize: 14, color: Colors.white))),
                     ),
                     const SizedBox(width: 10),
                     const Text('DevSpace',
                         style: TextStyle(
-                          fontWeight: FontWeight.w800, fontSize: 18,
-                          color: AppColors.text, letterSpacing: -0.4)),
+                            fontWeight: FontWeight.w800,
+                            fontSize: 18,
+                            color: AppColors.text,
+                            letterSpacing: -0.4)),
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: AppColors.bg2,
                         borderRadius: BorderRadius.circular(4),
                         border: Border.all(color: AppColors.border),
                       ),
                       child: const Text('BETA',
-                          style: TextStyle(fontSize: 9, color: AppColors.text4,
-                              fontWeight: FontWeight.w800, letterSpacing: 0.6)),
+                          style: TextStyle(
+                              fontSize: 9,
+                              color: AppColors.text4,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.6)),
                     ),
                   ])
                 : Text(_titles[_tab]),
@@ -236,7 +269,8 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: AppColors.bg2,
                         borderRadius: BorderRadius.circular(8),
@@ -251,7 +285,9 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                           Text(
                             '${me?.aura ?? 0}',
                             style: const TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.text2),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.text2),
                           ),
                         ],
                       ),

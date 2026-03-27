@@ -18,8 +18,11 @@ class AuthProvider extends ChangeNotifier {
   UserModel? _currentUser;
   StreamSubscription<UserModel?>? _authSub;
 
+  UserModel? get currentUserOrNull =>
+      _currentUser ?? AuthService.instance.currentUser;
+
   UserModel get currentUser {
-    final user = _currentUser ?? AuthService.instance.currentUser;
+    final user = currentUserOrNull;
     if (user == null) {
       throw StateError('No authenticated user is available.');
     }
