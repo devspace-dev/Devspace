@@ -92,6 +92,8 @@ import '../models/question_reply_model.dart';
 ///   question_id uuid references questions(id) on delete cascade,
 ///   user_id uuid references users(id) on delete cascade,
 ///   content text not null,
+///   parent_reply_id uuid references question_replies(id) on delete cascade,
+///   replying_to_user_id uuid references users(id) on delete set null,
 ///   created_at timestamp with time zone default timezone('utc'::text, now())
 /// );
 ///
@@ -461,16 +463,44 @@ class SupabaseService {
     required String questionId,
     required String userId,
     required String content,
+    String? parentReplyId,
+    String? replyingToUserId,
   }) async {
     final trimmed = content.trim();
     if (trimmed.isEmpty) {
       throw StateError('Reply cannot be empty.');
     }
 
+    String? normalizedParentReplyId;
+    if (parentReplyId != null && parentReplyId.trim().isNotEmpty) {
+      final parentReply = await _client
+          .from('question_replies')
+          .select('id, question_id, parent_reply_id')
+          .eq('id', parentReplyId)
+          .maybeSingle();
+
+      if (parentReply == null) {
+        throw StateError('The reply you are responding to no longer exists.');
+      }
+      if (parentReply['question_id'].toString() != questionId) {
+        throw StateError('This reply does not belong to the current question.');
+      }
+
+      final existingParentReplyId =
+          (parentReply['parent_reply_id'] ?? '').toString().trim();
+      if (existingParentReplyId.isNotEmpty) {
+        throw StateError('Only one reply level is supported in this thread.');
+      }
+
+      normalizedParentReplyId = parentReply['id'].toString();
+    }
+
     await _client.from('question_replies').insert({
       'question_id': questionId,
       'user_id': userId,
       'content': trimmed,
+      'parent_reply_id': normalizedParentReplyId,
+      'replying_to_user_id': replyingToUserId,
     });
   }
 

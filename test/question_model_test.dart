@@ -32,6 +32,8 @@ void main() {
       'question_id': 'question-1',
       'user_id': 'user-2',
       'content': 'Keep the flags in one service and expose typed getters.',
+      'parent_reply_id': 'reply-root',
+      'replying_to_user_id': 'user-3',
       'created_at': '2026-03-27T12:00:00Z',
     });
 
@@ -39,6 +41,9 @@ void main() {
     expect(reply.questionId, 'question-1');
     expect(reply.userId, 'user-2');
     expect(reply.content, 'Keep the flags in one service and expose typed getters.');
+    expect(reply.parentReplyId, 'reply-root');
+    expect(reply.replyingToUserId, 'user-3');
+    expect(reply.isTopLevel, isFalse);
     expect(reply.createdAt, DateTime.utc(2026, 3, 27, 12, 0).toLocal());
   });
 }

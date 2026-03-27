@@ -176,6 +176,8 @@ class QuestionsProvider extends ChangeNotifier {
     required String questionId,
     required String userId,
     required String content,
+    String? parentReplyId,
+    String? replyingToUserId,
   }) async {
     final trimmedContent = content.trim();
     if (trimmedContent.isEmpty) {
@@ -193,6 +195,8 @@ class QuestionsProvider extends ChangeNotifier {
         questionId: questionId,
         userId: userId,
         content: trimmedContent,
+        parentReplyId: parentReplyId,
+        replyingToUserId: replyingToUserId,
       );
 
       final replies =

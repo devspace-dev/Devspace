@@ -197,12 +197,16 @@ create table if not exists public.question_replies (
   question_id uuid references public.questions(id) on delete cascade,
   user_id uuid references public.users(id) on delete cascade,
   content text not null default '',
+  parent_reply_id uuid references public.question_replies(id) on delete cascade,
+  replying_to_user_id uuid references public.users(id) on delete set null,
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
 
 alter table public.question_replies add column if not exists question_id uuid references public.questions(id) on delete cascade;
 alter table public.question_replies add column if not exists user_id uuid references public.users(id) on delete cascade;
 alter table public.question_replies add column if not exists content text not null default '';
+alter table public.question_replies add column if not exists parent_reply_id uuid references public.question_replies(id) on delete cascade;
+alter table public.question_replies add column if not exists replying_to_user_id uuid references public.users(id) on delete set null;
 alter table public.question_replies add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
 
 create table if not exists public.question_votes (
@@ -279,6 +283,8 @@ create index if not exists idx_questions_created_at on public.questions(created_
 create index if not exists idx_questions_solved_reply_id on public.questions(solved_reply_id);
 create index if not exists idx_question_replies_question_id on public.question_replies(question_id);
 create index if not exists idx_question_replies_user_id on public.question_replies(user_id);
+create index if not exists idx_question_replies_parent_reply_id on public.question_replies(parent_reply_id);
+create index if not exists idx_question_replies_replying_to_user_id on public.question_replies(replying_to_user_id);
 create index if not exists idx_question_replies_created_at on public.question_replies(created_at desc);
 create index if not exists idx_question_votes_question_id on public.question_votes(question_id);
 create index if not exists idx_question_votes_user_id on public.question_votes(user_id);
