@@ -30,6 +30,7 @@ class PostModel {
   });
 
   PostModel copyWith({
+    String? content,
     String? imageUrl,
     String? quotePostId,
     int? likes,
@@ -42,7 +43,7 @@ class PostModel {
     return PostModel(
       id: id,
       userId: userId,
-      content: content,
+      content: content ?? this.content,
       tags: tags,
       imageUrl: imageUrl ?? this.imageUrl,
       quotePostId: quotePostId ?? this.quotePostId,
