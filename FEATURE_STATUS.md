@@ -1,38 +1,31 @@
 # FEATURE STATUS
 
 ## Implemented
-- Auth UI for email/password
-- Session restore using Supabase auth
-- Supabase-backed user creation and login/session model
-- Home feed rendering from backend-loaded posts
-- Create text posts with tags
-- People directory with search and branch filter
-- Profile viewing for self and other users
-- First-login onboarding flow
-- Editable profile setup flow
-- Aura leaderboard and badge tiers
-- Persistent feed comments
-- Ask-question UI with local voting interactions
-- GitHub activity card scaffold
-- Notification and image-upload service scaffolding
+- Email/password auth with Supabase
+- Explicit runtime bootstrap for Supabase URL and anon key
+- First-login onboarding and editable profiles
+- People discovery with search and branch filtering
+- Feed loading / empty / error states
+- Text-only, image-only, and text + image posting
+- Quote posts
+- Persistent comments
+- Likes and follows with stabilized interaction state
+- Sign-out from profile
+- Aura feedback for post and comment contribution
+- Profile viewing for self and others
+- Aura leaderboard
 
 ## Partial
-- Google sign-in is visible in the UI but intentionally disabled during the Supabase migration
-- College email restriction exists in code but is currently disabled
-- Follow/unfollow updates backend counts, but the UX still needs polish and more explicit refresh behavior
-- Likes call backend methods and optimistic UI, but interaction UX still needs polish
-- Repost and bookmark actions are local-only and not persisted
-- Notifications initialize only when Firebase is configured, but there is no notifications inbox or product flow in the UI
-- Image upload widgets exist, but they are not integrated into live post creation everywhere they should be
-- Q&A exists as a screen, but it is local state only and not backed by Supabase
-- Automated coverage is still light
+- Google sign-in is visible but intentionally disabled
+- Q&A UI exists, but content is still local-only
+- GitHub profile card is useful scaffold, not a finished identity system
+- Notifications plumbing exists, but there is no real inbox/product flow
+- Automated coverage exists, but it is still light for a production beta
 
 ## Missing
-- Sign-out/settings surface in the UI
 - Real persistent Q&A and answers
-- Post image support in the live compose flow
-- Post type system for project update / doubt / achievement / idea
+- Settings/account surface beyond sign-out
 - Notifications screen/inbox
-- Real environment/config management for multiple collaborators
-- Android Firebase config files
-- Meaningful automated test coverage for core flows
+- Post type system
+- Broader automated coverage for core flows
+- Production-grade release/config discipline beyond founder testing

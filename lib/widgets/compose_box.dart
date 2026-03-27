@@ -169,7 +169,8 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
   String? _submitError;
   File? _selectedImage;
 
-  bool get _canPost => _textCtrl.text.trim().isNotEmpty || _selectedImage != null;
+  bool get _canPost =>
+      PostsProvider.canCreatePost(_textCtrl.text, imageFile: _selectedImage);
 
   @override
   void initState() {

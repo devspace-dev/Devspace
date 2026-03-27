@@ -15,12 +15,20 @@
     *   Add RLS policies to allow authenticated users to upload/delete their own files.
 5.  **Environment Variables**:
     *   Get your `Project URL` and `anon public` key from Settings -> API.
-    *   Pass them using `--dart-define=SUPABASE_URL=...` and `--dart-define=SUPABASE_ANON_KEY=...`, or keep the local dev defaults in `lib/main.dart`.
+    *   Pass them using `--dart-define=SUPABASE_URL=...` and `--dart-define=SUPABASE_ANON_KEY=...`.
+    *   The app no longer ships with checked-in Supabase fallback credentials.
 6.  **If sign-in fails with missing columns**:
     *   Your `users` table is incomplete.
     *   Run [`supabase/devspace_schema.sql`](/Users/mohammad/Desktop/devspace/supabase/devspace_schema.sql) again. It is written to be safe for existing tables.
 
-7.  **Database Triggers (Optional later)**:
+7.  **Run command example**:
+```bash
+flutter run -d <device-id> \
+  --dart-define=SUPABASE_URL=your-project-url \
+  --dart-define=SUPABASE_ANON_KEY=your-anon-key
+```
+
+8.  **Database Triggers (Optional later)**:
     *   Create a trigger to automatically insert a row into `public.users` when a user signs up.
     *   Create triggers for incrementing/decrementing follow and like counts.
 
