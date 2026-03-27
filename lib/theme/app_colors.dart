@@ -1,34 +1,44 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // Brand
-  static const primary   = Color(0xFF6366F1); // Indigo 500
-  static const secondary = Color(0xFF94A3B8); // Slate 400
+  // Tropical Punch Palette
+  static const primary   = Color(0xFFFF3366); // Vibrant Strawberry
+  static const secondary = Color(0xFF118AB2); // Deep Sea Blue
+  static const orange    = Color(0xFFFF6B35); // Zesty Orange
+  static const yellow    = Color(0xFFFFD23F); // Sunny Yellow
+  static const mint      = Color(0xFF06D6A0); // Emerald Mint
 
-  // Background layers
-  static const bg        = Color(0xFF0F1115); // Deep Charcoal
-  static const bg2       = Color(0xFF16191F); // Slightly lighter
-  static const bg3       = Color(0xFF1E2229); // Accent background
+  // Background layers (Deep Midnight / Plum)
+  static const bg        = Color(0xFF0F0C1B); // Deep Midnight
+  static const bg2       = Color(0xFF1B1731); // Deep Plum Surface
+  static const bg3       = Color(0xFF252041); // Accent Surface
 
   // Borders
-  static const border    = Color(0xFF2D323C); 
-  static const border2   = Color(0xFF3F444E);
+  static const border    = Color(0xFF352F5A); 
+  static const border2   = Color(0xFF4A427F);
 
   // Text
-  static const text      = Color(0xFFF1F5F9); // Slate 50
-  static const text2     = Color(0xFF94A3B8); // Slate 400
-  static const text3     = Color(0xFF64748B); // Slate 500
-  static const text4     = Color(0xFF475569); // Slate 600
+  static const text      = Color(0xFFF8F7FF); // Bright Lavender/White
+  static const text2     = Color(0xFFB8B2E0); // Soft Lavender
+  static const text3     = Color(0xFF8A82B8); // Muted Purple
+  static const text4     = Color(0xFF6A6298); // Dark Muted Purple
 
-  // Aura badge colours (Muted versions)
-  static const sprout    = Color(0xFF10B981);
-  static const spark     = Color(0xFFF59E0B);
-  static const flame     = Color(0xFFEF4444);
-  static const voltage   = Color(0xFF6366F1);
-  static const nova      = Color(0xFFEC4899);
+  // Aura badge colours (Tropical variants)
+  static const sprout    = Color(0xFF06D6A0); // Mint
+  static const spark     = Color(0xFFFFD23F); // Yellow
+  static const flame     = Color(0xFFFF6B35); // Orange
+  static const voltage   = Color(0xFFFF3366); // Strawberry
+  static const nova      = Color(0xFF118AB2); // Blue
 
   // Semantic
-  static const like      = Color(0xFFF43F5E);
-  static const repost    = Color(0xFF10B981);
-  static const solved    = Color(0xFF10B981);
+  static const like      = Color(0xFFFF3366);
+  static const repost    = Color(0xFF06D6A0);
+  static const solved    = Color(0xFF06D6A0);
+  
+  // Gradients
+  static const tropicalGradient = LinearGradient(
+    colors: [primary, orange, yellow],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 }

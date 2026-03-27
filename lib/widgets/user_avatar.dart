@@ -24,8 +24,8 @@ class UserAvatar extends StatelessWidget {
     final badge = getBadge(user.aura);
     final borderColor = showStory
         ? badge.color
-        : (showRing ? AppColors.border2 : AppColors.border);
-    final borderWidth = showStory ? 2.0 : 1.0;
+        : (showRing ? AppColors.primary : AppColors.border);
+    final borderWidth = showStory || showRing ? 2.5 : 1.5;
 
     Widget avatar = Container(
       width: size,
@@ -34,48 +34,57 @@ class UserAvatar extends StatelessWidget {
         shape: BoxShape.circle,
         color: AppColors.bg3,
         border: Border.all(color: borderColor, width: borderWidth),
+        boxShadow: [
+          if (showRing || showStory)
+            BoxShadow(
+              color: borderColor.withValues(alpha: 0.2),
+              blurRadius: 10,
+              spreadRadius: 1,
+            ),
+        ],
       ),
-      child: user.hasImageAvatar
-          ? ClipOval(
-              child: _AvatarImage(
+      child: ClipOval(
+        child: user.hasImageAvatar
+            ? _AvatarImage(
                 avatar: user.avatar,
                 size: size,
                 color: user.color,
-              ),
-            )
-          : Center(
-              child: Text(
-                user.avatar,
-                style: TextStyle(
-                  fontSize: size * 0.35,
-                  fontWeight: FontWeight.w700,
-                  color: user.color,
-                  letterSpacing: -0.2,
+              )
+            : Container(
+                color: user.color.withValues(alpha: 0.15),
+                child: Center(
+                  child: Text(
+                    user.avatar,
+                    style: TextStyle(
+                      fontSize: size * 0.38,
+                      fontWeight: FontWeight.w900,
+                      color: user.color,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
                 ),
               ),
-            ),
+      ),
     );
 
     if (showStory) {
       return Container(
-        width: size + 8,
-        height: size + 8,
+        padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(
-            color: badge.color.withValues(alpha: 0.4),
-            width: 1.5,
+          gradient: LinearGradient(
+            colors: [badge.color, AppColors.yellow, AppColors.orange],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(2.0),
-          child: Container(
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.bg,
-            ),
-            child: avatar,
+        child: Container(
+          padding: const EdgeInsets.all(2),
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppColors.bg,
           ),
+          child: avatar,
         ),
       );
     }

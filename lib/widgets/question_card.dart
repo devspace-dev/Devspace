@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:timeago/timeago.dart' as timeago;
+import 'package:flutter_animate/flutter_animate.dart';
 
 import '../models/question_model.dart';
 import '../models/user_model.dart';
@@ -27,14 +28,22 @@ class QuestionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final body = Container(
-      padding: EdgeInsets.fromLTRB(16, isDetail ? 18 : 16, 16, 16),
+      margin: isDetail ? EdgeInsets.zero : const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: EdgeInsets.fromLTRB(20, isDetail ? 24 : 20, 20, 20),
       decoration: BoxDecoration(
-        color: AppColors.bg,
-        border: Border(
-          bottom: BorderSide(
-            color: isDetail ? Colors.transparent : AppColors.border,
-          ),
-        ),
+        color: AppColors.bg2,
+        borderRadius: isDetail ? BorderRadius.zero : BorderRadius.circular(32),
+        border: isDetail 
+          ? const Border(bottom: BorderSide(color: AppColors.border, width: 2))
+          : Border.all(color: AppColors.border, width: 2),
+        boxShadow: [
+          if (!isDetail)
+            BoxShadow(
+              color: AppColors.secondary.withValues(alpha: 0.05),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -43,7 +52,7 @@ class QuestionCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _QuestionAuthor(author: author),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -56,10 +65,10 @@ class QuestionCard extends StatelessWidget {
                             question.title,
                             style: TextStyle(
                               color: AppColors.text,
-                              fontSize: isDetail ? 22 : 17,
+                              fontSize: isDetail ? 24 : 18,
                               fontWeight: FontWeight.w900,
-                              height: 1.15,
-                              letterSpacing: -0.5,
+                              height: 1.2,
+                              letterSpacing: -0.6,
                             ),
                           ),
                         ),
@@ -69,46 +78,47 @@ class QuestionCard extends StatelessWidget {
                         ],
                       ],
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
                     Text(
                       question.body,
                       maxLines: isDetail ? null : 3,
                       overflow: isDetail ? TextOverflow.visible : TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.text2,
-                        fontSize: 14,
-                        height: 1.55,
+                        fontSize: 15,
+                        height: 1.6,
+                        fontWeight: isDetail ? FontWeight.w600 : FontWeight.w500,
                       ),
                     ),
                     if (question.tags.isNotEmpty) ...[
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 16),
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
                         children: question.tags.map((tag) {
                           return Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
+                              horizontal: 12,
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: AppColors.bg2,
-                              borderRadius: BorderRadius.circular(999),
-                              border: Border.all(color: AppColors.border),
+                              color: AppColors.bg3,
+                              borderRadius: BorderRadius.circular(99),
+                              border: Border.all(color: AppColors.border, width: 1.5),
                             ),
                             child: Text(
                               '#$tag',
                               style: const TextStyle(
                                 color: AppColors.text2,
                                 fontSize: 12,
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w800,
                               ),
                             ),
                           );
                         }).toList(),
                       ),
                     ],
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
                     Row(
                       children: [
                         _QuestionStatButton(
@@ -118,25 +128,26 @@ class QuestionCard extends StatelessWidget {
                           loading: isUpvoteUpdating,
                           onTap: onUpvote,
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 12),
                         _InfoPill(
                           icon: Icons.chat_bubble_outline_rounded,
                           label: '${question.repliesCount} replies',
+                          color: AppColors.mint,
                         ),
                         const Spacer(),
                         Text(
-                          timeago.format(question.createdAt),
+                          timeago.format(question.createdAt, locale: 'en_short'),
                           style: const TextStyle(
-                            color: AppColors.text3,
+                            color: AppColors.text4,
                             fontSize: 12,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                         if (!isDetail && onTap != null) ...[
-                          const SizedBox(width: 4),
+                          const SizedBox(width: 6),
                           const Icon(
                             Icons.chevron_right_rounded,
-                            size: 18,
+                            size: 20,
                             color: AppColors.text4,
                           ),
                         ],
@@ -149,7 +160,7 @@ class QuestionCard extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0, curve: Curves.easeOutCubic);
 
     if (onTap == null) {
       return body;
@@ -157,6 +168,7 @@ class QuestionCard extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(32),
       child: body,
     );
   }
@@ -173,31 +185,31 @@ class _QuestionAuthor extends StatelessWidget {
       return Column(
         children: [
           Container(
-            width: 42,
-            height: 42,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: AppColors.bg3,
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: AppColors.border, width: 2),
             ),
             child: const Icon(
               Icons.person_outline_rounded,
               color: AppColors.text3,
-              size: 20,
+              size: 24,
             ),
           ),
           const SizedBox(height: 8),
           const SizedBox(
-            width: 56,
+            width: 64,
             child: Text(
-              'DevSpace User',
+              'User',
               textAlign: TextAlign.center,
-              maxLines: 2,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: AppColors.text3,
                 fontSize: 11,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ),
@@ -209,10 +221,10 @@ class _QuestionAuthor extends StatelessWidget {
 
     return Column(
       children: [
-        UserAvatar(user: safeAuthor, size: 42),
-        const SizedBox(height: 8),
+        UserAvatar(user: safeAuthor, size: 48, showRing: true),
+        const SizedBox(height: 10),
         SizedBox(
-          width: 72,
+          width: 80,
           child: Column(
             children: [
               Text(
@@ -222,8 +234,8 @@ class _QuestionAuthor extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: AppColors.text,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
               const SizedBox(height: 2),
@@ -235,7 +247,7 @@ class _QuestionAuthor extends StatelessWidget {
                 style: const TextStyle(
                   color: AppColors.text3,
                   fontSize: 10,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
@@ -255,14 +267,15 @@ class _SolvedBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: compact ? 8 : 10,
-        vertical: compact ? 4 : 6,
+        horizontal: compact ? 10 : 14,
+        vertical: compact ? 6 : 8,
       ),
       decoration: BoxDecoration(
-        color: AppColors.solved.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
+        color: AppColors.solved.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(99),
         border: Border.all(
-          color: AppColors.solved.withValues(alpha: 0.3),
+          color: AppColors.solved.withValues(alpha: 0.4),
+          width: 1.5,
         ),
       ),
       child: Row(
@@ -270,16 +283,17 @@ class _SolvedBadge extends StatelessWidget {
         children: [
           Icon(
             Icons.verified_rounded,
-            size: compact ? 12 : 14,
+            size: compact ? 14 : 16,
             color: AppColors.solved,
           ),
-          const SizedBox(width: 5),
+          const SizedBox(width: 6),
           Text(
             'Solved',
             style: TextStyle(
               color: AppColors.solved,
-              fontSize: compact ? 10 : 11,
-              fontWeight: FontWeight.w800,
+              fontSize: compact ? 11 : 12,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.2,
             ),
           ),
         ],
@@ -305,18 +319,21 @@ class _QuestionStatButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final color = active ? AppColors.primary : AppColors.text2;
+    
     return GestureDetector(
       onTap: loading ? null : onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: active
-              ? AppColors.primary.withValues(alpha: 0.14)
-              : AppColors.bg2,
-          borderRadius: BorderRadius.circular(999),
+              ? AppColors.primary.withValues(alpha: 0.15)
+              : AppColors.bg3,
+          borderRadius: BorderRadius.circular(99),
           border: Border.all(
             color: active ? AppColors.primary : AppColors.border,
+            width: 1.5,
           ),
         ),
         child: Row(
@@ -324,25 +341,25 @@ class _QuestionStatButton extends StatelessWidget {
           children: [
             loading
                 ? const SizedBox(
-                    width: 14,
-                    height: 14,
+                    width: 16,
+                    height: 16,
                     child: CircularProgressIndicator(
-                      strokeWidth: 2,
+                      strokeWidth: 2.5,
                       color: AppColors.primary,
                     ),
                   )
                 : Icon(
                     icon,
-                    size: 15,
-                    color: active ? AppColors.primary : AppColors.text2,
+                    size: 16,
+                    color: color,
                   ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
             Text(
               label,
               style: TextStyle(
-                color: active ? AppColors.primary : AppColors.text2,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
+                color: color,
+                fontSize: 13,
+                fontWeight: FontWeight.w900,
               ),
             ),
           ],
@@ -355,32 +372,34 @@ class _QuestionStatButton extends StatelessWidget {
 class _InfoPill extends StatelessWidget {
   final IconData icon;
   final String label;
+  final Color color;
 
   const _InfoPill({
     required this.icon,
     required this.label,
+    this.color = AppColors.text2,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: AppColors.bg2,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppColors.border),
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: color.withValues(alpha: 0.2), width: 1.5),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 15, color: AppColors.text2),
-          const SizedBox(width: 6),
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 8),
           Text(
             label,
-            style: const TextStyle(
-              color: AppColors.text2,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
+            style: TextStyle(
+              color: color,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],

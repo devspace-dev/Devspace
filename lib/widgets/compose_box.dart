@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 import '../providers/auth_provider.dart';
 import '../providers/posts_provider.dart';
@@ -34,6 +35,9 @@ class _ComposeBoxState extends State<ComposeBox> {
         content: Text(
           result.warning ?? '+10 aura for sharing your build',
         ),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.secondary,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );
   }
@@ -43,51 +47,58 @@ class _ComposeBoxState extends State<ComposeBox> {
     final me = context.watch<AuthProvider>().currentUser;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
       child: Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: AppColors.bg2,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppColors.border),
+          borderRadius: BorderRadius.circular(36),
+          border: Border.all(color: AppColors.border, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.05),
+              blurRadius: 30,
+              offset: const Offset(0, 10),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                UserAvatar(user: me, size: 46, showRing: true),
-                const SizedBox(width: 12),
+                UserAvatar(user: me, size: 50, showRing: true),
+                const SizedBox(width: 14),
                 Expanded(
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(24),
                     onTap: _openComposer,
                     child: Container(
-                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                       decoration: BoxDecoration(
                         color: AppColors.bg,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.border),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: AppColors.border, width: 1.5),
                       ),
                       child: const Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Share what you\'re building',
+                            'What are you building?',
                             style: TextStyle(
                               fontSize: 16,
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w900,
                               color: AppColors.text,
+                              letterSpacing: -0.4,
                             ),
                           ),
                           SizedBox(height: 4),
                           Text(
-                            'Post text, screenshots, or both.',
+                            'Share an update with the campus.',
                             style: TextStyle(
                               fontSize: 13,
                               color: AppColors.text3,
-                              height: 1.4,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
@@ -97,38 +108,32 @@ class _ComposeBoxState extends State<ComposeBox> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Row(
               children: [
                 _ComposerQuickAction(
-                  icon: Icons.photo_library_outlined,
+                  icon: Icons.photo_library_rounded,
                   label: 'Photo',
                   onTap: _openComposer,
+                  color: AppColors.mint,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 _ComposerQuickAction(
-                  icon: Icons.sell_outlined,
-                  label: 'Add tags',
+                  icon: Icons.sell_rounded,
+                  label: 'Tags',
                   onTap: () => _openComposer(showTags: true),
+                  color: AppColors.yellow,
                 ),
                 const Spacer(),
-                TextButton.icon(
+                ElevatedButton.icon(
                   onPressed: () => _openComposer(),
-                  icon: const Icon(Icons.edit_note_rounded, size: 16),
+                  icon: const Icon(Icons.add_rounded, size: 18),
                   label: const Text('Post'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.text,
-                    backgroundColor: AppColors.bg,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(999),
-                      side: const BorderSide(color: AppColors.border),
-                    ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   ),
-                ),
+                ).animate().scale(delay: 200.ms, duration: 400.ms, curve: Curves.elasticOut),
               ],
             ),
           ],
@@ -269,31 +274,31 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
     final viewInsets = MediaQuery.of(context).viewInsets;
 
     return AnimatedPadding(
-      duration: const Duration(milliseconds: 180),
+      duration: const Duration(milliseconds: 200),
       curve: Curves.easeOut,
       padding: EdgeInsets.only(bottom: viewInsets.bottom),
       child: SafeArea(
         top: false,
         child: FractionallySizedBox(
-          heightFactor: 0.88,
+          heightFactor: 0.9,
           child: Container(
             decoration: const BoxDecoration(
               color: AppColors.bg,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(36)),
             ),
             child: Column(
               children: [
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 Container(
-                  width: 42,
-                  height: 4,
+                  width: 48,
+                  height: 5,
                   decoration: BoxDecoration(
                     color: AppColors.border2,
-                    borderRadius: BorderRadius.circular(999),
+                    borderRadius: BorderRadius.circular(99),
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 16, 14),
+                  padding: const EdgeInsets.fromLTRB(24, 20, 16, 16),
                   child: Row(
                     children: [
                       const Expanded(
@@ -301,20 +306,21 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Create post',
+                              'New Post',
                               style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w900,
                                 color: AppColors.text,
+                                letterSpacing: -0.6,
                               ),
                             ),
                             SizedBox(height: 4),
                             Text(
-                              'Text, image, or both. Keep it useful for other builders.',
+                              'Share your progress with the community.',
                               style: TextStyle(
-                                fontSize: 13,
+                                fontSize: 14,
                                 color: AppColors.text3,
-                                height: 1.4,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ],
@@ -322,10 +328,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                       ),
                       IconButton(
                         onPressed: _posting ? null : () => Navigator.of(context).pop(),
-                        icon: const Icon(
-                          Icons.close_rounded,
-                          color: AppColors.text2,
-                        ),
+                        icon: const Icon(Icons.close_rounded, color: AppColors.text2),
                       ),
                     ],
                   ),
@@ -333,181 +336,146 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                 const Divider(color: AppColors.border, height: 1),
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+                    padding: const EdgeInsets.all(24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
                             color: AppColors.bg2,
-                            borderRadius: BorderRadius.circular(22),
-                            border: Border.all(color: AppColors.border),
+                            borderRadius: BorderRadius.circular(28),
+                            border: Border.all(color: AppColors.border, width: 2),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
-                                'Your update',
+                                'THE UPDATE',
                                 style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.4,
-                                  color: AppColors.text3,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 1.2,
+                                  color: AppColors.text4,
                                 ),
                               ),
-                              const SizedBox(height: 10),
+                              const SizedBox(height: 12),
                               TextField(
                                 controller: _textCtrl,
                                 onChanged: (_) => setState(() {}),
                                 autofocus: true,
-                                minLines: 5,
-                                maxLines: 10,
+                                minLines: 4,
+                                maxLines: 12,
                                 textCapitalization: TextCapitalization.sentences,
                                 style: const TextStyle(
-                                  fontSize: 17,
+                                  fontSize: 18,
                                   color: AppColors.text,
                                   height: 1.5,
+                                  fontWeight: FontWeight.w600,
                                 ),
                                 decoration: const InputDecoration(
-                                  hintText:
-                                      'Share a build update, screenshot, lesson, or something you are stuck on...',
-                                  hintStyle: TextStyle(
-                                    color: AppColors.text3,
-                                    height: 1.5,
-                                  ),
+                                  hintText: 'What\'s happening in your lab?',
+                                  hintStyle: TextStyle(color: AppColors.text4, fontWeight: FontWeight.w600),
                                   border: InputBorder.none,
                                   enabledBorder: InputBorder.none,
                                   focusedBorder: InputBorder.none,
                                   contentPadding: EdgeInsets.zero,
+                                  filled: false,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 20),
                         Container(
-                          padding: const EdgeInsets.all(14),
+                          padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
                             color: AppColors.bg2,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: AppColors.border),
+                            borderRadius: BorderRadius.circular(28),
+                            border: Border.all(color: AppColors.border, width: 2),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
-                                'Attachment',
+                                'ATTACHMENT',
                                 style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.4,
-                                  color: AppColors.text3,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 1.2,
+                                  color: AppColors.text4,
                                 ),
                               ),
-                              const SizedBox(height: 10),
+                              const SizedBox(height: 16),
                               PostImagePicker(
                                 onPicked: (file) => setState(() => _selectedImage = file),
                                 onCleared: () => setState(() => _selectedImage = null),
                               ),
-                              const SizedBox(height: 10),
-                              Text(
-                                _selectedImage == null
-                                    ? 'Add a screenshot or visual when it helps the update.'
-                                    : 'Image attached. You can still post with or without text.',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.text3,
-                                ),
-                              ),
                             ],
                           ),
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 20),
                         Row(
                           children: [
                             _ComposerQuickAction(
-                              icon: Icons.sell_outlined,
-                              label: _showTags ? 'Hide tags' : 'Add tags',
+                              icon: Icons.sell_rounded,
+                              label: _showTags ? 'Hide Tags' : 'Add Tags',
+                              color: AppColors.yellow,
                               onTap: () {
                                 setState(() {
                                   _showTags = !_showTags;
                                 });
                               },
                             ),
-                            const SizedBox(width: 8),
-                            _StatusPill(
-                              label: _canPost ? 'Ready to post' : 'Add text or image',
-                              active: _canPost,
-                            ),
                           ],
                         ),
                         if (_showTags) ...[
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 16),
                           Container(
-                            padding: const EdgeInsets.all(14),
+                            padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
                               color: AppColors.bg2,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: AppColors.border),
+                              borderRadius: BorderRadius.circular(28),
+                              border: Border.all(color: AppColors.border, width: 2),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Text(
-                                  'Tags',
+                                  'TAGS',
                                   style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.4,
-                                    color: AppColors.text3,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 1.2,
+                                    color: AppColors.text4,
                                   ),
                                 ),
-                                const SizedBox(height: 10),
+                                const SizedBox(height: 12),
                                 TextField(
                                   controller: _tagCtrl,
                                   onChanged: _handleTagInputChanged,
                                   onSubmitted: (_) {
                                     setState(_commitPendingTag);
                                   },
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: AppColors.text,
-                                  ),
+                                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                                   decoration: InputDecoration(
-                                    hintText: 'Add tags like Flutter, AI, Hackathon',
-                                    hintStyle: const TextStyle(
-                                      color: AppColors.text3,
-                                    ),
+                                    hintText: 'Flutter, AI, Web3...',
+                                    hintStyle: const TextStyle(color: AppColors.text4),
                                     filled: true,
                                     fillColor: AppColors.bg,
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 14,
-                                      vertical: 12,
-                                    ),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(16),
                                       borderSide: const BorderSide(color: AppColors.border),
                                     ),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                      borderSide: const BorderSide(color: AppColors.border),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                      borderSide: const BorderSide(color: AppColors.primary),
-                                    ),
                                     suffixIcon: IconButton(
                                       onPressed: () => setState(_commitPendingTag),
-                                      icon: const Icon(
-                                        Icons.add_rounded,
-                                        color: AppColors.primary,
-                                      ),
+                                      icon: const Icon(Icons.add_circle_rounded, color: AppColors.primary),
                                     ),
                                   ),
                                 ),
                                 if (_tags.isNotEmpty) ...[
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: 16),
                                   Wrap(
                                     spacing: 8,
                                     runSpacing: 8,
@@ -530,23 +498,18 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                           ),
                         ],
                         if (_submitError != null) ...[
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 20),
                           Container(
                             width: double.infinity,
-                            padding: const EdgeInsets.all(14),
+                            padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: Colors.red.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: Colors.red.withValues(alpha: 0.24),
-                              ),
+                              color: AppColors.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
                             ),
                             child: Text(
                               _submitError!,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.redAccent,
-                              ),
+                              style: const TextStyle(fontSize: 14, color: AppColors.primary, fontWeight: FontWeight.w700),
                             ),
                           ),
                         ],
@@ -555,24 +518,16 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
                   decoration: const BoxDecoration(
                     color: AppColors.bg,
-                    border: Border(top: BorderSide(color: AppColors.border)),
+                    border: Border(top: BorderSide(color: AppColors.border, width: 1.5)),
                   ),
                   child: Row(
                     children: [
                       Expanded(
-                        child: TextButton(
+                        child: OutlinedButton(
                           onPressed: _posting ? null : () => Navigator.of(context).pop(),
-                          style: TextButton.styleFrom(
-                            foregroundColor: AppColors.text2,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              side: const BorderSide(color: AppColors.border),
-                            ),
-                          ),
                           child: const Text('Cancel'),
                         ),
                       ),
@@ -580,31 +535,13 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                       Expanded(
                         child: ElevatedButton(
                           onPressed: _posting || !_canPost ? null : _submit,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                _posting || !_canPost ? AppColors.border2 : AppColors.primary,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
                           child: _posting
                               ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white),
                                 )
-                              : const Text(
-                                  'Post',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 15,
-                                  ),
-                                ),
+                              : const Text('Post Now'),
                         ),
                       ),
                     ],
@@ -623,75 +560,41 @@ class _ComposerQuickAction extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final Color color;
 
   const _ComposerQuickAction({
     required this.icon,
     required this.label,
     required this.onTap,
+    required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.circular(999),
+      borderRadius: BorderRadius.circular(99),
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: AppColors.bg,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: AppColors.border),
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(99),
+          border: Border.all(color: color.withValues(alpha: 0.2), width: 1.5),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 15, color: AppColors.text2),
-            const SizedBox(width: 6),
+            Icon(icon, size: 18, color: color),
+            const SizedBox(width: 8),
             Text(
               label,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.text2,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: color,
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  final String label;
-  final bool active;
-
-  const _StatusPill({
-    required this.label,
-    required this.active,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-      decoration: BoxDecoration(
-        color: active
-            ? AppColors.primary.withValues(alpha: 0.12)
-            : AppColors.bg2,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: active
-              ? AppColors.primary.withValues(alpha: 0.32)
-              : AppColors.border,
-        ),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: active ? AppColors.primary : AppColors.text3,
         ),
       ),
     );
@@ -710,13 +613,11 @@ class _TagChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.only(left: 12, right: 6, top: 7, bottom: 7),
+      padding: const EdgeInsets.only(left: 14, right: 8, top: 8, bottom: 8),
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.24),
-        ),
+        color: AppColors.primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2), width: 1.5),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -724,22 +625,18 @@ class _TagChip extends StatelessWidget {
           Text(
             '#$label',
             style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
               color: AppColors.primary,
             ),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 6),
           InkWell(
             onTap: onRemoved,
-            borderRadius: BorderRadius.circular(999),
+            borderRadius: BorderRadius.circular(99),
             child: const Padding(
               padding: EdgeInsets.all(2),
-              child: Icon(
-                Icons.close_rounded,
-                size: 14,
-                color: AppColors.primary,
-              ),
+              child: Icon(Icons.close_rounded, size: 16, color: AppColors.primary),
             ),
           ),
         ],

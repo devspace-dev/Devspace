@@ -20,33 +20,41 @@ class AuraBar extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              '${badge.icon} ${badge.name}',
-              style: TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.text,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: badge.color.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: badge.color.withValues(alpha: 0.3), width: 1.5),
+              ),
+              child: Text(
+                '${badge.icon} ${badge.name}',
+                style: TextStyle(
+                  fontSize: 12, fontWeight: FontWeight.w900, color: badge.color,
+                ),
               ),
             ),
             Text(
-              '${aura.toString()} aura',
-              style: const TextStyle(fontSize: 11, color: AppColors.text3),
+              '${aura.toString()} AURA',
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.text3, letterSpacing: 0.8),
             ),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 12),
         ClipRRect(
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(10),
           child: LinearProgressIndicator(
             value: progress.clamp(0.0, 1.0),
-            minHeight: 4,
-            backgroundColor: AppColors.bg3,
-            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+            minHeight: 10,
+            backgroundColor: AppColors.bg,
+            valueColor: AlwaysStoppedAnimation<Color>(badge.color),
           ),
         ),
         if (next != null) ...[
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
-            auraProgressLabel(aura),
-            style: const TextStyle(fontSize: 11, color: AppColors.text4),
+            auraProgressLabel(aura).toUpperCase(),
+            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.text4, letterSpacing: 0.4),
           ),
         ],
       ],

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../providers/posts_provider.dart';
 import '../theme/app_colors.dart';
 import '../utils/constants.dart';
 import '../widgets/app_state_widgets.dart';
-import '../widgets/story_reel.dart';
 import '../widgets/compose_box.dart';
 import '../widgets/post_card.dart';
 
@@ -23,15 +23,12 @@ class HomeScreen extends StatelessWidget {
       onRefresh: postsP.refreshFeed,
       edgeOffset: topInset,
       child: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
         slivers: [
           // Offset content by the full visible glass app bar height.
-          // Do not reduce this to toolbar-only spacing or headers will clip.
           SliverToBoxAdapter(
-            child: SizedBox(height: topInset),
+            child: SizedBox(height: topInset + 10),
           ),
-
-          // Story reel
-          const SliverToBoxAdapter(child: StoryReel()),
 
           // Compose box
           const SliverToBoxAdapter(child: ComposeBox()),
@@ -39,30 +36,35 @@ class HomeScreen extends StatelessWidget {
           // Trending tags horizontal strip
           SliverToBoxAdapter(
             child: Container(
-              height: 44,
-              decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: AppColors.border)),
-              ),
+              height: 54,
+              margin: const EdgeInsets.only(top: 8, bottom: 4),
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 itemCount: kTrendingTags.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                separatorBuilder: (_, __) => const SizedBox(width: 10),
                 itemBuilder: (context, i) => Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    color: AppColors.bg2,
-                    borderRadius: BorderRadius.circular(8),
+                    color: AppColors.bg3,
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: AppColors.border,
+                      width: 1.5,
                     ),
                   ),
-                  child: Text(
-                    kTrendingTags[i],
-                    style: const TextStyle(
-                      fontSize: 12, color: AppColors.text2, fontWeight: FontWeight.w600),
+                  child: Center(
+                    child: Text(
+                      kTrendingTags[i],
+                      style: const TextStyle(
+                        fontSize: 13, 
+                        color: AppColors.text2, 
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
                   ),
-                ),
+                ).animate().scale(delay: (i * 50).ms, duration: 400.ms, curve: Curves.elasticOut),
               ),
             ),
           ),
@@ -83,7 +85,7 @@ class HomeScreen extends StatelessWidget {
             const SliverFillRemaining(
               hasScrollBody: false,
               child: AppLoadingState(
-                title: 'Loading feed',
+                title: 'Syncing Lab',
                 message: 'Pulling in the latest builds from your campus.',
               ),
             )
@@ -91,9 +93,9 @@ class HomeScreen extends StatelessWidget {
             SliverFillRemaining(
               hasScrollBody: false,
               child: AppErrorState(
-                title: 'Feed unavailable',
+                title: 'Lab Offline',
                 message: postsP.feedError!,
-                actionLabel: 'Retry',
+                actionLabel: 'Reconnect',
                 onAction: () {
                   postsP.refreshFeed();
                 },
@@ -104,7 +106,7 @@ class HomeScreen extends StatelessWidget {
               hasScrollBody: false,
               child: AppEmptyState(
                 icon: Icons.rocket_launch_rounded,
-                title: 'No posts yet',
+                title: 'Silence in the Lab',
                 message:
                     'Be the first to share what you are building with other student developers.',
               ),
@@ -118,7 +120,7 @@ class HomeScreen extends StatelessWidget {
             ),
 
           // Bottom padding
-          const SliverToBoxAdapter(child: SizedBox(height: 20)),
+          const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
     );
@@ -140,37 +142,42 @@ class _InlineWarningBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: Colors.red.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(14),
+        color: AppColors.primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: Colors.red.withValues(alpha: 0.2),
+          color: AppColors.primary.withValues(alpha: 0.2),
+          width: 2,
         ),
       ),
       child: Row(
         children: [
           const Icon(
             Icons.info_outline_rounded,
-            size: 18,
-            color: Colors.redAccent,
+            size: 20,
+            color: AppColors.primary,
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
               message,
               style: const TextStyle(
-                color: AppColors.text2,
-                fontSize: 12,
+                color: AppColors.text,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
           TextButton(
             onPressed: onAction,
-            child: Text(actionLabel),
+            child: Text(
+              actionLabel,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
           ),
         ],
       ),
-    );
+    ).animate().shake();
   }
 }
