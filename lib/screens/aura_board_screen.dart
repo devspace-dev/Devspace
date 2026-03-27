@@ -14,9 +14,10 @@ class AuraBoardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final ranked  = context.watch<UsersProvider>().leaderboard;
     final medals  = ['🥇', '🥈', '🥉'];
+    const double topInset = kToolbarHeight + 8;
 
     return ListView(
-      padding: EdgeInsets.fromLTRB(0, MediaQuery.of(context).padding.top + kToolbarHeight, 0, 100),
+      padding: const EdgeInsets.fromLTRB(0, topInset, 0, 100),
       children: [
         // Header
         Container(
