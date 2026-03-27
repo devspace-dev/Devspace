@@ -105,10 +105,15 @@ class ProfileScreen extends StatelessWidget {
       backgroundColor: AppColors.bg,
       body: CustomScrollView(
         slivers: [
+          // Top padding for transparent AppBar
+          SliverToBoxAdapter(
+            child: SizedBox(height: MediaQuery.of(context).padding.top + kToolbarHeight),
+          ),
           // App bar with back button
           SliverAppBar(
             pinned: true,
-            backgroundColor: AppColors.bg.withValues(alpha: 0.9),
+            backgroundColor: Colors.transparent,
+            elevation: 0,
             leading: userId != null
                 ? IconButton(
                     icon: const Icon(Icons.arrow_back_rounded, color: AppColors.text),

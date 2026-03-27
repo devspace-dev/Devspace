@@ -20,8 +20,14 @@ class HomeScreen extends StatelessWidget {
       color: AppColors.primary,
       backgroundColor: AppColors.bg2,
       onRefresh: postsP.refreshFeed,
+      edgeOffset: MediaQuery.of(context).padding.top + kToolbarHeight,
       child: CustomScrollView(
         slivers: [
+          // Top padding for transparent AppBar
+          SliverToBoxAdapter(
+            child: SizedBox(height: MediaQuery.of(context).padding.top + kToolbarHeight),
+          ),
+
           // Story reel
           const SliverToBoxAdapter(child: StoryReel()),
 

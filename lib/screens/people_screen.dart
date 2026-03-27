@@ -36,6 +36,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
 
     return Column(
       children: [
+        SizedBox(height: MediaQuery.of(context).padding.top + kToolbarHeight),
         // Search bar
         Container(
           padding: const EdgeInsets.all(14),
@@ -130,6 +131,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
                       : 'No developer profiles are available yet.',
                 )
               : ListView.builder(
+                  padding: const EdgeInsets.only(bottom: 100),
                   itemCount: users.length,
                   itemBuilder: (context, i) => ProfileCard(
                     user: users[i],

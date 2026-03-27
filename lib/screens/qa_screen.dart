@@ -176,6 +176,7 @@ class _QAScreenState extends State<QAScreen> {
 
     return Column(
       children: [
+        SizedBox(height: MediaQuery.of(context).padding.top + kToolbarHeight),
         // Header
         Container(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
@@ -237,6 +238,7 @@ class _QAScreenState extends State<QAScreen> {
         // Questions list
         Expanded(
           child: ListView.builder(
+            padding: const EdgeInsets.only(bottom: 100),
             itemCount: _questions.length,
             itemBuilder: (context, i) {
               final q    = _questions[i];

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_colors.dart';
+import 'glass_container.dart';
 
 class DevSpaceBottomNav extends StatelessWidget {
   final int currentIndex;
@@ -14,11 +15,11 @@ class DevSpaceBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.bg,
-        border: Border(top: BorderSide(color: AppColors.border, width: 0.5)),
-      ),
+    return GlassContainer(
+      color: AppColors.bg,
+      opacity: 0.8,
+      blur: 15.0,
+      border: const Border(top: BorderSide(color: AppColors.border, width: 0.5)),
       child: SafeArea(
         top: false,
         child: SizedBox(

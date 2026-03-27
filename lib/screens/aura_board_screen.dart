@@ -16,6 +16,7 @@ class AuraBoardScreen extends StatelessWidget {
     final medals  = ['🥇', '🥈', '🥉'];
 
     return ListView(
+      padding: EdgeInsets.fromLTRB(0, MediaQuery.of(context).padding.top + kToolbarHeight, 0, 100),
       children: [
         // Header
         Container(

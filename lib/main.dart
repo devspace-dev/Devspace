@@ -10,6 +10,7 @@ import 'providers/auth_provider.dart';
 import 'providers/posts_provider.dart';
 import 'providers/users_provider.dart';
 import 'providers/aura_provider.dart';
+import 'providers/notifications_provider.dart';
 import 'screens/profile_setup_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
@@ -61,6 +62,7 @@ class DevSpaceRoot extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => PostsProvider()),
         ChangeNotifierProvider(create: (_) => UsersProvider()),
         ChangeNotifierProvider(create: (_) => AuraProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationsProvider()),
       ],
       child: MaterialApp(
         title: 'DevSpace',

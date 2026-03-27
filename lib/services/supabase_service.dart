@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
 import '../models/post_model.dart';
 import '../models/comment_model.dart';
+import '../models/notification_model.dart';
 
 /// SQL Schema for Supabase (Run this in Supabase SQL Editor):
 /// 
@@ -320,13 +321,22 @@ class SupabaseService {
     });
   }
 
-  Stream<List<Map<String, dynamic>>> streamNotifications(String uid) {
+  Stream<List<NotificationModel>> streamNotifications(String uid) {
     return _client
         .from('notifications')
         .stream(primaryKey: ['id'])
         .eq('to_uid', uid)
         .order('created_at', ascending: false)
-        .limit(30);
+        .limit(30)
+        .map((list) => list.map((d) => NotificationModel.fromJson(d)).toList());
+  }
+
+  Future<void> markNotificationAsRead(String notificationId) async {
+    await _client.from('notifications').update({'read': true}).eq('id', notificationId);
+  }
+
+  Future<void> markAllNotificationsAsRead(String uid) async {
+    await _client.from('notifications').update({'read': true}).eq('to_uid', uid);
   }
   // ══════════════════════════════════════════════════════════════════════════
   // COMMENTS
