@@ -40,7 +40,7 @@ class _QAScreenState extends State<QAScreen> {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.bg2,
+      backgroundColor: AppColors.bg2For(context),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -103,25 +103,25 @@ class _QAScreenState extends State<QAScreen> {
                         width: 42,
                         height: 4,
                         decoration: BoxDecoration(
-                          color: AppColors.border2,
+                          color: AppColors.border2For(context),
                           borderRadius: BorderRadius.circular(999),
                         ),
                       ),
                       const SizedBox(height: 18),
-                      const Text(
+                      Text(
                         'Ask a question',
                         style: TextStyle(
-                          color: AppColors.text,
+                          color: AppColors.textFor(context),
                           fontSize: 24,
                           fontWeight: FontWeight.w900,
                           letterSpacing: -0.5,
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
+                      Text(
                         'Post the exact bug, doubt, architecture tradeoff, or tool choice you need help with.',
                         style: TextStyle(
-                          color: AppColors.text2,
+                          color: AppColors.text2For(context),
                           fontSize: 14,
                           height: 1.5,
                         ),
@@ -132,7 +132,7 @@ class _QAScreenState extends State<QAScreen> {
                       TextField(
                         controller: titleCtrl,
                         textCapitalization: TextCapitalization.sentences,
-                        style: const TextStyle(color: AppColors.text),
+                        style: TextStyle(color: AppColors.textFor(context)),
                         decoration: const InputDecoration(
                           hintText: 'What exactly do you need help with?',
                         ),
@@ -145,7 +145,7 @@ class _QAScreenState extends State<QAScreen> {
                         maxLines: 6,
                         minLines: 5,
                         textCapitalization: TextCapitalization.sentences,
-                        style: const TextStyle(color: AppColors.text),
+                        style: TextStyle(color: AppColors.textFor(context)),
                         decoration: const InputDecoration(
                           hintText:
                               'Share the context, what you tried, what failed, and what output or behavior you expected.',
@@ -156,7 +156,7 @@ class _QAScreenState extends State<QAScreen> {
                       const SizedBox(height: 8),
                       TextField(
                         controller: tagsCtrl,
-                        style: const TextStyle(color: AppColors.text),
+                        style: TextStyle(color: AppColors.textFor(context)),
                         decoration: const InputDecoration(
                           hintText: 'Flutter, Supabase, Docker',
                         ),
@@ -234,45 +234,39 @@ class _QAScreenState extends State<QAScreen> {
     final usersP = context.watch<UsersProvider>();
     final currentUser = context.read<AuthProvider>().currentUser;
     final questions = questionsP.questions;
-    final topInset = MediaQuery.of(context).padding.top + kToolbarHeight;
 
     return RefreshIndicator(
       color: AppColors.primary,
-      backgroundColor: AppColors.bg2,
+      backgroundColor: AppColors.bg2For(context),
       onRefresh: questionsP.refreshQuestions,
-      edgeOffset: topInset,
+      edgeOffset: 0,
       child: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(
-            child: SizedBox(
-              height: topInset,
-            ),
-          ),
-          SliverToBoxAdapter(
             child: Container(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-              decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: AppColors.border)),
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: AppColors.borderFor(context), width: 0.5)),
               ),
               child: Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'Q&A',
                           style: TextStyle(
-                            color: AppColors.text,
+                            color: AppColors.textFor(context),
                             fontSize: 18,
                             fontWeight: FontWeight.w900,
                           ),
                         ),
-                        SizedBox(height: 4),
+                        const SizedBox(height: 4),
                         Text(
                           'Ask practical doubts, get real replies, and close loops with solved answers.',
                           style: TextStyle(
-                            color: AppColors.text3,
+                            color: AppColors.text3For(context),
                             fontSize: 12,
                             height: 1.4,
                           ),
@@ -300,10 +294,10 @@ class _QAScreenState extends State<QAScreen> {
                   ),
                 ),
               ),
-              child: const Text(
+              child: Text(
                 'Replies earn aura. Solved answers stay visible so the next student can learn faster.',
                 style: TextStyle(
-                  color: AppColors.text2,
+                  color: AppColors.text2For(context),
                   fontSize: 12,
                   height: 1.45,
                   fontWeight: FontWeight.w600,
@@ -405,8 +399,8 @@ class _SheetLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(
-        color: AppColors.text3,
+      style: TextStyle(
+        color: AppColors.text3For(context),
         fontSize: 11,
         fontWeight: FontWeight.w800,
         letterSpacing: 0.8,
@@ -447,8 +441,8 @@ class _InlineWarningBanner extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(
-                color: AppColors.text2,
+              style: TextStyle(
+                color: AppColors.text2For(context),
                 fontSize: 12,
               ),
             ),
@@ -462,3 +456,4 @@ class _InlineWarningBanner extends StatelessWidget {
     );
   }
 }
+

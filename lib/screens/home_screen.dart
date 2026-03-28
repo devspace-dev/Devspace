@@ -14,37 +14,34 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final postsP = context.watch<PostsProvider>();
     final posts = postsP.posts;
-    final topInset = MediaQuery.of(context).padding.top + kToolbarHeight;
 
     return RefreshIndicator.adaptive(
       color: AppColors.primary,
       onRefresh: postsP.refreshFeed,
-      edgeOffset: topInset,
+      edgeOffset: 0,
       child: CustomScrollView(
         slivers: [
-          SliverToBoxAdapter(
-            child: SizedBox(height: topInset),
-          ),
-
           const SliverToBoxAdapter(child: ComposeBox()),
 
           SliverToBoxAdapter(
             child: Container(
-              height: 48,
-              decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: AppColors.border, width: 0.5)),
+              height: 44,
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: AppColors.borderFor(context), width: 0.5)),
               ),
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 itemCount: kTrendingTags.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 20),
-                itemBuilder: (context, i) => Text(
-                  kTrendingTags[i],
-                  style: const TextStyle(
-                    fontSize: 14, 
-                    color: AppColors.text3, 
-                    fontWeight: FontWeight.w600,
+                separatorBuilder: (_, __) => const SizedBox(width: 16),
+                itemBuilder: (context, i) => Center(
+                  child: Text(
+                    kTrendingTags[i],
+                    style: TextStyle(
+                      fontSize: 13, 
+                      color: AppColors.text3For(context), 
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
@@ -80,3 +77,4 @@ class HomeScreen extends StatelessWidget {
     );
   }
 }
+

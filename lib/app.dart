@@ -66,11 +66,11 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
         minChildSize: 0.5,
         maxChildSize: 0.95,
         builder: (context, scrollController) => GlassContainer(
-          color: AppColors.bg,
+          color: AppColors.bgFor(context),
           opacity: 0.8,
           blur: 25,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          border: const Border(top: BorderSide(color: AppColors.border, width: 0.5)),
+          border: Border(top: BorderSide(color: AppColors.borderFor(context), width: 0.5)),
           child: Column(
             children: [
               const SizedBox(height: 12),
@@ -78,7 +78,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                 width: 36,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: AppColors.border2,
+                  color: AppColors.border2For(context),
                   borderRadius: BorderRadius.circular(99),
                 ),
               ),
@@ -87,12 +87,12 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'Notifications',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w800,
-                        color: AppColors.text,
+                        color: AppColors.textFor(context),
                         letterSpacing: -0.8,
                       ),
                     ),
@@ -114,10 +114,10 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                       return const Center(child: CircularProgressIndicator.adaptive());
                     }
                     if (provider.notifications.isEmpty) {
-                      return const Center(
+                      return Center(
                         child: Text(
                           'No new notifications',
-                          style: TextStyle(color: AppColors.text3),
+                          style: TextStyle(color: AppColors.text3For(context)),
                         ),
                       );
                     }
@@ -126,7 +126,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       itemCount: provider.notifications.length,
                       separatorBuilder: (_, __) =>
-                          const Divider(height: 1, color: AppColors.border),
+                          Divider(height: 1, color: AppColors.borderFor(context)),
                       itemBuilder: (context, i) {
                         final n = provider.notifications[i];
                         return ListTile(
@@ -138,7 +138,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                             height: 40,
                             decoration: BoxDecoration(
                               color: n.read
-                                  ? AppColors.bg2
+                                  ? AppColors.bg2For(context)
                                   : AppColors.primary.withValues(alpha: 0.1),
                               shape: BoxShape.circle,
                             ),
@@ -150,22 +150,22 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                                       : Icons.person_add_rounded,
                               size: 18,
                               color:
-                                  n.read ? AppColors.text3 : AppColors.primary,
+                                  n.read ? AppColors.text3For(context) : AppColors.primary,
                             ),
                           ),
                           title: Text(
                             n.message,
                             style: TextStyle(
                               fontSize: 15,
-                              color: n.read ? AppColors.text2 : AppColors.text,
+                              color: n.read ? AppColors.text2For(context) : AppColors.textFor(context),
                               fontWeight:
                                   n.read ? FontWeight.w400 : FontWeight.w600,
                             ),
                           ),
                           subtitle: Text(
                             _formatTime(n.createdAt),
-                            style: const TextStyle(
-                                fontSize: 13, color: AppColors.text3),
+                            style: TextStyle(
+                                fontSize: 13, color: AppColors.text3For(context)),
                           ),
                           trailing: !n.read
                               ? Container(
@@ -211,32 +211,39 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
     ];
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.bgFor(context),
       extendBody: true,
-      extendBodyBehindAppBar: true,
+      extendBodyBehindAppBar: false,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(kToolbarHeight),
         child: GlassContainer(
-          color: AppColors.bg,
+          color: AppColors.bgFor(context),
           opacity: 0.7,
           blur: 20,
           borderRadius: BorderRadius.zero,
-          border: const Border(bottom: BorderSide(color: AppColors.border, width: 0.5)),
+          border: Border(bottom: BorderSide(color: AppColors.borderFor(context), width: 0.5)),
           child: AppBar(
             backgroundColor: Colors.transparent,
             elevation: 0,
             scrolledUnderElevation: 0,
+            centerTitle: false,
             title: _tab == 0
-                ? const Text(
+                ? Text(
                     'DevSpace',
                     style: TextStyle(
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w900,
                       fontSize: 22,
-                      letterSpacing: -0.8,
-                      color: AppColors.text,
+                      letterSpacing: -1.0,
+                      color: AppColors.textFor(context),
                     ),
                   )
-                : Text(_titles[_tab]),
+                : Text(
+                    _titles[_tab],
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textFor(context),
+                    ),
+                  ),
             actions: [
               IconButton(
                 onPressed: () => _showNotifications(context),
@@ -253,9 +260,9 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
-                        color: AppColors.bg2,
+                        color: AppColors.bg2For(context),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.border, width: 0.5),
+                        border: Border.all(color: AppColors.borderFor(context), width: 0.5),
                       ),
                       child: Row(
                         children: [
@@ -263,10 +270,10 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                           const SizedBox(width: 4),
                           Text(
                             '${me.aura}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.text,
+                              color: AppColors.textFor(context),
                             ),
                           ),
                         ],
@@ -286,3 +293,4 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
     );
   }
 }
+

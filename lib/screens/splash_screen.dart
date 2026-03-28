@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../theme/app_colors.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -12,199 +13,151 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _fade;
-  late final Animation<double> _scale;
-  late final Animation<double> _logoScale;
-
+  
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1200));
-    _fade = CurvedAnimation(parent: _ctrl, curve: const Interval(0.0, 0.5, curve: Curves.easeOut));
-    _scale = Tween<double>(begin: 0.7, end: 1.0)
-        .animate(CurvedAnimation(parent: _ctrl, curve: const Interval(0.0, 0.6, curve: Curves.easeOutBack)));
-    _logoScale = Tween<double>(begin: 0.5, end: 1.0)
-        .animate(CurvedAnimation(parent: _ctrl, curve: const Interval(0.1, 0.7, curve: Curves.elasticOut)));
-    _ctrl.forward();
-    Future.delayed(const Duration(milliseconds: 2400), widget.onDone);
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
+    Future.delayed(const Duration(milliseconds: 2800), widget.onDone);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.bgDark,
       body: Stack(
         children: [
-          // Glow blob top-right
-          Positioned(
-            top: -60,
-            right: -60,
+          // Premium animated background
+          Positioned.fill(
             child: Container(
-              width: 260,
-              height: 260,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
+              decoration: const BoxDecoration(
                 gradient: RadialGradient(
+                  center: Alignment.center,
+                  radius: 1.2,
                   colors: [
-                    AppColors.primary.withValues(alpha: 0.35),
-                    Colors.transparent,
+                    Color(0xFF1A1A1A),
+                    Color(0xFF000000),
                   ],
                 ),
               ),
             ),
           ),
-          // Glow blob bottom-left
+          
+          // Glow blob top-right
           Positioned(
-            bottom: -80,
-            left: -80,
+            top: -100,
+            right: -100,
             child: Container(
-              width: 300,
-              height: 300,
+              width: 400,
+              height: 400,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppColors.indigo.withValues(alpha: 0.25),
+                    AppColors.primary.withValues(alpha: 0.15),
                     Colors.transparent,
                   ],
                 ),
               ),
-            ),
+            ).animate(onPlay: (c) => c.repeat(reverse: true))
+             .scale(duration: 3.seconds, begin: const Offset(1, 1), end: const Offset(1.2, 1.2))
+             .move(duration: 3.seconds, begin: Offset.zero, end: const Offset(-20, 20)),
           ),
 
           Center(
-            child: FadeTransition(
-              opacity: _fade,
-              child: ScaleTransition(
-                scale: _scale,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Logo mark — asterisk star, like reference
-                    ScaleTransition(
-                      scale: _logoScale,
-                      child: Container(
-                        width: 96,
-                        height: 96,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(28),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.4),
-                              blurRadius: 40,
-                              spreadRadius: -4,
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: Text(
-                            '✳',
-                            style: GoogleFonts.spaceGrotesk(
-                              fontSize: 48,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w900,
-                            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Premium Logo
+                Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [AppColors.primary, AppColors.indigo],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(30),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.3),
+                        blurRadius: 30,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.code_rounded,
+                      size: 50,
+                      color: Colors.white,
+                    ),
+                  ),
+                ).animate()
+                 .scale(duration: 800.ms, curve: Curves.easeOutBack)
+                 .shimmer(delay: 1.seconds, duration: 1500.ms),
+                
+                const SizedBox(height: 32),
+                
+                // App name
+                Text(
+                  'DevSpace',
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 44,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    letterSpacing: -1.5,
+                    height: 1.0,
+                  ),
+                ).animate()
+                 .fadeIn(delay: 400.ms, duration: 600.ms)
+                 .slideY(begin: 0.2, end: 0),
+                
+                const SizedBox(height: 12),
+                
+                // Tagline
+                Text(
+                  'The space for student builders',
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    color: Colors.white.withValues(alpha: 0.5),
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.1,
+                  ),
+                ).animate()
+                 .fadeIn(delay: 800.ms, duration: 600.ms),
+                
+                const SizedBox(height: 60),
+                
+                // Loading bar
+                Container(
+                  width: 140,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                  child: FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: 1.0,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.5),
+                            blurRadius: 10,
                           ),
-                        ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 28),
-                    // App name
-                    Text(
-                      'DevSpace',
-                      style: GoogleFonts.spaceGrotesk(
-                        fontSize: 40,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.text,
-                        letterSpacing: -1.5,
-                        height: 1.0,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    // Tagline
-                    Text(
-                      'Built by devs · for devs',
-                      style: GoogleFonts.spaceGrotesk(
-                        fontSize: 15,
-                        color: AppColors.text3,
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: 0.2,
-                      ),
-                    ),
-                    const SizedBox(height: 40),
-                    // Loading dots
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: List.generate(3, (i) => 
-                        _LoadingDot(delay: Duration(milliseconds: i * 160)),
-                      ),
-                    ),
-                  ],
+                  ).animate().scaleX(duration: 2.seconds, begin: 0, end: 1, curve: Curves.easeInOutQuart),
                 ),
-              ),
+              ],
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _LoadingDot extends StatefulWidget {
-  final Duration delay;
-  const _LoadingDot({required this.delay});
-
-  @override
-  State<_LoadingDot> createState() => _LoadingDotState();
-}
-
-class _LoadingDotState extends State<_LoadingDot>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _anim;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 700),
-    );
-    Future.delayed(widget.delay, () {
-      if (mounted) _ctrl.repeat(reverse: true);
-    });
-    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut);
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: FadeTransition(
-        opacity: Tween<double>(begin: 0.2, end: 1.0).animate(_anim),
-        child: Container(
-          width: 8,
-          height: 8,
-          decoration: const BoxDecoration(
-            color: AppColors.primary,
-            shape: BoxShape.circle,
-          ),
-        ),
       ),
     );
   }

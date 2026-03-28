@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
 import '../providers/posts_provider.dart';
+import '../providers/theme_provider.dart';
 import '../screens/profile_setup_screen.dart';
 import '../screens/saved_posts_screen.dart';
 import '../theme/app_colors.dart';
@@ -17,15 +18,15 @@ class SettingsScreen extends StatelessWidget {
     final totalLikes = posts.fold<int>(0, (sum, post) => sum + post.likes);
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.bgFor(context),
       appBar: AppBar(
-        backgroundColor: AppColors.bg,
+        backgroundColor: AppColors.bgFor(context),
         elevation: 0,
-        title: const Text(
+        title: Text(
           'Settings',
           style: TextStyle(
             fontWeight: FontWeight.w900,
-            color: AppColors.text,
+            color: AppColors.textFor(context),
           ),
         ),
       ),
@@ -39,6 +40,8 @@ class SettingsScreen extends StatelessWidget {
             totalLikes: totalLikes,
             aura: me.aura,
           ),
+          const _SectionHeader(title: 'APPEARANCE'),
+          const _ThemeSelector(),
           const _SectionHeader(title: 'PROFILE'),
           _SettingsTile(
             icon: Icons.edit_outlined,
@@ -100,14 +103,14 @@ class SettingsScreen extends StatelessWidget {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bg2,
-        title: const Text(
+        backgroundColor: AppColors.bg2For(context),
+        title: Text(
           'Sign out?',
-          style: TextStyle(color: AppColors.text),
+          style: TextStyle(color: AppColors.textFor(context)),
         ),
-        content: const Text(
+        content: Text(
           'You will return to the login screen on this device.',
-          style: TextStyle(color: AppColors.text2),
+          style: TextStyle(color: AppColors.text2For(context)),
         ),
         actions: [
           TextButton(
@@ -136,14 +139,14 @@ class SettingsScreen extends StatelessWidget {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: AppColors.bg2,
-          title: const Text(
+          backgroundColor: AppColors.bg2For(context),
+          title: Text(
             'About DevSpace',
-            style: TextStyle(color: AppColors.text),
+            style: TextStyle(color: AppColors.textFor(context)),
           ),
-          content: const Text(
+          content: Text(
             'DevSpace is built for student developers to share progress, ask for help, and build a real builder identity inside their college community.',
-            style: TextStyle(color: AppColors.text2, height: 1.5),
+            style: TextStyle(color: AppColors.text2For(context), height: 1.5),
           ),
           actions: [
             TextButton(
@@ -168,11 +171,100 @@ class _SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(4, 24, 4, 8),
       child: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w800,
-          color: AppColors.text4,
+          color: AppColors.text4For(context),
           letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
+}
+
+class _ThemeSelector extends StatelessWidget {
+  const _ThemeSelector();
+
+  @override
+  Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
+
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.bg2For(context),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.borderFor(context)),
+      ),
+      child: Row(
+        children: [
+          _ThemeOption(
+            label: 'System',
+            icon: Icons.brightness_auto_rounded,
+            isSelected: themeProvider.themeMode == ThemeMode.system,
+            onTap: () => themeProvider.setThemeMode(ThemeMode.system),
+          ),
+          _ThemeOption(
+            label: 'Light',
+            icon: Icons.light_mode_rounded,
+            isSelected: themeProvider.themeMode == ThemeMode.light,
+            onTap: () => themeProvider.setThemeMode(ThemeMode.light),
+          ),
+          _ThemeOption(
+            label: 'Dark',
+            icon: Icons.dark_mode_rounded,
+            isSelected: themeProvider.themeMode == ThemeMode.dark,
+            onTap: () => themeProvider.setThemeMode(ThemeMode.dark),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ThemeOption extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _ThemeOption({
+    required this.label,
+    required this.icon,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.bg3For(context) : Colors.transparent,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            children: [
+              Icon(
+                icon,
+                size: 20,
+                color: isSelected ? AppColors.primary : AppColors.text3For(context),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                  color: isSelected ? AppColors.textFor(context) : AppColors.text3For(context),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -197,9 +289,9 @@ class _SettingsTile extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: AppColors.bg2,
+        color: AppColors.bg2For(context),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.borderFor(context)),
       ),
       child: ListTile(
         onTap: onTap,
@@ -207,15 +299,15 @@ class _SettingsTile extends StatelessWidget {
           width: 42,
           height: 42,
           decoration: BoxDecoration(
-            color: AppColors.bg3,
+            color: AppColors.bg3For(context),
             borderRadius: BorderRadius.circular(14),
           ),
-          child: Icon(icon, color: AppColors.text2, size: 20),
+          child: Icon(icon, color: AppColors.text2For(context), size: 20),
         ),
         title: Text(
           title,
-          style: const TextStyle(
-            color: AppColors.text,
+          style: TextStyle(
+            color: AppColors.textFor(context),
             fontSize: 15,
             fontWeight: FontWeight.w700,
           ),
@@ -224,16 +316,16 @@ class _SettingsTile extends StatelessWidget {
           padding: const EdgeInsets.only(top: 4),
           child: Text(
             subtitle,
-            style: const TextStyle(
-              color: AppColors.text3,
+            style: TextStyle(
+              color: AppColors.text3For(context),
               fontSize: 13,
               height: 1.35,
             ),
           ),
         ),
-        trailing: const Icon(
+        trailing: Icon(
           Icons.chevron_right_rounded,
-          color: AppColors.text4,
+          color: AppColors.text4For(context),
         ),
       ),
     );
@@ -256,17 +348,17 @@ class _AccountCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.bg2,
+        color: AppColors.bg2For(context),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.borderFor(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Account',
             style: TextStyle(
-              color: AppColors.text4,
+              color: AppColors.text4For(context),
               fontSize: 11,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.2,
@@ -275,8 +367,8 @@ class _AccountCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             userName,
-            style: const TextStyle(
-              color: AppColors.text,
+            style: TextStyle(
+              color: AppColors.textFor(context),
               fontSize: 19,
               fontWeight: FontWeight.w900,
             ),
@@ -284,8 +376,8 @@ class _AccountCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             '@$handle',
-            style: const TextStyle(
-              color: AppColors.text3,
+            style: TextStyle(
+              color: AppColors.text3For(context),
               fontSize: 13,
             ),
           ),
@@ -294,22 +386,22 @@ class _AccountCard extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: AppColors.bg3,
+              color: AppColors.bg3For(context),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.mail_outline_rounded,
                   size: 18,
-                  color: AppColors.text3,
+                  color: AppColors.text3For(context),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     email,
-                    style: const TextStyle(
-                      color: AppColors.text2,
+                    style: TextStyle(
+                      color: AppColors.text2For(context),
                       fontSize: 13,
                     ),
                   ),
@@ -339,9 +431,9 @@ class _AnalyticsCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.bg2,
+        color: AppColors.bg2For(context),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.borderFor(context)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -386,17 +478,18 @@ class _InsightItem extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w900,
-            color: AppColors.text,
+            color: AppColors.textFor(context),
           ),
         ),
         Text(
           label,
-          style: const TextStyle(fontSize: 12, color: AppColors.text3),
+          style: TextStyle(fontSize: 12, color: AppColors.text3For(context)),
         ),
       ],
     );
   }
 }
+

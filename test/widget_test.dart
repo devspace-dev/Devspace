@@ -11,8 +11,8 @@ void main() {
       ),
     );
 
-    expect(find.text('DevSpace'), findsOneWidget);
-    expect(find.text('Sign in with email'), findsOneWidget);
+    expect(find.text('Welcome\nBack'), findsOneWidget);
+    expect(find.text('Sign In'), findsOneWidget);
     expect(find.text('Continue with Google'), findsOneWidget);
   });
 

@@ -65,8 +65,8 @@ class _PostCardState extends State<PostCard> {
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.border, width: 0.5)),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.borderFor(context), width: 0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -90,25 +90,25 @@ class _PostCardState extends State<PostCard> {
                           GestureDetector(
                             onTap: () => _openProfile(context, user.id),
                             child: Text(user.name,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.w700,
                                   fontSize: 15,
-                                  color: AppColors.text,
+                                  color: AppColors.textFor(context),
                                 )),
                           ),
                           const SizedBox(width: 6),
                           Text(timeago.format(post.createdAt, locale: 'en_short'),
-                              style: const TextStyle(fontSize: 13, color: AppColors.text3)),
+                              style: TextStyle(fontSize: 13, color: AppColors.text3For(context))),
                         ],
                       ),
                       Text('@${user.handle}',
-                          style: const TextStyle(fontSize: 13, color: AppColors.text3)),
+                          style: TextStyle(fontSize: 13, color: AppColors.text3For(context))),
                     ],
                   ),
                 ),
                 if (isMe)
                   IconButton(
-                    icon: const Icon(Icons.more_horiz, size: 20, color: AppColors.text3),
+                    icon: Icon(Icons.more_horiz, size: 20, color: AppColors.text3For(context)),
                     onPressed: () => _showPostOptions(context, post),
                   ),
               ],
@@ -121,9 +121,9 @@ class _PostCardState extends State<PostCard> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
               post.content,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
-                color: AppColors.text,
+                color: AppColors.textFor(context),
                 height: 1.4,
               ),
             ),
@@ -274,9 +274,9 @@ class _PostCardState extends State<PostCard> {
                           style: const TextStyle(fontSize: 14),
                           decoration: InputDecoration(
                             hintText: 'Add a reply...',
-                            hintStyle: const TextStyle(color: AppColors.text3),
+                            hintStyle: TextStyle(color: AppColors.text3For(context)),
                             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            fillColor: AppColors.bg2,
+                            fillColor: AppColors.bg2For(context),
                             filled: true,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(20),
@@ -307,7 +307,7 @@ class _PostCardState extends State<PostCard> {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => GlassContainer(
-        color: AppColors.bg2,
+        color: AppColors.bg2For(context),
         opacity: 0.9,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         child: SafeArea(
@@ -342,16 +342,16 @@ class _PostCardState extends State<PostCard> {
     final nextContent = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bg2,
-        title: const Text('Edit Post', style: TextStyle(color: AppColors.text, fontWeight: FontWeight.w700)),
+        backgroundColor: AppColors.bg2For(context),
+        title: Text('Edit Post', style: TextStyle(color: AppColors.textFor(context), fontWeight: FontWeight.w700)),
         content: TextField(
           controller: ctrl,
           maxLines: 5,
-          style: const TextStyle(color: AppColors.text),
+          style: TextStyle(color: AppColors.textFor(context)),
           decoration: InputDecoration(
             hintText: 'Update your build...',
             filled: true,
-            fillColor: AppColors.bg3,
+            fillColor: AppColors.bg3For(context),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
@@ -373,7 +373,7 @@ class _PostCardState extends State<PostCard> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bg2,
+        backgroundColor: AppColors.bg2For(context),
         title: const Text('Delete Post?'),
         content: const Text('This action cannot be undone.'),
         actions: [
@@ -549,7 +549,7 @@ class _CommentRow extends StatelessWidget {
                     Text(user.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                     const SizedBox(width: 6),
                     Text(timeago.format(comment.createdAt, locale: 'en_short'),
-                        style: const TextStyle(fontSize: 12, color: AppColors.text3)),
+                        style: TextStyle(fontSize: 12, color: AppColors.text3For(context))),
                   ],
                 ),
                 const SizedBox(height: 2),
@@ -585,7 +585,7 @@ class _QuotePostSheetState extends State<_QuotePostSheet> {
   @override
   Widget build(BuildContext context) {
     return GlassContainer(
-      color: AppColors.bg,
+      color: AppColors.bgFor(context),
       opacity: 0.95,
       borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       child: Container(
@@ -598,7 +598,7 @@ class _QuotePostSheetState extends State<_QuotePostSheet> {
               children: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel', style: TextStyle(color: AppColors.text)),
+                  child: Text('Cancel', style: TextStyle(color: AppColors.textFor(context))),
                 ),
                 ElevatedButton(
                   onPressed: _posting ? null : _submit,
@@ -615,7 +615,7 @@ class _QuotePostSheetState extends State<_QuotePostSheet> {
               controller: _textCtrl,
               maxLines: null,
               autofocus: true,
-              style: const TextStyle(fontSize: 17),
+              style: TextStyle(fontSize: 17, color: AppColors.textFor(context)),
               decoration: const InputDecoration(
                 hintText: 'Add a comment...',
                 filled: false,
@@ -663,7 +663,7 @@ class _QuotedPostPreview extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        border: Border.all(color: AppColors.borderFor(context), width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -706,7 +706,7 @@ class _PostImageThumbnail extends StatelessWidget {
       height: maxHeight,
       fit: fit,
       placeholder: (_, __) => Container(
-        color: AppColors.bg2,
+        color: AppColors.bg2For(context),
         height: maxHeight ?? 200,
       ),
     );
@@ -749,7 +749,7 @@ class _ActionBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = active ? (activeColor ?? AppColors.primary) : AppColors.text3;
+    final color = active ? (activeColor ?? AppColors.primary) : AppColors.text3For(context);
     final displayIcon = active && activeIcon != null ? activeIcon! : icon;
     
     return GestureDetector(
@@ -772,3 +772,4 @@ class _ActionBtn extends StatelessWidget {
     );
   }
 }
+

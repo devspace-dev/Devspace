@@ -219,6 +219,48 @@ class SupabaseService {
         .toSet();
   }
 
+  Future<List<String>> getFollowerIds(String userId) async {
+    final data = await _client
+        .from('follows')
+        .select('follower_id')
+        .eq('following_id', userId)
+        .order('created_at', ascending: false);
+    return (data as List)
+        .map((row) => row['follower_id'].toString())
+        .toList();
+  }
+
+  Future<List<String>> getFollowingIdList(String userId) async {
+    final data = await _client
+        .from('follows')
+        .select('following_id')
+        .eq('follower_id', userId)
+        .order('created_at', ascending: false);
+    return (data as List)
+        .map((row) => row['following_id'].toString())
+        .toList();
+  }
+
+  Future<List<UserModel>> getUsersByIds(List<String> userIds) async {
+    final distinctIds = userIds.toSet().toList();
+    if (distinctIds.isEmpty) return const [];
+
+    final data = await _client
+        .from('users')
+        .select()
+        .inFilter('id', distinctIds);
+
+    final usersById = {
+      for (final row in data as List)
+        row['id'].toString(): UserModel.fromJson(row as Map<String, dynamic>),
+    };
+
+    return userIds
+        .map((id) => usersById[id])
+        .whereType<UserModel>()
+        .toList();
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
   // SOCIAL
   // ══════════════════════════════════════════════════════════════════════════

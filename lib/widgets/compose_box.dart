@@ -38,8 +38,8 @@ class _ComposeBoxState extends State<ComposeBox> {
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.border, width: 0.5)),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.borderFor(context), width: 0.5)),
       ),
       child: Row(
         children: [
@@ -51,14 +51,15 @@ class _ComposeBoxState extends State<ComposeBox> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
-                  color: AppColors.bg2,
-                  borderRadius: BorderRadius.circular(20),
+                  color: AppColors.bg2For(context),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: AppColors.borderFor(context), width: 0.5),
                 ),
-                child: const Text(
+                child: Text(
                   'What\'s happening?',
                   style: TextStyle(
                     fontSize: 15,
-                    color: AppColors.text3,
+                    color: AppColors.text3For(context),
                   ),
                 ),
               ),
@@ -97,7 +98,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
   @override
   Widget build(BuildContext context) {
     return GlassContainer(
-      color: AppColors.bg,
+      color: AppColors.bgFor(context),
       opacity: 0.98,
       borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       child: Container(
@@ -110,7 +111,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
               children: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel', style: TextStyle(color: AppColors.text)),
+                  child: Text('Cancel', style: TextStyle(color: AppColors.textFor(context))),
                 ),
                 ElevatedButton(
                   onPressed: _posting ? null : _submit,
@@ -137,7 +138,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                             controller: _textCtrl,
                             maxLines: null,
                             autofocus: true,
-                            style: const TextStyle(fontSize: 18),
+                            style: TextStyle(fontSize: 18, color: AppColors.textFor(context)),
                             decoration: const InputDecoration(
                               hintText: 'Share your progress...',
                               filled: false,
@@ -158,7 +159,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                 ),
               ),
             ),
-            const Divider(),
+            Divider(color: AppColors.borderFor(context)),
             Row(
               children: [
                 IconButton(
@@ -193,3 +194,4 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
     }
   }
 }
+

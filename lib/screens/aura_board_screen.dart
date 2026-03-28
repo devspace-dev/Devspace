@@ -14,26 +14,26 @@ class AuraBoardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final ranked  = context.watch<UsersProvider>().leaderboard;
     final medals  = ['🥇', '🥈', '🥉'];
-    final topInset = MediaQuery.of(context).padding.top + kToolbarHeight;
 
     return ListView(
-      padding: EdgeInsets.fromLTRB(0, topInset, 0, 100),
+      padding: const EdgeInsets.fromLTRB(0, 0, 0, 100),
       children: [
         // Header
         Container(
           padding: const EdgeInsets.fromLTRB(16, 20, 16, 14),
-          decoration: const BoxDecoration(
-            border: Border(bottom: BorderSide(color: AppColors.border))),
-          child: const Column(
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: AppColors.borderFor(context))),
+          ),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Aura Leaderboard',
                   style: TextStyle(
                     fontSize: 22, fontWeight: FontWeight.w900,
-                    color: AppColors.text, letterSpacing: -0.5)),
-              SizedBox(height: 3),
+                    color: AppColors.textFor(context), letterSpacing: -0.5)),
+              const SizedBox(height: 3),
               Text('Top contributors this month · stay active to climb',
-                  style: TextStyle(fontSize: 13, color: AppColors.text3)),
+                  style: TextStyle(fontSize: 13, color: AppColors.text3For(context))),
             ],
           ),
         ),
@@ -54,7 +54,7 @@ class AuraBoardScreen extends StatelessWidget {
                 color: i == 0
                     ? AppColors.primary.withValues(alpha: 0.05)
                     : Colors.transparent,
-                border: const Border(bottom: BorderSide(color: AppColors.border)),
+                border: Border(bottom: BorderSide(color: AppColors.borderFor(context))),
               ),
               child: Row(
                 children: [
@@ -64,9 +64,9 @@ class AuraBoardScreen extends StatelessWidget {
                       child: i < 3
                           ? Text(medals[i], style: const TextStyle(fontSize: 20))
                           : Text('#${i + 1}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 13, fontWeight: FontWeight.w800,
-                                color: AppColors.text3)),
+                                color: AppColors.text3For(context))),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -77,12 +77,12 @@ class AuraBoardScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(u.name,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.w800, fontSize: 15,
-                              color: AppColors.text)),
+                              color: AppColors.textFor(context))),
                         Text('@${u.handle} · ${u.academicLabel.isEmpty ? u.role : u.academicLabel}',
-                            style: const TextStyle(
-                              fontSize: 12, color: AppColors.text3)),
+                            style: TextStyle(
+                              fontSize: 12, color: AppColors.text3For(context))),
                         const SizedBox(height: 6),
                         AuraBar(aura: u.aura),
                       ],
@@ -97,8 +97,8 @@ class AuraBoardScreen extends StatelessWidget {
                             fontSize: 20, fontWeight: FontWeight.w900,
                             color: badge.color)),
                       Text('${badge.icon} ${badge.name}',
-                          style: const TextStyle(
-                            fontSize: 11, color: AppColors.text3)),
+                          style: TextStyle(
+                            fontSize: 11, color: AppColors.text3For(context))),
                     ],
                   ),
                 ],
@@ -113,16 +113,16 @@ class AuraBoardScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Badge Tiers',
+              Text('Badge Tiers',
                   style: TextStyle(
                     fontSize: 11, fontWeight: FontWeight.w700,
-                    color: AppColors.text3, letterSpacing: 1.0)),
+                    color: AppColors.text3For(context), letterSpacing: 1.0)),
               const SizedBox(height: 12),
               ...kBadges.map((b) => Container(
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
-                  color: AppColors.bg3,
+                  color: AppColors.bg3For(context),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: b.color.withValues(alpha: 0.2)),
                 ),
@@ -139,8 +139,8 @@ class AuraBoardScreen extends StatelessWidget {
                                 fontWeight: FontWeight.w700, fontSize: 14,
                                 color: b.color)),
                           Text(b.description,
-                              style: const TextStyle(
-                                fontSize: 12, color: AppColors.text3)),
+                              style: TextStyle(
+                                fontSize: 12, color: AppColors.text3For(context))),
                         ],
                       ),
                     ),
@@ -148,7 +148,7 @@ class AuraBoardScreen extends StatelessWidget {
                       b.max == 999999999
                           ? '${b.min}+'
                           : '${b.min}–${b.max}',
-                      style: const TextStyle(fontSize: 12, color: AppColors.text4),
+                      style: TextStyle(fontSize: 12, color: AppColors.text4For(context)),
                     ),
                   ],
                 ),
@@ -162,3 +162,5 @@ class AuraBoardScreen extends StatelessWidget {
     );
   }
 }
+
+

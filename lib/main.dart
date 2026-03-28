@@ -12,6 +12,7 @@ import 'providers/questions_provider.dart';
 import 'providers/users_provider.dart';
 import 'providers/aura_provider.dart';
 import 'providers/notifications_provider.dart';
+import 'providers/theme_provider.dart';
 import 'screens/profile_setup_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
@@ -51,9 +52,12 @@ void main() async {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
+  // Set system UI overlay style for initial splash screen appearance
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
+    systemNavigationBarColor: Colors.transparent,
+    systemNavigationBarIconBrightness: Brightness.light,
   ));
 
   runApp(
@@ -70,6 +74,7 @@ class DevSpaceRoot extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => PostsProvider()),
         ChangeNotifierProvider(create: (_) => QuestionsProvider()),
@@ -77,11 +82,17 @@ class DevSpaceRoot extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuraProvider()),
         ChangeNotifierProvider(create: (_) => NotificationsProvider()),
       ],
-      child: MaterialApp(
-        title: 'DevSpace',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.dark,
-        home: const _Root(),
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, _) {
+          return MaterialApp(
+            title: 'DevSpace',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.light,
+            darkTheme: AppTheme.dark,
+            themeMode: themeProvider.themeMode,
+            home: const _Root(),
+          );
+        },
       ),
     );
   }
@@ -132,14 +143,16 @@ class _RootState extends State<_Root> {
 
       final openSetup = await showModalBottomSheet<bool>(
         context: context,
-        backgroundColor: AppColors.bg2,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
+        backgroundColor: Colors.transparent,
         builder: (sheetContext) {
           return SafeArea(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 18,
+                bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -148,25 +161,25 @@ class _RootState extends State<_Root> {
                     width: 42,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: AppColors.border2,
+                      color: AppColors.border2For(context),
                       borderRadius: BorderRadius.circular(99),
                     ),
                   ),
                   const SizedBox(height: 18),
-                  const Text(
+                  Text(
                     'Complete your profile',
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w900,
-                      color: AppColors.text,
+                      color: AppColors.textFor(context),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Good profiles make discovery, follows, and collaboration much better. Add your year, branch, stack, and what you are building.',
                     style: TextStyle(
                       fontSize: 14,
-                      color: AppColors.text2,
+                      color: AppColors.text2For(context),
                       height: 1.5,
                     ),
                   ),
@@ -279,7 +292,7 @@ class _SetupRequiredScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.bgFor(context),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -289,9 +302,9 @@ class _SetupRequiredScreen extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: AppColors.bg2,
+                  color: AppColors.bg2For(context),
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: AppColors.border),
+                  border: Border.all(color: AppColors.borderFor(context)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -316,8 +329,8 @@ class _SetupRequiredScreen extends StatelessWidget {
                     const SizedBox(height: 18),
                     const _SetupCodeBlock(
                       lines: [
-                        'flutter run \\',
-                        '  --dart-define=SUPABASE_URL=your-project-url \\',
+                        'flutter run ',
+                        '  --dart-define=SUPABASE_URL=your-project-url ',
                         '  --dart-define=SUPABASE_ANON_KEY=your-anon-key',
                       ],
                     ),
@@ -334,10 +347,10 @@ class _SetupRequiredScreen extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text(
                       error,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         height: 1.5,
-                        color: AppColors.text,
+                        color: AppColors.textFor(context),
                       ),
                     ),
                   ],
@@ -364,9 +377,9 @@ class _SetupCodeBlock extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.bg,
+        color: AppColors.bgFor(context),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.borderFor(context)),
       ),
       child: Text(
         lines.join('\n'),
@@ -380,3 +393,4 @@ class _SetupCodeBlock extends StatelessWidget {
     );
   }
 }
+

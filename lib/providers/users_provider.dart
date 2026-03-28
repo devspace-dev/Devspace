@@ -137,6 +137,20 @@ class UsersProvider extends ChangeNotifier {
     return _users.where((u) => u.branch == branch).toList();
   }
 
+  Future<List<UserModel>> followersFor(String userId) async {
+    return _fetchConnectionUsers(
+      userId,
+      loadIds: SupabaseService.instance.getFollowerIds,
+    );
+  }
+
+  Future<List<UserModel>> followingFor(String userId) async {
+    return _fetchConnectionUsers(
+      userId,
+      loadIds: SupabaseService.instance.getFollowingIdList,
+    );
+  }
+
   List<UserModel> get leaderboard {
     final sorted = List<UserModel>.from(_users);
     sorted.sort((a, b) => b.aura.compareTo(a.aura));
@@ -209,6 +223,45 @@ class UsersProvider extends ChangeNotifier {
     } catch (_) {
       return null;
     }
+  }
+
+  Future<List<UserModel>> _fetchConnectionUsers(
+    String userId, {
+    required Future<List<String>> Function(String userId) loadIds,
+  }) async {
+    final ids = await loadIds(userId);
+    if (ids.isEmpty) return const [];
+
+    final currentUser = AuthService.instance.currentUser;
+    final knownUsersById = {
+      for (final user in _users)
+        user.id: user,
+    };
+
+    List<UserModel> loadedUsers;
+    final missingIds = ids.where((id) => !knownUsersById.containsKey(id)).toList();
+
+    if (missingIds.isEmpty) {
+      loadedUsers = ids
+          .map((id) => knownUsersById[id])
+          .whereType<UserModel>()
+          .toList();
+    } else {
+      loadedUsers = await SupabaseService.instance.getUsersByIds(ids);
+    }
+
+    if (currentUser == null) {
+      return loadedUsers;
+    }
+
+    final followingIds = await SupabaseService.instance.getFollowingIds(currentUser.id);
+    return loadedUsers
+        .map(
+          (user) => user.copyWith(
+            isFollowing: user.id != currentUser.id && followingIds.contains(user.id),
+          ),
+        )
+        .toList();
   }
 
   @override
