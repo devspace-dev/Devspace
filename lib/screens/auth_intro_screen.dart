@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../theme/app_colors.dart';
 import 'login_screen.dart';
 
 class AuthIntroScreen extends StatefulWidget {
@@ -19,56 +18,80 @@ class _AuthIntroScreenState extends State<AuthIntroScreen> {
 
   static const List<_IntroSlideData> _slides = [
     _IntroSlideData(
-      title: 'Post your build\njourney publicly',
-      subtitle:
-          'Share project updates, hackathon progress, and what you are shipping with your college dev circle.',
-      topLabel: 'Build In Public',
-      accent: Color(0xFF7CFF31),
-      background: Color(0xFFA6FF1D),
-      foreground: Color(0xFF101410),
-      panel: Color(0xFFF7FFD8),
+      label: 'Build In Public',
+      title: 'Share your builder journey with the right people',
+      body:
+          'Post project updates, hackathon progress, and small wins in a feed made for student developers.',
+      accent: Color(0xFF4FD1FF),
+      accentSoft: Color(0xFF142636),
+      bgTop: Color(0xFF0A1220),
+      bgBottom: Color(0xFF050814),
+      cardColor: Color(0xFF0F1726),
+      heroTitle: 'Campus Feed',
+      heroSubtitle: 'Updates from real builders in your college',
+      chips: ['Project updates', 'Hackathon logs', 'Build streak'],
+      statLeftValue: '128',
+      statLeftLabel: 'Active builders',
+      statRightValue: '42',
+      statRightLabel: 'New updates',
       icon: Icons.rocket_launch_rounded,
-      statLeft: 'Project updates',
-      statRight: 'Hackathon logs',
     ),
     _IntroSlideData(
-      title: 'Turn doubts into\nuseful Q&A threads',
-      subtitle:
-          'Ask technical questions, get practical replies, and keep solved answers visible for the next student.',
-      topLabel: 'Ask Better',
-      accent: Color(0xFFFF7AB8),
-      background: Color(0xFF0E0E12),
-      foreground: Colors.white,
-      panel: Color(0xFF1B1B24),
+      label: 'Practical Q&A',
+      title: 'Turn doubts into threads that actually help',
+      body:
+          'Ask technical questions, get clear replies, and keep solved answers visible for the next student.',
+      accent: Color(0xFFFF8AB8),
+      accentSoft: Color(0xFF311826),
+      bgTop: Color(0xFF140E19),
+      bgBottom: Color(0xFF09070D),
+      cardColor: Color(0xFF17111E),
+      heroTitle: 'Useful Q&A',
+      heroSubtitle: 'Practical replies that stay easy to revisit',
+      chips: ['Bug fixes', 'System design', 'Solved replies'],
+      statLeftValue: '34',
+      statLeftLabel: 'Solved threads',
+      statRightValue: 'Fast',
+      statRightLabel: 'Peer replies',
       icon: Icons.forum_rounded,
-      statLeft: 'Debug faster',
-      statRight: 'Solved replies',
     ),
     _IntroSlideData(
-      title: 'Find the people\nwho are actually building',
-      subtitle:
-          'Discover students by stack, branch, and projects so collaboration starts from shared work, not random chat.',
-      topLabel: 'Find Builders',
-      accent: Color(0xFFFF4FA1),
-      background: Color(0xFFFF5DA9),
-      foreground: Color(0xFF1A0F18),
-      panel: Color(0xFFFFD2E5),
+      label: 'Find Builders',
+      title: 'Discover people by stack, branch, and what they ship',
+      body:
+          'Find students building with Flutter, AI, web, or systems and grow a real dev circle on campus.',
+      accent: Color(0xFFFFB454),
+      accentSoft: Color(0xFF352515),
+      bgTop: Color(0xFF171015),
+      bgBottom: Color(0xFF09070A),
+      cardColor: Color(0xFF1A1318),
+      heroTitle: 'Builder Discovery',
+      heroSubtitle: 'Profiles designed around work, stack, and momentum',
+      chips: ['Flutter', 'AI', 'Open source'],
+      statLeftValue: 'Real',
+      statLeftLabel: 'Student profiles',
+      statRightValue: 'Same',
+      statRightLabel: 'College network',
       icon: Icons.groups_rounded,
-      statLeft: 'Real profiles',
-      statRight: 'Same campus',
     ),
     _IntroSlideData(
-      title: 'Earn aura for\nhelpful contribution',
-      subtitle:
-          'Posts, comments, and accepted answers build your visible builder identity from the first week.',
-      topLabel: 'Grow Reputation',
-      accent: Color(0xFFFFF14A),
-      background: Color(0xFFFFE82C),
-      foreground: Color(0xFF17120A),
-      panel: Color(0xFFFFF7B1),
+      label: 'Earn Aura',
+      title: 'Grow a visible reputation by being useful',
+      body:
+          'Posts, comments, and accepted answers earn aura so contribution feels meaningful from day one.',
+      accent: Color(0xFFB8FF65),
+      accentSoft: Color(0xFF21331A),
+      bgTop: Color(0xFF0C1610),
+      bgBottom: Color(0xFF060A07),
+      cardColor: Color(0xFF101A12),
+      heroTitle: 'Visible Progress',
+      heroSubtitle: 'Your contribution turns into momentum over time',
+      chips: ['Helpful replies', 'Accepted answers', 'Visible progress'],
+      statLeftValue: '+5',
+      statLeftLabel: 'For helping',
+      statRightValue: 'Compounds',
+      statRightLabel: 'Reputation',
       icon: Icons.auto_awesome_rounded,
-      statLeft: 'Helpful replies',
-      statRight: 'Visible aura',
     ),
   ];
 
@@ -104,464 +127,530 @@ class _AuthIntroScreenState extends State<AuthIntroScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final active = _slides[_pageIndex];
+
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          PageView.builder(
-            controller: _pageController,
-            itemCount: _slides.length,
-            onPageChanged: (index) {
-              setState(() => _pageIndex = index);
-            },
-            itemBuilder: (context, index) {
-              return _FullScreenIntroSlide(data: _slides[index]);
-            },
+      body: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [active.bgTop, active.bgBottom],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
           ),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 240),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.16),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.14),
-                          ),
-                        ),
-                        child: Text(
-                          'DevSpace',
-                          style: GoogleFonts.spaceGrotesk(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: _slides[_pageIndex].foreground,
-                          ),
-                        ),
-                      ),
-                      const Spacer(),
-                      TextButton(
-                        onPressed: () => _openAuth(signUp: false),
-                        child: Text(
-                          'Sign in',
-                          style: GoogleFonts.spaceGrotesk(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: _slides[_pageIndex].foreground.withValues(
-                              alpha: 0.82,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
+            child: Column(
+              children: [
+                _IntroHeader(
+                  onSignIn: () => _openAuth(signUp: false),
+                ),
+                const SizedBox(height: 18),
+                Expanded(
+                  child: PageView.builder(
+                    controller: _pageController,
+                    itemCount: _slides.length,
+                    onPageChanged: (index) {
+                      setState(() => _pageIndex = index);
+                    },
+                    itemBuilder: (context, index) {
+                      return _IntroPage(data: _slides[index]);
+                    },
                   ),
-                  const Spacer(),
-                  Row(
-                    children: [
-                      ...List.generate(
-                        _slides.length,
-                        (index) => AnimatedContainer(
-                          duration: const Duration(milliseconds: 220),
-                          curve: Curves.easeOutCubic,
-                          width: index == _pageIndex ? 28 : 8,
-                          height: 8,
-                          margin: const EdgeInsets.only(right: 8),
-                          decoration: BoxDecoration(
-                            color: index == _pageIndex
-                                ? _slides[_pageIndex].foreground
-                                : _slides[_pageIndex].foreground
-                                    .withValues(alpha: 0.22),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                        ),
-                      ),
-                      const Spacer(),
-                      SizedBox(
-                        width: 156,
-                        height: 54,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.black,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(99),
-                            ),
-                          ),
-                          onPressed: _next,
-                          child: Text(
-                            _pageIndex == _slides.length - 1
-                                ? 'Get Started'
-                                : 'Next',
-                            style: GoogleFonts.spaceGrotesk(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () => _openAuth(signUp: true),
-                      child: Text(
-                        'Create account',
-                        style: GoogleFonts.spaceGrotesk(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: _slides[_pageIndex].foreground.withValues(
-                            alpha: 0.82,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 18),
+                _IntroActions(
+                  activeIndex: _pageIndex,
+                  total: _slides.length,
+                  onNext: _next,
+                  onCreateAccount: () => _openAuth(signUp: true),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
 class _IntroSlideData {
+  final String label;
   final String title;
-  final String subtitle;
-  final String topLabel;
+  final String body;
   final Color accent;
-  final Color background;
-  final Color foreground;
-  final Color panel;
+  final Color accentSoft;
+  final Color bgTop;
+  final Color bgBottom;
+  final Color cardColor;
+  final String heroTitle;
+  final String heroSubtitle;
+  final List<String> chips;
+  final String statLeftValue;
+  final String statLeftLabel;
+  final String statRightValue;
+  final String statRightLabel;
   final IconData icon;
-  final String statLeft;
-  final String statRight;
 
   const _IntroSlideData({
+    required this.label,
     required this.title,
-    required this.subtitle,
-    required this.topLabel,
+    required this.body,
     required this.accent,
-    required this.background,
-    required this.foreground,
-    required this.panel,
+    required this.accentSoft,
+    required this.bgTop,
+    required this.bgBottom,
+    required this.cardColor,
+    required this.heroTitle,
+    required this.heroSubtitle,
+    required this.chips,
+    required this.statLeftValue,
+    required this.statLeftLabel,
+    required this.statRightValue,
+    required this.statRightLabel,
     required this.icon,
-    required this.statLeft,
-    required this.statRight,
   });
 }
 
-class _FullScreenIntroSlide extends StatelessWidget {
-  final _IntroSlideData data;
+class _IntroHeader extends StatelessWidget {
+  final VoidCallback onSignIn;
 
-  const _FullScreenIntroSlide({required this.data});
+  const _IntroHeader({required this.onSignIn});
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            data.background,
-            Color.lerp(data.background, Colors.white, 0.08)!,
-          ],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          ),
+          child: Text(
+            'DevSpace',
+            style: GoogleFonts.spaceGrotesk(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+            ),
+          ),
         ),
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 86, 18, 100),
-          child: Column(
-            children: [
-              Expanded(
-                child: Stack(
-                  clipBehavior: Clip.none,
+        const Spacer(),
+        TextButton(
+          onPressed: onSignIn,
+          child: Text(
+            'Sign in',
+            style: GoogleFonts.spaceGrotesk(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _IntroPage extends StatelessWidget {
+  final _IntroSlideData data;
+
+  const _IntroPage({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxHeight < 680;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _VisualPanel(
+              data: data,
+              compact: compact,
+              height: compact ? 250 : 310,
+            ),
+            const SizedBox(height: 18),
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(compact ? 20 : 24),
+                decoration: BoxDecoration(
+                  color: data.cardColor,
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Positioned(
-                      left: 14,
-                      right: 14,
-                      top: 44,
-                      bottom: 124,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(42),
-                        ),
+                    Text(
+                      data.label.toUpperCase(),
+                      style: GoogleFonts.spaceGrotesk(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                        color: data.accent,
                       ),
                     ),
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      top: 0,
-                      bottom: 86,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: data.background,
-                          borderRadius: BorderRadius.circular(42),
-                          border: Border.all(
-                            color: data.foreground.withValues(alpha: 0.08),
-                          ),
-                        ),
-                        child: Stack(
-                          children: [
-                            Positioned(
-                              top: 26,
-                              left: 24,
-                              child: Text(
-                                data.topLabel,
-                                style: GoogleFonts.spaceGrotesk(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                  color: data.foreground.withValues(alpha: 0.62),
-                                ),
-                              ),
-                            ),
-                            Positioned(
-                              top: 86,
-                              left: 24,
-                              right: 24,
-                              child: _HeroMock(data: data),
-                            ),
-                          ],
-                        ),
+                    const SizedBox(height: 12),
+                    Text(
+                      data.title,
+                      style: GoogleFonts.spaceGrotesk(
+                        fontSize: compact ? 31 : 36,
+                        fontWeight: FontWeight.w900,
+                        height: 1.02,
+                        letterSpacing: -1.4,
+                        color: Colors.white,
                       ),
                     ),
-                    Positioned(
-                      left: 18,
-                      right: 18,
-                      bottom: 0,
-                      child: Container(
-                        padding: const EdgeInsets.fromLTRB(22, 22, 22, 22),
-                        decoration: BoxDecoration(
-                          color: data.panel,
-                          borderRadius: BorderRadius.circular(32),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.12),
-                              blurRadius: 26,
-                              offset: const Offset(0, 12),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              data.title,
-                              style: GoogleFonts.spaceGrotesk(
-                                fontSize: 31,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: -1.4,
-                                height: 1.02,
-                                color: data.foreground,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              data.subtitle,
-                              style: GoogleFonts.spaceGrotesk(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                height: 1.48,
-                                color: data.foreground.withValues(alpha: 0.72),
-                              ),
-                            ),
-                          ],
-                        ),
+                    const SizedBox(height: 12),
+                    Text(
+                      data.body,
+                      style: GoogleFonts.spaceGrotesk(
+                        fontSize: compact ? 13.5 : 14.5,
+                        fontWeight: FontWeight.w500,
+                        height: 1.55,
+                        color: Colors.white.withValues(alpha: 0.68),
                       ),
                     ),
                   ],
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
 
-class _HeroMock extends StatelessWidget {
+class _VisualPanel extends StatelessWidget {
   final _IntroSlideData data;
-
-  const _HeroMock({required this.data});
-
-  @override
-  Widget build(BuildContext context) {
-    final cardColor = Colors.black.withValues(
-      alpha: data.background.computeLuminance() > 0.5 ? 0.1 : 0.28,
-    );
-
-    return SizedBox(
-      height: 320,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Positioned(
-            top: 22,
-            left: 16,
-            child: Transform.rotate(
-              angle: -0.12,
-              child: _MockCard(
-                width: 146,
-                height: 96,
-                color: cardColor,
-                accent: data.accent,
-                foreground: data.foreground,
-                label: data.statLeft,
-                icon: data.icon,
-              ),
-            ),
-          ),
-          Positioned(
-            top: 58,
-            right: 16,
-            child: Transform.rotate(
-              angle: 0.11,
-              child: _MockCard(
-                width: 142,
-                height: 92,
-                color: cardColor,
-                accent: data.foreground.withValues(alpha: 0.85),
-                foreground: data.foreground,
-                label: data.statRight,
-                icon: Icons.auto_awesome_rounded,
-              ),
-            ),
-          ),
-          Container(
-            width: 162,
-            height: 162,
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(42),
-              boxShadow: [
-                BoxShadow(
-                  color: data.accent.withValues(alpha: 0.24),
-                  blurRadius: 28,
-                  spreadRadius: 2,
-                ),
-              ],
-            ),
-            child: Center(
-              child: Container(
-                width: 84,
-                height: 84,
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.78),
-                  borderRadius: BorderRadius.circular(28),
-                ),
-                child: Icon(
-                  data.icon,
-                  size: 42,
-                  color: data.accent,
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 12,
-            child: Container(
-              width: 180,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.bolt_rounded,
-                    color: data.foreground,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Built for student devs',
-                      style: GoogleFonts.spaceGrotesk(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                        color: data.foreground,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MockCard extends StatelessWidget {
-  final double width;
+  final bool compact;
   final double height;
-  final Color color;
-  final Color accent;
-  final Color foreground;
-  final String label;
-  final IconData icon;
 
-  const _MockCard({
-    required this.width,
+  const _VisualPanel({
+    required this.data,
+    required this.compact,
     required this.height,
-    required this.color,
-    required this.accent,
-    required this.foreground,
-    required this.label,
-    required this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: width,
       height: height,
-      padding: const EdgeInsets.all(14),
+      width: double.infinity,
       decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: foreground.withValues(alpha: 0.08)),
+        borderRadius: BorderRadius.circular(34),
+        gradient: LinearGradient(
+          colors: [
+            data.accentSoft,
+            data.cardColor,
+            Colors.black.withValues(alpha: 0.92),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(12),
+          Positioned(
+            top: -26,
+            right: -14,
+            child: Container(
+              width: compact ? 120 : 150,
+              height: compact ? 120 : 150,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: data.accent.withValues(alpha: 0.14),
+              ),
             ),
-            child: Icon(icon, size: 18, color: accent),
           ),
-          const Spacer(),
-          Text(
-            label,
-            style: GoogleFonts.spaceGrotesk(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: foreground,
+          Positioned(
+            left: 18,
+            top: 18,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                'Made for student builders',
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 16,
+            right: 16,
+            top: compact ? 56 : 68,
+            child: Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF7F8FA),
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.18),
+                    blurRadius: 24,
+                    offset: const Offset(0, 16),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: data.accent.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(data.icon, color: data.accent, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              data.heroTitle,
+                              style: GoogleFonts.spaceGrotesk(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFF12161D),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              data.heroSubtitle,
+                              style: GoogleFonts.spaceGrotesk(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w500,
+                                color: const Color(0xFF616876),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: data.chips
+                        .map(
+                          (chip) => Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: data.accent.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              chip,
+                              style: GoogleFonts.spaceGrotesk(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF12161D),
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _StatTile(
+                          value: data.statLeftValue,
+                          label: data.statLeftLabel,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _StatTile(
+                          value: data.statRightValue,
+                          label: data.statRightLabel,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Positioned(
+            right: compact ? 22 : 28,
+            bottom: compact ? 18 : 22,
+            child: Container(
+              width: compact ? 68 : 78,
+              height: compact ? 68 : 78,
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.26),
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: data.accent.withValues(alpha: 0.26),
+                    blurRadius: 22,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Icon(
+                  data.icon,
+                  size: compact ? 30 : 34,
+                  color: data.accent,
+                ),
+              ),
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _StatTile extends StatelessWidget {
+  final String value;
+  final String label;
+
+  const _StatTile({
+    required this.value,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEEF1F5),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            value,
+            style: GoogleFonts.spaceGrotesk(
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              color: const Color(0xFF12161D),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: GoogleFonts.spaceGrotesk(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF616876),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _IntroActions extends StatelessWidget {
+  final int activeIndex;
+  final int total;
+  final VoidCallback onNext;
+  final VoidCallback onCreateAccount;
+
+  const _IntroActions({
+    required this.activeIndex,
+    required this.total,
+    required this.onNext,
+    required this.onCreateAccount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            ...List.generate(
+              total,
+              (index) => AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                width: index == activeIndex ? 28 : 8,
+                height: 8,
+                margin: const EdgeInsets.only(right: 8),
+                decoration: BoxDecoration(
+                  color: index == activeIndex
+                      ? Colors.white
+                      : Colors.white.withValues(alpha: 0.24),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+            ),
+            const Spacer(),
+            SizedBox(
+              width: 156,
+              height: 54,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+                onPressed: onNext,
+                child: Text(
+                  activeIndex == total - 1 ? 'Get Started' : 'Next',
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: onCreateAccount,
+            child: Text(
+              'Create account',
+              style: GoogleFonts.spaceGrotesk(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: Colors.white.withValues(alpha: 0.84),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
