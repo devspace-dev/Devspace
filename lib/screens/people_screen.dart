@@ -9,7 +9,16 @@ import '../widgets/profile_card.dart';
 import 'profile_screen.dart';
 
 class PeopleScreen extends StatefulWidget {
-  const PeopleScreen({super.key});
+  final String initialQuery;
+
+  const PeopleScreen({
+    super.key,
+    this.initialQuery = '',
+  });
+  const PeopleScreen.withQuery({
+    super.key,
+    required this.initialQuery,
+  });
 
   @override
   State<PeopleScreen> createState() => _PeopleScreenState();
@@ -18,6 +27,13 @@ class PeopleScreen extends StatefulWidget {
 class _PeopleScreenState extends State<PeopleScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _query = widget.initialQuery;
+    _searchController.text = widget.initialQuery;
+  }
 
   @override
   void dispose() {

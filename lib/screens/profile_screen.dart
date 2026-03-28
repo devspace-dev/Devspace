@@ -235,37 +235,43 @@ class ProfileScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 12),
-                            Wrap(
-                              spacing: 10,
-                              runSpacing: 10,
+                            Row(
                               children: [
-                                _StatButton(
-                                  count: profileUser.followers,
-                                  label: 'Followers',
-                                  accent: AppColors.primary,
-                                  onTap: () => Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => ConnectionsScreen(
-                                        user: profileUser,
-                                        type: ConnectionListType.followers,
+                                Expanded(
+                                  child: _StatButton(
+                                    count: profileUser.followers,
+                                    label: 'Followers',
+                                    accent: AppColors.primary,
+                                    onTap: () => Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => ConnectionsScreen(
+                                          user: profileUser,
+                                          type: ConnectionListType.followers,
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
-                                _StatButton(
-                                  count: posts.length,
-                                  label: 'Posts',
-                                  accent: AppColors.mint,
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: _StatButton(
+                                    count: posts.length,
+                                    label: 'Posts',
+                                    accent: AppColors.mint,
+                                  ),
                                 ),
-                                _StatButton(
-                                  count: profileUser.following,
-                                  label: 'Following',
-                                  accent: AppColors.indigo,
-                                  onTap: () => Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => ConnectionsScreen(
-                                        user: profileUser,
-                                        type: ConnectionListType.following,
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: _StatButton(
+                                    count: profileUser.following,
+                                    label: 'Following',
+                                    accent: AppColors.indigo,
+                                    onTap: () => Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => ConnectionsScreen(
+                                          user: profileUser,
+                                          type: ConnectionListType.following,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -535,7 +541,7 @@ class _StatButton extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(18),
         child: Ink(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
             color: accent.withValues(alpha: 0.1),
@@ -545,10 +551,11 @@ class _StatButton extends StatelessWidget {
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Text(
                 '$count',
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w900,
@@ -556,10 +563,14 @@ class _StatButton extends StatelessWidget {
                   letterSpacing: -0.4,
                 ),
               ),
+              const SizedBox(height: 2),
               Text(
                 label,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 11.5,
                   fontWeight: FontWeight.w700,
                   color: accent,
                 ),

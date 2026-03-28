@@ -10,9 +10,9 @@ import '../models/user_model.dart';
 import '../providers/posts_provider.dart';
 import '../providers/users_provider.dart';
 import '../providers/auth_provider.dart';
+import '../screens/people_screen.dart';
 import '../screens/profile_screen.dart';
 import '../theme/app_colors.dart';
-import '../utils/constants.dart';
 import 'user_avatar.dart';
 import 'glass_container.dart';
 
@@ -163,11 +163,34 @@ class _PostCardState extends State<PostCard> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Wrap(
                 spacing: 8,
-                children: post.tags.map((t) => Text(
-                  '#$t',
-                  style: const TextStyle(
-                    fontSize: 14, color: AppColors.primary, fontWeight: FontWeight.w500),
-                )).toList(),
+                children: post.tags
+                    .map(
+                      (t) => GestureDetector(
+                        onTap: () => _openTagSearch(context, t),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: AppColors.primary.withValues(alpha: 0.18),
+                            ),
+                          ),
+                          child: Text(
+                            '#$t',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
               ),
             ),
           ],
@@ -413,6 +436,14 @@ class _PostCardState extends State<PostCard> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => ProfileScreen(userId: userId),
+      ),
+    );
+  }
+
+  void _openTagSearch(BuildContext context, String tag) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PeopleScreen.withQuery(initialQuery: tag),
       ),
     );
   }
@@ -720,9 +751,78 @@ class _PostImageThumbnail extends StatelessWidget {
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
-      child: Hero(
-        tag: heroTag,
-        child: image,
+      child: GestureDetector(
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => _PostImageViewer(
+                imageUrl: imageUrl,
+                heroTag: heroTag,
+                backgroundColor: backgroundColor,
+              ),
+            ),
+          );
+        },
+        child: Hero(
+          tag: heroTag,
+          child: image,
+        ),
+      ),
+    );
+  }
+}
+
+class _PostImageViewer extends StatelessWidget {
+  final String imageUrl;
+  final String heroTag;
+  final Color? backgroundColor;
+
+  const _PostImageViewer({
+    required this.imageUrl,
+    required this.heroTag,
+    this.backgroundColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    Widget image = CachedNetworkImage(
+      imageUrl: imageUrl,
+      fit: BoxFit.contain,
+      placeholder: (_, __) => const Center(
+        child: CircularProgressIndicator.adaptive(),
+      ),
+    );
+
+    if (backgroundColor != null) {
+      image = Container(color: backgroundColor, child: image);
+    }
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          Center(
+            child: Hero(
+              tag: heroTag,
+              child: image,
+            ),
+          ),
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topRight,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
