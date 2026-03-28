@@ -7,7 +7,7 @@ import '../models/question_model.dart';
 import '../models/question_reply_model.dart';
 
 /// SQL Schema for Supabase (Run this in Supabase SQL Editor):
-/// 
+///
 /// create table users (
 ///   id uuid references auth.users not null primary key,
 ///   name text,
@@ -42,7 +42,7 @@ import '../models/question_reply_model.dart';
 ///   reposts_count bigint default 0,
 ///   created_at timestamp with time zone default timezone('utc'::text, now())
 /// );
-/// 
+///
 /// create table follows (
 ///   id uuid default gen_random_uuid() primary key,
 ///   follower_id uuid references users(id) on delete cascade,
@@ -50,7 +50,7 @@ import '../models/question_reply_model.dart';
 ///   created_at timestamp with time zone default timezone('utc'::text, now()),
 ///   unique(follower_id, following_id)
 /// );
-/// 
+///
 /// create table likes (
 ///   id uuid default gen_random_uuid() primary key,
 ///   post_id uuid references posts(id) on delete cascade,
@@ -104,7 +104,7 @@ import '../models/question_reply_model.dart';
 ///   created_at timestamp with time zone default timezone('utc'::text, now()),
 ///   unique(question_id, user_id)
 /// );
-/// 
+///
 /// create table notifications (
 ///   id uuid default gen_random_uuid() primary key,
 ///   to_uid uuid references users(id) on delete cascade,
@@ -149,11 +149,8 @@ class SupabaseService {
   }
 
   Future<UserModel?> getUserById(String id) async {
-    final data = await _client
-        .from('users')
-        .select()
-        .eq('id', id)
-        .maybeSingle();
+    final data =
+        await _client.from('users').select().eq('id', id).maybeSingle();
     return data == null ? null : UserModel.fromJson(data);
   }
 
@@ -214,9 +211,7 @@ class SupabaseService {
         .from('follows')
         .select('following_id')
         .eq('follower_id', userId);
-    return (data as List)
-        .map((row) => row['following_id'].toString())
-        .toSet();
+    return (data as List).map((row) => row['following_id'].toString()).toSet();
   }
 
   Future<List<String>> getFollowerIds(String userId) async {
@@ -225,9 +220,7 @@ class SupabaseService {
         .select('follower_id')
         .eq('following_id', userId)
         .order('created_at', ascending: false);
-    return (data as List)
-        .map((row) => row['follower_id'].toString())
-        .toList();
+    return (data as List).map((row) => row['follower_id'].toString()).toList();
   }
 
   Future<List<String>> getFollowingIdList(String userId) async {
@@ -236,29 +229,22 @@ class SupabaseService {
         .select('following_id')
         .eq('follower_id', userId)
         .order('created_at', ascending: false);
-    return (data as List)
-        .map((row) => row['following_id'].toString())
-        .toList();
+    return (data as List).map((row) => row['following_id'].toString()).toList();
   }
 
   Future<List<UserModel>> getUsersByIds(List<String> userIds) async {
     final distinctIds = userIds.toSet().toList();
     if (distinctIds.isEmpty) return const [];
 
-    final data = await _client
-        .from('users')
-        .select()
-        .inFilter('id', distinctIds);
+    final data =
+        await _client.from('users').select().inFilter('id', distinctIds);
 
     final usersById = {
       for (final row in data as List)
         row['id'].toString(): UserModel.fromJson(row as Map<String, dynamic>),
     };
 
-    return userIds
-        .map((id) => usersById[id])
-        .whereType<UserModel>()
-        .toList();
+    return userIds.map((id) => usersById[id]).whereType<UserModel>().toList();
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -273,9 +259,11 @@ class SupabaseService {
   }
 
   Future<void> unfollow(String fromUid, String toUid) async {
-    await _client.from('follows').delete()
-      .eq('follower_id', fromUid)
-      .eq('following_id', toUid);
+    await _client
+        .from('follows')
+        .delete()
+        .eq('follower_id', fromUid)
+        .eq('following_id', toUid);
   }
 
   Future<bool> isFollowing(String fromUid, String toUid) async {
@@ -299,18 +287,21 @@ class SupabaseService {
     String? imageUrl,
     String? quotePostId,
   }) async {
-    final data = await _client.from('posts').insert({
-      'user_id': userId,
-      'content': content,
-      'tags': tags,
-      'image_url': imageUrl ?? '',
-      'quote_post_id': quotePostId,
-      'likes_count': 0,
-      'comments_count': 0,
-      'reposts_count': 0,
-    }).select().single();
+    if (_client.auth.currentUser?.id != userId) {
+      throw StateError('Authenticated user does not match post creator.');
+    }
 
-    return data['id'].toString();
+    final data = await _client.rpc(
+      'create_post_with_aura',
+      params: {
+        'p_content': content,
+        'p_tags': tags,
+        'p_image_url': imageUrl ?? '',
+        'p_quote_post_id': quotePostId,
+      },
+    );
+
+    return data.toString();
   }
 
   Future<void> updatePostImage(String postId, String imageUrl) async {
@@ -338,11 +329,8 @@ class SupabaseService {
   }
 
   Future<PostModel?> getPostById(String postId) async {
-    final data = await _client
-        .from('posts')
-        .select()
-        .eq('id', postId)
-        .maybeSingle();
+    final data =
+        await _client.from('posts').select().eq('id', postId).maybeSingle();
     return data == null ? null : PostModel.fromJson(data);
   }
 
@@ -361,16 +349,29 @@ class SupabaseService {
   // ══════════════════════════════════════════════════════════════════════════
 
   Future<void> likePost(String postId, String uid) async {
-    await _client.from('likes').insert({
-      'post_id': postId,
-      'user_id': uid,
-    });
-    await _syncPostLikeCount(postId);
+    if (_client.auth.currentUser?.id != uid) {
+      throw StateError('Authenticated user does not match like actor.');
+    }
+
+    await _client.rpc(
+      'like_post_with_aura',
+      params: {
+        'p_post_id': postId,
+      },
+    );
   }
 
   Future<void> unlikePost(String postId, String uid) async {
-    await _client.from('likes').delete().eq('post_id', postId).eq('user_id', uid);
-    await _syncPostLikeCount(postId);
+    if (_client.auth.currentUser?.id != uid) {
+      throw StateError('Authenticated user does not match like actor.');
+    }
+
+    await _client.rpc(
+      'unlike_post',
+      params: {
+        'p_post_id': postId,
+      },
+    );
   }
 
   Future<bool> hasLiked(String postId, String uid) async {
@@ -384,13 +385,9 @@ class SupabaseService {
   }
 
   Future<Set<String>> getLikedPostIds(String userId) async {
-    final data = await _client
-        .from('likes')
-        .select('post_id')
-        .eq('user_id', userId);
-    return (data as List)
-        .map((row) => row['post_id'].toString())
-        .toSet();
+    final data =
+        await _client.from('likes').select('post_id').eq('user_id', userId);
+    return (data as List).map((row) => row['post_id'].toString()).toSet();
   }
 
   Future<void> bookmarkPost(String postId, String userId) async {
@@ -412,13 +409,9 @@ class SupabaseService {
   }
 
   Future<Set<String>> getBookmarkedPostIds(String userId) async {
-    final data = await _client
-        .from('bookmarks')
-        .select('post_id')
-        .eq('user_id', userId);
-    return (data as List)
-        .map((row) => row['post_id'].toString())
-        .toSet();
+    final data =
+        await _client.from('bookmarks').select('post_id').eq('user_id', userId);
+    return (data as List).map((row) => row['post_id'].toString()).toSet();
   }
 
   Future<List<PostModel>> getBookmarkedPosts(String userId) async {
@@ -434,10 +427,8 @@ class SupabaseService {
         .toList();
     if (postIds.isEmpty) return const [];
 
-    final postRows = await _client
-        .from('posts')
-        .select()
-        .inFilter('id', postIds);
+    final postRows =
+        await _client.from('posts').select().inFilter('id', postIds);
 
     final postsById = {
       for (final row in postRows as List)
@@ -478,27 +469,30 @@ class SupabaseService {
     required String body,
     required List<String> tags,
   }) async {
-    final data = await _client.from('questions').insert({
-      'user_id': userId,
-      'title': title,
-      'body': body,
-      'tags': tags,
-      'upvotes_count': 0,
-      'replies_count': 0,
-    }).select().single();
+    final data = await _client
+        .from('questions')
+        .insert({
+          'user_id': userId,
+          'title': title,
+          'body': body,
+          'tags': tags,
+          'upvotes_count': 0,
+          'replies_count': 0,
+        })
+        .select()
+        .single();
 
     return data['id'].toString();
   }
 
-  Future<List<QuestionReplyModel>> getRepliesForQuestion(String questionId) async {
+  Future<List<QuestionReplyModel>> getRepliesForQuestion(
+      String questionId) async {
     final data = await _client
         .from('question_replies')
         .select()
         .eq('question_id', questionId)
         .order('created_at', ascending: true);
-    return (data as List)
-        .map((d) => QuestionReplyModel.fromJson(d))
-        .toList();
+    return (data as List).map((d) => QuestionReplyModel.fromJson(d)).toList();
   }
 
   Future<void> addQuestionReply({
@@ -566,9 +560,7 @@ class SupabaseService {
         .from('question_votes')
         .select('question_id')
         .eq('user_id', userId);
-    return (data as List)
-        .map((row) => row['question_id'].toString())
-        .toSet();
+    return (data as List).map((row) => row['question_id'].toString()).toSet();
   }
 
   Future<void> markSolvedReply({
@@ -615,11 +607,15 @@ class SupabaseService {
   }
 
   Future<void> markNotificationAsRead(String notificationId) async {
-    await _client.from('notifications').update({'read': true}).eq('id', notificationId);
+    await _client
+        .from('notifications')
+        .update({'read': true}).eq('id', notificationId);
   }
 
   Future<void> markAllNotificationsAsRead(String uid) async {
-    await _client.from('notifications').update({'read': true}).eq('to_uid', uid);
+    await _client
+        .from('notifications')
+        .update({'read': true}).eq('to_uid', uid);
   }
   // ══════════════════════════════════════════════════════════════════════════
   // COMMENTS
@@ -639,27 +635,17 @@ class SupabaseService {
     if (trimmed.isEmpty) {
       throw StateError('Comment cannot be empty.');
     }
-    await _client.from('comments').insert({
-      'post_id': postId,
-      'user_id': userId,
-      'content': trimmed,
-    });
-    await _syncPostCommentCount(postId);
-  }
 
-  Future<void> _syncPostLikeCount(String postId) async {
-    final data = await _client.from('likes').select('id').eq('post_id', postId);
-    await _client
-        .from('posts')
-        .update({'likes_count': (data as List).length}).eq('id', postId);
-  }
+    if (_client.auth.currentUser?.id != userId) {
+      throw StateError('Authenticated user does not match comment author.');
+    }
 
-  Future<void> _syncPostCommentCount(String postId) async {
-    final data =
-        await _client.from('comments').select('id').eq('post_id', postId);
-    await _client
-        .from('posts')
-        .update({'comments_count': (data as List).length}).eq('id', postId);
+    await _client.rpc(
+      'add_comment_with_aura',
+      params: {
+        'p_post_id': postId,
+        'p_content': trimmed,
+      },
+    );
   }
-
 }

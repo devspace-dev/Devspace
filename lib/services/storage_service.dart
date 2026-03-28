@@ -1,10 +1,12 @@
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 class StorageService {
   StorageService._();
   static final instance = StorageService._();
+  static const _uuid = Uuid();
 
   final _picker = ImagePicker();
   final _supabase = Supabase.instance.client;
@@ -45,6 +47,16 @@ class StorageService {
   // ── Upload post image ────────────────────────────
   Future<String> uploadPostImage(String postId, File file) async {
     final path = 'posts/$postId.jpg';
+    await _supabase.storage.from('images').upload(
+          path,
+          file,
+          fileOptions: const FileOptions(upsert: true),
+        );
+    return _supabase.storage.from('images').getPublicUrl(path);
+  }
+
+  Future<String> uploadPostImageForDraft(File file) async {
+    final path = 'posts/${_uuid.v4()}.jpg';
     await _supabase.storage.from('images').upload(
           path,
           file,

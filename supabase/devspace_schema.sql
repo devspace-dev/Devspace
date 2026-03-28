@@ -970,3 +970,1066 @@ begin
   end if;
 end
 $$;
+
+alter table public.users add column if not exists aura_points bigint default 0;
+alter table public.users add column if not exists current_streak integer default 0;
+alter table public.users add column if not exists longest_streak integer default 0;
+alter table public.users add column if not exists last_challenge_completed_on date;
+alter table public.users add column if not exists updated_at timestamp with time zone default timezone('utc'::text, now());
+
+update public.users
+set aura_points = coalesce(aura_points, aura, 0),
+    aura = coalesce(aura_points, aura, 0),
+    current_streak = coalesce(current_streak, 0),
+    longest_streak = coalesce(longest_streak, 0);
+
+create or replace function public.sync_user_aura_columns()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if tg_op = 'INSERT' then
+    if new.aura_points is null and new.aura is not null then
+      new.aura_points := new.aura;
+    elsif new.aura is null and new.aura_points is not null then
+      new.aura := new.aura_points;
+    end if;
+  elsif new.aura_points is null and new.aura is not null then
+    new.aura_points := new.aura;
+  elsif new.aura is null and new.aura_points is not null then
+    new.aura := new.aura_points;
+  elsif new.aura_points is distinct from old.aura_points then
+    new.aura := new.aura_points;
+  elsif new.aura is distinct from old.aura then
+    new.aura_points := new.aura;
+  end if;
+
+  new.updated_at := timezone('utc'::text, now());
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_sync_user_aura_columns on public.users;
+
+create trigger trg_sync_user_aura_columns
+before insert or update on public.users
+for each row
+execute function public.sync_user_aura_columns();
+
+create or replace function public.get_aura_level(points bigint)
+returns text
+language sql
+immutable
+as $$
+  select case
+    when coalesce(points, 0) < 500 then 'Beginner'
+    when coalesce(points, 0) < 2000 then 'Builder'
+    when coalesce(points, 0) < 5000 then 'Hacker'
+    else 'Elite'
+  end;
+$$;
+
+create table if not exists public.aura_ledger (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references public.users(id) on delete cascade not null,
+  action text not null,
+  points integer not null,
+  reference_type text not null,
+  reference_id text not null,
+  source_user_id uuid references public.users(id) on delete set null,
+  metadata jsonb default '{}'::jsonb,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+create unique index if not exists idx_aura_ledger_dedupe
+  on public.aura_ledger(user_id, action, reference_type, reference_id, coalesce(source_user_id, '00000000-0000-0000-0000-000000000000'::uuid));
+create index if not exists idx_aura_ledger_user_created_at
+  on public.aura_ledger(user_id, created_at desc);
+
+create table if not exists public.rate_limit_events (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references public.users(id) on delete cascade not null,
+  action text not null,
+  reference_id text,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+create index if not exists idx_rate_limit_events_lookup
+  on public.rate_limit_events(user_id, action, created_at desc);
+
+create table if not exists public.events (
+  id uuid default gen_random_uuid() primary key,
+  title text not null,
+  description text not null default '',
+  required_aura bigint not null default 0,
+  link text not null default '',
+  type text not null default 'event',
+  created_by uuid references public.users(id) on delete set null,
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  updated_at timestamp with time zone default timezone('utc'::text, now()),
+  constraint events_type_check check (type in ('hackathon', 'event'))
+);
+
+create table if not exists public.user_events (
+  user_id uuid references public.users(id) on delete cascade not null,
+  event_id uuid references public.events(id) on delete cascade not null,
+  unlocked boolean not null default false,
+  unlocked_at timestamp with time zone,
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  updated_at timestamp with time zone default timezone('utc'::text, now()),
+  primary key (user_id, event_id)
+);
+
+create index if not exists idx_events_required_aura on public.events(required_aura);
+
+create table if not exists public.challenges (
+  id uuid default gen_random_uuid() primary key,
+  title text not null,
+  description text not null default '',
+  difficulty text not null default 'easy',
+  tech_stack text not null default 'General',
+  points_reward integer not null default 20,
+  is_active boolean not null default true,
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  updated_at timestamp with time zone default timezone('utc'::text, now()),
+  constraint challenges_difficulty_check check (difficulty in ('easy', 'medium', 'hard'))
+);
+
+create table if not exists public.user_challenges (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references public.users(id) on delete cascade not null,
+  challenge_id uuid references public.challenges(id) on delete cascade not null,
+  assigned_date date not null default timezone('utc'::text, now())::date,
+  selected_tech_stack text not null default 'General',
+  submission_text text default '',
+  submission_link text default '',
+  completed boolean not null default false,
+  completed_at timestamp with time zone,
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  updated_at timestamp with time zone default timezone('utc'::text, now()),
+  unique (user_id, assigned_date)
+);
+
+create index if not exists idx_challenges_stack_active
+  on public.challenges(tech_stack, is_active);
+create index if not exists idx_user_challenges_user_date
+  on public.user_challenges(user_id, assigned_date desc);
+
+create table if not exists public.user_badges (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references public.users(id) on delete cascade not null,
+  badge_key text not null,
+  badge_name text not null,
+  awarded_at timestamp with time zone default timezone('utc'::text, now()),
+  unique (user_id, badge_key)
+);
+
+create or replace function public.touch_updated_at()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  new.updated_at := timezone('utc'::text, now());
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_touch_events_updated_at on public.events;
+create trigger trg_touch_events_updated_at
+before update on public.events
+for each row
+execute function public.touch_updated_at();
+
+drop trigger if exists trg_touch_user_events_updated_at on public.user_events;
+create trigger trg_touch_user_events_updated_at
+before update on public.user_events
+for each row
+execute function public.touch_updated_at();
+
+drop trigger if exists trg_touch_challenges_updated_at on public.challenges;
+create trigger trg_touch_challenges_updated_at
+before update on public.challenges
+for each row
+execute function public.touch_updated_at();
+
+drop trigger if exists trg_touch_user_challenges_updated_at on public.user_challenges;
+create trigger trg_touch_user_challenges_updated_at
+before update on public.user_challenges
+for each row
+execute function public.touch_updated_at();
+
+create or replace function public.register_rate_limited_action(
+  p_action text,
+  p_limit integer,
+  p_window_seconds integer,
+  p_reference_id text default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  actor_id uuid;
+  recent_count integer;
+begin
+  actor_id := auth.uid();
+  if actor_id is null then
+    raise exception 'Authentication required';
+  end if;
+
+  select count(*)
+  into recent_count
+  from public.rate_limit_events
+  where user_id = actor_id
+    and action = p_action
+    and created_at >= timezone('utc'::text, now()) - make_interval(secs => p_window_seconds);
+
+  if recent_count >= p_limit then
+    raise exception 'Rate limit exceeded for %', p_action;
+  end if;
+
+  insert into public.rate_limit_events(user_id, action, reference_id)
+  values (actor_id, p_action, p_reference_id);
+end;
+$$;
+
+grant execute on function public.register_rate_limited_action(text, integer, integer, text) to authenticated;
+
+create or replace function public.award_aura(
+  p_user_id uuid,
+  p_action text,
+  p_points integer,
+  p_reference_type text,
+  p_reference_id text,
+  p_source_user_id uuid default null,
+  p_metadata jsonb default '{}'::jsonb
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.aura_ledger(
+    user_id,
+    action,
+    points,
+    reference_type,
+    reference_id,
+    source_user_id,
+    metadata
+  )
+  values (
+    p_user_id,
+    p_action,
+    p_points,
+    p_reference_type,
+    p_reference_id,
+    p_source_user_id,
+    coalesce(p_metadata, '{}'::jsonb)
+  )
+  on conflict do nothing;
+
+  if found then
+    update public.users
+    set aura_points = coalesce(aura_points, 0) + p_points
+    where id = p_user_id;
+    return true;
+  end if;
+
+  return false;
+end;
+$$;
+
+grant execute on function public.award_aura(uuid, text, integer, text, text, uuid, jsonb) to authenticated;
+
+create or replace function public.sync_post_like_count(p_post_id uuid)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  update public.posts
+  set likes_count = (
+    select count(*)
+    from public.likes
+    where post_id = p_post_id
+  )
+  where id = p_post_id;
+$$;
+
+create or replace function public.sync_post_comment_count(p_post_id uuid)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  update public.posts
+  set comments_count = (
+    select count(*)
+    from public.comments
+    where post_id = p_post_id
+  )
+  where id = p_post_id;
+$$;
+
+grant execute on function public.sync_post_like_count(uuid) to authenticated;
+grant execute on function public.sync_post_comment_count(uuid) to authenticated;
+
+create or replace function public.create_post_with_aura(
+  p_content text,
+  p_tags text[] default '{}'::text[],
+  p_image_url text default '',
+  p_quote_post_id uuid default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  actor_id uuid;
+  new_post_id uuid;
+begin
+  actor_id := auth.uid();
+  if actor_id is null then
+    raise exception 'Authentication required';
+  end if;
+
+  if coalesce(trim(p_content), '') = '' and coalesce(trim(p_image_url), '') = '' then
+    raise exception 'Post content or image is required';
+  end if;
+
+  perform public.register_rate_limited_action('create_post', 20, 3600, null);
+
+  insert into public.posts(user_id, content, tags, image_url, quote_post_id)
+  values (
+    actor_id,
+    coalesce(trim(p_content), ''),
+    coalesce(p_tags, '{}'::text[]),
+    coalesce(trim(p_image_url), ''),
+    p_quote_post_id
+  )
+  returning id into new_post_id;
+
+  perform public.award_aura(
+    actor_id,
+    'create_post',
+    10,
+    'post',
+    new_post_id::text
+  );
+
+  return new_post_id;
+end;
+$$;
+
+grant execute on function public.create_post_with_aura(text, text[], text, uuid) to authenticated;
+
+create or replace function public.like_post_with_aura(p_post_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  actor_id uuid;
+  post_owner_id uuid;
+begin
+  actor_id := auth.uid();
+  if actor_id is null then
+    raise exception 'Authentication required';
+  end if;
+
+  select user_id
+  into post_owner_id
+  from public.posts
+  where id = p_post_id;
+
+  if post_owner_id is null then
+    raise exception 'Post not found';
+  end if;
+
+  if post_owner_id = actor_id then
+    raise exception 'You cannot like your own post';
+  end if;
+
+  perform public.register_rate_limited_action('like_post', 120, 3600, p_post_id::text);
+
+  insert into public.likes(post_id, user_id)
+  values (p_post_id, actor_id)
+  on conflict (post_id, user_id) do nothing;
+
+  if not found then
+    raise exception 'Post already liked';
+  end if;
+
+  perform public.sync_post_like_count(p_post_id);
+
+  perform public.award_aura(
+    post_owner_id,
+    'receive_like',
+    2,
+    'post_like',
+    p_post_id::text,
+    actor_id,
+    jsonb_build_object('postId', p_post_id)
+  );
+
+  return jsonb_build_object('liked', true);
+end;
+$$;
+
+grant execute on function public.like_post_with_aura(uuid) to authenticated;
+
+create or replace function public.unlike_post(p_post_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  actor_id uuid;
+begin
+  actor_id := auth.uid();
+  if actor_id is null then
+    raise exception 'Authentication required';
+  end if;
+
+  delete from public.likes
+  where post_id = p_post_id
+    and user_id = actor_id;
+
+  perform public.sync_post_like_count(p_post_id);
+
+  return jsonb_build_object('liked', false);
+end;
+$$;
+
+grant execute on function public.unlike_post(uuid) to authenticated;
+
+create or replace function public.add_comment_with_aura(
+  p_post_id uuid,
+  p_content text
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  actor_id uuid;
+  new_comment_id uuid;
+begin
+  actor_id := auth.uid();
+  if actor_id is null then
+    raise exception 'Authentication required';
+  end if;
+
+  if coalesce(trim(p_content), '') = '' then
+    raise exception 'Comment cannot be empty';
+  end if;
+
+  perform public.register_rate_limited_action('create_comment', 60, 3600, p_post_id::text);
+
+  insert into public.comments(post_id, user_id, content)
+  values (p_post_id, actor_id, trim(p_content))
+  returning id into new_comment_id;
+
+  perform public.sync_post_comment_count(p_post_id);
+
+  perform public.award_aura(
+    actor_id,
+    'create_comment',
+    3,
+    'comment',
+    new_comment_id::text
+  );
+
+  return new_comment_id;
+end;
+$$;
+
+grant execute on function public.add_comment_with_aura(uuid, text) to authenticated;
+
+create or replace function public.list_events_with_eligibility()
+returns table (
+  id uuid,
+  title text,
+  description text,
+  required_aura bigint,
+  link text,
+  type text,
+  unlocked boolean,
+  locked boolean
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  actor_id uuid;
+  actor_aura bigint;
+begin
+  actor_id := auth.uid();
+  if actor_id is null then
+    raise exception 'Authentication required';
+  end if;
+
+  select coalesce(aura_points, aura, 0)
+  into actor_aura
+  from public.users
+  where id = actor_id;
+
+  insert into public.user_events(user_id, event_id, unlocked, unlocked_at)
+  select
+    actor_id,
+    e.id,
+    actor_aura >= e.required_aura,
+    case when actor_aura >= e.required_aura then timezone('utc'::text, now()) else null end
+  from public.events e
+  on conflict (user_id, event_id) do update
+  set unlocked = excluded.unlocked,
+      unlocked_at = case
+        when excluded.unlocked and public.user_events.unlocked_at is null then excluded.unlocked_at
+        else public.user_events.unlocked_at
+      end,
+      updated_at = timezone('utc'::text, now());
+
+  return query
+  select
+    e.id,
+    e.title,
+    e.description,
+    e.required_aura,
+    e.link,
+    e.type,
+    (actor_aura >= e.required_aura) as unlocked,
+    not (actor_aura >= e.required_aura) as locked
+  from public.events e
+  order by e.required_aura asc, e.created_at desc;
+end;
+$$;
+
+grant execute on function public.list_events_with_eligibility() to authenticated;
+
+create or replace function public.assign_daily_challenge(
+  p_requested_stack text default null
+)
+returns public.user_challenges
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  actor_id uuid;
+  today_utc date;
+  user_stack_value text;
+  selected_stack text;
+  existing_assignment public.user_challenges%rowtype;
+  chosen_challenge_id uuid;
+  created_assignment public.user_challenges%rowtype;
+begin
+  actor_id := auth.uid();
+  if actor_id is null then
+    raise exception 'Authentication required';
+  end if;
+
+  today_utc := timezone('utc'::text, now())::date;
+
+  select *
+  into existing_assignment
+  from public.user_challenges
+  where user_id = actor_id
+    and assigned_date = today_utc;
+
+  if existing_assignment.id is not null then
+    return existing_assignment;
+  end if;
+
+  select coalesce(nullif(p_requested_stack, ''), nullif(stack[1], ''), 'General')
+  into user_stack_value
+  from public.users
+  where id = actor_id;
+
+  selected_stack := coalesce(user_stack_value, 'General');
+
+  select id
+  into chosen_challenge_id
+  from public.challenges
+  where is_active = true
+    and lower(tech_stack) = lower(selected_stack)
+  order by created_at desc
+  limit 1;
+
+  if chosen_challenge_id is null then
+    select id
+    into chosen_challenge_id
+    from public.challenges
+    where is_active = true
+      and lower(tech_stack) = 'general'
+    order by created_at desc
+    limit 1;
+  end if;
+
+  if chosen_challenge_id is null then
+    select id
+    into chosen_challenge_id
+    from public.challenges
+    where is_active = true
+    order by created_at desc
+    limit 1;
+  end if;
+
+  if chosen_challenge_id is null then
+    raise exception 'No active challenge is available';
+  end if;
+
+  insert into public.user_challenges(
+    user_id,
+    challenge_id,
+    assigned_date,
+    selected_tech_stack
+  )
+  values (
+    actor_id,
+    chosen_challenge_id,
+    today_utc,
+    selected_stack
+  )
+  returning * into created_assignment;
+
+  return created_assignment;
+end;
+$$;
+
+grant execute on function public.assign_daily_challenge(text) to authenticated;
+
+create or replace function public.complete_daily_challenge(
+  p_submission_text text default '',
+  p_submission_link text default ''
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  actor_id uuid;
+  today_utc date;
+  assignment_row public.user_challenges%rowtype;
+  reward_points integer;
+  previous_completion date;
+  next_streak integer;
+  next_longest integer;
+  bonus_points integer := 0;
+  awarded_badge boolean := false;
+begin
+  actor_id := auth.uid();
+  if actor_id is null then
+    raise exception 'Authentication required';
+  end if;
+
+  today_utc := timezone('utc'::text, now())::date;
+
+  select *
+  into assignment_row
+  from public.user_challenges
+  where user_id = actor_id
+    and assigned_date = today_utc
+  limit 1;
+
+  if assignment_row.id is null then
+    raise exception 'No daily challenge assigned for today';
+  end if;
+
+  if assignment_row.completed then
+    raise exception 'Challenge already completed for today';
+  end if;
+
+  if coalesce(trim(p_submission_text), '') = '' and coalesce(trim(p_submission_link), '') = '' then
+    raise exception 'Submission text or link is required';
+  end if;
+
+  select points_reward
+  into reward_points
+  from public.challenges
+  where id = assignment_row.challenge_id;
+
+  update public.user_challenges
+  set completed = true,
+      completed_at = timezone('utc'::text, now()),
+      submission_text = coalesce(trim(p_submission_text), ''),
+      submission_link = coalesce(trim(p_submission_link), '')
+  where id = assignment_row.id;
+
+  perform public.award_aura(
+    actor_id,
+    'complete_daily_challenge',
+    coalesce(reward_points, 20),
+    'daily_challenge',
+    assignment_row.id::text
+  );
+
+  select last_challenge_completed_on
+  into previous_completion
+  from public.users
+  where id = actor_id;
+
+  if previous_completion = today_utc - 1 then
+    select current_streak + 1, greatest(longest_streak, current_streak + 1)
+    into next_streak, next_longest
+    from public.users
+    where id = actor_id;
+  else
+    next_streak := 1;
+    select greatest(longest_streak, 1)
+    into next_longest
+    from public.users
+    where id = actor_id;
+  end if;
+
+  update public.users
+  set current_streak = next_streak,
+      longest_streak = greatest(coalesce(next_longest, 0), coalesce(longest_streak, 0)),
+      last_challenge_completed_on = today_utc
+  where id = actor_id;
+
+  if next_streak = 3 then
+    bonus_points := 10;
+    perform public.award_aura(
+      actor_id,
+      'three_day_streak_bonus',
+      bonus_points,
+      'streak_bonus',
+      today_utc::text
+    );
+  elsif next_streak = 7 then
+    bonus_points := 25;
+    perform public.award_aura(
+      actor_id,
+      'seven_day_streak_bonus',
+      bonus_points,
+      'streak_bonus',
+      today_utc::text
+    );
+
+    insert into public.user_badges(user_id, badge_key, badge_name)
+    values (actor_id, 'seven_day_streak', '7 Day Streak')
+    on conflict (user_id, badge_key) do nothing;
+
+    awarded_badge := true;
+  end if;
+
+  return jsonb_build_object(
+    'completed', true,
+    'currentStreak', next_streak,
+    'longestStreak', next_longest,
+    'bonusPoints', bonus_points,
+    'badgeAwarded', awarded_badge
+  );
+end;
+$$;
+
+grant execute on function public.complete_daily_challenge(text, text) to authenticated;
+
+create or replace function public.refresh_user_streak_if_needed()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  actor_id uuid;
+  last_completion date;
+begin
+  actor_id := auth.uid();
+  if actor_id is null then
+    raise exception 'Authentication required';
+  end if;
+
+  select last_challenge_completed_on
+  into last_completion
+  from public.users
+  where id = actor_id;
+
+  if last_completion is null or last_completion < timezone('utc'::text, now())::date - 1 then
+    update public.users
+    set current_streak = 0
+    where id = actor_id;
+  end if;
+
+  return (
+    select jsonb_build_object(
+      'currentStreak', current_streak,
+      'longestStreak', longest_streak,
+      'lastChallengeCompletedOn', last_challenge_completed_on,
+      'auraPoints', aura_points,
+      'level', public.get_aura_level(aura_points)
+    )
+    from public.users
+    where id = actor_id
+  );
+end;
+$$;
+
+grant execute on function public.refresh_user_streak_if_needed() to authenticated;
+
+create or replace function public.get_user_aura_summary(p_user_id uuid default auth.uid())
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target_user_id uuid;
+begin
+  target_user_id := coalesce(p_user_id, auth.uid());
+  if target_user_id is null then
+    raise exception 'Authentication required';
+  end if;
+
+  return (
+    select jsonb_build_object(
+      'userId', u.id,
+      'auraPoints', coalesce(u.aura_points, u.aura, 0),
+      'level', public.get_aura_level(coalesce(u.aura_points, u.aura, 0)),
+      'currentStreak', coalesce(u.current_streak, 0),
+      'longestStreak', coalesce(u.longest_streak, 0),
+      'lastChallengeCompletedOn', u.last_challenge_completed_on,
+      'badges', coalesce(
+        (
+          select jsonb_agg(
+            jsonb_build_object(
+              'key', badge_key,
+              'name', badge_name,
+              'awardedAt', awarded_at
+            )
+          )
+          from public.user_badges
+          where user_id = u.id
+        ),
+        '[]'::jsonb
+      )
+    )
+    from public.users u
+    where u.id = target_user_id
+  );
+end;
+$$;
+
+grant execute on function public.get_user_aura_summary(uuid) to authenticated;
+
+create or replace function public.mark_question_reply_solved(
+  p_question_id uuid,
+  p_reply_id uuid
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  question_owner_id uuid;
+  existing_solved_reply_id uuid;
+  reply_owner_id uuid;
+begin
+  select user_id, solved_reply_id
+  into question_owner_id, existing_solved_reply_id
+  from public.questions
+  where id = p_question_id;
+
+  if question_owner_id is null then
+    raise exception 'Question not found';
+  end if;
+
+  if auth.uid() <> question_owner_id then
+    raise exception 'Only the question owner can mark a reply as solved';
+  end if;
+
+  select user_id
+  into reply_owner_id
+  from public.question_replies
+  where id = p_reply_id
+    and question_id = p_question_id;
+
+  if reply_owner_id is null then
+    raise exception 'Reply does not belong to this question';
+  end if;
+
+  if existing_solved_reply_id is not null then
+    if existing_solved_reply_id = p_reply_id then
+      return existing_solved_reply_id;
+    end if;
+
+    raise exception 'This question is already solved';
+  end if;
+
+  update public.questions
+  set solved_reply_id = p_reply_id
+  where id = p_question_id;
+
+  perform public.award_aura(
+    reply_owner_id,
+    'answer_accepted',
+    15,
+    'accepted_answer',
+    p_reply_id::text,
+    question_owner_id,
+    jsonb_build_object('questionId', p_question_id)
+  );
+
+  return p_reply_id;
+end;
+$$;
+
+grant execute on function public.mark_question_reply_solved(uuid, uuid) to authenticated;
+
+alter table public.aura_ledger enable row level security;
+alter table public.rate_limit_events enable row level security;
+alter table public.events enable row level security;
+alter table public.user_events enable row level security;
+alter table public.challenges enable row level security;
+alter table public.user_challenges enable row level security;
+alter table public.user_badges enable row level security;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'aura_ledger'
+      and policyname = 'aura_ledger_select_owner'
+  ) then
+    create policy aura_ledger_select_owner
+      on public.aura_ledger
+      for select
+      to authenticated
+      using (auth.uid() = user_id);
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'rate_limit_events'
+      and policyname = 'rate_limit_events_select_owner'
+  ) then
+    create policy rate_limit_events_select_owner
+      on public.rate_limit_events
+      for select
+      to authenticated
+      using (auth.uid() = user_id);
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'events'
+      and policyname = 'events_select_authenticated'
+  ) then
+    create policy events_select_authenticated
+      on public.events
+      for select
+      to authenticated
+      using (true);
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'events'
+      and policyname = 'events_insert_authenticated'
+  ) then
+    create policy events_insert_authenticated
+      on public.events
+      for insert
+      to authenticated
+      with check (auth.uid() = created_by or created_by is null);
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'user_events'
+      and policyname = 'user_events_select_owner'
+  ) then
+    create policy user_events_select_owner
+      on public.user_events
+      for select
+      to authenticated
+      using (auth.uid() = user_id);
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'challenges'
+      and policyname = 'challenges_select_authenticated'
+  ) then
+    create policy challenges_select_authenticated
+      on public.challenges
+      for select
+      to authenticated
+      using (true);
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'user_challenges'
+      and policyname = 'user_challenges_select_owner'
+  ) then
+    create policy user_challenges_select_owner
+      on public.user_challenges
+      for select
+      to authenticated
+      using (auth.uid() = user_id);
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'user_badges'
+      and policyname = 'user_badges_select_owner'
+  ) then
+    create policy user_badges_select_owner
+      on public.user_badges
+      for select
+      to authenticated
+      using (auth.uid() = user_id);
+  end if;
+end
+$$;

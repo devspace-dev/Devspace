@@ -5,6 +5,7 @@ import 'providers/posts_provider.dart';
 import 'providers/questions_provider.dart';
 import 'providers/users_provider.dart';
 import 'providers/notifications_provider.dart';
+import 'providers/engagement_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/people_screen.dart';
 import 'screens/qa_screen.dart';
@@ -47,6 +48,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
       try {
         context.read<QuestionsProvider>().fetchQuestions();
         context.read<NotificationsProvider>().init(auth.currentUser.id);
+        context.read<EngagementProvider>().fetchOverview();
       } catch (_) {/* no user yet */}
     });
   }
@@ -72,7 +74,8 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
           opacity: 0.8,
           blur: 25,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          border: Border(top: BorderSide(color: AppColors.borderFor(context), width: 0.5)),
+          border: Border(
+              top: BorderSide(color: AppColors.borderFor(context), width: 0.5)),
           child: Column(
             children: [
               const SizedBox(height: 12),
@@ -113,7 +116,8 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                 child: Consumer<NotificationsProvider>(
                   builder: (context, provider, _) {
                     if (provider.isLoading && provider.notifications.isEmpty) {
-                      return const Center(child: CircularProgressIndicator.adaptive());
+                      return const Center(
+                          child: CircularProgressIndicator.adaptive());
                     }
                     if (provider.notifications.isEmpty) {
                       return Center(
@@ -127,8 +131,8 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                       controller: scrollController,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       itemCount: provider.notifications.length,
-                      separatorBuilder: (_, __) =>
-                          Divider(height: 1, color: AppColors.borderFor(context)),
+                      separatorBuilder: (_, __) => Divider(
+                          height: 1, color: AppColors.borderFor(context)),
                       itemBuilder: (context, i) {
                         final n = provider.notifications[i];
                         return ListTile(
@@ -151,15 +155,18 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                                       ? Icons.comment_rounded
                                       : Icons.person_add_rounded,
                               size: 18,
-                              color:
-                                  n.read ? AppColors.text3For(context) : AppColors.primary,
+                              color: n.read
+                                  ? AppColors.text3For(context)
+                                  : AppColors.primary,
                             ),
                           ),
                           title: Text(
                             n.message,
                             style: TextStyle(
                               fontSize: 15,
-                              color: n.read ? AppColors.text2For(context) : AppColors.textFor(context),
+                              color: n.read
+                                  ? AppColors.text2For(context)
+                                  : AppColors.textFor(context),
                               fontWeight:
                                   n.read ? FontWeight.w400 : FontWeight.w600,
                             ),
@@ -167,7 +174,8 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                           subtitle: Text(
                             _formatTime(n.createdAt),
                             style: TextStyle(
-                                fontSize: 13, color: AppColors.text3For(context)),
+                                fontSize: 13,
+                                color: AppColors.text3For(context)),
                           ),
                           trailing: !n.read
                               ? Container(
@@ -179,7 +187,9 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                                   ),
                                 )
                               : null,
-                        ).animate().fadeIn(duration: 300.ms, delay: (i * 20).ms);
+                        )
+                            .animate()
+                            .fadeIn(duration: 300.ms, delay: (i * 20).ms);
                       },
                     );
                   },
@@ -239,7 +249,9 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
           opacity: 0.7,
           blur: 20,
           borderRadius: BorderRadius.zero,
-          border: Border(bottom: BorderSide(color: AppColors.borderFor(context), width: 0.5)),
+          border: Border(
+              bottom:
+                  BorderSide(color: AppColors.borderFor(context), width: 0.5)),
           child: AppBar(
             backgroundColor: Colors.transparent,
             elevation: 0,
@@ -276,11 +288,13 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                   padding: const EdgeInsets.only(right: 12),
                   child: Center(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
                         color: AppColors.bg2For(context),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.borderFor(context), width: 0.5),
+                        border: Border.all(
+                            color: AppColors.borderFor(context), width: 0.5),
                       ),
                       child: Row(
                         children: [
@@ -319,6 +333,4 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
       ),
     );
   }
-
 }
-

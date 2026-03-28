@@ -58,7 +58,8 @@ class PostsProvider extends ChangeNotifier {
   String? likeError(String postId) => _likeErrors[postId];
   bool isBookmarkUpdating(String postId) => _bookmarkUpdating[postId] ?? false;
   String? bookmarkError(String postId) => _bookmarkErrors[postId];
-  PostModel? quotedPost(String postId) => _quotedPosts[postId] ?? _findPost(postId);
+  PostModel? quotedPost(String postId) =>
+      _quotedPosts[postId] ?? _findPost(postId);
   bool isQuotedPostLoading(String postId) => _quoteLoading[postId] ?? false;
 
   static bool canCreatePost(String content, {File? imageFile}) {
@@ -148,29 +149,32 @@ class PostsProvider extends ChangeNotifier {
     }
 
     try {
-      final postId = await SupabaseService.instance.createPost(
+      var uploadedImageUrl = '';
+      if (imageFile != null) {
+        try {
+          uploadedImageUrl =
+              await StorageService.instance.uploadPostImageForDraft(imageFile);
+        } catch (e) {
+          return PostCreateResult(
+            success: false,
+            error: 'Failed to upload post image: $e',
+          );
+        }
+      }
+
+      await SupabaseService.instance.createPost(
         userId: userId,
         content: trimmedContent,
         tags: normalizedTags,
+        imageUrl: uploadedImageUrl,
         quotePostId: quotePostId,
       );
-
-      if (imageFile == null) {
-        return const PostCreateResult(success: true);
-      }
-
-      try {
-        final imageUrl =
-            await StorageService.instance.uploadPostImage(postId, imageFile);
-        await SupabaseService.instance.updatePostImage(postId, imageUrl);
-        return const PostCreateResult(success: true);
-      } catch (e) {
-        return PostCreateResult(
-          success: true,
-          warning:
-              'Your post was published, but the image failed to upload: $e',
-        );
-      }
+      return PostCreateResult(
+        success: true,
+        warning: imageFile != null && uploadedImageUrl.isEmpty
+            ? 'Post published without image.'
+            : null,
+      );
     } catch (e) {
       return PostCreateResult(
         success: false,
@@ -227,9 +231,8 @@ class PostsProvider extends ChangeNotifier {
 
     final post = _posts[postIndex];
     final nextIsLiked = !post.isLiked;
-    final nextLikes = nextIsLiked
-        ? post.likes + 1
-        : (post.likes > 0 ? post.likes - 1 : 0);
+    final nextLikes =
+        nextIsLiked ? post.likes + 1 : (post.likes > 0 ? post.likes - 1 : 0);
 
     _posts[postIndex] = post.copyWith(
       isLiked: nextIsLiked,
@@ -264,7 +267,8 @@ class PostsProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final comments = await SupabaseService.instance.getCommentsForPost(postId);
+      final comments =
+          await SupabaseService.instance.getCommentsForPost(postId);
       _commentsByPost[postId] = comments;
     } catch (e) {
       _commentErrors[postId] = 'Failed to load comments: $e';
@@ -288,7 +292,8 @@ class PostsProvider extends ChangeNotifier {
 
     try {
       await SupabaseService.instance.addComment(postId, userId, trimmedText);
-      final comments = await SupabaseService.instance.getCommentsForPost(postId);
+      final comments =
+          await SupabaseService.instance.getCommentsForPost(postId);
       _commentsByPost[postId] = comments;
       _commentErrors[postId] = null;
       _posts = _posts.map((post) {
@@ -399,16 +404,14 @@ class PostsProvider extends ChangeNotifier {
       ]);
       final bookmarkedPosts = results[0] as List<PostModel>;
       final likedPostIds = results[1] as Set<String>;
-      _savedPosts = bookmarkedPosts
-          .map((post) {
-            final feedPost = _findPost(post.id);
-            final mergedPost = feedPost ?? post;
-            return mergedPost.copyWith(
-              isLiked: likedPostIds.contains(post.id),
-              isBookmarked: true,
-            );
-          })
-          .toList();
+      _savedPosts = bookmarkedPosts.map((post) {
+        final feedPost = _findPost(post.id);
+        final mergedPost = feedPost ?? post;
+        return mergedPost.copyWith(
+          isLiked: likedPostIds.contains(post.id),
+          isBookmarked: true,
+        );
+      }).toList();
       _savedPostsLoaded = true;
       _savedPostsError = null;
     } catch (e) {

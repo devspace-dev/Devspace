@@ -1,51 +1,53 @@
 # DEVELOPMENT PLAN
 
 ## Summary
-Phases 1, 2, and 3 are now effectively closed for MVP work:
-- Phase 1: core app stabilized
-- Phase 2: onboarding/profile completed
-- Phase 3: social interaction MVP completed
+Core MVP social flows exist, but the backend now needs to carry more product logic so the founders are not manually policing abuse or engagement.
 
-The app should now move into Phase 4 work only.
+That means Phase 4 should focus on productionizing the existing app with backend-owned gamification and controlled engagement loops.
 
-## Phase 4: Closed Beta Prep
+## Phase 4: Closed Beta Prep + Backend Productization
 Goal:
 - make the product safe for first-college testing without founder hand-holding
+- move aura/challenge/event rules out of the client and into Supabase-backed backend logic
 
 Work:
-- run device-level founder testing across auth, profile, posting, and interactions
-- run device-level founder testing across auth, profile, posting, Q&A, and interactions
+- finalize aura ledger, streak logic, and accepted-answer rewards
+- ship events/opportunities gating based on aura thresholds
+- ship one-daily-challenge assignment and completion flow
+- run founder testing across auth, posting, Q&A, aura, events, and challenge behavior
 - fix the top beta-blocking bugs found in that testing
 - add a minimal settings/account surface if sign-out alone is not enough
-- tighten beta onboarding docs for teammates and testers
 
 Founder split:
-- Founder A: bug triage, usability polish, tester flow, settings/account surface
+- Founder A: challenge/event UX wiring, founder testing, admin seeding flow
 - Founder B: backend reliability, regression coverage, setup/release readiness
 
 Acceptance:
 - no fake top-level surfaces remain in MVP
 - both founders can install and test the app with the same setup steps
+- aura and challenge rewards cannot be trivially abused from the client
 - the app survives real student testing without constant manual fixes
 
 ## Best Next Product Decision
-Close the last beta-readiness gaps now.
+Finish backend-owned engagement systems before adding any new social surface.
 
 Why:
-- Q&A is now real, so the product should shift from feature completion to bug pressure and release reliability
-- the remaining work is horizontal polish, not another major surface
-- first-college testing will expose setup and mobile-flow issues faster than another feature will
+- the app already has enough core social surface for a first college
+- aura, challenge, and opportunity logic are directly tied to retention and should be trustworthy
+- backend-owned rules reduce client abuse and keep a small team from doing manual cleanup
 
 Preferred path:
-- device testing, settings/account cleanup, and regression coverage
+- integrate events and daily challenges into the app
+- test and harden the backend rules
+- then finish the remaining beta cleanup
 
 Fallback path:
-- if any surface proves too unstable in founder testing, cut or simplify it before broader beta
+- if challenge/event flows prove unstable, keep the data model and cut the UI surface until after beta
 
 ## What Not To Build Yet
 - DMs
 - full notifications product
-- advanced gamification
+- advanced gamification beyond aura, streaks, and challenge rewards
 - post type system
 - recruiter/premium tooling
 - multi-college admin tooling

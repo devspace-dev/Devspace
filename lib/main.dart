@@ -13,6 +13,7 @@ import 'providers/users_provider.dart';
 import 'providers/aura_provider.dart';
 import 'providers/notifications_provider.dart';
 import 'providers/theme_provider.dart';
+import 'providers/engagement_provider.dart';
 import 'screens/profile_setup_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/auth_intro_screen.dart';
@@ -81,6 +82,7 @@ class DevSpaceRoot extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => UsersProvider()),
         ChangeNotifierProvider(create: (_) => AuraProvider()),
         ChangeNotifierProvider(create: (_) => NotificationsProvider()),
+        ChangeNotifierProvider(create: (_) => EngagementProvider()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {
@@ -393,4 +395,3 @@ class _SetupCodeBlock extends StatelessWidget {
     );
   }
 }
-

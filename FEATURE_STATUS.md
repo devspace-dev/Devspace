@@ -15,16 +15,22 @@
 - Aura feedback for post and comment contribution
 - Profile viewing for self and others
 - Aura leaderboard
+- Backend aura ledger, level mapping, and streak tracking
+- Event gating model with eligible vs locked access
+- Daily challenge tables and completion RPC flow
+- Edge API structure for core backend domains
 
 ## Partial
 - Google sign-in is visible but intentionally disabled
 - GitHub profile card is useful scaffold, not a finished identity system
 - Notifications plumbing exists, but there is no real inbox/product flow
 - Automated coverage exists, but it is still light for a production beta
+- Frontend integration for events and challenges is scaffolded in services, not yet surfaced in the main app flow
+- Feed still relies on realtime stream loading in the current UI, though paginated backend endpoints now exist
 
 ## Missing
 - Settings/account surface beyond sign-out
 - Notifications screen/inbox
-- Post type system
+- App screens for opportunities/events and daily challenge submission
 - Broader automated coverage for core flows
 - Production-grade release/config discipline beyond founder testing
