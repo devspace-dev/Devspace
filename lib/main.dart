@@ -15,7 +15,7 @@ import 'providers/notifications_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/profile_setup_screen.dart';
 import 'screens/splash_screen.dart';
-import 'screens/login_screen.dart';
+import 'screens/auth_intro_screen.dart';
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
 
@@ -263,7 +263,7 @@ class _RootState extends State<_Root> {
         final user = snap.data ?? AuthService.instance.currentUser;
 
         if (user == null) {
-          return LoginScreen(
+          return AuthIntroScreen(
             key: const ValueKey('login'),
             onSuccess: () {},
           );

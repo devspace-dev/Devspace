@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
+import 'devspace_page_transitions.dart';
 
 class AppTheme {
   static ThemeData get dark {
@@ -64,6 +65,15 @@ class AppTheme {
         unselectedLabelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
         type: BottomNavigationBarType.fixed,
         elevation: 0,
+      ),
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: DevSpacePageTransitionsBuilder(),
+          TargetPlatform.iOS: DevSpacePageTransitionsBuilder(),
+          TargetPlatform.macOS: DevSpacePageTransitionsBuilder(),
+          TargetPlatform.windows: DevSpacePageTransitionsBuilder(),
+          TargetPlatform.linux: DevSpacePageTransitionsBuilder(),
+        },
       ),
       dividerTheme: DividerThemeData(
         color: borderColor,

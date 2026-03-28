@@ -25,6 +25,7 @@ class DevSpaceApp extends StatefulWidget {
 
 class _DevSpaceAppState extends State<DevSpaceApp> {
   int _tab = 0;
+  late final PageController _pageController;
 
   static const List<String> _titles = [
     'DevSpace',
@@ -37,6 +38,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
   @override
   void initState() {
     super.initState();
+    _pageController = PageController();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final auth = context.read<AuthProvider>();
@@ -197,6 +199,22 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
     return '${diff.inDays}d';
   }
 
+  Future<void> _onTabSelected(int index) async {
+    if (index == _tab) return;
+    setState(() => _tab = index);
+    await _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final me = context.watch<AuthProvider>().currentUserOrNull;
@@ -285,12 +303,22 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
           ),
         ),
       ),
-      body: IndexedStack(index: _tab, children: screens),
+      body: PageView(
+        controller: _pageController,
+        physics: const NeverScrollableScrollPhysics(),
+        onPageChanged: (index) {
+          if (_tab != index && mounted) {
+            setState(() => _tab = index);
+          }
+        },
+        children: screens,
+      ),
       bottomNavigationBar: DevSpaceBottomNav(
         currentIndex: _tab,
-        onTap: (i) => setState(() => _tab = i),
+        onTap: _onTabSelected,
       ),
     );
   }
+
 }
 

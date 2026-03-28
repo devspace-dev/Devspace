@@ -30,13 +30,6 @@ class _QAScreenState extends State<QAScreen> {
   }
 
   Future<void> _showAskSheet() async {
-    final titleCtrl = TextEditingController();
-    final bodyCtrl = TextEditingController();
-    final tagsCtrl = TextEditingController();
-    final questionsP = context.read<QuestionsProvider>();
-    final authP = context.read<AuthProvider>();
-    final messenger = ScaffoldMessenger.of(context);
-
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -44,188 +37,8 @@ class _QAScreenState extends State<QAScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (sheetContext) {
-        bool submitting = false;
-        String? submitError;
-
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            Future<void> submit() async {
-              final navigator = Navigator.of(sheetContext);
-              setSheetState(() {
-                submitting = true;
-                submitError = null;
-              });
-
-              final result = await questionsP.addQuestion(
-                userId: authP.currentUser.id,
-                title: titleCtrl.text,
-                body: bodyCtrl.text,
-                tags: tagsCtrl.text
-                    .split(',')
-                    .map((tag) => tag.trim())
-                    .where((tag) => tag.isNotEmpty)
-                    .toList(),
-              );
-
-              if (!mounted) return;
-
-              if (!result.success) {
-                setSheetState(() {
-                  submitting = false;
-                  submitError = result.error;
-                });
-                return;
-              }
-
-              navigator.pop();
-              messenger.showSnackBar(
-                const SnackBar(
-                  content: Text('Question posted. Replies will now persist.'),
-                ),
-              );
-            }
-
-            return SafeArea(
-              child: Padding(
-                padding: EdgeInsets.only(
-                  left: 20,
-                  right: 20,
-                  top: 18,
-                  bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
-                ),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 42,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: AppColors.border2For(context),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      Text(
-                        'Ask a question',
-                        style: TextStyle(
-                          color: AppColors.textFor(context),
-                          fontSize: 24,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Post the exact bug, doubt, architecture tradeoff, or tool choice you need help with.',
-                        style: TextStyle(
-                          color: AppColors.text2For(context),
-                          fontSize: 14,
-                          height: 1.5,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      const _SheetLabel('TITLE'),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: titleCtrl,
-                        textCapitalization: TextCapitalization.sentences,
-                        style: TextStyle(color: AppColors.textFor(context)),
-                        decoration: const InputDecoration(
-                          hintText: 'What exactly do you need help with?',
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      const _SheetLabel('DETAILS'),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: bodyCtrl,
-                        maxLines: 6,
-                        minLines: 5,
-                        textCapitalization: TextCapitalization.sentences,
-                        style: TextStyle(color: AppColors.textFor(context)),
-                        decoration: const InputDecoration(
-                          hintText:
-                              'Share the context, what you tried, what failed, and what output or behavior you expected.',
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      const _SheetLabel('TAGS'),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: tagsCtrl,
-                        style: TextStyle(color: AppColors.textFor(context)),
-                        decoration: const InputDecoration(
-                          hintText: 'Flutter, Supabase, Docker',
-                        ),
-                      ),
-                      if (submitError != null) ...[
-                        const SizedBox(height: 14),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.red.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Colors.red.withValues(alpha: 0.18),
-                            ),
-                          ),
-                          child: Text(
-                            submitError!,
-                            style: const TextStyle(
-                              color: Colors.redAccent,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: submitting
-                                  ? null
-                                  : () => Navigator.pop(sheetContext),
-                              child: const Text('Cancel'),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            flex: 2,
-                            child: ElevatedButton(
-                              onPressed: submitting ? null : submit,
-                              child: submitting
-                                  ? const SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2.4,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : const Text('Post question'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
+      builder: (sheetContext) => const _AskQuestionSheet(),
     );
-
-    titleCtrl.dispose();
-    bodyCtrl.dispose();
-    tagsCtrl.dispose();
   }
 
   @override
@@ -385,6 +198,203 @@ class _QAScreenState extends State<QAScreen> {
             child: SizedBox(height: 20),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AskQuestionSheet extends StatefulWidget {
+  const _AskQuestionSheet();
+
+  @override
+  State<_AskQuestionSheet> createState() => _AskQuestionSheetState();
+}
+
+class _AskQuestionSheetState extends State<_AskQuestionSheet> {
+  final TextEditingController _titleCtrl = TextEditingController();
+  final TextEditingController _bodyCtrl = TextEditingController();
+  final TextEditingController _tagsCtrl = TextEditingController();
+  bool _submitting = false;
+  String? _submitError;
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _bodyCtrl.dispose();
+    _tagsCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_submitting) return;
+    final messenger = ScaffoldMessenger.of(context);
+
+    setState(() {
+      _submitting = true;
+      _submitError = null;
+    });
+
+    final result = await context.read<QuestionsProvider>().addQuestion(
+          userId: context.read<AuthProvider>().currentUser.id,
+          title: _titleCtrl.text,
+          body: _bodyCtrl.text,
+          tags: _tagsCtrl.text
+              .split(',')
+              .map((tag) => tag.trim())
+              .where((tag) => tag.isNotEmpty)
+              .toList(),
+        );
+
+    if (!mounted) return;
+
+    if (!result.success) {
+      setState(() {
+        _submitting = false;
+        _submitError = result.error;
+      });
+      return;
+    }
+
+    Navigator.of(context).pop();
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Question posted. Replies will now persist.'),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 18,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 42,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border2For(context),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                'Ask a question',
+                style: TextStyle(
+                  color: AppColors.textFor(context),
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Post the exact bug, doubt, architecture tradeoff, or tool choice you need help with.',
+                style: TextStyle(
+                  color: AppColors.text2For(context),
+                  fontSize: 14,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const _SheetLabel('TITLE'),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _titleCtrl,
+                textCapitalization: TextCapitalization.sentences,
+                style: TextStyle(color: AppColors.textFor(context)),
+                decoration: const InputDecoration(
+                  hintText: 'What exactly do you need help with?',
+                ),
+              ),
+              const SizedBox(height: 16),
+              const _SheetLabel('DETAILS'),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _bodyCtrl,
+                maxLines: 6,
+                minLines: 5,
+                textCapitalization: TextCapitalization.sentences,
+                style: TextStyle(color: AppColors.textFor(context)),
+                decoration: const InputDecoration(
+                  hintText:
+                      'Share the context, what you tried, what failed, and what output or behavior you expected.',
+                ),
+              ),
+              const SizedBox(height: 16),
+              const _SheetLabel('TAGS'),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _tagsCtrl,
+                style: TextStyle(color: AppColors.textFor(context)),
+                decoration: const InputDecoration(
+                  hintText: 'Flutter, Supabase, Docker',
+                ),
+              ),
+              if (_submitError != null) ...[
+                const SizedBox(height: 14),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.red.withValues(alpha: 0.18),
+                    ),
+                  ),
+                  child: Text(
+                    _submitError!,
+                    style: const TextStyle(
+                      color: Colors.redAccent,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _submitting
+                          ? null
+                          : () => Navigator.of(context).pop(),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton(
+                      onPressed: _submitting ? null : _submit,
+                      child: _submitting
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.4,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text('Post question'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

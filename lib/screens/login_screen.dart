@@ -8,8 +8,15 @@ enum _AuthMode { signIn, signUp }
 
 class LoginScreen extends StatefulWidget {
   final VoidCallback onSuccess;
+  final bool startInSignUp;
+  final bool closeOnSuccess;
 
-  const LoginScreen({super.key, required this.onSuccess});
+  const LoginScreen({
+    super.key,
+    required this.onSuccess,
+    this.startInSignUp = false,
+    this.closeOnSuccess = false,
+  });
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -36,6 +43,7 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   void initState() {
     super.initState();
+    _mode = widget.startInSignUp ? _AuthMode.signUp : _AuthMode.signIn;
     _ctrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
@@ -83,6 +91,9 @@ class _LoginScreenState extends State<LoginScreen>
     if (!mounted) return;
 
     if (result.success) {
+      if (widget.closeOnSuccess && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
       widget.onSuccess();
       return;
     }
@@ -258,6 +269,10 @@ class _LoginScreenState extends State<LoginScreen>
                                       if (!mounted) return;
                                       setState(() => _loading = false);
                                       if (res.success) {
+                                        if (widget.closeOnSuccess &&
+                                            Navigator.of(context).canPop()) {
+                                          Navigator.of(context).pop();
+                                        }
                                         widget.onSuccess();
                                       } else {
                                         setState(() => _error = res.error);
