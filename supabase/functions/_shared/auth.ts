@@ -39,3 +39,18 @@ export async function requireUser(request: Request) {
 
   return { client, user: data.user };
 }
+
+export async function requireAdminUser(request: Request) {
+  const { client, user } = await requireUser(request);
+  const { data, error } = await client
+    .from("users")
+    .select("is_admin")
+    .eq("id", user.id)
+    .single();
+
+  if (error || data?.is_admin !== true) {
+    throw new Error("Unauthorized");
+  }
+
+  return { client, user };
+}

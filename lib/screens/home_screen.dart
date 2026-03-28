@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../providers/posts_provider.dart';
 import '../providers/engagement_provider.dart';
 import '../theme/app_colors.dart';
@@ -9,8 +10,38 @@ import '../widgets/compose_box.dart';
 import '../widgets/engagement_overview.dart';
 import '../widgets/post_card.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_handleScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_handleScroll)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _handleScroll() {
+    if (!_scrollController.hasClients) return;
+
+    final threshold = _scrollController.position.maxScrollExtent - 300;
+    if (_scrollController.position.pixels >= threshold) {
+      context.read<PostsProvider>().loadMoreFeed();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +58,7 @@ class HomeScreen extends StatelessWidget {
       },
       edgeOffset: 0,
       child: CustomScrollView(
+        controller: _scrollController,
         slivers: [
           const SliverToBoxAdapter(child: ComposeBox()),
           const SliverToBoxAdapter(child: EngagementOverview()),
@@ -77,6 +109,30 @@ class HomeScreen extends StatelessWidget {
               delegate: SliverChildBuilderDelegate(
                 (context, i) => PostCard(post: posts[i]),
                 childCount: posts.length,
+              ),
+            ),
+          if (postsP.isLoadingMore)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Center(
+                  child: CircularProgressIndicator.adaptive(),
+                ),
+              ),
+            )
+          else if (!postsP.hasMore && posts.isNotEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Center(
+                  child: Text(
+                    'You are caught up.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.text3For(context),
+                    ),
+                  ),
+                ),
               ),
             ),
           const SliverToBoxAdapter(child: SizedBox(height: 100)),

@@ -6,6 +6,7 @@ import '../providers/posts_provider.dart';
 import '../providers/theme_provider.dart';
 import '../screens/profile_setup_screen.dart';
 import '../screens/saved_posts_screen.dart';
+import '../screens/founder_tools_screen.dart';
 import '../theme/app_colors.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -70,6 +71,18 @@ class SettingsScreen extends StatelessWidget {
             },
           ),
           const _SectionHeader(title: 'APP'),
+          _SettingsTile(
+            icon: Icons.admin_panel_settings_outlined,
+            title: 'Founder tools',
+            subtitle: 'Seed events and challenge templates for the community.',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const FounderToolsScreen(),
+                ),
+              );
+            },
+          ),
           _SettingsTile(
             icon: Icons.info_outline_rounded,
             title: 'About DevSpace',
@@ -252,7 +265,9 @@ class _ThemeOption extends StatelessWidget {
               Icon(
                 icon,
                 size: 20,
-                color: isSelected ? AppColors.primary : AppColors.text3For(context),
+                color: isSelected
+                    ? AppColors.primary
+                    : AppColors.text3For(context),
               ),
               const SizedBox(height: 6),
               Text(
@@ -260,7 +275,9 @@ class _ThemeOption extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                  color: isSelected ? AppColors.textFor(context) : AppColors.text3For(context),
+                  color: isSelected
+                      ? AppColors.textFor(context)
+                      : AppColors.text3For(context),
                 ),
               ),
             ],
@@ -492,4 +509,3 @@ class _InsightItem extends StatelessWidget {
     );
   }
 }
-

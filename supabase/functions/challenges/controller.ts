@@ -14,6 +14,7 @@ type CreateChallengeBody = {
   difficulty?: "easy" | "medium" | "hard";
   techStack?: string;
   pointsReward?: number;
+  isActive?: boolean;
 };
 
 type CompleteChallengeBody = {
@@ -29,10 +30,12 @@ export async function handleChallengesRequest(
   const url = new URL(request.url);
   const service = new ChallengeService(client);
   const route = url.pathname.replace(/^.*\/functions\/v1\/challenges/, "") || "/";
+  const pathParts = route.split("/").filter(Boolean);
 
   try {
     if (request.method === "GET" && (route === "/" || route === "")) {
-      return jsonResponse({ data: await service.listChallenges() });
+      const includeInactive = url.searchParams.get("includeInactive") == "true";
+      return jsonResponse({ data: await service.listChallenges(includeInactive) });
     }
 
     if (request.method === "GET" && route === "/daily") {
@@ -61,6 +64,19 @@ export async function handleChallengesRequest(
       }
 
       const data = await service.completeDailyChallenge(body);
+      return jsonResponse({ data });
+    }
+
+    if (request.method === "PATCH" && pathParts.length === 1) {
+      const body = await parseJsonBody<CreateChallengeBody>(request);
+      const data = await service.updateChallenge(pathParts[0], body);
+      return jsonResponse({ data });
+    }
+
+    if (request.method === "POST" &&
+      pathParts.length === 2 &&
+      pathParts[1] === "deactivate") {
+      const data = await service.updateChallenge(pathParts[0], { isActive: false });
       return jsonResponse({ data });
     }
 

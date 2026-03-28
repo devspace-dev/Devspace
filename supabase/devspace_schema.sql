@@ -975,6 +975,7 @@ alter table public.users add column if not exists aura_points bigint default 0;
 alter table public.users add column if not exists current_streak integer default 0;
 alter table public.users add column if not exists longest_streak integer default 0;
 alter table public.users add column if not exists last_challenge_completed_on date;
+alter table public.users add column if not exists is_admin boolean default false;
 alter table public.users add column if not exists updated_at timestamp with time zone default timezone('utc'::text, now());
 
 update public.users
@@ -1066,11 +1067,14 @@ create table if not exists public.events (
   required_aura bigint not null default 0,
   link text not null default '',
   type text not null default 'event',
+  is_active boolean not null default true,
   created_by uuid references public.users(id) on delete set null,
   created_at timestamp with time zone default timezone('utc'::text, now()),
   updated_at timestamp with time zone default timezone('utc'::text, now()),
   constraint events_type_check check (type in ('hackathon', 'event'))
 );
+
+alter table public.events add column if not exists is_active boolean not null default true;
 
 create table if not exists public.user_events (
   user_id uuid references public.users(id) on delete cascade not null,
@@ -1493,6 +1497,7 @@ begin
     actor_aura >= e.required_aura,
     case when actor_aura >= e.required_aura then timezone('utc'::text, now()) else null end
   from public.events e
+  where e.is_active = true
   on conflict (user_id, event_id) do update
   set unlocked = excluded.unlocked,
       unlocked_at = case
@@ -1512,6 +1517,7 @@ begin
     (actor_aura >= e.required_aura) as unlocked,
     not (actor_aura >= e.required_aura) as locked
   from public.events e
+  where e.is_active = true
   order by e.required_aura asc, e.created_at desc;
 end;
 $$;

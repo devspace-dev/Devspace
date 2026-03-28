@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../models/comment_model.dart';
 import '../models/post_model.dart';
 import '../services/auth_service.dart';
+import '../services/backend_api_service.dart';
 import '../services/storage_service.dart';
 import '../services/supabase_service.dart';
 
@@ -21,6 +22,7 @@ class PostCreateResult {
 }
 
 class PostsProvider extends ChangeNotifier {
+  static const int _pageSize = 20;
   List<PostModel> _posts = [];
   List<PostModel> _savedPosts = [];
   final Map<String, PostModel> _quotedPosts = {};
@@ -36,13 +38,16 @@ class PostsProvider extends ChangeNotifier {
   bool _isLoading = false;
   bool _savedPostsLoading = false;
   bool _savedPostsLoaded = false;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
   String? _feedError;
   String? _savedPostsError;
-  StreamSubscription<List<PostModel>>? _feedSub;
 
   List<PostModel> get posts => List.unmodifiable(_posts);
   List<PostModel> get savedPosts => List.unmodifiable(_savedPosts);
   bool get isLoading => _isLoading;
+  bool get isLoadingMore => _isLoadingMore;
+  bool get hasMore => _hasMore;
   bool get isSavedPostsLoading => _savedPostsLoading;
   String? get feedError => _feedError;
   String? get savedPostsError => _savedPostsError;
@@ -67,65 +72,62 @@ class PostsProvider extends ChangeNotifier {
   }
 
   Future<void> fetchFeed() async {
-    if (_feedSub != null) {
-      await _feedSub!.cancel();
-    }
     _isLoading = true;
     _feedError = null;
+    _hasMore = true;
     notifyListeners();
 
-    final completer = Completer<void>();
-    late final StreamSubscription<List<PostModel>> subscription;
-
-    void completeOnce() {
-      if (!completer.isCompleted) {
-        completer.complete();
-      }
+    try {
+      final page = await BackendApiService.instance.getPosts(
+        limit: _pageSize,
+        offset: 0,
+      );
+      _posts = await _hydratePosts(page);
+      _hasMore = page.length >= _pageSize;
+      _feedError = null;
+    } catch (e) {
+      _feedError = 'Failed to load feed: $e';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
-
-    subscription = SupabaseService.instance.streamFeed().listen(
-      (newList) async {
-        try {
-          final currentUser = AuthService.instance.currentUser;
-          if (currentUser == null) {
-            _posts = newList;
-          } else {
-            final results = await Future.wait<dynamic>([
-              SupabaseService.instance.getLikedPostIds(currentUser.id),
-              SupabaseService.instance.getBookmarkedPostIds(currentUser.id),
-            ]);
-            final likedPostIds = results[0] as Set<String>;
-            final bookmarkedPostIds = results[1] as Set<String>;
-            _posts = newList
-                .map(
-                  (post) =>
-                      _mergeHydratedPost(post, likedPostIds, bookmarkedPostIds),
-                )
-                .toList();
-            _rehydrateSavedPosts(likedPostIds, bookmarkedPostIds);
-          }
-          _feedError = null;
-        } catch (e) {
-          _feedError = 'Failed to load feed: $e';
-        } finally {
-          _isLoading = false;
-          notifyListeners();
-          completeOnce();
-        }
-      },
-      onError: (Object error, StackTrace stackTrace) {
-        _feedError = 'Failed to load feed: $error';
-        _isLoading = false;
-        notifyListeners();
-        completeOnce();
-      },
-    );
-
-    _feedSub = subscription;
-    await completer.future;
   }
 
   Future<void> refreshFeed() => fetchFeed();
+
+  Future<void> loadMoreFeed() async {
+    if (_isLoading || _isLoadingMore || !_hasMore) return;
+
+    _isLoadingMore = true;
+    _feedError = null;
+    notifyListeners();
+
+    try {
+      final page = await BackendApiService.instance.getPosts(
+        limit: _pageSize,
+        offset: _posts.length,
+      );
+
+      if (page.isEmpty) {
+        _hasMore = false;
+        return;
+      }
+
+      final hydratedPage = await _hydratePosts(page);
+      final existingIds = _posts.map((post) => post.id).toSet();
+      _posts = [
+        ..._posts,
+        ...hydratedPage.where((post) => !existingIds.contains(post.id)),
+      ];
+      _hasMore = page.length >= _pageSize;
+      _feedError = null;
+    } catch (e) {
+      _feedError = 'Failed to load more posts: $e';
+    } finally {
+      _isLoadingMore = false;
+      notifyListeners();
+    }
+  }
 
   Future<PostCreateResult> addPost(
     String userId,
@@ -169,6 +171,7 @@ class PostsProvider extends ChangeNotifier {
         imageUrl: uploadedImageUrl,
         quotePostId: quotePostId,
       );
+      await refreshFeed();
       return PostCreateResult(
         success: true,
         warning: imageFile != null && uploadedImageUrl.isEmpty
@@ -521,6 +524,28 @@ class PostsProvider extends ChangeNotifier {
         .toList();
   }
 
+  Future<List<PostModel>> _hydratePosts(List<PostModel> posts) async {
+    final currentUser = AuthService.instance.currentUser;
+    if (currentUser == null) {
+      return posts;
+    }
+
+    final results = await Future.wait<dynamic>([
+      SupabaseService.instance.getLikedPostIds(currentUser.id),
+      SupabaseService.instance.getBookmarkedPostIds(currentUser.id),
+    ]);
+    final likedPostIds = results[0] as Set<String>;
+    final bookmarkedPostIds = results[1] as Set<String>;
+
+    final hydratedPosts = posts
+        .map(
+          (post) => _mergeHydratedPost(post, likedPostIds, bookmarkedPostIds),
+        )
+        .toList();
+    _rehydrateSavedPosts(likedPostIds, bookmarkedPostIds);
+    return hydratedPosts;
+  }
+
   PostModel? _findPost(String postId) {
     try {
       return _posts.firstWhere((post) => post.id == postId);
@@ -535,11 +560,5 @@ class PostsProvider extends ChangeNotifier {
     } catch (_) {
       return null;
     }
-  }
-
-  @override
-  void dispose() {
-    _feedSub?.cancel();
-    super.dispose();
   }
 }

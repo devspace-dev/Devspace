@@ -6,6 +6,7 @@ type CreateChallengeInput = {
   difficulty?: "easy" | "medium" | "hard";
   techStack?: string;
   pointsReward?: number;
+  isActive?: boolean;
 };
 
 type CompleteChallengeInput = {
@@ -16,14 +17,19 @@ type CompleteChallengeInput = {
 export class ChallengeService {
   constructor(private readonly client: SupabaseClient) {}
 
-  async listChallenges() {
-    const { data, error } = await this.client
+  async listChallenges(includeInactive = false) {
+    let query = this.client
       .from("challenges")
       .select(
         "id, title, description, difficulty, tech_stack, points_reward, is_active, created_at",
       )
-      .eq("is_active", true)
       .order("created_at", { ascending: false });
+
+    if (!includeInactive) {
+      query = query.eq("is_active", true);
+    }
+
+    const { data, error } = await query;
 
     if (error) throw error;
     return data;
@@ -46,7 +52,40 @@ export class ChallengeService {
         difficulty,
         tech_stack: input.techStack?.trim() || "General",
         points_reward: Math.max(0, Number(input.pointsReward ?? 20)),
+        is_active: input.isActive ?? true,
       })
+      .select(
+        "id, title, description, difficulty, tech_stack, points_reward, is_active, created_at",
+      )
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  async updateChallenge(challengeId: string, input: CreateChallengeInput) {
+    const updatePayload: Record<string, unknown> = {};
+    if (input.title != null) updatePayload.title = input.title.trim();
+    if (input.description != null) {
+      updatePayload.description = input.description.trim();
+    }
+    if (input.difficulty != null) {
+      updatePayload.difficulty = ["easy", "medium", "hard"].includes(input.difficulty)
+        ? input.difficulty
+        : "easy";
+    }
+    if (input.techStack != null) {
+      updatePayload.tech_stack = input.techStack.trim() || "General";
+    }
+    if (input.pointsReward != null) {
+      updatePayload.points_reward = Math.max(0, Number(input.pointsReward));
+    }
+    if (input.isActive != null) updatePayload.is_active = input.isActive;
+
+    const { data, error } = await this.client
+      .from("challenges")
+      .update(updatePayload)
+      .eq("id", challengeId)
       .select(
         "id, title, description, difficulty, tech_stack, points_reward, is_active, created_at",
       )
