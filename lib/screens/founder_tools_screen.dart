@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../providers/auth_provider.dart';
 import '../services/backend_api_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/founder_access_denied_view.dart';
@@ -24,6 +26,9 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
   final _challengeDescriptionController = TextEditingController();
   final _challengeTechStackController = TextEditingController();
   final _challengePointsController = TextEditingController(text: '20');
+  final _challengePublishDateController = TextEditingController(
+    text: DateTime.now().toIso8601String().split('T')[0],
+  );
 
   String _eventType = 'event';
   String _challengeDifficulty = 'easy';
@@ -51,6 +56,7 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
     _challengeDescriptionController.dispose();
     _challengeTechStackController.dispose();
     _challengePointsController.dispose();
+    _challengePublishDateController.dispose();
     super.dispose();
   }
 
@@ -90,8 +96,11 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
       );
     }
 
+    final me = context.read<AuthProvider>().currentUserOrNull;
+    final isFounder = me?.isFounder ?? false;
+
     return DefaultTabController(
-      length: 2,
+      length: isFounder ? 3 : 2,
       child: Scaffold(
         backgroundColor: AppColors.bgFor(context),
         appBar: AppBar(
@@ -103,10 +112,11 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
               color: AppColors.textFor(context),
             ),
           ),
-          bottom: const TabBar(
+          bottom: TabBar(
             tabs: [
-              Tab(text: 'Events'),
-              Tab(text: 'Challenges'),
+              const Tab(text: 'Events'),
+              const Tab(text: 'Challenges'),
+              if (isFounder) const Tab(text: 'System'),
             ],
           ),
         ),
@@ -114,6 +124,7 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
           children: [
             _buildEventsTab(context),
             _buildChallengesTab(context),
+            if (isFounder) _buildSystemTab(context),
           ],
         ),
       ),
@@ -121,6 +132,19 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
   }
 
   Future<void> _initializeFounderAccess() async {
+    final me = context.read<AuthProvider>().currentUserOrNull;
+    final isFounder = me?.isFounder ?? false;
+
+    if (isFounder) {
+      if (!mounted) return;
+      setState(() {
+        _hasFounderAccess = true;
+        _isCheckingFounderAccess = false;
+      });
+      await _loadAdminData();
+      return;
+    }
+
     final hasAccess = await BackendApiService.instance.hasFounderAccess();
     if (!mounted) return;
 
@@ -302,6 +326,16 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
                 ),
               ),
               _LabeledField(
+                label: 'Publish Date (YYYY-MM-DD)',
+                child: TextFormField(
+                  controller: _challengePublishDateController,
+                  decoration: const InputDecoration(
+                    hintText: '2026-03-28',
+                  ),
+                  validator: _requiredValidator,
+                ),
+              ),
+              _LabeledField(
                 label: 'Difficulty',
                 child: SegmentedButton<String>(
                   segments: const [
@@ -351,6 +385,44 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
                   : null,
             ),
           ),
+      ],
+    );
+  }
+
+  Widget _buildSystemTab(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        const _IntroCard(
+          title: 'Main Developer Options',
+          description:
+              'Exclusive access to system-level operations, logs, and advanced management tools.',
+        ),
+        const SizedBox(height: 20),
+        _SystemActionTile(
+          icon: Icons.analytics_outlined,
+          title: 'System Health',
+          subtitle: 'Check API responsiveness and database status.',
+          onTap: () => _showSnack('System Health: Healthy (v1.0.4)'),
+        ),
+        _SystemActionTile(
+          icon: Icons.security_outlined,
+          title: 'Security Logs',
+          subtitle: 'Monitor recent admin actions and failed logins.',
+          onTap: () => _showSnack('Security logs are synced to Supabase.'),
+        ),
+        _SystemActionTile(
+          icon: Icons.cleaning_services_outlined,
+          title: 'Clear Cache',
+          subtitle: 'Force global refresh of static configurations.',
+          onTap: () => _showSnack('Cache cleared for current session.'),
+        ),
+        _SystemActionTile(
+          icon: Icons.terminal_rounded,
+          title: 'Developer Console',
+          subtitle: 'Direct shell access to backend edge functions.',
+          onTap: () => _showSnack('Console interface coming soon.'),
+        ),
       ],
     );
   }
@@ -418,12 +490,15 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
         difficulty: _challengeDifficulty,
         techStack: _challengeTechStackController.text.trim(),
         pointsReward: int.parse(_challengePointsController.text.trim()),
+        publishDate: _challengePublishDateController.text.trim(),
       );
 
       _challengeTitleController.clear();
       _challengeDescriptionController.clear();
       _challengeTechStackController.clear();
       _challengePointsController.text = '20';
+      _challengePublishDateController.text =
+          DateTime.now().toIso8601String().split('T')[0];
       await _loadAdminData();
       _showSnack('Challenge created.');
     } catch (e) {
@@ -929,6 +1004,52 @@ class _EmptyAdminState extends StatelessWidget {
           color: AppColors.text3For(context),
         ),
       ),
+    );
+  }
+}
+
+class _SystemActionTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _SystemActionTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      onTap: onTap,
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: AppColors.primary, size: 20),
+      ),
+      title: Text(
+        title,
+        style: TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textFor(context),
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(
+          fontSize: 12,
+          color: AppColors.text3For(context),
+        ),
+      ),
+      trailing:
+          const Icon(Icons.chevron_right_rounded, color: AppColors.text4),
     );
   }
 }

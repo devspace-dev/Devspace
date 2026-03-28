@@ -140,10 +140,20 @@ class EngagementProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _dailyChallengeSubmitter(
+      final result = await _dailyChallengeSubmitter(
         submissionText: submissionText,
         submissionLink: submissionLink,
       );
+
+      final completed = result['completed'] as bool?;
+      final isCorrect = result['isCorrect'] as bool?;
+
+      if (completed == false || isCorrect == false) {
+        _error = 'Incorrect answer. Try again.';
+        notifyListeners();
+        return false;
+      }
+
       await fetchOverview(forceChallengeRefresh: true);
       return true;
     } catch (e) {

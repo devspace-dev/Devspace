@@ -6,6 +6,7 @@ import '../providers/auth_provider.dart';
 import '../providers/posts_provider.dart';
 import '../providers/users_provider.dart';
 import '../screens/connections_screen.dart';
+import '../screens/founder_tools_screen.dart';
 import '../screens/profile_setup_screen.dart';
 import '../screens/settings_screen.dart';
 import '../theme/app_colors.dart';
@@ -96,6 +97,17 @@ class ProfileScreen extends StatelessWidget {
               if (isMe)
                 Row(
                   children: [
+                    if (profileUser.isAdmin || profileUser.isFounder)
+                      IconButton(
+                        tooltip: 'Founder Tools',
+                        icon: const Icon(Icons.admin_panel_settings_outlined),
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const FounderToolsScreen(),
+                          ),
+                        ),
+                      ),
                     TextButton.icon(
                       onPressed: () => Navigator.push(
                         context,
@@ -188,123 +200,135 @@ class ProfileScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: AppColors.bgFor(context),
-                            width: 4,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: profileUser.color.withValues(alpha: 0.22),
-                              blurRadius: 24,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        child: UserAvatar(
-                          user: profileUser,
-                          size: 76,
-                          showStory: true,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: AppColors.bg2For(context),
+                      borderRadius: BorderRadius.circular(26),
+                      border: Border.all(color: AppColors.borderFor(context)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              profileUser.name,
-                              style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w900,
-                                color: AppColors.text,
-                                letterSpacing: -0.5,
+                            Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: AppColors.bgFor(context),
+                                  width: 4,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: profileUser.color.withValues(alpha: 0.18),
+                                    blurRadius: 22,
+                                    spreadRadius: 1,
+                                  ),
+                                ],
+                              ),
+                              child: UserAvatar(
+                                user: profileUser,
+                                size: 78,
+                                showStory: true,
                               ),
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '@${profileUser.handle}',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: AppColors.text3,
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    profileUser.name,
+                                    style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w900,
+                                      color: AppColors.textFor(context),
+                                      letterSpacing: -0.6,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '@${profileUser.handle}',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: AppColors.text3For(context),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: [
+                                      _MetaChip(label: profileUser.role),
+                                      if (profileUser.year.isNotEmpty ||
+                                          profileUser.branch.isNotEmpty)
+                                        _MetaChip(label: profileUser.academicLabel),
+                                    ],
+                                  ),
+                                ],
                               ),
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _StatButton(
-                                    count: profileUser.followers,
-                                    label: 'Followers',
-                                    accent: AppColors.primary,
-                                    onTap: () => Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => ConnectionsScreen(
-                                          user: profileUser,
-                                          type: ConnectionListType.followers,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: _StatButton(
-                                    count: posts.length,
-                                    label: 'Posts',
-                                    accent: AppColors.mint,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: _StatButton(
-                                    count: profileUser.following,
-                                    label: 'Following',
-                                    accent: AppColors.indigo,
-                                    onTap: () => Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => ConnectionsScreen(
-                                          user: profileUser,
-                                          type: ConnectionListType.following,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
                             ),
                           ],
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 18),
+                        Text(
+                          profileUser.bio.isEmpty
+                              ? 'This student has not added a bio yet.'
+                              : profileUser.bio,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.text2For(context),
+                            height: 1.6,
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _StatButton(
+                                count: profileUser.followers,
+                                label: 'Followers',
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => ConnectionsScreen(
+                                      user: profileUser,
+                                      type: ConnectionListType.followers,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _StatButton(
+                                count: posts.length,
+                                label: 'Posts',
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _StatButton(
+                                count: profileUser.following,
+                                label: 'Following',
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => ConnectionsScreen(
+                                      user: profileUser,
+                                      type: ConnectionListType.following,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ).animate().fadeIn(duration: 320.ms).slideY(begin: 0.06, end: 0),
                   const SizedBox(height: 14),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _MetaChip(label: profileUser.role),
-                      if (profileUser.year.isNotEmpty || profileUser.branch.isNotEmpty)
-                        _MetaChip(label: profileUser.academicLabel),
-                    ],
-                  ).animate().fadeIn(delay: 60.ms, duration: 320.ms),
-                  const SizedBox(height: 8),
-                  Text(
-                    profileUser.bio.isEmpty
-                        ? 'This student has not added a bio yet.'
-                        : profileUser.bio,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.text2For(context),
-                      height: 1.6,
-                    ),
-                  ).animate().fadeIn(delay: 100.ms, duration: 320.ms),
-                  const SizedBox(height: 10),
                   if (isMe && !profileUser.profileCompleted)
                     Container(
                       width: double.infinity,
@@ -352,55 +376,84 @@ class ProfileScreen extends StatelessWidget {
                         ],
                       ),
                     ),
-                  Wrap(
-                    spacing: 16,
-                    runSpacing: 6,
-                    children: [
-                      if (profileUser.academicLabel.isNotEmpty)
-                        _InfoChip(
-                          icon: Icons.location_on_outlined,
-                          label: profileUser.academicLabel,
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.bg2For(context),
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(color: AppColors.borderFor(context)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Builder details',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textFor(context),
+                          ),
                         ),
-                      _InfoChip(
-                        icon: Icons.construction_rounded,
-                        label: profileUser.building,
-                      ),
-                      _InfoChip(
-                        icon: Icons.school_outlined,
-                        label: profileUser.college,
-                      ),
-                    ],
-                  ).animate().fadeIn(delay: 140.ms, duration: 320.ms),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    children: profileUser.stack
-                        .map<Widget>(
-                          (stackItem) => Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(99),
-                              border: Border.all(
-                                color: AppColors.primary.withValues(alpha: 0.25),
-                              ),
-                            ),
-                            child: Text(
-                              stackItem,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
+                        const SizedBox(height: 12),
+                        if (profileUser.academicLabel.isNotEmpty)
+                          _InfoRow(
+                            icon: Icons.location_on_outlined,
+                            label: profileUser.academicLabel,
+                          ),
+                        _InfoRow(
+                          icon: Icons.construction_rounded,
+                          label: profileUser.building,
+                        ),
+                        _InfoRow(
+                          icon: Icons.school_outlined,
+                          label: profileUser.college,
+                          isLast: true,
+                        ),
+                        if (profileUser.stack.isNotEmpty) ...[
+                          const SizedBox(height: 14),
+                          Text(
+                            'Stack',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.text3For(context),
                             ),
                           ),
-                        )
-                        .toList(),
-                  ).animate().fadeIn(delay: 180.ms, duration: 320.ms),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: profileUser.stack
+                                .map<Widget>(
+                                  (stackItem) => Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 7,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.bgFor(context),
+                                      borderRadius: BorderRadius.circular(999),
+                                      border: Border.all(
+                                        color: AppColors.borderFor(context),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      stackItem,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.text2For(context),
+                                      ),
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ).animate().fadeIn(delay: 140.ms, duration: 320.ms),
                   const SizedBox(height: 14),
                   Container(
                     padding: const EdgeInsets.all(14),
@@ -498,24 +551,46 @@ class _MetaChip extends StatelessWidget {
   }
 }
 
-class _InfoChip extends StatelessWidget {
+class _InfoRow extends StatelessWidget {
   final IconData icon;
   final String label;
+  final bool isLast;
 
-  const _InfoChip({required this.icon, required this.label});
+  const _InfoRow({
+    required this.icon,
+    required this.label,
+    this.isLast = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: AppColors.text4For(context)),
-        const SizedBox(width: 5),
-        Text(
-          label,
-          style: TextStyle(fontSize: 12, color: AppColors.text4For(context)),
-        ),
-      ],
+    return Container(
+      padding: EdgeInsets.only(bottom: isLast ? 0 : 10),
+      margin: EdgeInsets.only(bottom: isLast ? 0 : 10),
+      decoration: BoxDecoration(
+        border: isLast
+            ? null
+            : Border(
+                bottom: BorderSide(
+                  color: AppColors.borderFor(context).withValues(alpha: 0.6),
+                ),
+                ),
+              ),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: AppColors.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.text2For(context),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -523,13 +598,11 @@ class _InfoChip extends StatelessWidget {
 class _StatButton extends StatelessWidget {
   final int count;
   final String label;
-  final Color accent;
   final VoidCallback? onTap;
 
   const _StatButton({
     required this.count,
     required this.label,
-    required this.accent,
     this.onTap,
   });
 
@@ -544,9 +617,9 @@ class _StatButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            color: accent.withValues(alpha: 0.1),
+            color: AppColors.bgFor(context),
             border: Border.all(
-              color: accent.withValues(alpha: 0.18),
+              color: AppColors.borderFor(context),
             ),
           ),
           child: Column(
@@ -572,7 +645,7 @@ class _StatButton extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w700,
-                  color: accent,
+                  color: AppColors.text3For(context),
                 ),
               ),
             ],

@@ -75,14 +75,20 @@ class PostModel {
     return PostModel(
       id: (json['id'] ?? '0').toString(),
       userId: (json['user_id'] ?? json['userId'] ?? '0').toString(),
-      content: json['content'] as String? ?? '',
+      content: json['content']?.toString() ?? '',
       tags: List<String>.from(json['tags'] as List? ?? []),
-      imageUrl: json['image_url'] as String? ?? json['imageUrl'] as String?,
+      imageUrl: (json['image_url'] ?? json['imageUrl'])?.toString(),
       quotePostId: (json['quote_post_id'] ?? json['quotePostId'])?.toString(),
       createdAt: _parseDateTime(createdAtValue),
-      likes: (json['likes_count'] ?? json['likes'] ?? 0) as int,
-      comments: (json['comments_count'] ?? json['comments'] ?? 0) as int,
-      reposts: (json['reposts_count'] ?? json['reposts'] ?? 0) as int,
+      likes: (json['likes_count'] ?? json['likes'] ?? 0) is num 
+          ? (json['likes_count'] ?? json['likes'] ?? 0).toInt() 
+          : 0,
+      comments: (json['comments_count'] ?? json['comments'] ?? 0) is num 
+          ? (json['comments_count'] ?? json['comments'] ?? 0).toInt() 
+          : 0,
+      reposts: (json['reposts_count'] ?? json['reposts'] ?? 0) is num 
+          ? (json['reposts_count'] ?? json['reposts'] ?? 0).toInt() 
+          : 0,
     );
   }
 

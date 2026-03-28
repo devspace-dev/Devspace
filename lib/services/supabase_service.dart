@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
 import '../models/post_model.dart';
@@ -5,6 +6,8 @@ import '../models/comment_model.dart';
 import '../models/notification_model.dart';
 import '../models/question_model.dart';
 import '../models/question_reply_model.dart';
+import '../models/conversation_model.dart';
+import '../models/message_model.dart';
 
 /// SQL Schema for Supabase (Run this in Supabase SQL Editor):
 ///
@@ -14,28 +17,34 @@ import '../models/question_reply_model.dart';
 ///   email text unique,
 ///   handle text unique,
 ///   avatar text,
-///   color bigint,
+///   color bigint default 0,
 ///   aura bigint default 0,
-///   role text,
-///   year text,
-///   branch text,
-///   building text,
-///   stack text[],
+///   aura_points bigint default 0,
+///   role text default 'Student',
+///   year text default '',
+///   branch text default '',
+///   building text default '',
+///   stack text[] default '{}'::text[],
 ///   followers bigint default 0,
 ///   following bigint default 0,
-///   bio text,
-///   college text,
+///   bio text default '',
+///   college text default '',
 ///   github_handle text default '',
 ///   profile_completed boolean default false,
-///   created_at timestamp with time zone default timezone('utc'::text, now())
+///   is_admin boolean default false,
+///   current_streak integer default 0,
+///   longest_streak integer default 0,
+///   last_challenge_completed_on date,
+///   created_at timestamp with time zone default timezone('utc'::text, now()),
+///   updated_at timestamp with time zone default timezone('utc'::text, now())
 /// );
 ///
 /// create table posts (
 ///   id uuid default gen_random_uuid() primary key,
 ///   user_id uuid references users(id) on delete cascade,
-///   content text,
-///   tags text[],
-///   image_url text,
+///   content text default '',
+///   tags text[] default '{}'::text[],
+///   image_url text default '',
 ///   quote_post_id uuid references posts(id) on delete set null,
 ///   likes_count bigint default 0,
 ///   comments_count bigint default 0,
@@ -71,16 +80,16 @@ import '../models/question_reply_model.dart';
 ///   id uuid default gen_random_uuid() primary key,
 ///   post_id uuid references posts(id) on delete cascade,
 ///   user_id uuid references users(id) on delete cascade,
-///   content text not null,
+///   content text not null default '',
 ///   created_at timestamp with time zone default timezone('utc'::text, now())
 /// );
 ///
 /// create table questions (
 ///   id uuid default gen_random_uuid() primary key,
 ///   user_id uuid references users(id) on delete cascade,
-///   title text not null,
-///   body text not null,
-///   tags text[],
+///   title text not null default '',
+///   body text not null default '',
+///   tags text[] default '{}'::text[],
 ///   upvotes_count bigint default 0,
 ///   replies_count bigint default 0,
 ///   solved_reply_id uuid,
@@ -91,7 +100,7 @@ import '../models/question_reply_model.dart';
 ///   id uuid default gen_random_uuid() primary key,
 ///   question_id uuid references questions(id) on delete cascade,
 ///   user_id uuid references users(id) on delete cascade,
-///   content text not null,
+///   content text not null default '',
 ///   parent_reply_id uuid references question_replies(id) on delete cascade,
 ///   replying_to_user_id uuid references users(id) on delete set null,
 ///   created_at timestamp with time zone default timezone('utc'::text, now())
@@ -109,11 +118,58 @@ import '../models/question_reply_model.dart';
 ///   id uuid default gen_random_uuid() primary key,
 ///   to_uid uuid references users(id) on delete cascade,
 ///   from_uid uuid references users(id) on delete cascade,
-///   type text,
+///   type text default '',
 ///   post_id uuid references posts(id) on delete set null,
-///   message text,
+///   message text default '',
 ///   read boolean default false,
 ///   created_at timestamp with time zone default timezone('utc'::text, now())
+/// );
+///
+/// create table conversations (
+///   id uuid default gen_random_uuid() primary key,
+///   participants uuid[] not null,
+///   last_message text,
+///   last_message_at timestamp with time zone default timezone('utc'::text, now()),
+///   created_at timestamp with time zone default timezone('utc'::text, now())
+/// );
+///
+/// create table messages (
+///   id uuid default gen_random_uuid() primary key,
+///   conversation_id uuid references conversations(id) on delete cascade,
+///   sender_id uuid references users(id) on delete cascade,
+///   content text not null,
+///   is_read boolean default false,
+///   created_at timestamp with time zone default timezone('utc'::text, now())
+/// );
+///
+/// create table challenges (
+///   id uuid default gen_random_uuid() primary key,
+///   title text not null,
+///   description text not null default '',
+///   difficulty text not null default 'easy',
+///   tech_stack text not null default 'General',
+///   points_reward integer not null default 20,
+///   publish_date date not null default (timezone('utc'::text, now())::date),
+///   is_active boolean not null default true,
+///   created_by uuid references users(id) on delete set null,
+///   created_at timestamp with time zone default timezone('utc'::text, now()),
+///   updated_at timestamp with time zone default timezone('utc'::text, now()),
+///   constraint challenges_difficulty_check check (difficulty in ('easy', 'medium', 'hard'))
+/// );
+///
+/// create table user_challenges (
+///   id uuid default gen_random_uuid() primary key,
+///   user_id uuid references users(id) on delete cascade not null,
+///   challenge_id uuid references challenges(id) on delete cascade not null,
+///   assigned_date date not null default timezone('utc'::text, now())::date,
+///   selected_tech_stack text not null default 'General',
+///   submission_text text default '',
+///   submission_link text default '',
+///   completed boolean not null default false,
+///   completed_at timestamp with time zone,
+///   created_at timestamp with time zone default timezone('utc'::text, now()),
+///   updated_at timestamp with time zone default timezone('utc'::text, now()),
+///   unique (user_id, assigned_date)
 /// );
 
 class SupabaseService {
@@ -171,27 +227,38 @@ class SupabaseService {
     String githubHandle = '',
     bool profileCompleted = false,
   }) async {
-    await _client.from('users').insert({
+    // 1. Insert core fields first (These MUST exist)
+    await _client.from('users').upsert({
       'id': id,
       'name': name,
       'email': email.toLowerCase(),
       'handle': handle,
       'avatar': avatar,
-      'cover_url': coverUrl,
-      'color': 0xFF7C3AED,
-      'aura': 0,
-      'role': role,
-      'year': year,
-      'branch': branch,
-      'building': building,
-      'stack': stack,
-      'followers': 0,
-      'following': 0,
-      'bio': bio,
-      'college': college,
-      'github_handle': githubHandle,
-      'profile_completed': profileCompleted,
+      'created_at': DateTime.now().toIso8601String(),
     });
+
+    // 2. Attempt to update extended fields (In case they are missing in the current schema)
+    try {
+      await _client.from('users').update({
+        'cover_url': coverUrl,
+        'color': 0xFF7C3AED,
+        'aura': 0,
+        'role': role,
+        'year': year,
+        'branch': branch,
+        'building': building,
+        'stack': stack,
+        'followers': 0,
+        'following': 0,
+        'bio': bio,
+        'college': college,
+        'github_handle': githubHandle,
+        'profile_completed': profileCompleted,
+      }).eq('id', id);
+    } catch (e) {
+      // If some columns are missing, we still want the user to be able to log in.
+      debugPrint('Extended user fields update failed (likely missing columns): $e');
+    }
   }
 
   Future<void> updateUser(String uid, Map<String, dynamic> data) async {
@@ -647,5 +714,75 @@ class SupabaseService {
         'p_content': trimmed,
       },
     );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // MESSAGING
+  // ══════════════════════════════════════════════════════════════════════════
+
+  Stream<List<ConversationModel>> streamConversations(String userId) {
+    return _client
+        .from('conversations')
+        .stream(primaryKey: ['id'])
+        .map((list) => list
+            .map((d) => ConversationModel.fromJson(d))
+            .where((c) => c.participants.contains(userId))
+            .toList())
+        .map((list) => list..sort((a, b) => (b.lastMessageAt ?? b.createdAt).compareTo(a.lastMessageAt ?? a.createdAt)));
+  }
+
+  Stream<List<MessageModel>> streamMessages(String conversationId) {
+    return _client
+        .from('messages')
+        .stream(primaryKey: ['id'])
+        .eq('conversation_id', conversationId)
+        .order('created_at', ascending: true)
+        .map((list) => list.map((d) => MessageModel.fromJson(d)).toList());
+  }
+
+  Future<void> sendMessage({
+    required String conversationId,
+    required String senderId,
+    required String content,
+  }) async {
+    final trimmed = content.trim();
+    if (trimmed.isEmpty) return;
+
+    await _client.from('messages').insert({
+      'conversation_id': conversationId,
+      'sender_id': senderId,
+      'content': trimmed,
+    });
+
+    // Update last message in conversation
+    await _client.from('conversations').update({
+      'last_message': trimmed,
+      'last_message_at': DateTime.now().toIso8601String(),
+    }).eq('id', conversationId);
+  }
+
+  Future<ConversationModel> getOrCreateConversation(
+      String userA, String userB) async {
+    final participants = [userA, userB]..sort();
+
+    final existing = await _client
+        .from('conversations')
+        .select()
+        .contains('participants', participants)
+        .maybeSingle();
+
+    if (existing != null) {
+      return ConversationModel.fromJson(existing);
+    }
+
+    final data = await _client
+        .from('conversations')
+        .insert({
+          'participants': participants,
+        })
+        .select()
+        .single();
+
+    return ConversationModel.fromJson(data);
   }
 }

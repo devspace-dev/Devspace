@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/users_provider.dart';
+import '../providers/messages_provider.dart';
+import '../screens/chat_detail_screen.dart';
 import '../theme/app_colors.dart';
 import 'user_avatar.dart';
 import 'aura_bar.dart';
@@ -58,6 +60,8 @@ class ProfileCard extends StatelessWidget {
                           ],
                         ),
                       ),
+                      _MessageButton(user: liveUser),
+                      const SizedBox(width: 8),
                       _FollowButton(user: liveUser),
                     ],
                   ),
@@ -77,6 +81,38 @@ class ProfileCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _MessageButton extends StatelessWidget {
+  final UserModel user;
+  const _MessageButton({required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    final me = context.read<AuthProvider>().currentUserOrNull;
+    if (me == null || me.id == user.id) return const SizedBox.shrink();
+
+    return IconButton(
+      onPressed: () async {
+        final provider = context.read<MessagesProvider>();
+        final conv = await provider.startConversation(me.id, user.id);
+        if (!context.mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) =>
+                ChatDetailScreen(conversation: conv, otherUser: user),
+          ),
+        );
+      },
+      icon: const Icon(Icons.mail_outline_rounded, size: 20),
+      style: IconButton.styleFrom(
+        backgroundColor: AppColors.bg2,
+        padding: EdgeInsets.zero,
+        minimumSize: const Size(32, 32),
       ),
     );
   }

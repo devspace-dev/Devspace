@@ -85,10 +85,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           const _SectionHeader(title: 'APP'),
+          if (me.isFounder)
+            _SettingsTile(
+              icon: Icons.developer_mode_rounded,
+              title: 'Developer Dashboard',
+              subtitle: 'Monitor system performance and analytics.',
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const FounderToolsScreen(),
+                  ),
+                );
+              },
+            ),
           FutureBuilder<bool>(
             future: _founderAccessFuture,
             builder: (context, snapshot) {
-              if (snapshot.data != true) {
+              if (snapshot.data != true && !me.isFounder) {
                 return const SizedBox.shrink();
               }
 

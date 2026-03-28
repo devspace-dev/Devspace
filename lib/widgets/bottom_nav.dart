@@ -57,9 +57,9 @@ class DevSpaceBottomNav extends StatelessWidget {
                     onTap: onTap,
                   ),
                   _NavItem(
-                    icon: Icons.auto_awesome_mosaic_rounded,
-                    activeIcon: Icons.auto_awesome_mosaic_rounded,
-                    label: 'Aura',
+                    icon: Icons.rocket_launch_rounded,
+                    activeIcon: Icons.rocket_launch_rounded,
+                    label: 'Opps',
                     index: 3,
                     current: currentIndex,
                     onTap: onTap,

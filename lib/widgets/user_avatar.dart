@@ -34,7 +34,7 @@ class UserAvatar extends StatelessWidget {
         border: borderWidth > 0 ? Border.all(color: borderColor, width: borderWidth) : null,
       ),
       child: ClipOval(
-        child: user.hasImageAvatar
+        child: user.isImageAvatar
             ? _AvatarImage(
                 avatar: user.avatar,
                 size: size,

@@ -59,7 +59,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     _branch = user.branch;
     _college = user.college.isNotEmpty ? user.college : kCollegeOptions.first;
     _stack = List<String>.from(user.stack);
-    _avatarPath = user.hasImageAvatar ? user.avatar : null;
+    _avatarPath = user.isImageAvatar ? user.avatar : null;
   }
 
   @override

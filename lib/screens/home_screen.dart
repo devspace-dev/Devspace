@@ -60,32 +60,41 @@ class _HomeScreenState extends State<HomeScreen> {
       child: CustomScrollView(
         controller: _scrollController,
         slivers: [
+          const SliverToBoxAdapter(child: _HomeIntro()),
           const SliverToBoxAdapter(child: ComposeBox()),
-          const SliverToBoxAdapter(child: EngagementOverview()),
+          const SliverPadding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            sliver: SliverToBoxAdapter(child: EngagementOverview()),
+          ),
           SliverToBoxAdapter(
-            child: Container(
-              height: 44,
-              decoration: BoxDecoration(
-                border: Border(
-                    bottom: BorderSide(
-                        color: AppColors.borderFor(context), width: 0.5)),
-              ),
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                itemCount: kTrendingTags.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 16),
-                itemBuilder: (context, i) => Center(
-                  child: Text(
-                    kTrendingTags[i],
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+              child: _TrendingTags(tags: kTrendingTags),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 6),
+              child: Row(
+                children: [
+                  Text(
+                    'Latest from builders',
                     style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.text3For(context),
-                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textFor(context),
                     ),
                   ),
-                ),
+                  const Spacer(),
+                  Text(
+                    '${posts.length} posts',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.text3For(context),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -152,6 +161,100 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           const SliverToBoxAdapter(child: SizedBox(height: 100)),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeIntro extends StatelessWidget {
+  const _HomeIntro();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Campus builder feed',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.8,
+              color: AppColors.textFor(context),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Track projects, ask doubts, and stay visible to other student builders without the noise.',
+            style: TextStyle(
+              fontSize: 13.5,
+              height: 1.45,
+              color: AppColors.text3For(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TrendingTags extends StatelessWidget {
+  final List<String> tags;
+
+  const _TrendingTags({required this.tags});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.bg2For(context),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.borderFor(context)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Trending topics',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textFor(context),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: tags
+                .map(
+                  (tag) => Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.bgFor(context),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: AppColors.borderFor(context)),
+                    ),
+                    child: Text(
+                      tag,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.text2For(context),
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
         ],
       ),
     );

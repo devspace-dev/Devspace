@@ -11,7 +11,11 @@ import 'screens/people_screen.dart';
 import 'screens/qa_screen.dart';
 import 'screens/aura_board_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/daily_challenge_screen.dart';
+import 'screens/opportunities_screen.dart';
+import 'screens/messages_screen.dart';
 import 'providers/auth_provider.dart';
+import 'providers/messages_provider.dart';
 import 'models/user_model.dart';
 import 'theme/app_colors.dart';
 import 'widgets/bottom_nav.dart';
@@ -32,8 +36,9 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
     'DevSpace',
     'Developers',
     'Q & A',
-    'Aura Board',
+    'Opportunities',
     'Profile',
+    'Aura Board',
   ];
 
   @override
@@ -49,6 +54,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
         context.read<QuestionsProvider>().fetchQuestions();
         context.read<NotificationsProvider>().init(auth.currentUser.id);
         context.read<EngagementProvider>().fetchOverview();
+        context.read<MessagesProvider>().init(auth.currentUser.id);
       } catch (_) {/* no user yet */}
     });
   }
@@ -234,14 +240,31 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
       const HomeScreen(),
       const PeopleScreen(),
       const QAScreen(),
-      const AuraBoardScreen(),
+      const OpportunitiesScreen(),
       const ProfileScreen(),
+      const AuraBoardScreen(),
     ];
+
+    final showFab = _tab < 4;
 
     return Scaffold(
       backgroundColor: AppColors.bgFor(context),
       extendBody: true,
       extendBodyBehindAppBar: false,
+      floatingActionButton: showFab
+          ? FloatingActionButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const DailyChallengeScreen(),
+                  ),
+                );
+              },
+              backgroundColor: AppColors.primary,
+              child: const Icon(Icons.emoji_events_rounded, color: Colors.white),
+            )
+          : null,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(kToolbarHeight),
         child: GlassContainer(
@@ -287,32 +310,44 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                 Padding(
                   padding: const EdgeInsets.only(right: 12),
                   child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppColors.bg2For(context),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                            color: AppColors.borderFor(context), width: 0.5),
-                      ),
-                      child: Row(
-                        children: [
-                          const Text('⚡', style: TextStyle(fontSize: 11)),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${me.aura}',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textFor(context),
+                    child: GestureDetector(
+                      onTap: () => _onTabSelected(5), // Navigate to Aura Board
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.bg2For(context),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                              color: AppColors.borderFor(context), width: 0.5),
+                        ),
+                        child: Row(
+                          children: [
+                            const Text('⚡', style: TextStyle(fontSize: 11)),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${me.aura}',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textFor(context),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
+              IconButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const MessagesScreen()),
+                  );
+                },
+                icon: const Icon(Icons.email_outlined),
+              ),
             ],
           ),
         ),

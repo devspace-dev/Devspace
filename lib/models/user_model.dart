@@ -20,6 +20,7 @@ class UserModel {
   final String college;
   final String githubHandle;
   final bool profileCompleted;
+  final bool isAdmin;
   bool isFollowing;
 
   UserModel({
@@ -42,11 +43,14 @@ class UserModel {
     required this.college,
     required this.githubHandle,
     required this.profileCompleted,
+    this.isAdmin = false,
     this.isFollowing = false,
   });
 
-  bool get hasImageAvatar =>
+  bool get isImageAvatar =>
       avatar.startsWith('http') || avatar.contains('/') || avatar.startsWith('data:');
+
+  bool get isFounder => email.toLowerCase() == 'businessrexxon@gmail.com';
 
   String get academicLabel {
     if (year.isEmpty) return branch;
@@ -74,6 +78,7 @@ class UserModel {
     String? college,
     String? githubHandle,
     bool? profileCompleted,
+    bool? isAdmin,
     bool? isFollowing,
   }) {
     return UserModel(
@@ -96,6 +101,7 @@ class UserModel {
       college: college ?? this.college,
       githubHandle: githubHandle ?? this.githubHandle,
       profileCompleted: profileCompleted ?? this.profileCompleted,
+      isAdmin: isAdmin ?? this.isAdmin,
       isFollowing: isFollowing ?? this.isFollowing,
     );
   }
@@ -120,45 +126,50 @@ class UserModel {
         'college': college,
         'github_handle': githubHandle,
         'profile_completed': profileCompleted,
+        'is_admin': isAdmin,
       };
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
-    final rawYear = json['year'] as String? ?? '';
-    final rawBranch = json['branch'] as String? ?? '';
+    final rawYear = json['year']?.toString() ?? '';
+    final rawBranch = json['branch']?.toString() ?? '';
     final parsedAcademic = _parseAcademicInfo(rawYear, rawBranch);
-    final building = json['building'] as String? ?? '';
+    final building = json['building']?.toString() ?? '';
     final stack = List<String>.from(json['stack'] as List? ?? []);
-    final explicitCompleted = (json['profile_completed'] ?? json['profileCompleted']) as bool?;
+    
+    final profileCompletedRaw = json['profile_completed'] ?? json['profileCompleted'];
+    final explicitCompleted = profileCompletedRaw is bool ? profileCompletedRaw : null;
+    
     final inferredCompleted = explicitCompleted ??
         (parsedAcademic.year.isNotEmpty &&
             parsedAcademic.branch.isNotEmpty &&
             building.isNotEmpty &&
             building != 'Not set' &&
             stack.isNotEmpty &&
-            (json['role'] as String? ?? '').isNotEmpty &&
-            (json['college'] as String? ?? '').isNotEmpty);
+            (json['role']?.toString() ?? '').isNotEmpty &&
+            (json['college']?.toString() ?? '').isNotEmpty);
 
     return UserModel(
       id: (json['id'] ?? '0').toString(),
-      name: json['name'] as String? ?? 'Unknown',
-      email: json['email'] as String? ?? '',
-      handle: json['handle'] as String? ?? '',
-      avatar: json['avatar'] as String? ?? '',
-      coverUrl: (json['cover_url'] ?? json['coverUrl'] ?? '') as String,
-      color: Color(json['color'] as int? ?? 0xFF7C3AED),
-      aura: json['aura'] as int? ?? 0,
-      role: json['role'] as String? ?? '',
+      name: json['name']?.toString() ?? 'Unknown',
+      email: json['email']?.toString() ?? '',
+      handle: json['handle']?.toString() ?? '',
+      avatar: json['avatar']?.toString() ?? '',
+      coverUrl: (json['cover_url'] ?? json['coverUrl'] ?? '').toString(),
+      color: Color((json['color'] as num? ?? 0xFF7C3AED).toInt()),
+      aura: (json['aura'] as num? ?? 0).toInt(),
+      role: json['role']?.toString() ?? '',
       year: parsedAcademic.year,
       branch: parsedAcademic.branch,
       building: building,
       stack: stack,
-      followers: json['followers'] as int? ?? 0,
-      following: json['following'] as int? ?? 0,
-      bio: json['bio'] as String? ?? '',
-      college: json['college'] as String? ?? '',
+      followers: (json['followers'] as num? ?? 0).toInt(),
+      following: (json['following'] as num? ?? 0).toInt(),
+      bio: json['bio']?.toString() ?? '',
+      college: json['college']?.toString() ?? '',
       githubHandle:
-          (json['github_handle'] ?? json['githubHandle'] ?? '') as String,
+          (json['github_handle'] ?? json['githubHandle'] ?? '').toString(),
       profileCompleted: inferredCompleted,
+      isAdmin: (json['is_admin'] ?? json['isAdmin']) == true,
     );
   }
 

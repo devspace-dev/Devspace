@@ -80,6 +80,12 @@ class UsersProvider extends ChangeNotifier {
     }
   }
 
+  Future<UserModel?> getUser(String id) async {
+    final existing = getUserById(id);
+    if (existing != null) return existing;
+    return await SupabaseService.instance.getUserById(id);
+  }
+
   Future<void> toggleFollow(String fromUid, String toUid) async {
     if (fromUid == toUid || _followUpdating[toUid] == true) return;
 

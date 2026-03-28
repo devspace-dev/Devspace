@@ -357,13 +357,58 @@ class BackendApiService {
       final data = Map<String, dynamic>.from(
         await _request(
           'GET',
-          '/challenges/daily',
+          '/missions/daily',
           queryParameters: techStack == null ? null : {'techStack': techStack},
         ) as Map,
       );
       return DailyChallengeModel.fromJson(data);
     } catch (error) {
-      if (!_isRouteMissingError(error)) rethrow;
+      if (!_isRouteMissingError(error)) {
+        try {
+          final legacyData = Map<String, dynamic>.from(
+            await _request(
+              'GET',
+              '/challenges/daily',
+              queryParameters: techStack == null ? null : {'techStack': techStack},
+            ) as Map,
+          );
+          return DailyChallengeModel.fromJson(legacyData);
+        } catch (_) {
+          rethrow;
+        }
+      }
+
+      try {
+        final row = await _client
+            .from('user_missions')
+            .select(
+              'id, mission_id, assigned_date, selected_tech_stack, completed, completed_at, is_correct',
+            )
+            .eq(
+              'assigned_date',
+              DateTime.now().toUtc().toIso8601String().split('T').first,
+            )
+            .order('assigned_date', ascending: false)
+            .limit(1)
+            .maybeSingle();
+
+        if (row != null) {
+          final mission = await _client
+              .from('missions')
+              .select(
+                'id, title, type, tech_stack, question, options, correct_answer, link, points_reward, publish_date, is_active',
+              )
+              .eq('id', row['mission_id'])
+              .maybeSingle();
+
+          if (mission != null) {
+            return DailyChallengeModel.fromJson({
+              ...Map<String, dynamic>.from(row),
+              'mission': mission,
+            });
+          }
+        }
+      } catch (_) {}
 
       try {
         final row = await _client
@@ -401,6 +446,7 @@ class BackendApiService {
     required String difficulty,
     required String techStack,
     required int pointsReward,
+    required String publishDate,
   }) async {
     final data = await _request(
       'POST',
@@ -412,6 +458,7 @@ class BackendApiService {
         'difficulty': difficulty,
         'techStack': techStack,
         'pointsReward': pointsReward,
+        'publishDate': publishDate,
       },
     ) as Map;
 
@@ -463,6 +510,141 @@ class BackendApiService {
     return Map<String, dynamic>.from(data);
   }
 
+  Future<Map<String, dynamic>?> getDailyMission({String? techStack}) async {
+    final data = await _request(
+      'GET',
+      '/missions/daily',
+      queryParameters: techStack == null ? null : {'techStack': techStack},
+    );
+
+    if (data == null) return null;
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  Future<Map<String, dynamic>?> getTodayMissionAssignment() async {
+    final data = await _request('GET', '/missions/today');
+    if (data == null) return null;
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  Future<Map<String, dynamic>> submitDailyMission({
+    String answerSubmitted = '',
+    String submissionLink = '',
+  }) async {
+    final data = await _request(
+      'POST',
+      '/missions/submit',
+      body: {
+        'answerSubmitted': answerSubmitted,
+        'submissionLink': submissionLink,
+      },
+    ) as Map;
+
+    return Map<String, dynamic>.from(data);
+  }
+
+  Future<List<Map<String, dynamic>>> getAdminMissions() async {
+    final data = await _request(
+      'GET',
+      '/missions',
+      includeFounderDevice: true,
+      queryParameters: {'includeInactive': true},
+    ) as List<dynamic>;
+
+    return data.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+  }
+
+  Future<Map<String, dynamic>> createMission({
+    required String title,
+    required String type,
+    required String techStack,
+    required String question,
+    List<dynamic>? options,
+    String? correctAnswer,
+    String? link,
+    required int pointsReward,
+    required String publishDate,
+    bool isActive = true,
+  }) async {
+    final data = await _request(
+      'POST',
+      '/missions',
+      includeFounderDevice: true,
+      body: {
+        'title': title,
+        'type': type,
+        'techStack': techStack,
+        'question': question,
+        'options': options,
+        'correctAnswer': correctAnswer,
+        'link': link,
+        'pointsReward': pointsReward,
+        'publishDate': publishDate,
+        'isActive': isActive,
+      },
+    ) as Map;
+
+    return Map<String, dynamic>.from(data);
+  }
+
+  Future<Map<String, dynamic>> updateMission({
+    required String missionId,
+    String? title,
+    String? type,
+    String? techStack,
+    String? question,
+    List<dynamic>? options,
+    String? correctAnswer,
+    String? link,
+    int? pointsReward,
+    String? publishDate,
+    bool? isActive,
+  }) async {
+    final data = await _request(
+      'PATCH',
+      '/missions/$missionId',
+      includeFounderDevice: true,
+      body: {
+        if (title != null) 'title': title,
+        if (type != null) 'type': type,
+        if (techStack != null) 'techStack': techStack,
+        if (question != null) 'question': question,
+        if (options != null) 'options': options,
+        if (correctAnswer != null) 'correctAnswer': correctAnswer,
+        if (link != null) 'link': link,
+        if (pointsReward != null) 'pointsReward': pointsReward,
+        if (publishDate != null) 'publishDate': publishDate,
+        if (isActive != null) 'isActive': isActive,
+      },
+    ) as Map;
+
+    return Map<String, dynamic>.from(data);
+  }
+
+  Future<Map<String, dynamic>> deactivateMission(String missionId) async {
+    final data = await _request(
+      'POST',
+      '/missions/$missionId/deactivate',
+      includeFounderDevice: true,
+    ) as Map;
+
+    return Map<String, dynamic>.from(data);
+  }
+
+  Future<Map<String, dynamic>> reviewMissionAssignment({
+    required String assignmentId,
+    required bool isCorrect,
+  }) async {
+    final data = await _request(
+      'POST',
+      '/missions/assignments/$assignmentId/review',
+      includeFounderDevice: true,
+      body: {'isCorrect': isCorrect},
+    ) as Map;
+
+    return Map<String, dynamic>.from(data);
+  }
+
   Future<bool> hasFounderAccess() async {
     try {
       final data = Map<String, dynamic>.from(
@@ -485,16 +667,38 @@ class BackendApiService {
     try {
       final data = await _request(
         'POST',
-        '/challenges/complete',
+        '/missions/submit',
         body: {
-          'submissionText': submissionText,
+          'answerSubmitted': submissionText,
           'submissionLink': submissionLink,
         },
       ) as Map;
 
       return Map<String, dynamic>.from(data);
     } catch (error) {
-      if (!_isRouteMissingError(error)) rethrow;
+      if (!_isRouteMissingError(error)) {
+        final data = await _request(
+          'POST',
+          '/challenges/complete',
+          body: {
+            'submissionText': submissionText,
+            'submissionLink': submissionLink,
+          },
+        ) as Map;
+
+        return Map<String, dynamic>.from(data);
+      }
+
+      try {
+        final data = await _client.rpc(
+          'submit_daily_mission',
+          params: {
+            'p_answer_submitted': submissionText,
+            'p_submission_link': submissionLink,
+          },
+        );
+        return Map<String, dynamic>.from(data as Map);
+      } catch (_) {}
 
       final data = await _client.rpc(
         'complete_daily_challenge',

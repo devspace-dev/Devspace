@@ -1141,11 +1141,15 @@ create table if not exists public.challenges (
   difficulty text not null default 'easy',
   tech_stack text not null default 'General',
   points_reward integer not null default 20,
+  publish_date date not null default (timezone('utc'::text, now())::date),
   is_active boolean not null default true,
+  created_by uuid references public.users(id) on delete set null,
   created_at timestamp with time zone default timezone('utc'::text, now()),
   updated_at timestamp with time zone default timezone('utc'::text, now()),
   constraint challenges_difficulty_check check (difficulty in ('easy', 'medium', 'hard'))
 );
+
+create index if not exists idx_challenges_publish_date on public.challenges(publish_date);
 
 create table if not exists public.user_challenges (
   id uuid default gen_random_uuid() primary key,
@@ -1615,6 +1619,7 @@ begin
   into chosen_challenge_id
   from public.challenges
   where is_active = true
+    and publish_date = today_utc
     and lower(tech_stack) = lower(selected_stack)
   order by created_at desc
   limit 1;
@@ -1624,6 +1629,7 @@ begin
     into chosen_challenge_id
     from public.challenges
     where is_active = true
+      and publish_date = today_utc
       and lower(tech_stack) = 'general'
     order by created_at desc
     limit 1;
@@ -1634,12 +1640,13 @@ begin
     into chosen_challenge_id
     from public.challenges
     where is_active = true
+      and publish_date = today_utc
     order by created_at desc
     limit 1;
   end if;
 
   if chosen_challenge_id is null then
-    raise exception 'No active challenge is available';
+    raise exception 'No active challenge is available for today';
   end if;
 
   insert into public.user_challenges(
@@ -1734,13 +1741,13 @@ begin
   where id = actor_id;
 
   if previous_completion = today_utc - 1 then
-    select current_streak + 1, greatest(longest_streak, current_streak + 1)
+    select coalesce(current_streak, 0) + 1, greatest(coalesce(longest_streak, 0), coalesce(current_streak, 0) + 1)
     into next_streak, next_longest
     from public.users
     where id = actor_id;
   else
     next_streak := 1;
-    select greatest(longest_streak, 1)
+    select greatest(coalesce(longest_streak, 0), 1)
     into next_longest
     from public.users
     where id = actor_id;
@@ -1748,7 +1755,7 @@ begin
 
   update public.users
   set current_streak = next_streak,
-      longest_streak = greatest(coalesce(next_longest, 0), coalesce(longest_streak, 0)),
+      longest_streak = next_longest,
       last_challenge_completed_on = today_utc
   where id = actor_id;
 

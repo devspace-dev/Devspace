@@ -46,40 +46,143 @@ class _ComposeBoxState extends State<ComposeBox> {
     final me = context.watch<AuthProvider>().currentUser;
 
     return Container(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.borderFor(context), width: 0.5)),
+        color: AppColors.bg2For(context),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.borderFor(context)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          UserAvatar(user: me, size: 36),
-          const SizedBox(width: 12),
-          Expanded(
-            child: GestureDetector(
-              onTap: _openComposer,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                decoration: BoxDecoration(
-                  color: AppColors.bg2For(context),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: AppColors.borderFor(context), width: 0.5),
-                ),
-                child: Text(
-                  'What\'s happening?',
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: AppColors.text3For(context),
+          Row(
+            children: [
+              UserAvatar(user: me, size: 42),
+              const SizedBox(width: 12),
+              Expanded(
+                child: GestureDetector(
+                  onTap: _openComposer,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.bgFor(context),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: AppColors.borderFor(context).withValues(alpha: 0.8),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Share your build progress',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textFor(context),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Post an update, doubt, demo link, or what you shipped today.',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            height: 1.35,
+                            color: AppColors.text3For(context),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
-          const SizedBox(width: 12),
-          IconButton(
-            onPressed: () => _openComposer(),
-            icon: const Icon(Icons.add_circle_outline_rounded, color: AppColors.primary),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _ComposeAction(
+                  icon: Icons.edit_rounded,
+                  label: 'Write post',
+                  onTap: _openComposer,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _ComposeAction(
+                  icon: Icons.photo_library_outlined,
+                  label: 'Add image',
+                  onTap: () => _openComposer(),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _ComposeAction(
+                  icon: Icons.sell_outlined,
+                  label: 'Add tags',
+                  onTap: () => _openComposer(showTags: true),
+                ),
+              ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ComposeAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _ComposeAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.bgFor(context),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.borderFor(context)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 18, color: AppColors.primary),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.text2For(context),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -111,7 +111,7 @@ class EngagementOverview extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              'Daily Challenge',
+                              'Daily Mission',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w800,
@@ -144,7 +144,7 @@ class EngagementOverview extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        challenge.description,
+                        challenge.question,
                         style: TextStyle(
                           fontSize: 13,
                           height: 1.45,
@@ -153,7 +153,7 @@ class EngagementOverview extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        '${challenge.techStack} - ${challenge.difficulty}',
+                        '${challenge.techStack} - ${challenge.missionType}',
                         style: TextStyle(
                           fontSize: 12,
                           color: AppColors.text3For(context),
@@ -303,7 +303,7 @@ class EngagementOverview extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Submit challenge solution',
+                    'Submit mission answer',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
@@ -315,17 +315,21 @@ class EngagementOverview extends StatelessWidget {
                     controller: textController,
                     minLines: 3,
                     maxLines: 5,
-                    decoration: const InputDecoration(
-                      labelText: 'What did you build or solve?',
+                    decoration: InputDecoration(
+                      labelText: provider.dailyChallenge?.isCodingMission == true
+                          ? 'What did you build or solve?'
+                          : 'Your answer',
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: linkController,
-                    decoration: const InputDecoration(
-                      labelText: 'Optional link',
+                  if (provider.dailyChallenge?.isCodingMission == true) ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: linkController,
+                      decoration: const InputDecoration(
+                        labelText: 'Optional link',
+                      ),
                     ),
-                  ),
+                  ],
                   if (provider.error != null) ...[
                     const SizedBox(height: 10),
                     Text(
@@ -356,7 +360,7 @@ class EngagementOverview extends StatelessWidget {
                       child: Text(
                         provider.isSubmittingChallenge
                             ? 'Submitting...'
-                            : 'Complete Challenge',
+                            : 'Submit Mission',
                       ),
                     ),
                   ),
@@ -373,7 +377,7 @@ class EngagementOverview extends StatelessWidget {
 
     if (success == true && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Challenge submitted. Aura updated.')),
+        const SnackBar(content: Text('Mission submitted. Aura updated.')),
       );
     }
   }

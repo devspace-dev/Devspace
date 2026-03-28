@@ -1,164 +1,377 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../providers/users_provider.dart';
+import '../providers/auth_provider.dart';
 import '../models/badge_model.dart';
+import '../models/user_model.dart';
 import '../theme/app_colors.dart';
 import '../widgets/user_avatar.dart';
-import '../widgets/aura_bar.dart';
+import '../widgets/app_ui_kit.dart';
 import 'profile_screen.dart';
 
-class AuraBoardScreen extends StatelessWidget {
+class AuraBoardScreen extends StatefulWidget {
   const AuraBoardScreen({super.key});
 
   @override
+  State<AuraBoardScreen> createState() => _AuraBoardScreenState();
+}
+
+class _AuraBoardScreenState extends State<AuraBoardScreen> {
+  String _timeframe = 'Monthly'; // 'Weekly' or 'Monthly'
+
+  @override
   Widget build(BuildContext context) {
-    final ranked  = context.watch<UsersProvider>().leaderboard;
-    final medals  = ['🥇', '🥈', '🥉'];
+    final ranked = context.watch<UsersProvider>().leaderboard;
+    final currentUser = context.watch<AuthProvider>().currentUserOrNull;
+    
+    final top3 = ranked.take(3).toList();
+    final remaining = ranked.skip(3).toList();
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(0, 0, 0, 100),
-      children: [
-        // Header
-        Container(
-          padding: const EdgeInsets.fromLTRB(16, 20, 16, 14),
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: AppColors.borderFor(context))),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Aura Leaderboard',
-                  style: TextStyle(
-                    fontSize: 22, fontWeight: FontWeight.w900,
-                    color: AppColors.textFor(context), letterSpacing: -0.5)),
-              const SizedBox(height: 3),
-              Text('Top contributors this month · stay active to climb',
-                  style: TextStyle(fontSize: 13, color: AppColors.text3For(context))),
-            ],
-          ),
-        ),
+    return AppGradientBackground(
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(0, 0, 0, 100),
+        physics: const BouncingScrollPhysics(),
+        children: [
+          // Header
+          _buildHeader(context),
 
-        // Ranked list
-        ...ranked.asMap().entries.map((e) {
-          final i    = e.key;
-          final u    = e.value;
-          final badge = getBadge(u.aura);
-          return GestureDetector(
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => ProfileScreen(userId: u.id)),
-            ),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                color: i == 0
-                    ? AppColors.primary.withValues(alpha: 0.05)
-                    : Colors.transparent,
-                border: Border(bottom: BorderSide(color: AppColors.borderFor(context))),
+          if (ranked.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(40),
+                child: CircularProgressIndicator.adaptive(),
               ),
-              child: Row(
+            )
+          else ...[
+            // Podium
+            _buildPodium(context, top3),
+            
+            const SizedBox(height: 24),
+
+            // Ranked list
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                children: remaining.map((u) {
+                  final index = ranked.indexOf(u);
+                  final isMe = u.id == currentUser?.id;
+                  return _buildRankItem(context, u, index, isMe);
+                }).toList(),
+              ),
+            ),
+
+            // Badge tiers legend
+            _buildTiersLegend(context),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Aura Leaderboard',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w900,
+                color: AppColors.textFor(context),
+                letterSpacing: -1,
+              )),
+          const SizedBox(height: 16),
+          _buildTimeframeToggle(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimeframeToggle() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.bg3For(context),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: ['Weekly', 'Monthly'].map((t) {
+          final isSelected = _timeframe == t;
+          return GestureDetector(
+            onTap: () => setState(() => _timeframe = t),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.primary : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: isSelected ? [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  )
+                ] : null,
+              ),
+              child: Text(
+                t,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : AppColors.text3For(context),
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildPodium(BuildContext context, List<UserModel> top3) {
+    if (top3.isEmpty) return const SizedBox.shrink();
+    
+    // Order for visual podium: [2, 1, 3]
+    final podiumOrder = <int>[];
+    if (top3.length > 1) podiumOrder.add(1);
+    podiumOrder.add(0);
+    if (top3.length > 2) podiumOrder.add(2);
+
+    return Container(
+      height: 240,
+      margin: const EdgeInsets.only(top: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: podiumOrder.map((index) {
+          final user = top3[index];
+          final rank = index + 1;
+          final isFirst = rank == 1;
+          
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => ProfileScreen(userId: user.id)),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  SizedBox(
-                    width: 32,
-                    child: Center(
-                      child: i < 3
-                          ? Text(medals[i], style: const TextStyle(fontSize: 20))
-                          : Text('#${i + 1}',
-                              style: TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.w800,
-                                color: AppColors.text3For(context))),
+                  UserAvatar(user: user, size: isFirst ? 80 : 64, showStory: true),
+                  const SizedBox(height: 12),
+                  Text(
+                    user.name.split(' ')[0],
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                      color: AppColors.textFor(context),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${user.aura}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 18,
+                      color: getBadge(user.aura).color,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  UserAvatar(user: u, size: 46, showStory: true),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(u.name,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800, fontSize: 15,
-                              color: AppColors.textFor(context))),
-                        Text('@${u.handle} · ${u.academicLabel.isEmpty ? u.role : u.academicLabel}',
-                            style: TextStyle(
-                              fontSize: 12, color: AppColors.text3For(context))),
-                        const SizedBox(height: 6),
-                        AuraBar(aura: u.aura),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(u.aura.toString(),
-                          style: TextStyle(
-                            fontSize: 20, fontWeight: FontWeight.w900,
-                            color: badge.color)),
-                      Text('${badge.icon} ${badge.name}',
-                          style: TextStyle(
-                            fontSize: 11, color: AppColors.text3For(context))),
-                    ],
-                  ),
+                  const SizedBox(height: 12),
+                  _PodiumBase(rank: rank, isFirst: isFirst),
                 ],
               ),
             ),
           );
-        }),
+        }).toList(),
+      ),
+    ).animate().fadeIn().moveY(begin: 20, curve: Curves.easeOut);
+  }
 
-        // Badge tiers legend
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Badge Tiers',
-                  style: TextStyle(
-                    fontSize: 11, fontWeight: FontWeight.w700,
-                    color: AppColors.text3For(context), letterSpacing: 1.0)),
-              const SizedBox(height: 12),
-              ...kBadges.map((b) => Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  color: AppColors.bg3For(context),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: b.color.withValues(alpha: 0.2)),
+  Widget _buildRankItem(BuildContext context, UserModel u, int index, bool isMe) {
+    final badge = getBadge(u.aura);
+    return AppCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      borderRadius: 20,
+      color: isMe ? AppColors.primary.withValues(alpha: 0.1) : AppColors.bg2For(context),
+      border: isMe ? Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 1.5) : null,
+      boxShadow: [], // Flat look for list items
+      child: GestureDetector(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => ProfileScreen(userId: u.id)),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 32,
+              child: Text(
+                '#${index + 1}',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                  color: isMe ? AppColors.primary : AppColors.text3For(context),
                 ),
-                child: Row(
-                  children: [
-                    Text(b.icon, style: const TextStyle(fontSize: 22)),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(b.name,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w700, fontSize: 14,
-                                color: b.color)),
-                          Text(b.description,
-                              style: TextStyle(
-                                fontSize: 12, color: AppColors.text3For(context))),
-                        ],
-                      ),
-                    ),
-                    Text(
-                      b.max == 999999999
-                          ? '${b.min}+'
-                          : '${b.min}–${b.max}',
-                      style: TextStyle(fontSize: 12, color: AppColors.text4For(context)),
-                    ),
-                  ],
-                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            UserAvatar(user: u, size: 44),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(u.name,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                        color: AppColors.textFor(context))),
+                  Text('@${u.handle}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.text3For(context))),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(u.aura.toString(),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: badge.color)),
+                Text(badge.name,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.text3For(context))),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ).animate().fadeIn(delay: (index * 50).ms).slideX(begin: 0.1);
+  }
+
+  Widget _buildTiersLegend(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 20),
+          Text('AURA TIERS',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+                color: AppColors.text3For(context),
+                letterSpacing: 1.5,
               )),
-            ],
+          const SizedBox(height: 16),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 2.2,
+            children: kBadges.map((b) => _TierCard(badge: b)).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PodiumBase extends StatelessWidget {
+  final int rank;
+  final bool isFirst;
+
+  const _PodiumBase({required this.rank, required this.isFirst});
+
+  @override
+  Widget build(BuildContext context) {
+    final height = isFirst ? 80.0 : 60.0;
+    final color = rank == 1 ? Colors.amber : (rank == 2 ? Colors.grey[400] : Colors.brown[300]);
+
+    return Container(
+      width: double.infinity,
+      height: height,
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            color!.withValues(alpha: 0.8),
+            color.withValues(alpha: 0.4),
+          ],
+        ),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.3),
+            blurRadius: 15,
+            spreadRadius: -5,
+          )
+        ],
+      ),
+      child: Center(
+        child: Text(
+          '#$rank',
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w900,
+            color: Colors.white,
           ),
         ),
+      ),
+    );
+  }
+}
 
-        const SizedBox(height: 20),
-      ],
+class _TierCard extends StatelessWidget {
+  final BadgeModel badge;
+
+  const _TierCard({required this.badge});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.bg2For(context),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: badge.color.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          Text(badge.icon, style: const TextStyle(fontSize: 20)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(badge.name,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 13,
+                      color: badge.color,
+                    )),
+                Text(
+                  badge.max == 999999999 ? '${badge.min}+' : '${badge.min}–${badge.max}',
+                  style: TextStyle(fontSize: 11, color: AppColors.text3For(context)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
