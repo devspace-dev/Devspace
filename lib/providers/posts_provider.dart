@@ -4,10 +4,19 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../models/comment_model.dart';
 import '../models/post_model.dart';
+import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/backend_api_service.dart';
 import '../services/storage_service.dart';
 import '../services/supabase_service.dart';
+
+typedef PostsPageLoader =
+    Future<List<PostModel>> Function({
+      required int limit,
+      required int offset,
+    });
+typedef CurrentUserResolver = UserModel? Function();
+typedef PostIdSetLoader = Future<Set<String>> Function(String userId);
 
 class PostCreateResult {
   final bool success;
@@ -22,7 +31,23 @@ class PostCreateResult {
 }
 
 class PostsProvider extends ChangeNotifier {
+  PostsProvider({
+    PostsPageLoader? postsPageLoader,
+    CurrentUserResolver? currentUserResolver,
+    PostIdSetLoader? likedPostIdsLoader,
+    PostIdSetLoader? bookmarkedPostIdsLoader,
+  })  : _postsPageLoader = postsPageLoader ?? _defaultPostsPageLoader,
+        _currentUserResolver =
+            currentUserResolver ?? _defaultCurrentUserResolver,
+        _likedPostIdsLoader = likedPostIdsLoader ?? _defaultLikedPostIdsLoader,
+        _bookmarkedPostIdsLoader =
+            bookmarkedPostIdsLoader ?? _defaultBookmarkedPostIdsLoader;
+
   static const int _pageSize = 20;
+  final PostsPageLoader _postsPageLoader;
+  final CurrentUserResolver _currentUserResolver;
+  final PostIdSetLoader _likedPostIdsLoader;
+  final PostIdSetLoader _bookmarkedPostIdsLoader;
   List<PostModel> _posts = [];
   List<PostModel> _savedPosts = [];
   final Map<String, PostModel> _quotedPosts = {};
@@ -51,6 +76,7 @@ class PostsProvider extends ChangeNotifier {
   bool get isSavedPostsLoading => _savedPostsLoading;
   String? get feedError => _feedError;
   String? get savedPostsError => _savedPostsError;
+  PostModel? postById(String postId) => _findPost(postId) ?? _findSavedPost(postId);
   List<PostModel> postsForUser(String userId) =>
       _posts.where((post) => post.userId == userId).toList();
   List<CommentModel> commentsForPost(String postId) =>
@@ -67,6 +93,28 @@ class PostsProvider extends ChangeNotifier {
       _quotedPosts[postId] ?? _findPost(postId);
   bool isQuotedPostLoading(String postId) => _quoteLoading[postId] ?? false;
 
+  static Future<List<PostModel>> _defaultPostsPageLoader({
+    required int limit,
+    required int offset,
+  }) {
+    return BackendApiService.instance.getPosts(
+      limit: limit,
+      offset: offset,
+    );
+  }
+
+  static UserModel? _defaultCurrentUserResolver() {
+    return AuthService.instance.currentUser;
+  }
+
+  static Future<Set<String>> _defaultLikedPostIdsLoader(String userId) {
+    return SupabaseService.instance.getLikedPostIds(userId);
+  }
+
+  static Future<Set<String>> _defaultBookmarkedPostIdsLoader(String userId) {
+    return SupabaseService.instance.getBookmarkedPostIds(userId);
+  }
+
   static bool canCreatePost(String content, {File? imageFile}) {
     return content.trim().isNotEmpty || imageFile != null;
   }
@@ -78,10 +126,7 @@ class PostsProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final page = await BackendApiService.instance.getPosts(
-        limit: _pageSize,
-        offset: 0,
-      );
+      final page = await _postsPageLoader(limit: _pageSize, offset: 0);
       _posts = await _hydratePosts(page);
       _hasMore = page.length >= _pageSize;
       _feedError = null;
@@ -103,10 +148,8 @@ class PostsProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final page = await BackendApiService.instance.getPosts(
-        limit: _pageSize,
-        offset: _posts.length,
-      );
+      final page =
+          await _postsPageLoader(limit: _pageSize, offset: _posts.length);
 
       if (page.isEmpty) {
         _hasMore = false;
@@ -525,14 +568,14 @@ class PostsProvider extends ChangeNotifier {
   }
 
   Future<List<PostModel>> _hydratePosts(List<PostModel> posts) async {
-    final currentUser = AuthService.instance.currentUser;
+    final currentUser = _currentUserResolver();
     if (currentUser == null) {
       return posts;
     }
 
     final results = await Future.wait<dynamic>([
-      SupabaseService.instance.getLikedPostIds(currentUser.id),
-      SupabaseService.instance.getBookmarkedPostIds(currentUser.id),
+      _likedPostIdsLoader(currentUser.id),
+      _bookmarkedPostIdsLoader(currentUser.id),
     ]);
     final likedPostIds = results[0] as Set<String>;
     final bookmarkedPostIds = results[1] as Set<String>;

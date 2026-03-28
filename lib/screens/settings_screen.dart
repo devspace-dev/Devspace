@@ -7,10 +7,24 @@ import '../providers/theme_provider.dart';
 import '../screens/profile_setup_screen.dart';
 import '../screens/saved_posts_screen.dart';
 import '../screens/founder_tools_screen.dart';
+import '../services/backend_api_service.dart';
 import '../theme/app_colors.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  late final Future<bool> _founderAccessFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _founderAccessFuture = BackendApiService.instance.hasFounderAccess();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -71,15 +85,25 @@ class SettingsScreen extends StatelessWidget {
             },
           ),
           const _SectionHeader(title: 'APP'),
-          _SettingsTile(
-            icon: Icons.admin_panel_settings_outlined,
-            title: 'Founder tools',
-            subtitle: 'Seed events and challenge templates for the community.',
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const FounderToolsScreen(),
-                ),
+          FutureBuilder<bool>(
+            future: _founderAccessFuture,
+            builder: (context, snapshot) {
+              if (snapshot.data != true) {
+                return const SizedBox.shrink();
+              }
+
+              return _SettingsTile(
+                icon: Icons.admin_panel_settings_outlined,
+                title: 'Founder tools',
+                subtitle:
+                    'Seed events and challenge templates for the community.',
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const FounderToolsScreen(),
+                    ),
+                  );
+                },
               );
             },
           ),

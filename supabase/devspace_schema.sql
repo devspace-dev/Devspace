@@ -40,6 +40,52 @@ alter table public.users add column if not exists college text default '';
 alter table public.users add column if not exists github_handle text default '';
 alter table public.users add column if not exists profile_completed boolean default false;
 alter table public.users add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
+alter table public.users add column if not exists is_admin boolean default false;
+
+create table if not exists public.founder_devices (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references public.users(id) on delete cascade not null,
+  device_id text not null,
+  label text default '',
+  is_active boolean default true,
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  updated_at timestamp with time zone default timezone('utc'::text, now()),
+  unique (user_id, device_id),
+  unique (device_id)
+);
+
+alter table public.founder_devices add column if not exists user_id uuid references public.users(id) on delete cascade;
+alter table public.founder_devices add column if not exists device_id text;
+alter table public.founder_devices add column if not exists label text default '';
+alter table public.founder_devices add column if not exists is_active boolean default true;
+alter table public.founder_devices add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
+alter table public.founder_devices add column if not exists updated_at timestamp with time zone default timezone('utc'::text, now());
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'founder_devices_user_id_device_id_key'
+  ) then
+    alter table public.founder_devices
+      add constraint founder_devices_user_id_device_id_key unique (user_id, device_id);
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'founder_devices_device_id_key'
+  ) then
+    alter table public.founder_devices
+      add constraint founder_devices_device_id_key unique (device_id);
+  end if;
+end
+$$;
 
 do $$
 begin
@@ -1903,6 +1949,7 @@ alter table public.user_events enable row level security;
 alter table public.challenges enable row level security;
 alter table public.user_challenges enable row level security;
 alter table public.user_badges enable row level security;
+alter table public.founder_devices enable row level security;
 
 do $$
 begin
@@ -1914,6 +1961,23 @@ begin
   ) then
     create policy aura_ledger_select_owner
       on public.aura_ledger
+      for select
+      to authenticated
+      using (auth.uid() = user_id);
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'founder_devices'
+      and policyname = 'founder_devices_select_owner'
+  ) then
+    create policy founder_devices_select_owner
+      on public.founder_devices
       for select
       to authenticated
       using (auth.uid() = user_id);

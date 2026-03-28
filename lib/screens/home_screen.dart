@@ -89,11 +89,27 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
+          if (postsP.feedError != null && posts.isNotEmpty)
+            SliverToBoxAdapter(
+              child: _InlineWarningBanner(
+                message: postsP.feedError!,
+                onRetry: postsP.refreshFeed,
+              ),
+            ),
           if (postsP.isLoading && posts.isEmpty)
             const SliverFillRemaining(
               child: AppLoadingState(
                 title: 'Loading',
                 message: 'Fetching the latest updates...',
+              ),
+            )
+          else if (postsP.feedError != null && posts.isEmpty)
+            SliverFillRemaining(
+              child: AppErrorState(
+                title: 'Feed unavailable',
+                message: postsP.feedError!,
+                actionLabel: 'Retry',
+                onAction: postsP.refreshFeed,
               ),
             )
           else if (posts.isEmpty)
@@ -136,6 +152,54 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           const SliverToBoxAdapter(child: SizedBox(height: 100)),
+        ],
+      ),
+    );
+  }
+}
+
+class _InlineWarningBanner extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _InlineWarningBanner({
+    required this.message,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.red.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: Colors.red.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.info_outline_rounded,
+            size: 18,
+            color: Colors.redAccent,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                color: AppColors.text2For(context),
+                fontSize: 12,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: onRetry,
+            child: const Text('Retry'),
+          ),
         ],
       ),
     );

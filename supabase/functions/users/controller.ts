@@ -5,6 +5,7 @@ import {
   methodNotAllowed,
 } from "../_shared/http.ts";
 import type { SupabaseClient, User } from "https://esm.sh/@supabase/supabase-js@2";
+import { founderDeviceIdFromRequest } from "../_shared/auth.ts";
 
 export async function handleUsersRequest(
   request: Request,
@@ -18,6 +19,12 @@ export async function handleUsersRequest(
   try {
     if (request.method === "GET" && (route === "/me" || route === "/")) {
       return jsonResponse({ data: await service.getCurrentUserProfile() });
+    }
+
+    if (request.method === "GET" && route === "/founder-access") {
+      return jsonResponse({
+        data: await service.getFounderAccess(founderDeviceIdFromRequest(request)),
+      });
     }
 
     return methodNotAllowed(request.method);

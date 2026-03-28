@@ -73,6 +73,23 @@ class _PeopleScreenState extends State<PeopleScreen> {
                 message: 'Finding developers on campus...',
               ),
             )
+          else if (usersP.error != null && users.isEmpty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: AppErrorState(
+                title: 'Developers unavailable',
+                message: usersP.error!,
+                actionLabel: 'Retry',
+                onAction: usersP.refreshUsers,
+              ),
+            )
+          else if (usersP.error != null && users.isNotEmpty)
+            SliverToBoxAdapter(
+              child: _InlineWarningBanner(
+                message: usersP.error!,
+                onRetry: usersP.refreshUsers,
+              ),
+            )
           else if (users.isEmpty)
             SliverFillRemaining(
               hasScrollBody: false,
@@ -238,5 +255,53 @@ class _DevelopersHero extends StatelessWidget {
         ],
       ),
     ).animate().fadeIn(duration: 350.ms).slideY(begin: 0.08, end: 0);
+  }
+}
+
+class _InlineWarningBanner extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _InlineWarningBanner({
+    required this.message,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.red.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: Colors.red.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.info_outline_rounded,
+            size: 18,
+            color: Colors.redAccent,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                color: AppColors.text2For(context),
+                fontSize: 12,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: onRetry,
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
   }
 }

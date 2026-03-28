@@ -37,10 +37,7 @@ class _PostCardState extends State<PostCard> {
   @override
   Widget build(BuildContext context) {
     final postsP = context.watch<PostsProvider>();
-    final post = postsP.posts.firstWhere(
-      (p) => p.id == widget.post.id,
-      orElse: () => widget.post,
-    );
+    final post = postsP.postById(widget.post.id) ?? widget.post;
     final usersP = context.read<UsersProvider>();
     final me = context.read<AuthProvider>().currentUser;
     final user = usersP.getUserById(post.userId) ?? me;
@@ -389,7 +386,15 @@ class _PostCardState extends State<PostCard> {
     );
 
     if (nextContent == null || nextContent.isEmpty || !context.mounted) return;
-    await context.read<PostsProvider>().editPost(post.id, nextContent);
+    final success = await context.read<PostsProvider>().editPost(
+          post.id,
+          nextContent,
+        );
+    if (!context.mounted || success) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Failed to update post.')),
+    );
   }
 
   Future<void> _handleDeletePost(BuildContext context, PostModel post) async {
@@ -411,7 +416,12 @@ class _PostCardState extends State<PostCard> {
     );
 
     if (confirm != true || !context.mounted) return;
-    await context.read<PostsProvider>().deletePost(post.id);
+    final success = await context.read<PostsProvider>().deletePost(post.id);
+    if (!context.mounted || success) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Failed to delete post.')),
+    );
   }
 
   Future<void> _openQuoteSheet({
@@ -674,7 +684,24 @@ class _QuotePostSheetState extends State<_QuotePostSheet> {
           content: content,
           originalPostId: widget.originalPost.id,
         );
-    if (mounted && result.success) Navigator.pop(context);
+    if (!mounted) return;
+
+    if (result.success) {
+      Navigator.pop(context);
+      if (result.warning != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result.warning!)),
+        );
+      }
+      return;
+    }
+
+    setState(() => _posting = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result.error ?? 'Failed to quote post.'),
+      ),
+    );
   }
 }
 

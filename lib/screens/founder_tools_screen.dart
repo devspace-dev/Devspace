@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/backend_api_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/founder_access_denied_view.dart';
 
 class FounderToolsScreen extends StatefulWidget {
   const FounderToolsScreen({super.key});
@@ -29,13 +30,15 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
   bool _isCreatingEvent = false;
   bool _isCreatingChallenge = false;
   bool _isLoadingAdminData = true;
+  bool _isCheckingFounderAccess = true;
+  bool _hasFounderAccess = false;
   List<Map<String, dynamic>> _events = [];
   List<Map<String, dynamic>> _challenges = [];
 
   @override
   void initState() {
     super.initState();
-    _loadAdminData();
+    _initializeFounderAccess();
   }
 
   @override
@@ -53,6 +56,40 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isCheckingFounderAccess) {
+      return Scaffold(
+        backgroundColor: AppColors.bgFor(context),
+        appBar: AppBar(
+          backgroundColor: AppColors.bgFor(context),
+          title: Text(
+            'Founder Tools',
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              color: AppColors.textFor(context),
+            ),
+          ),
+        ),
+        body: const Center(child: CircularProgressIndicator.adaptive()),
+      );
+    }
+
+    if (!_hasFounderAccess) {
+      return Scaffold(
+        backgroundColor: AppColors.bgFor(context),
+        appBar: AppBar(
+          backgroundColor: AppColors.bgFor(context),
+          title: Text(
+            'Founder Tools',
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              color: AppColors.textFor(context),
+            ),
+          ),
+        ),
+        body: const FounderAccessDeniedView(),
+      );
+    }
+
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -81,6 +118,20 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _initializeFounderAccess() async {
+    final hasAccess = await BackendApiService.instance.hasFounderAccess();
+    if (!mounted) return;
+
+    setState(() {
+      _hasFounderAccess = hasAccess;
+      _isCheckingFounderAccess = false;
+    });
+
+    if (hasAccess) {
+      await _loadAdminData();
+    }
   }
 
   Widget _buildEventsTab(BuildContext context) {

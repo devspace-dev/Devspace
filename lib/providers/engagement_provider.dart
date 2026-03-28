@@ -6,7 +6,37 @@ import '../models/event_access_model.dart';
 import '../services/auth_service.dart';
 import '../services/backend_api_service.dart';
 
+typedef AuraSummaryLoader = Future<AuraSummaryModel> Function();
+typedef EligibleEventsLoader = Future<List<EventAccessModel>> Function();
+typedef DailyChallengeLoader = Future<DailyChallengeModel?> Function();
+typedef DailyChallengeSubmitter = Future<Map<String, dynamic>> Function({
+  required String submissionText,
+  required String submissionLink,
+});
+typedef UserRefreshCallback = Future<void> Function();
+
 class EngagementProvider extends ChangeNotifier {
+  EngagementProvider({
+    AuraSummaryLoader? auraSummaryLoader,
+    EligibleEventsLoader? eligibleEventsLoader,
+    DailyChallengeLoader? dailyChallengeLoader,
+    DailyChallengeSubmitter? dailyChallengeSubmitter,
+    UserRefreshCallback? refreshCurrentUser,
+  })  : _auraSummaryLoader = auraSummaryLoader ?? _defaultAuraSummaryLoader,
+        _eligibleEventsLoader =
+            eligibleEventsLoader ?? _defaultEligibleEventsLoader,
+        _dailyChallengeLoader =
+            dailyChallengeLoader ?? _defaultDailyChallengeLoader,
+        _dailyChallengeSubmitter =
+            dailyChallengeSubmitter ?? _defaultDailyChallengeSubmitter,
+        _refreshCurrentUser =
+            refreshCurrentUser ?? _defaultRefreshCurrentUser;
+
+  final AuraSummaryLoader _auraSummaryLoader;
+  final EligibleEventsLoader _eligibleEventsLoader;
+  final DailyChallengeLoader _dailyChallengeLoader;
+  final DailyChallengeSubmitter _dailyChallengeSubmitter;
+  final UserRefreshCallback _refreshCurrentUser;
   AuraSummaryModel? _auraSummary;
   DailyChallengeModel? _dailyChallenge;
   List<EventAccessModel> _events = [];
@@ -25,25 +55,66 @@ class EngagementProvider extends ChangeNotifier {
   List<EventAccessModel> get lockedEvents =>
       _events.where((event) => event.locked).toList();
 
+  static Future<AuraSummaryModel> _defaultAuraSummaryLoader() {
+    return BackendApiService.instance.getAuraSummary();
+  }
+
+  static Future<List<EventAccessModel>> _defaultEligibleEventsLoader() {
+    return BackendApiService.instance.getEligibleEvents();
+  }
+
+  static Future<DailyChallengeModel?> _defaultDailyChallengeLoader() {
+    return BackendApiService.instance.getDailyChallenge();
+  }
+
+  static Future<Map<String, dynamic>> _defaultDailyChallengeSubmitter({
+    required String submissionText,
+    required String submissionLink,
+  }) {
+    return BackendApiService.instance.completeDailyChallenge(
+      submissionText: submissionText,
+      submissionLink: submissionLink,
+    );
+  }
+
+  static Future<void> _defaultRefreshCurrentUser() {
+    return AuthService.instance.refreshCurrentUser();
+  }
+
   Future<void> fetchOverview({bool forceChallengeRefresh = false}) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
-    try {
-      final results = await Future.wait<dynamic>([
-        BackendApiService.instance.getAuraSummary(),
-        BackendApiService.instance.getEligibleEvents(),
-        BackendApiService.instance.getDailyChallenge(),
-      ]);
+    AuraSummaryModel? nextSummary = _auraSummary;
+    List<EventAccessModel> nextEvents = _events;
+    DailyChallengeModel? nextChallenge = _dailyChallenge;
+    String? nextError;
 
-      _auraSummary = results[0] as AuraSummaryModel;
-      _events = results[1] as List<EventAccessModel>;
-      _dailyChallenge = results[2] as DailyChallengeModel;
-      _error = null;
-      await AuthService.instance.refreshCurrentUser();
+    try {
+      nextSummary = await _auraSummaryLoader();
     } catch (e) {
-      _error = 'Failed to load challenge and aura data: $e';
+      nextError = 'Failed to load aura data: $e';
+    }
+
+    try {
+      nextEvents = await _eligibleEventsLoader();
+    } catch (_) {
+      nextEvents = _events;
+    }
+
+    try {
+      nextChallenge = await _dailyChallengeLoader();
+    } catch (_) {
+      nextChallenge = _dailyChallenge;
+    }
+
+    try {
+      _auraSummary = nextSummary;
+      _events = nextEvents;
+      _dailyChallenge = nextChallenge;
+      _error = nextSummary == null ? nextError : null;
+      await _refreshCurrentUser();
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -69,7 +140,7 @@ class EngagementProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await BackendApiService.instance.completeDailyChallenge(
+      await _dailyChallengeSubmitter(
         submissionText: submissionText,
         submissionLink: submissionLink,
       );

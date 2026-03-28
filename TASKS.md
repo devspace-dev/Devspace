@@ -21,18 +21,20 @@ Upgrade the app backend for launch-ready gamification and gated engagement witho
 - [x] Production-oriented Supabase schema for aura, streaks, events, and challenges
 - [x] Backend RPC flow for post aura, like aura, comment aura, and accepted answers
 - [x] Edge function structure for `/users`, `/posts`, `/events`, `/challenges`, and `/aura`
+- [x] Student-facing opportunities screen with aura-locked/unlocked states
+- [x] Student-facing daily challenge screen with submission flow
+- [x] Home engagement cards now link into full opportunities/challenge screens
+- [x] Founder tools locked behind admin plus allowlisted device checks
 
 ## In Progress
-- [ ] Frontend screens/providers for events and daily challenges
 - [ ] Feed migration from stream-only loading to explicit paginated API consumption
 - [ ] Stronger regression coverage for new backend rules
 
 ## Next
-1. Connect the new events and challenge APIs to real app screens
-2. Add founder/admin controls for creating events and challenge seeds
-3. Test rate limits, duplicate-prevention, and streak reset behavior on real devices
-4. Move feed reads to paginated requests where infinite scrolling is needed
-5. Add targeted tests for aura awarding and challenge completion edge cases
+1. Test rate limits, duplicate-prevention, and streak reset behavior on real devices
+2. Move feed reads to paginated requests where infinite scrolling is needed
+3. Add targeted tests for aura awarding and challenge completion edge cases
+4. Add a simple founder-device registration checklist for phone changes and reinstalls
 
 ## Later
 - [ ] Google sign-in

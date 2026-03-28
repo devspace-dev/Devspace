@@ -9,19 +9,30 @@ class NotificationsProvider extends ChangeNotifier {
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
+  String? _error;
+  String? get error => _error;
 
   StreamSubscription? _subscription;
 
   void init(String uid) {
     _subscription?.cancel();
     _isLoading = true;
+    _error = null;
     notifyListeners();
 
-    _subscription = SupabaseService.instance.streamNotifications(uid).listen((data) {
-      _notifications = data;
-      _isLoading = false;
-      notifyListeners();
-    });
+    _subscription = SupabaseService.instance.streamNotifications(uid).listen(
+      (data) {
+        _notifications = data;
+        _isLoading = false;
+        _error = null;
+        notifyListeners();
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        _isLoading = false;
+        _error = 'Failed to load notifications: $error';
+        notifyListeners();
+      },
+    );
   }
 
   int get unreadCount => _notifications.where((n) => !n.read).length;

@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { requireAdminUser, requireUser } from "../_shared/auth.ts";
+import { requireFounderDeviceUser, requireUser } from "../_shared/auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { handleApiError } from "../_shared/http.ts";
 import { handleEventsRequest } from "./controller.ts";
@@ -21,7 +21,7 @@ serve(async (request) => {
           (pathParts.length === 2 && pathParts[1] === "deactivate"));
 
     const { client, user } = needsAdmin
-      ? await requireAdminUser(request)
+      ? await requireFounderDeviceUser(request)
       : await requireUser(request);
     return await handleEventsRequest(request, client, user);
   } catch (error) {

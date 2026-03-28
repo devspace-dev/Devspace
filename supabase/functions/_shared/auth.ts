@@ -54,3 +54,30 @@ export async function requireAdminUser(request: Request) {
 
   return { client, user };
 }
+
+export function founderDeviceIdFromRequest(request: Request): string | null {
+  const deviceId = request.headers.get("X-Device-Id")?.trim() ?? "";
+  return deviceId || null;
+}
+
+export async function requireFounderDeviceUser(request: Request) {
+  const { client, user } = await requireAdminUser(request);
+  const deviceId = founderDeviceIdFromRequest(request);
+
+  if (!deviceId) {
+    throw new Error("Founder device ID is required");
+  }
+
+  const { data, error } = await client
+    .from("founder_devices")
+    .select("device_id, is_active")
+    .eq("user_id", user.id)
+    .eq("device_id", deviceId)
+    .maybeSingle();
+
+  if (error || data?.is_active !== true) {
+    throw new Error("This device is not allowed to use founder tools");
+  }
+
+  return { client, user, deviceId };
+}

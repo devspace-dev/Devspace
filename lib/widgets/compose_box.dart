@@ -26,7 +26,15 @@ class _ComposeBoxState extends State<ComposeBox> {
       builder: (_) => _CreatePostSheet(showTagsInitially: showTags),
     );
 
-    if (!mounted || result == null || !result.posted) return;
+    if (!mounted || result == null) return;
+
+    if (result.message != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.message!)),
+      );
+    }
+
+    if (!result.posted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Post shared successfully')),
@@ -79,7 +87,12 @@ class _ComposeBoxState extends State<ComposeBox> {
 
 class _CreatePostSheetResult {
   final bool posted;
-  const _CreatePostSheetResult({required this.posted});
+  final String? message;
+
+  const _CreatePostSheetResult({
+    required this.posted,
+    this.message,
+  });
 }
 
 class _CreatePostSheet extends StatefulWidget {
@@ -254,9 +267,28 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
           _tags,
           imageFile: _selectedImage,
         );
-    if (mounted && result.success) {
-      Navigator.pop(context, const _CreatePostSheetResult(posted: true));
+
+    if (!mounted) return;
+
+    if (result.success) {
+      Navigator.pop(
+        context,
+        _CreatePostSheetResult(
+          posted: true,
+          message: result.warning,
+        ),
+      );
+      return;
     }
+
+    setState(() => _posting = false);
+    Navigator.pop(
+      context,
+      _CreatePostSheetResult(
+        posted: false,
+        message: result.error ?? 'Failed to publish post.',
+      ),
+    );
   }
 
   Future<void> _pickImage() async {

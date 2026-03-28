@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/engagement_provider.dart';
+import '../screens/daily_challenge_screen.dart';
+import '../screens/opportunities_screen.dart';
 import '../theme/app_colors.dart';
 
 class EngagementOverview extends StatelessWidget {
@@ -28,13 +30,23 @@ class EngagementOverview extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Engagement data unavailable',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textFor(context),
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Engagement data unavailable',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textFor(context),
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: provider.fetchOverview,
+                        child: const Text('Retry'),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -141,28 +153,41 @@ class EngagementOverview extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        '${challenge.techStack} • ${challenge.difficulty}',
+                        '${challenge.techStack} - ${challenge.difficulty}',
                         style: TextStyle(
                           fontSize: 12,
                           color: AppColors.text3For(context),
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: ElevatedButton(
-                          onPressed: challenge.completed ||
-                                  provider.isSubmittingChallenge
-                              ? null
-                              : () => _showSubmissionSheet(context),
-                          child: Text(
-                            challenge.completed
-                                ? 'Submitted'
-                                : provider.isSubmittingChallenge
-                                    ? 'Submitting...'
-                                    : 'Submit Solution',
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          OutlinedButton(
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const DailyChallengeScreen(),
+                                ),
+                              );
+                            },
+                            child: const Text('Open'),
                           ),
-                        ),
+                          const SizedBox(width: 10),
+                          ElevatedButton(
+                            onPressed: challenge.completed ||
+                                    provider.isSubmittingChallenge
+                                ? null
+                                : () => _showSubmissionSheet(context),
+                            child: Text(
+                              challenge.completed
+                                  ? 'Submitted'
+                                  : provider.isSubmittingChallenge
+                                      ? 'Submitting...'
+                                      : 'Submit Solution',
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -175,13 +200,29 @@ class EngagementOverview extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Opportunities',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textFor(context),
-                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Opportunities',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textFor(context),
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const OpportunitiesScreen(),
+                                ),
+                              );
+                            },
+                            child: const Text('View all'),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 10),
                       ...provider.events.take(4).map(
@@ -216,8 +257,8 @@ class EngagementOverview extends StatelessWidget {
                                         const SizedBox(height: 2),
                                         Text(
                                           event.unlocked
-                                              ? '${event.type} • eligible now'
-                                              : '${event.type} • needs ${event.requiredAura} aura',
+                                              ? '${event.type} - eligible now'
+                                              : '${event.type} - needs ${event.requiredAura} aura',
                                           style: TextStyle(
                                             fontSize: 12,
                                             color: AppColors.text3For(context),
