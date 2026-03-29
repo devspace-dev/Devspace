@@ -6,8 +6,15 @@ import '../services/backend_api_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/founder_access_denied_view.dart';
 
+enum FounderToolsMode { founderTools, developerDashboard }
+
 class FounderToolsScreen extends StatefulWidget {
-  const FounderToolsScreen({super.key});
+  final FounderToolsMode mode;
+
+  const FounderToolsScreen({
+    super.key,
+    this.mode = FounderToolsMode.founderTools,
+  });
 
   @override
   State<FounderToolsScreen> createState() => _FounderToolsScreenState();
@@ -34,11 +41,19 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
   String _challengeDifficulty = 'easy';
   bool _isCreatingEvent = false;
   bool _isCreatingChallenge = false;
-  bool _isLoadingAdminData = true;
+  bool _isLoadingEvents = true;
+  bool _isLoadingChallenges = true;
   bool _isCheckingFounderAccess = true;
   bool _hasFounderAccess = false;
   List<Map<String, dynamic>> _events = [];
   List<Map<String, dynamic>> _challenges = [];
+  String? _eventsError;
+  String? _challengesError;
+
+  bool get _isDeveloperDashboard =>
+      widget.mode == FounderToolsMode.developerDashboard;
+  String get _screenTitle =>
+      _isDeveloperDashboard ? 'Developer Dashboard' : 'Founder Tools';
 
   @override
   void initState() {
@@ -68,7 +83,7 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
         appBar: AppBar(
           backgroundColor: AppColors.bgFor(context),
           title: Text(
-            'Founder Tools',
+            _screenTitle,
             style: TextStyle(
               fontWeight: FontWeight.w900,
               color: AppColors.textFor(context),
@@ -85,7 +100,7 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
         appBar: AppBar(
           backgroundColor: AppColors.bgFor(context),
           title: Text(
-            'Founder Tools',
+            _screenTitle,
             style: TextStyle(
               fontWeight: FontWeight.w900,
               color: AppColors.textFor(context),
@@ -98,15 +113,17 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
 
     final me = context.read<AuthProvider>().currentUserOrNull;
     final isFounder = me?.isFounder ?? false;
+    final showSystemTab = isFounder && !_isDeveloperDashboard;
+    final tabCount = _isDeveloperDashboard ? 1 : (showSystemTab ? 3 : 2);
 
     return DefaultTabController(
-      length: isFounder ? 3 : 2,
+      length: tabCount,
       child: Scaffold(
         backgroundColor: AppColors.bgFor(context),
         appBar: AppBar(
           backgroundColor: AppColors.bgFor(context),
           title: Text(
-            'Founder Tools',
+            _screenTitle,
             style: TextStyle(
               fontWeight: FontWeight.w900,
               color: AppColors.textFor(context),
@@ -114,17 +131,19 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
           ),
           bottom: TabBar(
             tabs: [
-              const Tab(text: 'Events'),
-              const Tab(text: 'Challenges'),
-              if (isFounder) const Tab(text: 'System'),
+              if (_isDeveloperDashboard) const Tab(text: 'System'),
+              if (!_isDeveloperDashboard) const Tab(text: 'Events'),
+              if (!_isDeveloperDashboard) const Tab(text: 'Missions'),
+              if (showSystemTab) const Tab(text: 'System'),
             ],
           ),
         ),
         body: TabBarView(
           children: [
-            _buildEventsTab(context),
-            _buildChallengesTab(context),
-            if (isFounder) _buildSystemTab(context),
+            if (_isDeveloperDashboard) _buildSystemTab(context),
+            if (!_isDeveloperDashboard) _buildEventsTab(context),
+            if (!_isDeveloperDashboard) _buildChallengesTab(context),
+            if (showSystemTab) _buildSystemTab(context),
           ],
         ),
       ),
@@ -141,7 +160,9 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
         _hasFounderAccess = true;
         _isCheckingFounderAccess = false;
       });
-      await _loadAdminData();
+      if (!_isDeveloperDashboard) {
+        await _loadAdminData();
+      }
       return;
     }
 
@@ -153,7 +174,7 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
       _isCheckingFounderAccess = false;
     });
 
-    if (hasAccess) {
+    if (hasAccess && !_isDeveloperDashboard) {
       await _loadAdminData();
     }
   }
@@ -244,11 +265,13 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
         const SizedBox(height: 24),
         _AdminSectionHeader(
           title: 'Manage events',
-          onRefresh: _loadAdminData,
+          onRefresh: _loadEvents,
         ),
         const SizedBox(height: 12),
-        if (_isLoadingAdminData)
+        if (_isLoadingEvents)
           const Center(child: CircularProgressIndicator.adaptive())
+        else if (_eventsError != null)
+          _EmptyAdminState(message: _eventsError!)
         else if (_events.isEmpty)
           const _EmptyAdminState(message: 'No events created yet.')
         else
@@ -273,9 +296,9 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
       children: [
         const _IntroCard(
-          title: 'Seed daily challenges',
+          title: 'Seed daily missions',
           description:
-              'Add challenge templates for React, DSA, Backend, or general tracks. Assignment stays backend-driven.',
+              'Add mission templates for coding, MCQ, or one-word tracks. Assignment stays backend-driven.',
         ),
         const SizedBox(height: 16),
         Form(
@@ -287,7 +310,7 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
                 child: TextFormField(
                   controller: _challengeTitleController,
                   decoration: const InputDecoration(
-                    hintText: 'Build a paginated feed endpoint',
+                    hintText: 'Debug a Flutter login flow',
                   ),
                   validator: _requiredValidator,
                 ),
@@ -299,7 +322,7 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
                   minLines: 3,
                   maxLines: 5,
                   decoration: const InputDecoration(
-                    hintText: 'Explain the task clearly for students',
+                    hintText: 'Write the mission prompt students should solve',
                   ),
                   validator: _requiredValidator,
                 ),
@@ -309,7 +332,7 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
                 child: TextFormField(
                   controller: _challengeTechStackController,
                   decoration: const InputDecoration(
-                    hintText: 'React, DSA, Backend, General',
+                    hintText: 'Flutter, React, Backend, General',
                   ),
                   validator: _requiredValidator,
                 ),
@@ -355,7 +378,7 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
                 child: ElevatedButton(
                   onPressed: _isCreatingChallenge ? null : _createChallenge,
                   child: Text(
-                    _isCreatingChallenge ? 'Creating...' : 'Create Challenge',
+                    _isCreatingChallenge ? 'Creating...' : 'Create Mission',
                   ),
                 ),
               ),
@@ -364,18 +387,20 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
         ),
         const SizedBox(height: 24),
         _AdminSectionHeader(
-          title: 'Manage challenges',
-          onRefresh: _loadAdminData,
+          title: 'Manage missions',
+          onRefresh: _loadChallenges,
         ),
         const SizedBox(height: 12),
-        if (_isLoadingAdminData)
+        if (_isLoadingChallenges)
           const Center(child: CircularProgressIndicator.adaptive())
+        else if (_challengesError != null)
+          _EmptyAdminState(message: _challengesError!)
         else if (_challenges.isEmpty)
-          const _EmptyAdminState(message: 'No challenges created yet.')
+          const _EmptyAdminState(message: 'No missions created yet.')
         else
           ..._challenges.map(
             (challenge) => _AdminItemCard(
-              title: challenge['title']?.toString() ?? 'Untitled challenge',
+              title: challenge['title']?.toString() ?? 'Untitled mission',
               subtitle:
                   '${challenge['difficulty']} • ${challenge['tech_stack']} • +${challenge['points_reward']} • ${_activeLabel(challenge['is_active'])}',
               description: challenge['description']?.toString() ?? '',
@@ -394,59 +419,96 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
       padding: const EdgeInsets.all(16),
       children: [
         const _IntroCard(
-          title: 'Main Developer Options',
+          title: 'Developer dashboard',
           description:
-              'Exclusive access to system-level operations, logs, and advanced management tools.',
+              'System-only tools for monitoring platform status, backend readiness, and internal operations.',
         ),
         const SizedBox(height: 20),
         _SystemActionTile(
           icon: Icons.analytics_outlined,
-          title: 'System Health',
-          subtitle: 'Check API responsiveness and database status.',
-          onTap: () => _showSnack('System Health: Healthy (v1.0.4)'),
+          title: 'Backend status',
+          subtitle: 'Check whether admin APIs and edge functions are available.',
+          onTap: _checkBackendStatus,
         ),
         _SystemActionTile(
           icon: Icons.security_outlined,
-          title: 'Security Logs',
-          subtitle: 'Monitor recent admin actions and failed logins.',
-          onTap: () => _showSnack('Security logs are synced to Supabase.'),
+          title: 'Founder device access',
+          subtitle: 'Verify whether this device is allowlisted for admin actions.',
+          onTap: _checkFounderDeviceAccess,
         ),
         _SystemActionTile(
-          icon: Icons.cleaning_services_outlined,
-          title: 'Clear Cache',
-          subtitle: 'Force global refresh of static configurations.',
-          onTap: () => _showSnack('Cache cleared for current session.'),
+          icon: Icons.event_note_outlined,
+          title: 'Events pipeline',
+          subtitle: 'Confirm event management routes are working.',
+          onTap: _checkEventsRoute,
         ),
         _SystemActionTile(
-          icon: Icons.terminal_rounded,
-          title: 'Developer Console',
-          subtitle: 'Direct shell access to backend edge functions.',
-          onTap: () => _showSnack('Console interface coming soon.'),
+          icon: Icons.task_alt_outlined,
+          title: 'Mission pipeline',
+          subtitle: 'Confirm mission management routes are working.',
+          onTap: _checkChallengesRoute,
         ),
       ],
     );
   }
 
   Future<void> _loadAdminData() async {
+    await Future.wait([
+      _loadEvents(),
+      _loadChallenges(),
+    ]);
+  }
+
+  Future<void> _loadEvents() async {
     if (!mounted) return;
-    setState(() => _isLoadingAdminData = true);
+    setState(() {
+      _isLoadingEvents = true;
+      _eventsError = null;
+    });
 
     try {
-      final results = await Future.wait<dynamic>([
-        BackendApiService.instance.getAdminEvents(),
-        BackendApiService.instance.getAdminChallenges(),
-      ]);
-
+      final events = await BackendApiService.instance.getAdminEvents();
+      if (!mounted) return;
+      setState(() => _events = events);
+    } catch (e) {
       if (!mounted) return;
       setState(() {
-        _events = results[0] as List<Map<String, dynamic>>;
-        _challenges = results[1] as List<Map<String, dynamic>>;
+        _events = [];
+        _eventsError = _featureErrorMessage(
+          feature: 'events',
+          error: e,
+        );
       });
-    } catch (e) {
-      _showSnack('Failed to load founder data: $e');
     } finally {
       if (mounted) {
-        setState(() => _isLoadingAdminData = false);
+        setState(() => _isLoadingEvents = false);
+      }
+    }
+  }
+
+  Future<void> _loadChallenges() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoadingChallenges = true;
+      _challengesError = null;
+    });
+
+    try {
+      final challenges = await BackendApiService.instance.getAdminChallenges();
+      if (!mounted) return;
+      setState(() => _challenges = challenges);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _challenges = [];
+        _challengesError = _featureErrorMessage(
+          feature: 'challenges',
+          error: e,
+        );
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingChallenges = false);
       }
     }
   }
@@ -468,7 +530,7 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
       _eventDescriptionController.clear();
       _eventRequiredAuraController.text = '0';
       _eventLinkController.clear();
-      await _loadAdminData();
+      await _loadEvents();
       _showSnack('Event created.');
     } catch (e) {
       _showSnack('Failed to create event: $e');
@@ -499,10 +561,10 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
       _challengePointsController.text = '20';
       _challengePublishDateController.text =
           DateTime.now().toIso8601String().split('T')[0];
-      await _loadAdminData();
-      _showSnack('Challenge created.');
+      await _loadChallenges();
+      _showSnack('Mission created.');
     } catch (e) {
-      _showSnack('Failed to create challenge: $e');
+      _showSnack('Failed to create mission: $e');
     } finally {
       if (mounted) {
         setState(() => _isCreatingChallenge = false);
@@ -616,7 +678,7 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
           type: eventType,
           isActive: isActive,
         );
-        await _loadAdminData();
+        await _loadEvents();
         _showSnack('Event updated.');
       } catch (e) {
         _showSnack('Failed to update event: $e');
@@ -651,7 +713,7 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: const Text('Edit challenge'),
+              title: const Text('Edit mission'),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -734,10 +796,10 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
           pointsReward: int.tryParse(pointsController.text.trim()) ?? 20,
           isActive: isActive,
         );
-        await _loadAdminData();
-        _showSnack('Challenge updated.');
+        await _loadChallenges();
+        _showSnack('Mission updated.');
       } catch (e) {
-        _showSnack('Failed to update challenge: $e');
+        _showSnack('Failed to update mission: $e');
       }
     }
 
@@ -750,7 +812,7 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
   Future<void> _deactivateEvent(String eventId) async {
     try {
       await BackendApiService.instance.deactivateEvent(eventId);
-      await _loadAdminData();
+      await _loadEvents();
       _showSnack('Event deactivated.');
     } catch (e) {
       _showSnack('Failed to deactivate event: $e');
@@ -760,10 +822,10 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
   Future<void> _deactivateChallenge(String challengeId) async {
     try {
       await BackendApiService.instance.deactivateChallenge(challengeId);
-      await _loadAdminData();
-      _showSnack('Challenge deactivated.');
+      await _loadChallenges();
+      _showSnack('Mission deactivated.');
     } catch (e) {
-      _showSnack('Failed to deactivate challenge: $e');
+      _showSnack('Failed to deactivate mission: $e');
     }
   }
 
@@ -791,6 +853,69 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
   }
 
   String _activeLabel(dynamic value) => value == true ? 'active' : 'inactive';
+
+  String _featureErrorMessage({
+    required String feature,
+    required Object error,
+  }) {
+    final message = error.toString();
+    if (message.toLowerCase().contains('backend route not found')) {
+      return 'The $feature admin route is not deployed yet. Deploy the latest edge functions for $feature.';
+    }
+
+    return 'Failed to load $feature data: $message';
+  }
+
+  Future<void> _checkBackendStatus() async {
+    try {
+      await BackendApiService.instance.getAdminEvents();
+      if (!mounted) return;
+      _showSnack('Backend status: admin event routes are responding.');
+    } catch (eventError) {
+      try {
+        await BackendApiService.instance.getAdminChallenges();
+        if (!mounted) return;
+        _showSnack('Backend partially ready: missions work, events need attention.');
+      } catch (_) {
+        if (!mounted) return;
+        _showSnack('Backend routes are not fully deployed yet.');
+      }
+    }
+  }
+
+  Future<void> _checkFounderDeviceAccess() async {
+    try {
+      final hasAccess = await BackendApiService.instance.hasFounderAccess();
+      if (!mounted) return;
+      _showSnack(
+        hasAccess
+            ? 'This device is allowlisted for founder actions.'
+            : 'This device is not allowlisted for founder actions.',
+      );
+    } catch (e) {
+      _showSnack('Failed to verify founder device access: $e');
+    }
+  }
+
+  Future<void> _checkEventsRoute() async {
+    try {
+      await BackendApiService.instance.getAdminEvents();
+      if (!mounted) return;
+      _showSnack('Events admin pipeline is working.');
+    } catch (e) {
+      _showSnack(_featureErrorMessage(feature: 'events', error: e));
+    }
+  }
+
+  Future<void> _checkChallengesRoute() async {
+    try {
+      await BackendApiService.instance.getAdminChallenges();
+      if (!mounted) return;
+      _showSnack('Mission admin pipeline is working.');
+    } catch (e) {
+      _showSnack(_featureErrorMessage(feature: 'missions', error: e));
+    }
+  }
 
   void _showSnack(String message) {
     if (!mounted) return;

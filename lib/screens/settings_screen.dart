@@ -89,11 +89,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _SettingsTile(
               icon: Icons.developer_mode_rounded,
               title: 'Developer Dashboard',
-              subtitle: 'Monitor system performance and analytics.',
+              subtitle: 'Backend checks, device access, and internal system tools.',
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => const FounderToolsScreen(),
+                    builder: (_) => const FounderToolsScreen(
+                      mode: FounderToolsMode.developerDashboard,
+                    ),
                   ),
                 );
               },
@@ -109,11 +111,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 icon: Icons.admin_panel_settings_outlined,
                 title: 'Founder tools',
                 subtitle:
-                    'Seed events and challenge templates for the community.',
+                    'Manage events and daily challenges for the community.',
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => const FounderToolsScreen(),
+                      builder: (_) => const FounderToolsScreen(
+                        mode: FounderToolsMode.founderTools,
+                      ),
                     ),
                   );
                 },

@@ -72,7 +72,7 @@ class EngagementOverview extends StatelessWidget {
             if (summary != null)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                child: _SectionCard(
+                child: _NeonStatsCard(
                   child: Row(
                     children: [
                       Expanded(
@@ -383,6 +383,68 @@ class EngagementOverview extends StatelessWidget {
   }
 }
 
+class _NeonStatsCard extends StatefulWidget {
+  final Widget child;
+
+  const _NeonStatsCard({required this.child});
+
+  @override
+  State<_NeonStatsCard> createState() => _NeonStatsCardState();
+}
+
+class _NeonStatsCardState extends State<_NeonStatsCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 6),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final hue = _controller.value * 360;
+        final leading = HSVColor.fromAHSV(1, hue, 0.82, 1).toColor();
+        final trailing =
+            HSVColor.fromAHSV(1, (hue + 70) % 360, 0.78, 1).toColor();
+
+        return Container(
+          padding: const EdgeInsets.all(1.4),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                leading.withValues(alpha: 0.95),
+                trailing.withValues(alpha: 0.85),
+                AppColors.primary.withValues(alpha: 0.75),
+              ],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: leading.withValues(alpha: 0.18),
+                blurRadius: 18,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+          child: _SectionCard(
+            child: widget.child,
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _Metric extends StatelessWidget {
   final String label;
   final String value;
@@ -396,30 +458,63 @@ class _Metric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final numericValue = int.tryParse(value);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Container(
+          width: 28,
+          height: 3,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            gradient: LinearGradient(
+              colors: [
+                AppColors.primary.withValues(alpha: 0.9),
+                AppColors.mint.withValues(alpha: 0.8),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
         Text(
           label,
           style: TextStyle(
             fontSize: 12,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.2,
             color: AppColors.text3For(context),
           ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textFor(context),
-          ),
+        const SizedBox(height: 6),
+        TweenAnimationBuilder<int>(
+          tween: IntTween(begin: 0, end: numericValue ?? 0),
+          duration: const Duration(milliseconds: 900),
+          curve: Curves.easeOutCubic,
+          builder: (context, animatedValue, _) {
+            return Text(
+              numericValue == null ? value : '$animatedValue',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.7,
+                color: AppColors.textFor(context),
+                shadows: [
+                  Shadow(
+                    color: AppColors.primary.withValues(alpha: 0.18),
+                    blurRadius: 14,
+                  ),
+                ],
+              ),
+            );
+          },
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: 4),
         Text(
           hint,
           style: TextStyle(
             fontSize: 12,
+            height: 1.3,
             color: AppColors.text3For(context),
           ),
         ),

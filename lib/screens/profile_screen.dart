@@ -104,7 +104,9 @@ class ProfileScreen extends StatelessWidget {
                         onPressed: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const FounderToolsScreen(),
+                            builder: (_) => const FounderToolsScreen(
+                              mode: FounderToolsMode.founderTools,
+                            ),
                           ),
                         ),
                       ),
