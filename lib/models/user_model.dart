@@ -16,6 +16,7 @@ class UserModel {
   final List<String> stack;
   int followers;
   int following;
+  final int currentStreak;
   final String bio;
   final String college;
   final String githubHandle;
@@ -39,6 +40,7 @@ class UserModel {
     required this.stack,
     required this.followers,
     required this.following,
+    this.currentStreak = 0,
     required this.bio,
     required this.college,
     required this.githubHandle,
@@ -74,6 +76,7 @@ class UserModel {
     List<String>? stack,
     int? followers,
     int? following,
+    int? currentStreak,
     String? bio,
     String? college,
     String? githubHandle,
@@ -97,6 +100,7 @@ class UserModel {
       stack: stack ?? this.stack,
       followers: followers ?? this.followers,
       following: following ?? this.following,
+      currentStreak: currentStreak ?? this.currentStreak,
       bio: bio ?? this.bio,
       college: college ?? this.college,
       githubHandle: githubHandle ?? this.githubHandle,
@@ -122,6 +126,7 @@ class UserModel {
         'stack': stack,
         'followers': followers,
         'following': following,
+        'current_streak': currentStreak,
         'bio': bio,
         'college': college,
         'github_handle': githubHandle,
@@ -164,6 +169,9 @@ class UserModel {
       stack: stack,
       followers: (json['followers'] as num? ?? 0).toInt(),
       following: (json['following'] as num? ?? 0).toInt(),
+      currentStreak:
+          ((json['current_streak'] ?? json['currentStreak']) as num? ?? 0)
+              .toInt(),
       bio: json['bio']?.toString() ?? '',
       college: json['college']?.toString() ?? '',
       githubHandle:

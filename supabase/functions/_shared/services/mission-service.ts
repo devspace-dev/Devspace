@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-type MissionType = "coding" | "mcq" | "oneword";
+type MissionType = "mcq";
 
 type CreateMissionInput = {
   title: string;
@@ -227,8 +227,8 @@ export class MissionService {
       throw new Error("Mission title is required");
     }
 
-    if (!["coding", "mcq", "oneword"].includes(input.type)) {
-      throw new Error("Mission type must be coding, mcq, or oneword");
+    if (input.type !== "mcq") {
+      throw new Error("Daily missions must use the mcq type");
     }
 
     if (!input.question?.trim()) {
@@ -239,29 +239,19 @@ export class MissionService {
       throw new Error("Publish date is required");
     }
 
-    if (input.type === "coding" && !input.link?.trim()) {
-      throw new Error("Coding missions require a link");
+    if (!Array.isArray(input.options) || input.options.length < 2) {
+      throw new Error("MCQ missions require at least two options");
     }
 
-    if (input.type === "mcq") {
-      if (!Array.isArray(input.options) || input.options.length < 2) {
-        throw new Error("MCQ missions require at least two options");
-      }
-
-      if (!input.correctAnswer?.trim()) {
-        throw new Error("MCQ missions require a correct answer");
-      }
-
-      const normalizedOptions = input.options.map((option) =>
-        String(option).trim().toLowerCase()
-      );
-      if (!normalizedOptions.includes(input.correctAnswer.trim().toLowerCase())) {
-        throw new Error("MCQ correct answer must match one of the provided options");
-      }
+    if (!input.correctAnswer?.trim()) {
+      throw new Error("MCQ missions require a correct answer");
     }
 
-    if (input.type === "oneword" && !input.correctAnswer?.trim()) {
-      throw new Error("One-word missions require a correct answer");
+    const normalizedOptions = input.options.map((option) =>
+      String(option).trim().toLowerCase()
+    );
+    if (!normalizedOptions.includes(input.correctAnswer.trim().toLowerCase())) {
+      throw new Error("MCQ correct answer must match one of the provided options");
     }
   }
 

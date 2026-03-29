@@ -127,10 +127,8 @@ class EngagementProvider extends ChangeNotifier {
   }) async {
     if (_isSubmittingChallenge) return false;
 
-    final hasSubmission =
-        submissionText.trim().isNotEmpty || submissionLink.trim().isNotEmpty;
-    if (!hasSubmission) {
-      _error = 'Add your solution text or a link before submitting.';
+    if (submissionText.trim().isEmpty) {
+      _error = 'Select one answer before submitting.';
       notifyListeners();
       return false;
     }
@@ -140,19 +138,10 @@ class EngagementProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final result = await _dailyChallengeSubmitter(
+      await _dailyChallengeSubmitter(
         submissionText: submissionText,
         submissionLink: submissionLink,
       );
-
-      final completed = result['completed'] as bool?;
-      final isCorrect = result['isCorrect'] as bool?;
-
-      if (completed == false || isCorrect == false) {
-        _error = 'Incorrect answer. Try again.';
-        notifyListeners();
-        return false;
-      }
 
       await fetchOverview(forceChallengeRefresh: true);
       return true;

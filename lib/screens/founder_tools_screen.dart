@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
 import '../services/backend_api_service.dart';
+import '../services/founder_device_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/founder_access_denied_view.dart';
 
@@ -36,9 +38,13 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
   final _challengePublishDateController = TextEditingController(
     text: DateTime.now().toIso8601String().split('T')[0],
   );
+  final _challengeOptionControllers = List.generate(
+    4,
+    (_) => TextEditingController(),
+  );
 
   String _eventType = 'event';
-  String _challengeDifficulty = 'easy';
+  String? _challengeCorrectAnswer;
   bool _isCreatingEvent = false;
   bool _isCreatingChallenge = false;
   bool _isLoadingEvents = true;
@@ -72,6 +78,9 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
     _challengeTechStackController.dispose();
     _challengePointsController.dispose();
     _challengePublishDateController.dispose();
+    for (final controller in _challengeOptionControllers) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -298,7 +307,7 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
         const _IntroCard(
           title: 'Seed daily missions',
           description:
-              'Add mission templates for coding, MCQ, or one-word tracks. Assignment stays backend-driven.',
+              'Create the daily MCQ students will answer. Add answer options and mark the right one so the app can validate submissions instantly.',
         ),
         const SizedBox(height: 16),
         Form(
@@ -316,13 +325,13 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
                 ),
               ),
               _LabeledField(
-                label: 'Description',
+                label: 'Question',
                 child: TextFormField(
                   controller: _challengeDescriptionController,
                   minLines: 3,
                   maxLines: 5,
                   decoration: const InputDecoration(
-                    hintText: 'Write the mission prompt students should solve',
+                    hintText: 'Write the question students should answer',
                   ),
                   validator: _requiredValidator,
                 ),
@@ -359,17 +368,54 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
                 ),
               ),
               _LabeledField(
-                label: 'Difficulty',
-                child: SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(value: 'easy', label: Text('Easy')),
-                    ButtonSegment(value: 'medium', label: Text('Medium')),
-                    ButtonSegment(value: 'hard', label: Text('Hard')),
-                  ],
-                  selected: {_challengeDifficulty},
-                  onSelectionChanged: (selection) {
-                    setState(() => _challengeDifficulty = selection.first);
+                label: 'Options',
+                child: Column(
+                  children: List.generate(
+                    _challengeOptionControllers.length,
+                    (index) => Padding(
+                      padding: EdgeInsets.only(
+                        bottom:
+                            index == _challengeOptionControllers.length - 1
+                                ? 0
+                                : 12,
+                      ),
+                      child: TextFormField(
+                        controller: _challengeOptionControllers[index],
+                        decoration: InputDecoration(
+                          hintText: 'Option ${index + 1}',
+                        ),
+                        validator: index < 2 ? _requiredValidator : null,
+                        onChanged: (_) {
+                          final selected = _challengeCorrectAnswer;
+                          final options = _trimmedMissionOptions(
+                            _challengeOptionControllers,
+                          );
+                          if (selected != null && !options.contains(selected)) {
+                            setState(() => _challengeCorrectAnswer = null);
+                          } else {
+                            setState(() {});
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              _LabeledField(
+                label: 'Right answer',
+                child: DropdownButtonFormField<String>(
+                  value: _challengeCorrectAnswer,
+                  decoration: const InputDecoration(
+                    hintText: 'Choose the correct option',
+                  ),
+                  items: _buildCorrectAnswerItems(_challengeOptionControllers),
+                  onChanged: (value) {
+                    setState(() => _challengeCorrectAnswer = value);
                   },
+                  validator: (_) => _correctAnswerValidator(
+                    _challengeCorrectAnswer,
+                    _challengeOptionControllers,
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
@@ -402,7 +448,7 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
             (challenge) => _AdminItemCard(
               title: challenge['title']?.toString() ?? 'Untitled mission',
               subtitle:
-                  '${challenge['difficulty']} • ${challenge['tech_stack']} • +${challenge['points_reward']} • ${_activeLabel(challenge['is_active'])}',
+                  '${challenge['type']} • ${challenge['tech_stack']} • +${challenge['points_reward']} • ${_activeLabel(challenge['is_active'])}',
               description: challenge['description']?.toString() ?? '',
               onEdit: () => _editChallenge(challenge),
               onDeactivate: (challenge['is_active'] as bool? ?? true)
@@ -435,6 +481,12 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
           title: 'Founder device access',
           subtitle: 'Verify whether this device is allowlisted for admin actions.',
           onTap: _checkFounderDeviceAccess,
+        ),
+        _SystemActionTile(
+          icon: Icons.phone_android_outlined,
+          title: 'Copy device ID',
+          subtitle: 'Copy this phone device ID so you can allowlist it in Supabase.',
+          onTap: _copyFounderDeviceId,
         ),
         _SystemActionTile(
           icon: Icons.event_note_outlined,
@@ -494,7 +546,9 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
     });
 
     try {
-      final challenges = await BackendApiService.instance.getAdminChallenges();
+      final challenges = (await BackendApiService.instance.getAdminMissions())
+          .map(_mapMissionToScreenItem)
+          .toList();
       if (!mounted) return;
       setState(() => _challenges = challenges);
     } catch (e) {
@@ -502,7 +556,7 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
       setState(() {
         _challenges = [];
         _challengesError = _featureErrorMessage(
-          feature: 'challenges',
+          feature: 'missions',
           error: e,
         );
       });
@@ -544,15 +598,24 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
   Future<void> _createChallenge() async {
     if (!_challengeFormKey.currentState!.validate()) return;
 
+    final options = _trimmedMissionOptions(_challengeOptionControllers);
+    final correctAnswer = _challengeCorrectAnswer?.trim();
+    if (correctAnswer == null || correctAnswer.isEmpty) {
+      _showSnack('Pick the correct answer before creating the mission.');
+      return;
+    }
+
     setState(() => _isCreatingChallenge = true);
     try {
-      await BackendApiService.instance.createChallenge(
+      await BackendApiService.instance.createMission(
         title: _challengeTitleController.text.trim(),
-        description: _challengeDescriptionController.text.trim(),
-        difficulty: _challengeDifficulty,
+        type: 'mcq',
         techStack: _challengeTechStackController.text.trim(),
-        pointsReward: int.parse(_challengePointsController.text.trim()),
+        question: _challengeDescriptionController.text.trim(),
+        options: options,
         publishDate: _challengePublishDateController.text.trim(),
+        pointsReward: int.parse(_challengePointsController.text.trim()),
+        correctAnswer: correctAnswer,
       );
 
       _challengeTitleController.clear();
@@ -561,10 +624,16 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
       _challengePointsController.text = '20';
       _challengePublishDateController.text =
           DateTime.now().toIso8601String().split('T')[0];
+      for (final controller in _challengeOptionControllers) {
+        controller.clear();
+      }
+      _challengeCorrectAnswer = null;
       await _loadChallenges();
       _showSnack('Mission created.');
     } catch (e) {
-      _showSnack('Failed to create mission: $e');
+      _showSnack(
+        'Failed to create mission: ${BackendApiService.instance.cleanErrorText(e)}',
+      );
     } finally {
       if (mounted) {
         setState(() => _isCreatingChallenge = false);
@@ -704,7 +773,16 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
     final pointsController = TextEditingController(
       text: '${challenge['points_reward'] ?? 20}',
     );
-    var difficulty = challenge['difficulty']?.toString() ?? 'easy';
+    final options = (challenge['options'] as List? ?? const [])
+        .map((option) => option.toString())
+        .toList();
+    final optionControllers = List.generate(
+      4,
+      (index) => TextEditingController(
+        text: index < options.length ? options[index] : '',
+      ),
+    );
+    var correctAnswer = challenge['correct_answer']?.toString();
     var isActive = challenge['is_active'] as bool? ?? true;
 
     final saved = await showDialog<bool>(
@@ -746,15 +824,40 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    SegmentedButton<String>(
-                      segments: const [
-                        ButtonSegment(value: 'easy', label: Text('Easy')),
-                        ButtonSegment(value: 'medium', label: Text('Medium')),
-                        ButtonSegment(value: 'hard', label: Text('Hard')),
-                      ],
-                      selected: {difficulty},
-                      onSelectionChanged: (selection) {
-                        setDialogState(() => difficulty = selection.first);
+                    ...List.generate(
+                      optionControllers.length,
+                      (index) => Padding(
+                        padding: EdgeInsets.only(
+                          bottom: index == optionControllers.length - 1 ? 0 : 12,
+                        ),
+                        child: TextField(
+                          controller: optionControllers[index],
+                          decoration: InputDecoration(
+                            labelText: 'Option ${index + 1}',
+                          ),
+                          onChanged: (_) {
+                            final trimmedOptions = _trimmedMissionOptions(
+                              optionControllers,
+                            );
+                            if (correctAnswer != null &&
+                                !trimmedOptions.contains(correctAnswer)) {
+                              setDialogState(() => correctAnswer = null);
+                            } else {
+                              setDialogState(() {});
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: correctAnswer,
+                      decoration: const InputDecoration(
+                        labelText: 'Right answer',
+                      ),
+                      items: _buildCorrectAnswerItems(optionControllers),
+                      onChanged: (value) {
+                        setDialogState(() => correctAnswer = value);
                       },
                     ),
                     const SizedBox(height: 12),
@@ -786,20 +889,32 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
     );
 
     if (saved == true) {
-      try {
-        await BackendApiService.instance.updateChallenge(
-          challengeId: challenge['id'].toString(),
+      final trimmedOptions = _trimmedMissionOptions(optionControllers);
+      if (trimmedOptions.length < 2) {
+        _showSnack('Add at least two answer options.');
+      } else if (correctAnswer == null ||
+          !trimmedOptions.contains(correctAnswer)) {
+        _showSnack('Choose one valid option as the right answer.');
+      } else {
+        try {
+        await BackendApiService.instance.updateMission(
+          missionId: challenge['id'].toString(),
           title: titleController.text.trim(),
-          description: descriptionController.text.trim(),
-          difficulty: difficulty,
+          type: 'mcq',
           techStack: stackController.text.trim(),
+          question: descriptionController.text.trim(),
+          options: trimmedOptions,
           pointsReward: int.tryParse(pointsController.text.trim()) ?? 20,
           isActive: isActive,
+          correctAnswer: correctAnswer,
         );
         await _loadChallenges();
         _showSnack('Mission updated.');
-      } catch (e) {
-        _showSnack('Failed to update mission: $e');
+        } catch (e) {
+          _showSnack(
+            'Failed to update mission: ${BackendApiService.instance.cleanErrorText(e)}',
+          );
+        }
       }
     }
 
@@ -807,6 +922,9 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
     descriptionController.dispose();
     stackController.dispose();
     pointsController.dispose();
+    for (final controller in optionControllers) {
+      controller.dispose();
+    }
   }
 
   Future<void> _deactivateEvent(String eventId) async {
@@ -821,12 +939,32 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
 
   Future<void> _deactivateChallenge(String challengeId) async {
     try {
-      await BackendApiService.instance.deactivateChallenge(challengeId);
+      await BackendApiService.instance.deactivateMission(challengeId);
       await _loadChallenges();
       _showSnack('Mission deactivated.');
     } catch (e) {
-      _showSnack('Failed to deactivate mission: $e');
+      _showSnack(
+        'Failed to deactivate mission: ${BackendApiService.instance.cleanErrorText(e)}',
+      );
     }
+  }
+
+  Map<String, dynamic> _mapMissionToScreenItem(Map<String, dynamic> mission) {
+    final type = mission['type']?.toString() ?? 'mcq';
+
+    return {
+      'id': mission['id'],
+      'title': mission['title'],
+      'description': mission['question'] ?? '',
+      'tech_stack': mission['tech_stack'] ?? '',
+      'points_reward': mission['points_reward'] ?? 0,
+      'is_active': mission['is_active'] ?? true,
+      'type': type,
+      'options': (mission['options'] as List? ?? const [])
+          .map((option) => option.toString())
+          .toList(),
+      'correct_answer': mission['correct_answer'],
+    };
   }
 
   String? _requiredValidator(String? value) {
@@ -852,13 +990,51 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
     return null;
   }
 
+  List<String> _trimmedMissionOptions(List<TextEditingController> controllers) {
+    return controllers
+        .map((controller) => controller.text.trim())
+        .where((option) => option.isNotEmpty)
+        .toList();
+  }
+
+  List<DropdownMenuItem<String>> _buildCorrectAnswerItems(
+    List<TextEditingController> controllers,
+  ) {
+    final options = _trimmedMissionOptions(controllers).toSet().toList();
+    return options
+        .map(
+          (option) => DropdownMenuItem<String>(
+            value: option,
+            child: Text(
+              option,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        )
+        .toList();
+  }
+
+  String? _correctAnswerValidator(
+    String? selectedAnswer,
+    List<TextEditingController> controllers,
+  ) {
+    final options = _trimmedMissionOptions(controllers);
+    if (options.length < 2) {
+      return 'Add at least two options';
+    }
+    if (selectedAnswer == null || !options.contains(selectedAnswer)) {
+      return 'Select the right answer';
+    }
+    return null;
+  }
+
   String _activeLabel(dynamic value) => value == true ? 'active' : 'inactive';
 
   String _featureErrorMessage({
     required String feature,
     required Object error,
   }) {
-    final message = error.toString();
+    final message = BackendApiService.instance.cleanErrorText(error);
     if (message.toLowerCase().contains('backend route not found')) {
       return 'The $feature admin route is not deployed yet. Deploy the latest edge functions for $feature.';
     }
@@ -873,7 +1049,7 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
       _showSnack('Backend status: admin event routes are responding.');
     } catch (eventError) {
       try {
-        await BackendApiService.instance.getAdminChallenges();
+        await BackendApiService.instance.getAdminMissions();
         if (!mounted) return;
         _showSnack('Backend partially ready: missions work, events need attention.');
       } catch (_) {
@@ -897,6 +1073,17 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
     }
   }
 
+  Future<void> _copyFounderDeviceId() async {
+    try {
+      final deviceId = await FounderDeviceService.instance.getDeviceId();
+      await Clipboard.setData(ClipboardData(text: deviceId));
+      if (!mounted) return;
+      _showSnack('Device ID copied: $deviceId');
+    } catch (e) {
+      _showSnack('Failed to copy founder device ID: $e');
+    }
+  }
+
   Future<void> _checkEventsRoute() async {
     try {
       await BackendApiService.instance.getAdminEvents();
@@ -909,7 +1096,7 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
 
   Future<void> _checkChallengesRoute() async {
     try {
-      await BackendApiService.instance.getAdminChallenges();
+      await BackendApiService.instance.getAdminMissions();
       if (!mounted) return;
       _showSnack('Mission admin pipeline is working.');
     } catch (e) {

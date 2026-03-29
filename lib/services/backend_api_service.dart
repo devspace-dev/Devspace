@@ -29,6 +29,101 @@ class BackendApiService {
         message.contains('status 404');
   }
 
+  String _cleanErrorText(Object error) {
+    final message = error.toString().trim();
+    const badStatePrefix = 'Bad state: ';
+    if (message.startsWith(badStatePrefix)) {
+      return message.substring(badStatePrefix.length).trim();
+    }
+    return message;
+  }
+
+  List<String> _stackCandidates(String raw) {
+    return raw
+        .split(',')
+        .map((part) => part.trim().toLowerCase())
+        .where((part) => part.isNotEmpty)
+        .toList();
+  }
+
+  Future<Map<String, dynamic>?> _resolveTodayMissionFallback({
+    String? techStack,
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) return null;
+
+    final today = DateTime.now().toUtc().toIso8601String().split('T').first;
+
+    final userRow = await _client
+        .from('users')
+        .select('stack')
+        .eq('id', user.id)
+        .maybeSingle();
+
+    final requestedCandidates = <String>{};
+    if (techStack != null && techStack.trim().isNotEmpty) {
+      requestedCandidates.addAll(_stackCandidates(techStack));
+      requestedCandidates.add(techStack.trim().toLowerCase());
+    }
+
+    final rawStacks = (userRow?['stack'] as List?) ?? const [];
+    for (final item in rawStacks) {
+      final value = item.toString().trim();
+      if (value.isEmpty) continue;
+      requestedCandidates.add(value.toLowerCase());
+      requestedCandidates.addAll(_stackCandidates(value));
+    }
+    requestedCandidates.add('general');
+
+    final missionRows = await _client
+        .from('missions')
+        .select(
+          'id, title, type, tech_stack, question, options, correct_answer, link, points_reward, publish_date, is_active',
+        )
+        .eq('is_active', true)
+        .eq('publish_date', today)
+        .order('created_at', ascending: false);
+
+    if (missionRows is! List || missionRows.isEmpty) {
+      return null;
+    }
+
+    Map<String, dynamic>? matchedMission;
+    for (final row in missionRows) {
+      final mission = Map<String, dynamic>.from(row as Map);
+      final missionStack = mission['tech_stack']?.toString().trim() ?? '';
+      final missionCandidates = <String>{
+        missionStack.toLowerCase(),
+        ..._stackCandidates(missionStack),
+      }..remove('');
+
+      if (missionCandidates.any(requestedCandidates.contains)) {
+        matchedMission = mission;
+        break;
+      }
+    }
+
+    matchedMission ??= missionRows
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .firstWhere(
+          (mission) =>
+              (mission['tech_stack']?.toString().trim().toLowerCase() ?? '') ==
+              'general',
+          orElse: () => Map<String, dynamic>.from(missionRows.first as Map),
+        );
+
+    return {
+      'id': '',
+      'mission_id': matchedMission['id'],
+      'assigned_date': today,
+      'selected_tech_stack': requestedCandidates.first,
+      'completed': false,
+      'completed_at': null,
+      'is_correct': false,
+      'mission': matchedMission,
+    };
+  }
+
   String _auraLevelFor(int points) {
     if (points < 500) return 'Beginner';
     if (points < 2000) return 'Builder';
@@ -291,30 +386,67 @@ class BackendApiService {
     required String link,
     required String type,
   }) async {
-    final data = await _request(
-      'POST',
-      '/events',
-      includeFounderDevice: true,
-      body: {
-        'title': title,
-        'description': description,
-        'requiredAura': requiredAura,
-        'link': link,
-        'type': type,
-      },
-    ) as Map;
+    try {
+      final data = await _request(
+        'POST',
+        '/events',
+        includeFounderDevice: true,
+        body: {
+          'title': title,
+          'description': description,
+          'requiredAura': requiredAura,
+          'link': link,
+          'type': type,
+        },
+      ) as Map;
 
-    return Map<String, dynamic>.from(data);
+      return Map<String, dynamic>.from(data);
+    } catch (error) {
+      if (!_isRouteMissingError(error)) rethrow;
+
+      final data = await _client
+          .from('events')
+          .insert({
+            'title': title.trim(),
+            'description': description.trim(),
+            'required_aura': requiredAura,
+            'link': link.trim(),
+            'type': type.trim(),
+            'is_active': true,
+            'created_by': _client.auth.currentUser?.id,
+          })
+          .select(
+            'id, title, description, required_aura, link, type, is_active, created_by, created_at, updated_at',
+          )
+          .single();
+
+      return Map<String, dynamic>.from(data);
+    }
   }
 
   Future<List<Map<String, dynamic>>> getAdminEvents() async {
-    final data = await _request(
-      'GET',
-      '/events',
-      includeFounderDevice: true,
-      queryParameters: {'includeInactive': true},
-    ) as List<dynamic>;
-    return data.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+    try {
+      final data = await _request(
+        'GET',
+        '/events',
+        includeFounderDevice: true,
+        queryParameters: {'includeInactive': true},
+      ) as List<dynamic>;
+      return data.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+    } catch (error) {
+      if (!_isRouteMissingError(error)) rethrow;
+
+      final data = await _client
+          .from('events')
+          .select(
+            'id, title, description, required_aura, link, type, is_active, created_by, created_at, updated_at',
+          )
+          .order('created_at', ascending: false);
+
+      return (data as List)
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList();
+    }
   }
 
   Future<Map<String, dynamic>> updateEvent({
@@ -326,30 +458,71 @@ class BackendApiService {
     required String type,
     required bool isActive,
   }) async {
-    final data = await _request(
-      'PATCH',
-      '/events/$eventId',
-      includeFounderDevice: true,
-      body: {
-        'title': title,
-        'description': description,
-        'requiredAura': requiredAura,
-        'link': link,
-        'type': type,
-        'isActive': isActive,
-      },
-    ) as Map;
+    try {
+      final data = await _request(
+        'PATCH',
+        '/events/$eventId',
+        includeFounderDevice: true,
+        body: {
+          'title': title,
+          'description': description,
+          'requiredAura': requiredAura,
+          'link': link,
+          'type': type,
+          'isActive': isActive,
+        },
+      ) as Map;
 
-    return Map<String, dynamic>.from(data);
+      return Map<String, dynamic>.from(data);
+    } catch (error) {
+      if (!_isRouteMissingError(error)) rethrow;
+
+      final data = await _client
+          .from('events')
+          .update({
+            'title': title.trim(),
+            'description': description.trim(),
+            'required_aura': requiredAura,
+            'link': link.trim(),
+            'type': type.trim(),
+            'is_active': isActive,
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('id', eventId)
+          .select(
+            'id, title, description, required_aura, link, type, is_active, created_by, created_at, updated_at',
+          )
+          .single();
+
+      return Map<String, dynamic>.from(data);
+    }
   }
 
   Future<Map<String, dynamic>> deactivateEvent(String eventId) async {
-    final data = await _request(
-      'POST',
-      '/events/$eventId/deactivate',
-      includeFounderDevice: true,
-    ) as Map;
-    return Map<String, dynamic>.from(data);
+    try {
+      final data = await _request(
+        'POST',
+        '/events/$eventId/deactivate',
+        includeFounderDevice: true,
+      ) as Map;
+      return Map<String, dynamic>.from(data);
+    } catch (error) {
+      if (!_isRouteMissingError(error)) rethrow;
+
+      final data = await _client
+          .from('events')
+          .update({
+            'is_active': false,
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('id', eventId)
+          .select(
+            'id, title, description, required_aura, link, type, is_active, created_by, created_at, updated_at',
+          )
+          .single();
+
+      return Map<String, dynamic>.from(data);
+    }
   }
 
   Future<DailyChallengeModel?> getDailyChallenge({String? techStack}) async {
@@ -364,33 +537,37 @@ class BackendApiService {
       return DailyChallengeModel.fromJson(data);
     } catch (error) {
       if (!_isRouteMissingError(error)) {
-        try {
-          final legacyData = Map<String, dynamic>.from(
-            await _request(
-              'GET',
-              '/challenges/daily',
-              queryParameters: techStack == null ? null : {'techStack': techStack},
-            ) as Map,
-          );
-          return DailyChallengeModel.fromJson(legacyData);
-        } catch (_) {
-          rethrow;
-        }
+        rethrow;
       }
 
       try {
-        final row = await _client
+        final today = DateTime.now().toUtc().toIso8601String().split('T').first;
+        Map<String, dynamic>? row = await _client
             .from('user_missions')
             .select(
               'id, mission_id, assigned_date, selected_tech_stack, completed, completed_at, is_correct',
             )
-            .eq(
-              'assigned_date',
-              DateTime.now().toUtc().toIso8601String().split('T').first,
-            )
+            .eq('assigned_date', today)
             .order('assigned_date', ascending: false)
             .limit(1)
             .maybeSingle();
+
+        row = row == null ? null : Map<String, dynamic>.from(row);
+
+        if (row == null) {
+          final assigned = await _client.rpc(
+            'assign_daily_mission',
+            params: {
+              'p_requested_stack': techStack?.trim().isEmpty ?? true
+                  ? null
+                  : techStack!.trim(),
+            },
+          );
+
+          if (assigned is Map) {
+            row = Map<String, dynamic>.from(assigned);
+          }
+        }
 
         if (row != null) {
           final mission = await _client
@@ -403,7 +580,7 @@ class BackendApiService {
 
           if (mission != null) {
             return DailyChallengeModel.fromJson({
-              ...Map<String, dynamic>.from(row),
+              ...row,
               'mission': mission,
             });
           }
@@ -448,31 +625,71 @@ class BackendApiService {
     required int pointsReward,
     required String publishDate,
   }) async {
-    final data = await _request(
-      'POST',
-      '/challenges',
-      includeFounderDevice: true,
-      body: {
-        'title': title,
-        'description': description,
-        'difficulty': difficulty,
-        'techStack': techStack,
-        'pointsReward': pointsReward,
-        'publishDate': publishDate,
-      },
-    ) as Map;
+    try {
+      final data = await _request(
+        'POST',
+        '/challenges',
+        includeFounderDevice: true,
+        body: {
+          'title': title,
+          'description': description,
+          'difficulty': difficulty,
+          'techStack': techStack,
+          'pointsReward': pointsReward,
+          'publishDate': publishDate,
+        },
+      ) as Map;
 
-    return Map<String, dynamic>.from(data);
+      return Map<String, dynamic>.from(data);
+    } catch (error) {
+      if (!_isRouteMissingError(error)) rethrow;
+
+      final data = await _request(
+        'POST',
+        '/missions',
+        includeFounderDevice: true,
+        body: {
+          'title': title,
+          'type': 'oneword',
+          'techStack': techStack,
+          'question': description,
+          'pointsReward': pointsReward,
+          'publishDate': publishDate,
+          'isActive': true,
+        },
+      ) as Map;
+
+      return _mapMissionToLegacyChallengeShape(Map<String, dynamic>.from(data));
+    }
   }
 
   Future<List<Map<String, dynamic>>> getAdminChallenges() async {
-    final data = await _request(
-      'GET',
-      '/challenges',
-      includeFounderDevice: true,
-      queryParameters: {'includeInactive': true},
-    ) as List<dynamic>;
-    return data.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+    try {
+      final data = await _request(
+        'GET',
+        '/challenges',
+        includeFounderDevice: true,
+        queryParameters: {'includeInactive': true},
+      ) as List<dynamic>;
+      return data.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+    } catch (error) {
+      if (!_isRouteMissingError(error)) rethrow;
+
+      final data = await _request(
+        'GET',
+        '/missions',
+        includeFounderDevice: true,
+        queryParameters: {'includeInactive': true},
+      ) as List<dynamic>;
+
+      return data
+          .map(
+            (item) => _mapMissionToLegacyChallengeShape(
+              Map<String, dynamic>.from(item as Map),
+            ),
+          )
+          .toList();
+    }
   }
 
   Future<Map<String, dynamic>> updateChallenge({
@@ -484,30 +701,87 @@ class BackendApiService {
     required int pointsReward,
     required bool isActive,
   }) async {
-    final data = await _request(
-      'PATCH',
-      '/challenges/$challengeId',
-      includeFounderDevice: true,
-      body: {
-        'title': title,
-        'description': description,
-        'difficulty': difficulty,
-        'techStack': techStack,
-        'pointsReward': pointsReward,
-        'isActive': isActive,
-      },
-    ) as Map;
+    try {
+      final data = await _request(
+        'PATCH',
+        '/challenges/$challengeId',
+        includeFounderDevice: true,
+        body: {
+          'title': title,
+          'description': description,
+          'difficulty': difficulty,
+          'techStack': techStack,
+          'pointsReward': pointsReward,
+          'isActive': isActive,
+        },
+      ) as Map;
 
-    return Map<String, dynamic>.from(data);
+      return Map<String, dynamic>.from(data);
+    } catch (error) {
+      if (!_isRouteMissingError(error)) rethrow;
+
+      final data = await _request(
+        'PATCH',
+        '/missions/$challengeId',
+        includeFounderDevice: true,
+        body: {
+          'title': title,
+          'type': 'oneword',
+          'techStack': techStack,
+          'question': description,
+          'pointsReward': pointsReward,
+          'isActive': isActive,
+        },
+      ) as Map;
+
+      return _mapMissionToLegacyChallengeShape(Map<String, dynamic>.from(data));
+    }
   }
 
   Future<Map<String, dynamic>> deactivateChallenge(String challengeId) async {
-    final data = await _request(
-      'POST',
-      '/challenges/$challengeId/deactivate',
-      includeFounderDevice: true,
-    ) as Map;
-    return Map<String, dynamic>.from(data);
+    try {
+      final data = await _request(
+        'POST',
+        '/challenges/$challengeId/deactivate',
+        includeFounderDevice: true,
+      ) as Map;
+      return Map<String, dynamic>.from(data);
+    } catch (error) {
+      if (!_isRouteMissingError(error)) rethrow;
+
+      final data = await _request(
+        'POST',
+        '/missions/$challengeId/deactivate',
+        includeFounderDevice: true,
+      ) as Map;
+      return _mapMissionToLegacyChallengeShape(Map<String, dynamic>.from(data));
+    }
+  }
+
+  Map<String, dynamic> _mapMissionToLegacyChallengeShape(
+    Map<String, dynamic> mission,
+  ) {
+    final type = mission['type']?.toString() ?? 'oneword';
+    final difficulty = switch (type) {
+      'coding' => 'hard',
+      'mcq' => 'medium',
+      _ => 'easy',
+    };
+
+    return {
+      'id': mission['id'],
+      'title': mission['title'] ?? '',
+      'description': mission['question'] ?? '',
+      'difficulty': difficulty,
+      'tech_stack': mission['tech_stack'] ?? '',
+      'points_reward': mission['points_reward'] ?? 0,
+      'is_active': mission['is_active'] ?? true,
+      'publish_date': mission['publish_date'],
+      'type': mission['type'],
+      'link': mission['link'],
+      'options': mission['options'],
+      'correct_answer': mission['correct_answer'],
+    };
   }
 
   Future<Map<String, dynamic>?> getDailyMission({String? techStack}) async {
@@ -544,14 +818,30 @@ class BackendApiService {
   }
 
   Future<List<Map<String, dynamic>>> getAdminMissions() async {
-    final data = await _request(
-      'GET',
-      '/missions',
-      includeFounderDevice: true,
-      queryParameters: {'includeInactive': true},
-    ) as List<dynamic>;
+    try {
+      final data = await _request(
+        'GET',
+        '/missions',
+        includeFounderDevice: true,
+        queryParameters: {'includeInactive': true},
+      ) as List<dynamic>;
 
-    return data.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+      return data.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+    } catch (error) {
+      if (!_isRouteMissingError(error)) rethrow;
+
+      final data = await _client
+          .from('missions')
+          .select(
+            'id, title, type, tech_stack, question, options, correct_answer, link, points_reward, publish_date, is_active, created_by, created_at, updated_at',
+          )
+          .order('publish_date', ascending: false)
+          .order('created_at', ascending: false);
+
+      return (data as List)
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList();
+    }
   }
 
   Future<Map<String, dynamic>> createMission({
@@ -566,25 +856,51 @@ class BackendApiService {
     required String publishDate,
     bool isActive = true,
   }) async {
-    final data = await _request(
-      'POST',
-      '/missions',
-      includeFounderDevice: true,
-      body: {
-        'title': title,
-        'type': type,
-        'techStack': techStack,
-        'question': question,
-        'options': options,
-        'correctAnswer': correctAnswer,
-        'link': link,
-        'pointsReward': pointsReward,
-        'publishDate': publishDate,
-        'isActive': isActive,
-      },
-    ) as Map;
+    try {
+      final data = await _request(
+        'POST',
+        '/missions',
+        includeFounderDevice: true,
+        body: {
+          'title': title,
+          'type': type,
+          'techStack': techStack,
+          'question': question,
+          'options': options,
+          'correctAnswer': correctAnswer,
+          'link': link,
+          'pointsReward': pointsReward,
+          'publishDate': publishDate,
+          'isActive': isActive,
+        },
+      ) as Map;
 
-    return Map<String, dynamic>.from(data);
+      return Map<String, dynamic>.from(data);
+    } catch (error) {
+      if (!_isRouteMissingError(error)) rethrow;
+
+      final data = await _client
+          .from('missions')
+          .insert({
+            'title': title.trim(),
+            'type': type.trim(),
+            'tech_stack': techStack.trim(),
+            'question': question.trim(),
+            'options': options,
+            'correct_answer': correctAnswer?.trim(),
+            'link': link?.trim(),
+            'points_reward': pointsReward,
+            'publish_date': publishDate,
+            'is_active': isActive,
+            'created_by': _client.auth.currentUser?.id,
+          })
+          .select(
+            'id, title, type, tech_stack, question, options, correct_answer, link, points_reward, publish_date, is_active, created_by, created_at, updated_at',
+          )
+          .single();
+
+      return Map<String, dynamic>.from(data);
+    }
   }
 
   Future<Map<String, dynamic>> updateMission({
@@ -600,35 +916,80 @@ class BackendApiService {
     String? publishDate,
     bool? isActive,
   }) async {
-    final data = await _request(
-      'PATCH',
-      '/missions/$missionId',
-      includeFounderDevice: true,
-      body: {
-        if (title != null) 'title': title,
-        if (type != null) 'type': type,
-        if (techStack != null) 'techStack': techStack,
-        if (question != null) 'question': question,
-        if (options != null) 'options': options,
-        if (correctAnswer != null) 'correctAnswer': correctAnswer,
-        if (link != null) 'link': link,
-        if (pointsReward != null) 'pointsReward': pointsReward,
-        if (publishDate != null) 'publishDate': publishDate,
-        if (isActive != null) 'isActive': isActive,
-      },
-    ) as Map;
+    try {
+      final data = await _request(
+        'PATCH',
+        '/missions/$missionId',
+        includeFounderDevice: true,
+        body: {
+          if (title != null) 'title': title,
+          if (type != null) 'type': type,
+          if (techStack != null) 'techStack': techStack,
+          if (question != null) 'question': question,
+          if (options != null) 'options': options,
+          if (correctAnswer != null) 'correctAnswer': correctAnswer,
+          if (link != null) 'link': link,
+          if (pointsReward != null) 'pointsReward': pointsReward,
+          if (publishDate != null) 'publishDate': publishDate,
+          if (isActive != null) 'isActive': isActive,
+        },
+      ) as Map;
 
-    return Map<String, dynamic>.from(data);
+      return Map<String, dynamic>.from(data);
+    } catch (error) {
+      if (!_isRouteMissingError(error)) rethrow;
+
+      final data = await _client
+          .from('missions')
+          .update({
+            if (title != null) 'title': title.trim(),
+            if (type != null) 'type': type.trim(),
+            if (techStack != null) 'tech_stack': techStack.trim(),
+            if (question != null) 'question': question.trim(),
+            if (options != null) 'options': options,
+            if (correctAnswer != null) 'correct_answer': correctAnswer.trim(),
+            if (link != null) 'link': link.trim(),
+            if (pointsReward != null) 'points_reward': pointsReward,
+            if (publishDate != null) 'publish_date': publishDate,
+            if (isActive != null) 'is_active': isActive,
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('id', missionId)
+          .select(
+            'id, title, type, tech_stack, question, options, correct_answer, link, points_reward, publish_date, is_active, created_by, created_at, updated_at',
+          )
+          .single();
+
+      return Map<String, dynamic>.from(data);
+    }
   }
 
   Future<Map<String, dynamic>> deactivateMission(String missionId) async {
-    final data = await _request(
-      'POST',
-      '/missions/$missionId/deactivate',
-      includeFounderDevice: true,
-    ) as Map;
+    try {
+      final data = await _request(
+        'POST',
+        '/missions/$missionId/deactivate',
+        includeFounderDevice: true,
+      ) as Map;
 
-    return Map<String, dynamic>.from(data);
+      return Map<String, dynamic>.from(data);
+    } catch (error) {
+      if (!_isRouteMissingError(error)) rethrow;
+
+      final data = await _client
+          .from('missions')
+          .update({
+            'is_active': false,
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('id', missionId)
+          .select(
+            'id, title, type, tech_stack, question, options, correct_answer, link, points_reward, publish_date, is_active, created_by, created_at, updated_at',
+          )
+          .single();
+
+      return Map<String, dynamic>.from(data);
+    }
   }
 
   Future<Map<String, dynamic>> reviewMissionAssignment({
@@ -655,10 +1016,32 @@ class BackendApiService {
         ) as Map,
       );
       return data['authorized'] == true;
-    } catch (_) {
+    } catch (error) {
+      if (_isRouteMissingError(error)) {
+        final user = _client.auth.currentUser;
+        final email = user?.email?.trim().toLowerCase() ?? '';
+        if (email == 'businessrexxon@gmail.com') {
+          return true;
+        }
+
+        if (user != null) {
+          try {
+            final row = await _client
+                .from('users')
+                .select('is_admin')
+                .eq('id', user.id)
+                .maybeSingle();
+            return row?['is_admin'] == true;
+          } catch (_) {
+            return false;
+          }
+        }
+      }
       return false;
     }
   }
+
+  String cleanErrorText(Object error) => _cleanErrorText(error);
 
   Future<Map<String, dynamic>> completeDailyChallenge({
     String submissionText = '',
@@ -677,16 +1060,7 @@ class BackendApiService {
       return Map<String, dynamic>.from(data);
     } catch (error) {
       if (!_isRouteMissingError(error)) {
-        final data = await _request(
-          'POST',
-          '/challenges/complete',
-          body: {
-            'submissionText': submissionText,
-            'submissionLink': submissionLink,
-          },
-        ) as Map;
-
-        return Map<String, dynamic>.from(data);
+        rethrow;
       }
 
       try {

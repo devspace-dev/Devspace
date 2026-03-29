@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/daily_challenge_model.dart';
 import '../providers/engagement_provider.dart';
 import '../screens/daily_challenge_screen.dart';
 import '../screens/opportunities_screen.dart';
@@ -120,15 +121,19 @@ class EngagementOverview extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            challenge.completed
-                                ? 'Completed'
-                                : '+${challenge.pointsReward} aura',
+                            challenge.wasSolved
+                                ? 'Solved'
+                                : challenge.wasAttempted
+                                    ? 'Attempted'
+                                    : '+${challenge.pointsReward} / +${DailyChallengeModel.attemptReward} aura',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
-                              color: challenge.completed
+                              color: challenge.wasSolved
                                   ? Colors.green
-                                  : AppColors.primary,
+                                  : challenge.wasAttempted
+                                      ? Colors.orange
+                                      : AppColors.primary,
                             ),
                           ),
                         ],
@@ -172,20 +177,6 @@ class EngagementOverview extends StatelessWidget {
                               );
                             },
                             child: const Text('Open'),
-                          ),
-                          const SizedBox(width: 10),
-                          ElevatedButton(
-                            onPressed: challenge.completed ||
-                                    provider.isSubmittingChallenge
-                                ? null
-                                : () => _showSubmissionSheet(context),
-                            child: Text(
-                              challenge.completed
-                                  ? 'Submitted'
-                                  : provider.isSubmittingChallenge
-                                      ? 'Submitting...'
-                                      : 'Submit Solution',
-                            ),
                           ),
                         ],
                       ),
@@ -281,106 +272,6 @@ class EngagementOverview extends StatelessWidget {
     );
   }
 
-  Future<void> _showSubmissionSheet(BuildContext context) async {
-    final textController = TextEditingController();
-    final linkController = TextEditingController();
-
-    final success = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      builder: (sheetContext) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            top: 16,
-            bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 16,
-          ),
-          child: Consumer<EngagementProvider>(
-            builder: (context, provider, _) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Submit mission answer',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textFor(context),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: textController,
-                    minLines: 3,
-                    maxLines: 5,
-                    decoration: InputDecoration(
-                      labelText: provider.dailyChallenge?.isCodingMission == true
-                          ? 'What did you build or solve?'
-                          : 'Your answer',
-                    ),
-                  ),
-                  if (provider.dailyChallenge?.isCodingMission == true) ...[
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: linkController,
-                      decoration: const InputDecoration(
-                        labelText: 'Optional link',
-                      ),
-                    ),
-                  ],
-                  if (provider.error != null) ...[
-                    const SizedBox(height: 10),
-                    Text(
-                      provider.error!,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.flame,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: provider.isSubmittingChallenge
-                          ? null
-                          : () async {
-                              final ok = await context
-                                  .read<EngagementProvider>()
-                                  .submitDailyChallenge(
-                                    submissionText: textController.text,
-                                    submissionLink: linkController.text,
-                                  );
-                              if (context.mounted && ok) {
-                                Navigator.of(sheetContext).pop(true);
-                              }
-                            },
-                      child: Text(
-                        provider.isSubmittingChallenge
-                            ? 'Submitting...'
-                            : 'Submit Mission',
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        );
-      },
-    );
-
-    textController.dispose();
-    linkController.dispose();
-
-    if (success == true && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Mission submitted. Aura updated.')),
-      );
-    }
-  }
 }
 
 class _NeonStatsCard extends StatefulWidget {

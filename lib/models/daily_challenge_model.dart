@@ -1,4 +1,6 @@
 class DailyChallengeModel {
+  static const int attemptReward = 5;
+
   final String assignmentId;
   final String challengeId;
   final DateTime? assignedDate;
@@ -38,12 +40,14 @@ class DailyChallengeModel {
   bool get isCodingMission => missionType == 'coding';
   bool get isMcqMission => missionType == 'mcq';
   bool get isOneWordMission => missionType == 'oneword';
+  bool get wasAttempted => completed && !isCorrect;
+  bool get wasSolved => completed && isCorrect;
 
   factory DailyChallengeModel.fromJson(Map<String, dynamic> json) {
     final mission = Map<String, dynamic>.from(
       (json['mission'] as Map?) ?? (json['challenge'] as Map?) ?? const {},
     );
-    final missionType = (mission['type'] ?? 'coding').toString();
+    final missionType = (mission['type'] ?? 'mcq').toString();
     final options = (mission['options'] as List?)
             ?.map((item) => item.toString())
             .toList() ??

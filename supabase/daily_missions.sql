@@ -15,21 +15,13 @@ create table if not exists public.missions (
   created_by uuid references public.users(id) on delete set null,
   created_at timestamp with time zone not null default timezone('utc'::text, now()),
   updated_at timestamp with time zone not null default timezone('utc'::text, now()),
-  constraint missions_type_check check (type in ('coding', 'mcq', 'oneword')),
+  constraint missions_type_check check (type = 'mcq'),
   constraint missions_points_reward_check check (points_reward >= 0),
   constraint missions_payload_check check (
-    (
-      type = 'coding'
-      and coalesce(trim(link), '') <> ''
-    ) or (
-      type = 'mcq'
-      and jsonb_typeof(coalesce(options, '[]'::jsonb)) = 'array'
-      and jsonb_array_length(coalesce(options, '[]'::jsonb)) >= 2
-      and coalesce(trim(correct_answer), '') <> ''
-    ) or (
-      type = 'oneword'
-      and coalesce(trim(correct_answer), '') <> ''
-    )
+    type = 'mcq'
+    and jsonb_typeof(coalesce(options, '[]'::jsonb)) = 'array'
+    and jsonb_array_length(coalesce(options, '[]'::jsonb)) >= 2
+    and coalesce(trim(correct_answer), '') <> ''
   )
 );
 
@@ -191,38 +183,73 @@ begin
     return existing_assignment;
   end if;
 
-  select coalesce(
-    nullif(trim(p_requested_stack), ''),
-    nullif(trim(stack[1]), ''),
-    'general'
-  )
-  into selected_stack
-  from public.users
-  where id = actor_id;
+  selected_stack := lower(coalesce(nullif(trim(p_requested_stack), ''), ''));
 
-  selected_stack := coalesce(selected_stack, 'general');
-
-  select id
-  into chosen_mission_id
-  from public.missions
-  where is_active = true
-    and publish_date = today_utc
-    and lower(tech_stack) = lower(selected_stack)
-  limit 1;
-
-  if chosen_mission_id is null then
-    select id
-    into chosen_mission_id
+  if selected_stack <> '' then
+    select id, tech_stack
+    into chosen_mission_id, selected_stack
     from public.missions
     where is_active = true
       and publish_date = today_utc
+      and type = 'mcq'
+      and lower(tech_stack) = selected_stack
+    order by created_at desc
+    limit 1;
+  end if;
+
+  if chosen_mission_id is null then
+    select m.id, m.tech_stack
+    into chosen_mission_id, selected_stack
+    from public.missions m
+    where m.is_active = true
+      and m.publish_date = today_utc
+      and m.type = 'mcq'
+      and exists (
+        select 1
+        from public.users u
+        cross join lateral unnest(coalesce(u.stack, '{}'::text[])) as user_stack(stack_item)
+        where u.id = actor_id
+          and lower(trim(user_stack.stack_item)) = lower(m.tech_stack)
+      )
+    order by (
+      select min(stack_position.ordinality)
+      from public.users u
+      cross join lateral unnest(coalesce(u.stack, '{}'::text[])) with ordinality as stack_position(stack_item, ordinality)
+      where u.id = actor_id
+        and lower(trim(stack_position.stack_item)) = lower(m.tech_stack)
+    ) asc nulls last,
+    m.created_at desc
+    limit 1;
+  end if;
+
+  if chosen_mission_id is null then
+    select id, tech_stack
+    into chosen_mission_id, selected_stack
+    from public.missions
+    where is_active = true
+      and publish_date = today_utc
+      and type = 'mcq'
       and lower(tech_stack) = 'general'
+    order by created_at desc
+    limit 1;
+  end if;
+
+  if chosen_mission_id is null then
+    select id, tech_stack
+    into chosen_mission_id, selected_stack
+    from public.missions
+    where is_active = true
+      and publish_date = today_utc
+      and type = 'mcq'
+    order by created_at desc
     limit 1;
   end if;
 
   if chosen_mission_id is null then
     raise exception 'No active mission is available for today';
   end if;
+
+  selected_stack := coalesce(nullif(trim(selected_stack), ''), 'general');
 
   insert into public.user_missions (
     user_id,
@@ -258,10 +285,12 @@ declare
   today_utc date;
   assignment_row public.user_missions%rowtype;
   mission_row public.missions%rowtype;
+  previous_completion date;
+  next_streak integer;
+  next_longest integer;
   normalized_answer text;
   normalized_correct_answer text;
   is_answer_correct boolean := false;
-  should_complete boolean := false;
   awarded_points integer := 0;
 begin
   actor_id := auth.uid();
@@ -298,51 +327,68 @@ begin
   normalized_answer := lower(trim(coalesce(p_answer_submitted, '')));
   normalized_correct_answer := lower(trim(coalesce(mission_row.correct_answer, '')));
 
-  if mission_row.type = 'coding' then
-    if normalized_answer = '' and trim(coalesce(p_submission_link, '')) = '' then
-      raise exception 'Submission text or link is required for coding missions';
-    end if;
-
-    is_answer_correct := true;
-    should_complete := true;
-  elsif mission_row.type = 'mcq' then
-    if normalized_answer = '' then
-      raise exception 'An answer is required for MCQ missions';
-    end if;
-
-    is_answer_correct := normalized_answer = normalized_correct_answer;
-    should_complete := is_answer_correct;
-  elsif mission_row.type = 'oneword' then
-    if normalized_answer = '' then
-      raise exception 'An answer is required for one-word missions';
-    end if;
-
-    is_answer_correct := normalized_answer = normalized_correct_answer;
-    should_complete := is_answer_correct;
-  else
-    raise exception 'Unsupported mission type';
+  if mission_row.type <> 'mcq' then
+    raise exception 'Only MCQ daily missions are supported';
   end if;
+
+  if normalized_answer = '' then
+    raise exception 'An answer is required for the daily mission';
+  end if;
+
+  is_answer_correct := normalized_answer = normalized_correct_answer;
+  awarded_points := case
+    when is_answer_correct then coalesce(mission_row.points_reward, 20)
+    else 5
+  end;
 
   update public.user_missions
   set answer_submitted = nullif(trim(coalesce(p_answer_submitted, '')), ''),
-      submission_link = nullif(trim(coalesce(p_submission_link, '')), ''),
+      submission_link = null,
       is_correct = is_answer_correct,
-      completed = should_complete,
-      completed_at = case
-        when should_complete then timezone('utc'::text, now())
-        else null
-      end,
+      completed = true,
+      completed_at = timezone('utc'::text, now()),
       updated_at = timezone('utc'::text, now())
   where id = assignment_row.id;
 
-  if should_complete then
-    awarded_points := coalesce(mission_row.points_reward, 0);
-
+  if is_answer_correct then
     perform public.award_aura(
       actor_id,
       'complete_daily_mission',
       awarded_points,
       'daily_mission',
+      assignment_row.id::text
+    );
+
+    select last_challenge_completed_on
+    into previous_completion
+    from public.users
+    where id = actor_id;
+
+    if previous_completion = today_utc - 1 then
+      select coalesce(current_streak, 0) + 1,
+             greatest(coalesce(longest_streak, 0), coalesce(current_streak, 0) + 1)
+      into next_streak, next_longest
+      from public.users
+      where id = actor_id;
+    else
+      next_streak := 1;
+      select greatest(coalesce(longest_streak, 0), 1)
+      into next_longest
+      from public.users
+      where id = actor_id;
+    end if;
+
+    update public.users
+    set current_streak = next_streak,
+        longest_streak = next_longest,
+        last_challenge_completed_on = today_utc
+    where id = actor_id;
+  else
+    perform public.award_aura(
+      actor_id,
+      'attempt_daily_mission',
+      awarded_points,
+      'daily_mission_attempt',
       assignment_row.id::text
     );
   end if;
@@ -351,7 +397,7 @@ begin
     'assignmentId', assignment_row.id,
     'missionId', mission_row.id,
     'type', mission_row.type,
-    'completed', should_complete,
+    'completed', true,
     'isCorrect', is_answer_correct,
     'pointsAwarded', awarded_points
   );

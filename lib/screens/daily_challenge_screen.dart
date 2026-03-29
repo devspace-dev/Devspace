@@ -3,8 +3,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
 import '../models/daily_challenge_model.dart';
-import '../providers/engagement_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/engagement_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_state_widgets.dart';
 import '../widgets/app_ui_kit.dart';
@@ -17,40 +17,39 @@ class DailyChallengeScreen extends StatefulWidget {
 }
 
 class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
-  final TextEditingController _submissionController = TextEditingController();
-  final TextEditingController _linkController = TextEditingController();
-
-  @override
-  void dispose() {
-    _submissionController.dispose();
-    _linkController.dispose();
-    super.dispose();
-  }
+  String? _selectedOption;
 
   Future<void> _submit(EngagementProvider provider) async {
-    final text = _submissionController.text.trim();
-    final link = _linkController.text.trim();
+    final answer = (_selectedOption ?? '').trim();
+    if (answer.isEmpty) return;
 
-    if (text.isEmpty && link.isEmpty) return;
-
-    final challenge = provider.dailyChallenge;
     final success = await provider.submitDailyChallenge(
-      submissionText: text,
-      submissionLink: link,
+      submissionText: answer,
+      submissionLink: '',
     );
 
-    if (mounted && success) {
-      _submissionController.clear();
-      _linkController.clear();
+    if (!mounted) return;
+
+    if (success) {
+      final challenge = provider.dailyChallenge;
+      final solved = challenge?.wasSolved ?? false;
+      final awardedPoints =
+          solved ? (challenge?.pointsReward ?? 20) : DailyChallengeModel.attemptReward;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Mission completed! +${challenge?.pointsReward ?? 0} Aura',
+            solved
+                ? 'Correct answer. +$awardedPoints Aura added.'
+                : 'Wrong answer. +$awardedPoints Aura for attempting. Mission locked until tomorrow.',
           ),
-          backgroundColor: Colors.green,
+          backgroundColor: solved ? Colors.green : Colors.orange,
         ),
       );
-    } else if (mounted && provider.error != null) {
+      return;
+    }
+
+    if (provider.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(provider.error!)),
       );
@@ -85,11 +84,21 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                     return const AppEmptyState(
                       icon: Icons.auto_awesome_rounded,
                       title: 'No mission today',
-                      message: 'Check back later for a new mission!',
+                      message: 'Check back later for a new mission.',
                     );
                   }
 
-                  final isCompleted = daily.completed;
+                  if (!daily.completed &&
+                      _selectedOption != null &&
+                      !daily.options.contains(_selectedOption)) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) {
+                        setState(() {
+                          _selectedOption = null;
+                        });
+                      }
+                    });
+                  }
 
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -100,8 +109,8 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                         const SizedBox(height: 24),
                         _buildMainCard(context, daily),
                         const SizedBox(height: 24),
-                        if (!isCompleted) _buildActionSection(context, provider),
-                        if (isCompleted) _buildCompletionStatus(context),
+                        if (!daily.completed) _buildActionSection(context, provider),
+                        if (daily.completed) _buildCompletionStatus(context, daily),
                         const SizedBox(height: 40),
                       ],
                     ),
@@ -139,38 +148,38 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
   }
 
   Widget _buildMissionHeader(BuildContext context, dynamic me) {
-    return Row(
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
       children: [
         _HeaderBadge(
           label: '${me?.currentStreak ?? 0} Day Streak',
-          icon: '🔥',
+          icon: Icons.local_fire_department_rounded,
           color: Colors.orange,
         ).animate().fadeIn().slideX(begin: -0.2),
         const SizedBox(width: 12),
         const _HeaderBadge(
-          label: '+20 Aura',
-          icon: '⚡',
+          label: '+20 solve / +5 try',
+          icon: Icons.bolt_rounded,
           color: AppColors.primary,
         ).animate().fadeIn(delay: 100.ms).slideX(begin: -0.2),
       ],
     );
   }
 
-  Widget _buildMainCard(
-    BuildContext context,
-    DailyChallengeModel challenge,
-  ) {
+  Widget _buildMainCard(BuildContext context, DailyChallengeModel challenge) {
     return AppGlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
               AppBadge(
                 label: challenge.difficulty.toUpperCase(),
                 color: _getDifficultyColor(challenge.difficulty),
               ),
-              const SizedBox(width: 8),
               AppBadge(
                 label: challenge.techStack,
                 color: AppColors.primary,
@@ -196,6 +205,30 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
               color: AppColors.text2For(context),
             ),
           ),
+          const SizedBox(height: 18),
+          _InfoBlock(
+            title: 'Question',
+            child: Text(
+              challenge.question,
+              style: TextStyle(
+                fontSize: 14,
+                height: 1.55,
+                color: AppColors.text2For(context),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          _InfoBlock(
+            title: 'Rule',
+            child: Text(
+              'You get one answer per day. Correct answers give +${challenge.pointsReward} aura. Wrong answers still give +${DailyChallengeModel.attemptReward} aura, but the mission locks until tomorrow.',
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.5,
+                color: AppColors.text2For(context),
+              ),
+            ),
+          ),
         ],
       ),
     ).animate().scale(delay: 200.ms, curve: Curves.easeOutBack);
@@ -209,7 +242,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          _sectionTitleFor(challenge),
+          'Choose one answer',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w800,
@@ -217,113 +250,101 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
           ),
         ).animate().fadeIn(delay: 300.ms),
         const SizedBox(height: 12),
-        _buildTextField(
-          controller: _submissionController,
-          hint: _answerHintFor(challenge),
-          maxLines: challenge.isOneWordMission ? 1 : 4,
-        ).animate().fadeIn(delay: 400.ms),
-        if (challenge.isCodingMission) ...[
-          const SizedBox(height: 16),
-          _buildTextField(
-            controller: _linkController,
-            hint: 'GitHub / Demo Link (Optional)',
-            maxLines: 1,
-            prefixIcon: Icons.link_rounded,
-          ).animate().fadeIn(delay: 500.ms),
-        ],
-        if (challenge.isMcqMission && challenge.options.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: challenge.options
-                .map(
-                  (option) => ChoiceChip(
-                    label: Text(option),
-                    selected: _submissionController.text.trim() == option,
-                    onSelected: (_) {
-                      setState(() {
-                        _submissionController.text = option;
-                      });
-                    },
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: challenge.options
+              .map(
+                (option) => ChoiceChip(
+                  label: Text(option),
+                  selected: _selectedOption == option,
+                  labelStyle: TextStyle(
+                    color: _selectedOption == option
+                        ? Colors.white
+                        : AppColors.textFor(context),
+                    fontWeight: FontWeight.w700,
                   ),
-                )
-                .toList(),
-          ).animate().fadeIn(delay: 450.ms),
+                  backgroundColor: AppColors.bg2For(context),
+                  selectedColor: AppColors.primary,
+                  side: BorderSide(
+                    color: _selectedOption == option
+                        ? AppColors.primary
+                        : AppColors.borderFor(context),
+                  ),
+                  onSelected: (_) {
+                    setState(() {
+                      _selectedOption = option;
+                    });
+                  },
+                ),
+              )
+              .toList(),
+        ).animate().fadeIn(delay: 420.ms),
+        if (provider.error != null) ...[
+          const SizedBox(height: 14),
+          Text(
+            provider.error!,
+            style: const TextStyle(
+              fontSize: 13,
+              color: Colors.redAccent,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
         const SizedBox(height: 24),
         AppButton(
-          onPressed: () => _submit(provider),
+          onPressed: _selectedOption == null ? null : () => _submit(provider),
           isLoading: provider.isSubmittingChallenge,
-          child: Text(
-            _buttonLabelFor(challenge),
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+          child: const Text(
+            'Lock Answer',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
           ),
-        ).animate().fadeIn(delay: 600.ms).moveY(begin: 20),
+        ).animate().fadeIn(delay: 560.ms).moveY(begin: 20),
       ],
     );
   }
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String hint,
-    int maxLines = 1,
-    IconData? prefixIcon,
-  }) {
-    return TextField(
-      controller: controller,
-      maxLines: maxLines,
-      style: TextStyle(color: AppColors.textFor(context)),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(color: AppColors.text3For(context)),
-        prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: AppColors.text3For(context), size: 20) : null,
-        fillColor: AppColors.bg2For(context),
-        filled: true,
-        contentPadding: const EdgeInsets.all(18),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(20),
-          borderSide: BorderSide(color: AppColors.borderFor(context)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(20),
-          borderSide: BorderSide(color: AppColors.borderFor(context)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(20),
-          borderSide: const BorderSide(color: AppColors.primary, width: 2),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCompletionStatus(BuildContext context) {
+  Widget _buildCompletionStatus(
+    BuildContext context,
+    DailyChallengeModel challenge,
+  ) {
+    final solved = challenge.wasSolved;
     final points =
-        context.read<EngagementProvider>().dailyChallenge?.pointsReward ?? 0;
+        solved ? challenge.pointsReward : DailyChallengeModel.attemptReward;
+    final accent = solved ? Colors.green : Colors.orange;
+
     return AppCard(
-      color: Colors.green.withValues(alpha: 0.1),
-      border: Border.all(color: Colors.green.withValues(alpha: 0.2)),
+      color: accent.withValues(alpha: 0.1),
+      border: Border.all(color: accent.withValues(alpha: 0.2)),
       child: Row(
         children: [
-          const Icon(Icons.check_circle_rounded, color: Colors.green, size: 40),
+          Icon(
+            solved ? Icons.check_circle_rounded : Icons.lock_clock_rounded,
+            color: accent,
+            size: 40,
+          ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Mission Accomplished',
+                Text(
+                  solved ? 'Mission solved' : 'Mission attempted',
                   style: TextStyle(
                     fontWeight: FontWeight.w900,
                     fontSize: 18,
-                    color: Colors.green,
+                    color: accent,
                   ),
                 ),
+                const SizedBox(height: 4),
                 Text(
-                  'You earned +$points Aura points today!',
+                  solved
+                      ? 'You earned +$points Aura points. Your streak stays active.'
+                      : 'You earned +$points Aura for trying. This mission is locked until tomorrow.',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.green.withValues(alpha: 0.8),
+                    color: accent.withValues(alpha: 0.85),
+                    height: 1.45,
                   ),
                 ),
               ],
@@ -336,39 +357,21 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
 
   Color _getDifficultyColor(String difficulty) {
     switch (difficulty.toLowerCase()) {
-      case 'easy': return Colors.green;
-      case 'medium': return Colors.orange;
-      case 'hard': return Colors.red;
-      default: return AppColors.text3;
+      case 'easy':
+        return Colors.green;
+      case 'medium':
+        return Colors.orange;
+      case 'hard':
+        return Colors.red;
+      default:
+        return AppColors.text3;
     }
-  }
-
-  String _sectionTitleFor(DailyChallengeModel challenge) {
-    if (challenge.isCodingMission) return 'Your Submission';
-    if (challenge.isMcqMission) return 'Your Answer';
-    return 'Your Response';
-  }
-
-  String _answerHintFor(DailyChallengeModel challenge) {
-    if (challenge.isCodingMission) {
-      return 'Share what you built or learned...';
-    }
-    if (challenge.isMcqMission) {
-      return 'Select or type the correct option';
-    }
-    return 'Enter the correct one-word answer';
-  }
-
-  String _buttonLabelFor(DailyChallengeModel challenge) {
-    if (challenge.isCodingMission) return 'Submit Mission';
-    if (challenge.isMcqMission) return 'Check Answer';
-    return 'Submit Answer';
   }
 }
 
 class _HeaderBadge extends StatelessWidget {
   final String label;
-  final String icon;
+  final IconData icon;
   final Color color;
 
   const _HeaderBadge({
@@ -389,7 +392,7 @@ class _HeaderBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(icon, style: const TextStyle(fontSize: 16)),
+          Icon(icon, size: 16, color: color),
           const SizedBox(width: 8),
           Text(
             label,
@@ -399,6 +402,45 @@ class _HeaderBadge extends StatelessWidget {
               fontSize: 14,
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoBlock extends StatelessWidget {
+  final String title;
+  final Widget child;
+
+  const _InfoBlock({
+    required this.title,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.bg2For(context),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.borderFor(context)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+              color: AppColors.text3For(context),
+            ),
+          ),
+          const SizedBox(height: 8),
+          child,
         ],
       ),
     );
