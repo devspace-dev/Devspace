@@ -159,7 +159,9 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                                   ? Icons.favorite_rounded
                                   : n.type == 'comment'
                                       ? Icons.comment_rounded
-                                      : Icons.person_add_rounded,
+                                      : n.type == 'message'
+                                          ? Icons.mail_outline_rounded
+                                          : Icons.person_add_rounded,
                               size: 18,
                               color: n.read
                                   ? AppColors.text3For(context)
@@ -235,6 +237,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
   Widget build(BuildContext context) {
     final me = context.watch<AuthProvider>().currentUserOrNull;
     final unreadCount = context.watch<NotificationsProvider>().unreadCount;
+    final unreadMessages = context.watch<MessagesProvider>().totalUnreadCount;
 
     final List<Widget> screens = [
       const HomeScreen(),
@@ -346,7 +349,11 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                     MaterialPageRoute(builder: (_) => const MessagesScreen()),
                   );
                 },
-                icon: const Icon(Icons.email_outlined),
+                icon: Badge(
+                  isLabelVisible: unreadMessages > 0,
+                  label: Text('$unreadMessages'),
+                  child: const Icon(Icons.email_outlined),
+                ),
               ),
             ],
           ),

@@ -16,6 +16,7 @@ Upgrade the app backend for launch-ready gamification and gated engagement witho
 - [x] Persistent Q&A with replies, upvotes, and solved answers
 - [x] Persistent comments
 - [x] Likes / follows stabilization
+- [x] Basic 1:1 direct messaging hardened with schema-backed RPCs, unread state, and realtime setup
 - [x] Basic aura feedback for posts and comments
 - [x] Explicit Supabase runtime setup path
 - [x] Production-oriented Supabase schema for aura, streaks, events, and challenges
@@ -35,6 +36,7 @@ Upgrade the app backend for launch-ready gamification and gated engagement witho
 2. Move feed reads to paginated requests where infinite scrolling is needed
 3. Add targeted tests for aura awarding and challenge completion edge cases
 4. Add a simple founder-device registration checklist for phone changes and reinstalls
+5. Founder-test direct messaging on two real accounts after re-running the latest Supabase schema
 
 ## Later
 - [ ] Google sign-in

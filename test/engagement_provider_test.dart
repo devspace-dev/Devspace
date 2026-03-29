@@ -114,6 +114,11 @@ DailyChallengeModel _challenge({bool completed = false}) {
     difficulty: 'easy',
     techStack: 'Flutter',
     pointsReward: 20,
+    missionType: 'coding',
+    question: 'Improve one profile detail screen and explain the change.',
+    options: const [],
+    link: 'https://example.com/challenge',
+    isCorrect: false,
   );
 }
 

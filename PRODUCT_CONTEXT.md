@@ -91,7 +91,7 @@ Post types:
 
 ## Not In MVP
 Do NOT prioritize these right now:
-- direct messaging/chat
+- expanded direct messaging/chat product beyond a minimal 1:1 path
 - reels/video-heavy features
 - advanced notifications
 - recruiter dashboard

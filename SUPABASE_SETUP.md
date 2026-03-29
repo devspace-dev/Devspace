@@ -2,7 +2,7 @@
 
 1.  **Create Project**: Go to [Supabase](https://supabase.com) and create a new project.
 2.  **SQL Editor**: Run [`supabase/devspace_schema.sql`](/Users/mohammad/Desktop/devspace/supabase/devspace_schema.sql) in the Supabase SQL Editor.
-    *   This now creates the core social tables plus Q&A tables (`questions`, `question_replies`, `question_votes`) and the solved-answer RPC.
+    *   This now creates the core social tables, Q&A tables (`questions`, `question_replies`, `question_votes`), direct-message tables (`conversations`, `messages`), message RPCs, RLS policies, and realtime publication setup.
 3.  **Authentication**:
     *   Enable Email provider in Authentication -> Providers.
     *   For fast testing on mobile, disable `Confirm email`.
@@ -21,17 +21,20 @@
 6.  **If sign-in fails with missing columns**:
     *   Your `users` table is incomplete.
     *   Run [`supabase/devspace_schema.sql`](/Users/mohammad/Desktop/devspace/supabase/devspace_schema.sql) again. It is written to be safe for existing tables.
+7.  **If you already created the project earlier**:
+    *   Re-run [`supabase/devspace_schema.sql`](/Users/mohammad/Desktop/devspace/supabase/devspace_schema.sql) to add the hardened direct-message backend.
+    *   You do not need a separate `DATABASE_FIX.sql` step for messaging on fresh setups after this change.
 
-7.  **Run command example**:
+8.  **Run command example**:
 ```bash
 flutter run -d <device-id> \
   --dart-define=SUPABASE_URL=your-project-url \
   --dart-define=SUPABASE_ANON_KEY=your-anon-key
 ```
 
-8.  **Important schema note**:
+9.  **Important schema note**:
     *   Re-run [`supabase/devspace_schema.sql`](/Users/mohammad/Desktop/devspace/supabase/devspace_schema.sql) whenever new backend features land.
-    *   The current file includes required Q&A count triggers and the solved-answer function. Do not skip this step on older projects.
+    *   The current file includes the required Q&A triggers, solved-answer function, direct-message RPCs, and realtime publication entries. Do not skip this step on older projects.
 
 ## Example SQL for Triggers:
 
