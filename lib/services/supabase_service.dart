@@ -728,7 +728,9 @@ class SupabaseService {
             .map((d) => ConversationModel.fromJson(d))
             .where((c) => c.participants.contains(userId))
             .toList())
-        .map((list) => list..sort((a, b) => (b.lastMessageAt ?? b.createdAt).compareTo(a.lastMessageAt ?? a.createdAt)));
+        .map((list) => list
+          ..sort((a, b) =>
+              (b.lastMessageAt ?? b.createdAt).compareTo(a.lastMessageAt ?? a.createdAt)));
   }
 
   Stream<List<MessageModel>> streamMessages(String conversationId) {
@@ -740,6 +742,29 @@ class SupabaseService {
         .map((list) => list.map((d) => MessageModel.fromJson(d)).toList());
   }
 
+  Future<Map<String, int>> getUnreadConversationCounts(
+    String currentUserId,
+    List<String> conversationIds,
+  ) async {
+    final distinctIds = conversationIds.toSet().toList();
+    if (distinctIds.isEmpty) return const {};
+
+    final data = await _client
+        .from('messages')
+        .select('conversation_id')
+        .inFilter('conversation_id', distinctIds)
+        .eq('is_read', false)
+        .neq('sender_id', currentUserId);
+
+    final counts = <String, int>{};
+    for (final row in data as List) {
+      final conversationId = row['conversation_id']?.toString() ?? '';
+      if (conversationId.isEmpty) continue;
+      counts.update(conversationId, (value) => value + 1, ifAbsent: () => 1);
+    }
+    return counts;
+  }
+
   Future<void> sendMessage({
     required String conversationId,
     required String senderId,
@@ -748,41 +773,50 @@ class SupabaseService {
     final trimmed = content.trim();
     if (trimmed.isEmpty) return;
 
-    await _client.from('messages').insert({
-      'conversation_id': conversationId,
-      'sender_id': senderId,
-      'content': trimmed,
-    });
+    if (_client.auth.currentUser?.id != senderId) {
+      throw StateError('Authenticated user does not match message sender.');
+    }
 
-    // Update last message in conversation
-    await _client.from('conversations').update({
-      'last_message': trimmed,
-      'last_message_at': DateTime.now().toIso8601String(),
-    }).eq('id', conversationId);
+    await _client.rpc(
+      'send_direct_message',
+      params: {
+        'p_conversation_id': conversationId,
+        'p_content': trimmed,
+      },
+    );
+  }
+
+  Future<void> markConversationMessagesRead(
+    String conversationId,
+    String currentUserId,
+  ) async {
+    if (_client.auth.currentUser?.id != currentUserId) {
+      throw StateError('Authenticated user does not match message reader.');
+    }
+
+    await _client.rpc(
+      'mark_conversation_messages_read',
+      params: {
+        'p_conversation_id': conversationId,
+      },
+    );
   }
 
   Future<ConversationModel> getOrCreateConversation(
-      String userA, String userB) async {
-    final participants = [userA, userB]..sort();
-
-    final existing = await _client
-        .from('conversations')
-        .select()
-        .contains('participants', participants)
-        .maybeSingle();
-
-    if (existing != null) {
-      return ConversationModel.fromJson(existing);
+    String userA,
+    String userB,
+  ) async {
+    if (_client.auth.currentUser?.id != userA) {
+      throw StateError('Authenticated user does not match conversation starter.');
     }
 
-    final data = await _client
-        .from('conversations')
-        .insert({
-          'participants': participants,
-        })
-        .select()
-        .single();
+    final data = await _client.rpc(
+      'get_or_create_direct_conversation',
+      params: {
+        'p_other_user_id': userB,
+      },
+    );
 
-    return ConversationModel.fromJson(data);
+    return ConversationModel.fromJson(Map<String, dynamic>.from(data as Map));
   }
 }

@@ -45,7 +45,7 @@ Fallback path:
 - if challenge/event flows prove unstable, keep the data model and cut the UI surface until after beta
 
 ## What Not To Build Yet
-- DMs
+- Expanded DM product scope beyond the current basic 1:1 chat
 - full notifications product
 - advanced gamification beyond aura, streaks, and challenge rewards
 - post type system

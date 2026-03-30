@@ -98,15 +98,22 @@ class _MessageButton extends StatelessWidget {
     return IconButton(
       onPressed: () async {
         final provider = context.read<MessagesProvider>();
-        final conv = await provider.startConversation(me.id, user.id);
-        if (!context.mounted) return;
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) =>
-                ChatDetailScreen(conversation: conv, otherUser: user),
-          ),
-        );
+        try {
+          final conv = await provider.startConversation(me.id, user.id);
+          if (!context.mounted) return;
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) =>
+                  ChatDetailScreen(conversation: conv, otherUser: user),
+            ),
+          );
+        } catch (e) {
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e.toString())),
+          );
+        }
       },
       icon: const Icon(Icons.mail_outline_rounded, size: 20),
       style: IconButton.styleFrom(

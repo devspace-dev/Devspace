@@ -11,6 +11,7 @@
 - Persistent Q&A with questions, replies, upvotes, and solved answers
 - Persistent comments
 - Likes and follows with stabilized interaction state
+- Basic 1:1 direct messaging with unread state and message notifications
 - Sign-out from profile
 - Aura feedback for post and comment contribution
 - Profile viewing for self and others
@@ -27,7 +28,7 @@
 ## Partial
 - Google sign-in is visible but intentionally disabled
 - GitHub profile card is useful scaffold, not a finished identity system
-- Notifications plumbing exists, but there is no real inbox/product flow
+- Notifications plumbing exists, but there is no full inbox/product flow beyond activity and message alerts
 - Automated coverage exists, but it is still light for a production beta
 - Feed still relies on realtime stream loading in the current UI, though paginated backend endpoints now exist
 

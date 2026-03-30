@@ -314,6 +314,139 @@ alter table public.notifications add column if not exists message text default '
 alter table public.notifications add column if not exists read boolean default false;
 alter table public.notifications add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
 
+create table if not exists public.conversations (
+  id uuid default gen_random_uuid() primary key,
+  participants uuid[] not null,
+  participant_key text,
+  last_message text,
+  last_message_at timestamp with time zone,
+  last_message_sender_id uuid references public.users(id) on delete set null,
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  updated_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+alter table public.conversations add column if not exists participants uuid[];
+alter table public.conversations add column if not exists participant_key text;
+alter table public.conversations add column if not exists last_message text;
+alter table public.conversations add column if not exists last_message_at timestamp with time zone;
+alter table public.conversations add column if not exists last_message_sender_id uuid references public.users(id) on delete set null;
+alter table public.conversations add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
+alter table public.conversations add column if not exists updated_at timestamp with time zone default timezone('utc'::text, now());
+
+create table if not exists public.messages (
+  id uuid default gen_random_uuid() primary key,
+  conversation_id uuid references public.conversations(id) on delete cascade,
+  sender_id uuid references public.users(id) on delete cascade,
+  content text not null,
+  is_read boolean default false,
+  read_at timestamp with time zone,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+alter table public.messages add column if not exists conversation_id uuid references public.conversations(id) on delete cascade;
+alter table public.messages add column if not exists sender_id uuid references public.users(id) on delete cascade;
+alter table public.messages add column if not exists content text;
+alter table public.messages add column if not exists is_read boolean default false;
+alter table public.messages add column if not exists read_at timestamp with time zone;
+alter table public.messages add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'conversations_exactly_two_participants'
+  ) then
+    alter table public.conversations
+      add constraint conversations_exactly_two_participants
+      check (coalesce(array_length(participants, 1), 0) = 2);
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'conversations_distinct_participants'
+  ) then
+    alter table public.conversations
+      add constraint conversations_distinct_participants
+      check (participants[1] is distinct from participants[2]);
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'messages_content_not_blank'
+  ) then
+    alter table public.messages
+      add constraint messages_content_not_blank
+      check (length(btrim(coalesce(content, ''))) > 0);
+  end if;
+end
+$$;
+
+with normalized_conversations as (
+  select
+    c.id,
+    c.created_at,
+    c.last_message_at,
+    string_agg(participant::text, ':' order by participant::text) as participant_key
+  from public.conversations c
+  cross join lateral unnest(c.participants) as participant
+  where coalesce(array_length(c.participants, 1), 0) = 2
+    and c.participants[1] is distinct from c.participants[2]
+  group by c.id, c.created_at, c.last_message_at
+),
+ranked_conversations as (
+  select
+    id,
+    participant_key,
+    first_value(id) over (
+      partition by participant_key
+      order by coalesce(last_message_at, created_at) desc, created_at asc, id asc
+    ) as canonical_id
+  from normalized_conversations
+)
+update public.messages m
+set conversation_id = ranked_conversations.canonical_id
+from ranked_conversations
+where m.conversation_id = ranked_conversations.id
+  and ranked_conversations.id <> ranked_conversations.canonical_id;
+
+with normalized_conversations as (
+  select
+    c.id,
+    c.created_at,
+    c.last_message_at,
+    string_agg(participant::text, ':' order by participant::text) as participant_key
+  from public.conversations c
+  cross join lateral unnest(c.participants) as participant
+  where coalesce(array_length(c.participants, 1), 0) = 2
+    and c.participants[1] is distinct from c.participants[2]
+  group by c.id, c.created_at, c.last_message_at
+),
+ranked_conversations as (
+  select
+    id,
+    participant_key,
+    first_value(id) over (
+      partition by participant_key
+      order by coalesce(last_message_at, created_at) desc, created_at asc, id asc
+    ) as canonical_id
+  from normalized_conversations
+)
+delete from public.conversations c
+using ranked_conversations
+where c.id = ranked_conversations.id
+  and ranked_conversations.id <> ranked_conversations.canonical_id;
+
 create index if not exists idx_posts_user_id on public.posts(user_id);
 create index if not exists idx_posts_created_at on public.posts(created_at desc);
 create index if not exists idx_posts_quote_post_id on public.posts(quote_post_id);
@@ -334,6 +467,16 @@ create index if not exists idx_question_replies_replying_to_user_id on public.qu
 create index if not exists idx_question_replies_created_at on public.question_replies(created_at desc);
 create index if not exists idx_question_votes_question_id on public.question_votes(question_id);
 create index if not exists idx_question_votes_user_id on public.question_votes(user_id);
+create unique index if not exists idx_conversations_participant_key
+  on public.conversations(participant_key);
+create index if not exists idx_conversations_last_message_at
+  on public.conversations(last_message_at desc nulls last, created_at desc);
+create index if not exists idx_messages_conversation_created_at
+  on public.messages(conversation_id, created_at asc);
+create index if not exists idx_messages_unread_lookup
+  on public.messages(conversation_id, is_read, created_at desc);
+create index if not exists idx_messages_sender_id
+  on public.messages(sender_id);
 
 create or replace function public.sync_repost_counts()
 returns trigger
@@ -572,6 +715,8 @@ alter table public.questions enable row level security;
 alter table public.question_replies enable row level security;
 alter table public.question_votes enable row level security;
 alter table public.notifications enable row level security;
+alter table public.conversations enable row level security;
+alter table public.messages enable row level security;
 
 do $$
 begin
@@ -586,6 +731,65 @@ begin
       for select
       to authenticated
       using (true);
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'notifications'
+      and policyname = 'notifications_update_recipient'
+  ) then
+    create policy notifications_update_recipient
+      on public.notifications
+      for update
+      to authenticated
+      using (auth.uid() = to_uid)
+      with check (auth.uid() = to_uid);
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'conversations'
+      and policyname = 'conversations_select_participant'
+  ) then
+    create policy conversations_select_participant
+      on public.conversations
+      for select
+      to authenticated
+      using (auth.uid() = any(participants));
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'messages'
+      and policyname = 'messages_select_participant'
+  ) then
+    create policy messages_select_participant
+      on public.messages
+      for select
+      to authenticated
+      using (
+        exists (
+          select 1
+          from public.conversations c
+          where c.id = conversation_id
+            and auth.uid() = any(c.participants)
+        )
+      );
   end if;
 end
 $$;
@@ -1215,6 +1419,434 @@ create trigger trg_touch_user_challenges_updated_at
 before update on public.user_challenges
 for each row
 execute function public.touch_updated_at();
+
+update public.conversations
+set participants = normalized.sorted_participants,
+    participant_key = normalized.participant_key,
+    updated_at = coalesce(updated_at, timezone('utc'::text, now()))
+from (
+  select
+    id,
+    array_agg(participant order by participant::text) as sorted_participants,
+    string_agg(participant::text, ':' order by participant::text) as participant_key
+  from public.conversations c
+  cross join lateral unnest(c.participants) as participant
+  group by id
+) as normalized
+where public.conversations.id = normalized.id
+  and coalesce(array_length(public.conversations.participants, 1), 0) = 2
+  and public.conversations.participants[1] is distinct from public.conversations.participants[2]
+  and (
+    public.conversations.participant_key is null
+    or public.conversations.participant_key <> normalized.participant_key
+  );
+
+update public.conversations
+set last_message = latest_message.last_message,
+    last_message_at = latest_message.last_message_at,
+    last_message_sender_id = latest_message.last_message_sender_id
+from (
+  select distinct on (m.conversation_id)
+    m.conversation_id,
+    left(trim(m.content), 280) as last_message,
+    m.created_at as last_message_at,
+    m.sender_id as last_message_sender_id
+  from public.messages m
+  order by m.conversation_id, m.created_at desc, m.id desc
+) as latest_message
+where public.conversations.id = latest_message.conversation_id
+  and (
+    public.conversations.last_message is distinct from latest_message.last_message
+    or public.conversations.last_message_at is distinct from latest_message.last_message_at
+    or public.conversations.last_message_sender_id is distinct from latest_message.last_message_sender_id
+  );
+
+create or replace function public.normalize_direct_message_conversation()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  sorted_participants uuid[];
+begin
+  if coalesce(array_length(new.participants, 1), 0) <> 2 then
+    raise exception 'Direct conversations must include exactly two participants';
+  end if;
+
+  if new.participants[1] is null or new.participants[2] is null then
+    raise exception 'Conversation participants are required';
+  end if;
+
+  if new.participants[1] = new.participants[2] then
+    raise exception 'You cannot create a conversation with yourself';
+  end if;
+
+  select array_agg(participant order by participant::text)
+  into sorted_participants
+  from unnest(new.participants) as participant;
+
+  new.participants := sorted_participants;
+  new.participant_key := sorted_participants[1]::text || ':' || sorted_participants[2]::text;
+
+  if new.created_at is null then
+    new.created_at := timezone('utc'::text, now());
+  end if;
+
+  new.updated_at := timezone('utc'::text, now());
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_normalize_direct_message_conversation on public.conversations;
+create trigger trg_normalize_direct_message_conversation
+before insert or update on public.conversations
+for each row
+execute function public.normalize_direct_message_conversation();
+
+create or replace function public.sync_message_read_state()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.is_read and (tg_op = 'INSERT' or coalesce(old.is_read, false) = false) then
+    new.read_at := coalesce(new.read_at, timezone('utc'::text, now()));
+  elsif not coalesce(new.is_read, false) then
+    new.read_at := null;
+  end if;
+
+  if new.created_at is null then
+    new.created_at := timezone('utc'::text, now());
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_sync_message_read_state on public.messages;
+create trigger trg_sync_message_read_state
+before insert or update on public.messages
+for each row
+execute function public.sync_message_read_state();
+
+create or replace function public.sync_conversation_last_message()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.conversations
+  set last_message = left(trim(new.content), 280),
+      last_message_at = coalesce(new.created_at, timezone('utc'::text, now())),
+      last_message_sender_id = new.sender_id,
+      updated_at = timezone('utc'::text, now())
+  where id = new.conversation_id;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_sync_conversation_last_message on public.messages;
+create trigger trg_sync_conversation_last_message
+after insert on public.messages
+for each row
+execute function public.sync_conversation_last_message();
+
+create or replace function public.push_direct_message_notification()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  recipient_id uuid;
+  sender_name text;
+begin
+  select participant
+  into recipient_id
+  from public.conversations c
+  cross join lateral unnest(c.participants) as participant
+  where c.id = new.conversation_id
+    and participant <> new.sender_id
+  limit 1;
+
+  if recipient_id is null then
+    return new;
+  end if;
+
+  select coalesce(nullif(trim(name), ''), 'Someone')
+  into sender_name
+  from public.users
+  where id = new.sender_id;
+
+  insert into public.notifications(to_uid, from_uid, type, message)
+  values (
+    recipient_id,
+    new.sender_id,
+    'message',
+    sender_name || ' sent you a message'
+  );
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_push_direct_message_notification on public.messages;
+create trigger trg_push_direct_message_notification
+after insert on public.messages
+for each row
+execute function public.push_direct_message_notification();
+
+create or replace function public.get_or_create_direct_conversation(
+  p_other_user_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  actor_id uuid;
+  existing_conversation public.conversations%rowtype;
+  created_conversation public.conversations%rowtype;
+  sorted_participants uuid[];
+  conversation_participant_key text;
+begin
+  actor_id := auth.uid();
+  if actor_id is null then
+    raise exception 'Authentication required';
+  end if;
+
+  if p_other_user_id is null then
+    raise exception 'A recipient is required';
+  end if;
+
+  if p_other_user_id = actor_id then
+    raise exception 'You cannot message yourself';
+  end if;
+
+  if not exists (
+    select 1
+    from public.users
+    where id = p_other_user_id
+  ) then
+    raise exception 'Recipient not found';
+  end if;
+
+  select array_agg(participant order by participant::text)
+  into sorted_participants
+  from unnest(array[actor_id, p_other_user_id]) as participant;
+
+  conversation_participant_key := sorted_participants[1]::text || ':' || sorted_participants[2]::text;
+
+  select *
+  into existing_conversation
+  from public.conversations
+  where public.conversations.participant_key = conversation_participant_key
+  limit 1;
+
+  if existing_conversation.id is not null then
+    return to_jsonb(existing_conversation);
+  end if;
+
+  insert into public.conversations(participants)
+  values (sorted_participants)
+  on conflict (participant_key) do update
+    set participant_key = excluded.participant_key
+  returning * into created_conversation;
+
+  return to_jsonb(created_conversation);
+end;
+$$;
+
+grant execute on function public.get_or_create_direct_conversation(uuid) to authenticated;
+
+create or replace function public.send_direct_message(
+  p_conversation_id uuid,
+  p_content text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  actor_id uuid;
+  conversation_row public.conversations%rowtype;
+  new_message public.messages%rowtype;
+  trimmed_content text;
+begin
+  actor_id := auth.uid();
+  if actor_id is null then
+    raise exception 'Authentication required';
+  end if;
+
+  trimmed_content := trim(coalesce(p_content, ''));
+  if trimmed_content = '' then
+    raise exception 'Message cannot be empty';
+  end if;
+
+  select *
+  into conversation_row
+  from public.conversations
+  where id = p_conversation_id;
+
+  if conversation_row.id is null then
+    raise exception 'Conversation not found';
+  end if;
+
+  if not actor_id = any(conversation_row.participants) then
+    raise exception 'You are not allowed to send messages to this conversation';
+  end if;
+
+  perform public.register_rate_limited_action(
+    'send_direct_message',
+    180,
+    3600,
+    p_conversation_id::text
+  );
+
+  insert into public.messages(conversation_id, sender_id, content)
+  values (p_conversation_id, actor_id, trimmed_content)
+  returning * into new_message;
+
+  return to_jsonb(new_message);
+end;
+$$;
+
+grant execute on function public.send_direct_message(uuid, text) to authenticated;
+
+create or replace function public.mark_conversation_messages_read(
+  p_conversation_id uuid
+)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  actor_id uuid;
+  conversation_row public.conversations%rowtype;
+  updated_count integer := 0;
+begin
+  actor_id := auth.uid();
+  if actor_id is null then
+    raise exception 'Authentication required';
+  end if;
+
+  select *
+  into conversation_row
+  from public.conversations
+  where id = p_conversation_id;
+
+  if conversation_row.id is null then
+    raise exception 'Conversation not found';
+  end if;
+
+  if not actor_id = any(conversation_row.participants) then
+    raise exception 'You are not allowed to read this conversation';
+  end if;
+
+  update public.messages
+  set is_read = true,
+      read_at = timezone('utc'::text, now())
+  where conversation_id = p_conversation_id
+    and sender_id <> actor_id
+    and coalesce(is_read, false) = false;
+
+  get diagnostics updated_count = row_count;
+  return updated_count;
+end;
+$$;
+
+grant execute on function public.mark_conversation_messages_read(uuid) to authenticated;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_publication
+    where pubname = 'supabase_realtime'
+  ) then
+    create publication supabase_realtime;
+  end if;
+end
+$$;
+
+do $$
+begin
+  if exists (
+    select 1
+    from pg_publication
+    where pubname = 'supabase_realtime'
+  ) and not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'users'
+  ) then
+    execute 'alter publication supabase_realtime add table public.users';
+  end if;
+end
+$$;
+
+do $$
+begin
+  if exists (
+    select 1
+    from pg_publication
+    where pubname = 'supabase_realtime'
+  ) and not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'notifications'
+  ) then
+    execute 'alter publication supabase_realtime add table public.notifications';
+  end if;
+end
+$$;
+
+do $$
+begin
+  if exists (
+    select 1
+    from pg_publication
+    where pubname = 'supabase_realtime'
+  ) and not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'conversations'
+  ) then
+    execute 'alter publication supabase_realtime add table public.conversations';
+  end if;
+end
+$$;
+
+do $$
+begin
+  if exists (
+    select 1
+    from pg_publication
+    where pubname = 'supabase_realtime'
+  ) and not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'messages'
+  ) then
+    execute 'alter publication supabase_realtime add table public.messages';
+  end if;
+end
+$$;
 
 create or replace function public.register_rate_limited_action(
   p_action text,

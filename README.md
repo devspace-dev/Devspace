@@ -9,6 +9,7 @@ The current build focuses on:
 - persistent Q&A with replies and solved answers
 - likes, comments, follows, and aura feedback
 - people discovery and profile browsing
+- basic 1:1 direct messaging
 
 ## Current Product Truth
 
@@ -21,11 +22,12 @@ Implemented:
 - Q&A with real questions, replies, upvotes, and solved answers
 - persistent comments
 - likes and follows
+- basic 1:1 direct messaging with unread state
 - sign-out from profile
 
 Not complete yet:
 - settings surface beyond sign-out
-- notifications inbox/product flow
+- notifications inbox/product flow beyond activity and message alerts
 - Google sign-in
 
 ## Prerequisites
@@ -40,6 +42,8 @@ Not complete yet:
 2. Create a public storage bucket named `images`.
 3. Get your Supabase project URL and anon key.
 4. Read [SUPABASE_SETUP.md](/Users/mohammad/Desktop/devspace/SUPABASE_SETUP.md) for auth and storage notes.
+
+The checked-in schema now includes direct-message tables, RPCs, policies, and realtime publication setup, so fresh projects do not need a separate messaging SQL patch.
 
 ## Run The App
 
