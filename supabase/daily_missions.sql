@@ -160,7 +160,7 @@ set search_path = public
 as $$
 declare
   actor_id uuid;
-  today_utc date;
+  today_local date;
   selected_stack text;
   existing_assignment public.user_missions%rowtype;
   chosen_mission_id uuid;
@@ -171,13 +171,13 @@ begin
     raise exception 'Authentication required';
   end if;
 
-  today_utc := timezone('utc'::text, now())::date;
+  today_local := timezone('Asia/Kolkata'::text, now())::date;
 
   select *
   into existing_assignment
   from public.user_missions
   where user_id = actor_id
-    and assigned_date = today_utc;
+    and assigned_date = today_local;
 
   if existing_assignment.id is not null then
     return existing_assignment;
@@ -190,7 +190,7 @@ begin
     into chosen_mission_id, selected_stack
     from public.missions
     where is_active = true
-      and publish_date = today_utc
+      and publish_date = today_local
       and type = 'mcq'
       and lower(tech_stack) = selected_stack
     order by created_at desc
@@ -202,7 +202,7 @@ begin
     into chosen_mission_id, selected_stack
     from public.missions m
     where m.is_active = true
-      and m.publish_date = today_utc
+      and m.publish_date = today_local
       and m.type = 'mcq'
       and exists (
         select 1
@@ -227,7 +227,7 @@ begin
     into chosen_mission_id, selected_stack
     from public.missions
     where is_active = true
-      and publish_date = today_utc
+      and publish_date = today_local
       and type = 'mcq'
       and lower(tech_stack) = 'general'
     order by created_at desc
@@ -239,7 +239,7 @@ begin
     into chosen_mission_id, selected_stack
     from public.missions
     where is_active = true
-      and publish_date = today_utc
+      and publish_date = today_local
       and type = 'mcq'
     order by created_at desc
     limit 1;
@@ -260,7 +260,7 @@ begin
   values (
     actor_id,
     chosen_mission_id,
-    today_utc,
+    today_local,
     selected_stack
   )
   returning * into created_assignment;
@@ -282,7 +282,7 @@ set search_path = public
 as $$
 declare
   actor_id uuid;
-  today_utc date;
+  today_local date;
   assignment_row public.user_missions%rowtype;
   mission_row public.missions%rowtype;
   previous_completion date;
@@ -298,13 +298,13 @@ begin
     raise exception 'Authentication required';
   end if;
 
-  today_utc := timezone('utc'::text, now())::date;
+  today_local := timezone('Asia/Kolkata'::text, now())::date;
 
   select *
   into assignment_row
   from public.user_missions
   where user_id = actor_id
-    and assigned_date = today_utc
+    and assigned_date = today_local
   for update;
 
   if assignment_row.id is null then
@@ -364,7 +364,7 @@ begin
     from public.users
     where id = actor_id;
 
-    if previous_completion = today_utc - 1 then
+    if previous_completion = today_local - 1 then
       select coalesce(current_streak, 0) + 1,
              greatest(coalesce(longest_streak, 0), coalesce(current_streak, 0) + 1)
       into next_streak, next_longest
@@ -381,7 +381,7 @@ begin
     update public.users
     set current_streak = next_streak,
         longest_streak = next_longest,
-        last_challenge_completed_on = today_utc
+        last_challenge_completed_on = today_local
     where id = actor_id;
   else
     perform public.award_aura(

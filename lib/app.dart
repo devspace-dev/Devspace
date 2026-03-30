@@ -14,6 +14,7 @@ import 'screens/profile_screen.dart';
 import 'screens/daily_challenge_screen.dart';
 import 'screens/opportunities_screen.dart';
 import 'screens/messages_screen.dart';
+import 'screens/weekly_challenge_screen.dart';
 import 'providers/auth_provider.dart';
 import 'providers/messages_provider.dart';
 import 'models/user_model.dart';
@@ -26,6 +27,142 @@ class DevSpaceApp extends StatefulWidget {
 
   @override
   State<DevSpaceApp> createState() => _DevSpaceAppState();
+}
+
+class CupFab extends StatefulWidget {
+  final VoidCallback onDaily;
+  final VoidCallback onWeekly;
+
+  const CupFab({
+    super.key,
+    required this.onDaily,
+    required this.onWeekly,
+  });
+
+  @override
+  State<CupFab> createState() => _CupFabState();
+}
+
+class _CupFabState extends State<CupFab> {
+  bool _open = false;
+
+  void _toggle() {
+    setState(() => _open = !_open);
+  }
+
+  void _fireAction(VoidCallback action) {
+    setState(() => _open = false);
+    action();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 80,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ClipRect(
+            child: Align(
+              heightFactor: _open ? 1 : 0,
+              child: Column(
+                children: [
+                  _CupOption(
+                    icon: Icons.today_rounded,
+                    visible: _open,
+                    onTap: () => _fireAction(widget.onDaily),
+                  ),
+                  const SizedBox(height: 8),
+                  _CupOption(
+                    icon: Icons.code_rounded,
+                    visible: _open,
+                    onTap: () => _fireAction(widget.onWeekly),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: _toggle,
+            child: AnimatedRotation(
+              turns: _open ? 1 : 0,
+              duration: const Duration(milliseconds: 420),
+              curve: Curves.easeInOut,
+              child: Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0A84FF), Color(0xFF5E5CE6)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.35),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.emoji_events_rounded,
+                  size: 28,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CupOption extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool visible;
+
+  const _CupOption({
+    required this.icon,
+    required this.onTap,
+    required this.visible,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      opacity: visible ? 1 : 0,
+      duration: const Duration(milliseconds: 260),
+      child: Transform.translate(
+        offset: Offset(0, visible ? 0 : 10),
+        child: SizedBox(
+          width: double.infinity,
+          child: Material(
+            color: Colors.transparent,
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: visible ? onTap : null,
+              child: Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.bg2For(context),
+                  border: Border.all(color: AppColors.borderFor(context)),
+                ),
+                child: Icon(icon, color: AppColors.primary, size: 20),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _DevSpaceAppState extends State<DevSpaceApp> {
@@ -246,14 +383,15 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
     ];
 
     final showFab = _tab < 4;
+    final isHome = _tab == 0;
 
     return Scaffold(
       backgroundColor: AppColors.bgFor(context),
       extendBody: true,
       extendBodyBehindAppBar: false,
-      floatingActionButton: showFab
-          ? FloatingActionButton(
-              onPressed: () {
+      floatingActionButton: isHome
+          ? CupFab(
+              onDaily: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -261,10 +399,30 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                   ),
                 );
               },
-              backgroundColor: AppColors.primary,
-              child: const Icon(Icons.emoji_events_rounded, color: Colors.white),
+              onWeekly: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const WeeklyChallengeScreen(),
+                  ),
+                );
+              },
             )
-          : null,
+          : (showFab
+              ? FloatingActionButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const DailyChallengeScreen(),
+                      ),
+                    );
+                  },
+                  backgroundColor: AppColors.primary,
+                  child:
+                      const Icon(Icons.emoji_events_rounded, color: Colors.white),
+                )
+              : null),
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(kToolbarHeight),
         child: GlassContainer(

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +10,8 @@ import '../providers/engagement_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_state_widgets.dart';
 import '../widgets/app_ui_kit.dart';
+import '../widgets/info_block.dart';
+import '../utils/weekly_challenge_helpers.dart';
 
 class DailyChallengeScreen extends StatefulWidget {
   const DailyChallengeScreen({super.key});
@@ -16,8 +20,35 @@ class DailyChallengeScreen extends StatefulWidget {
   State<DailyChallengeScreen> createState() => _DailyChallengeScreenState();
 }
 
-class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
+class _DailyChallengeScreenState extends State<DailyChallengeScreen>
+    with WidgetsBindingObserver {
   String? _selectedOption;
+  Timer? _midnightRefreshTimer;
+  String _activeDateKey = _dateKeyFor(DateTime.now());
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _midnightRefreshTimer = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) => _refreshIfDateChanged(),
+    );
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _midnightRefreshTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshIfDateChanged();
+    }
+  }
 
   Future<void> _submit(EngagementProvider provider) async {
     final answer = (_selectedOption ?? '').trim();
@@ -54,6 +85,156 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
         SnackBar(content: Text(provider.error!)),
       );
     }
+  }
+
+  Future<void> _refreshIfDateChanged() async {
+    final nextDateKey = _dateKeyFor(DateTime.now());
+    if (nextDateKey == _activeDateKey || !mounted) return;
+
+    _activeDateKey = nextDateKey;
+    _selectedOption = null;
+
+    await context.read<EngagementProvider>().fetchOverview(
+          forceChallengeRefresh: true,
+        );
+  }
+
+  void _showWeeklyChallengeSheet(BuildContext context, dynamic me) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        final accent = AppColors.indigo;
+        final focusLabel = weeklyChallengeFocus(me);
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: AppCard(
+              color: AppColors.bg2For(context),
+              borderRadius: 28,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 42,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.borderFor(context),
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: accent.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: Icon(
+                          Icons.code_rounded,
+                          color: accent,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Weekly Coding Challenge',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.textFor(context),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Paid entry: Rs 59 per user',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: accent,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    'Each week, users get one deeper coding problem aligned to their career direction, target role, or what they are currently building.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.55,
+                      color: AppColors.text2For(context),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  InfoBlock(
+                    title: 'HOW IT FITS',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'This user would see prompts around $focusLabel.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            height: 1.5,
+                            color: AppColors.text2For(context),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Examples: placement DSA rounds, frontend mini builds, backend API tasks, debugging exercises, or product-style questions tied to future goals.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            height: 1.5,
+                            color: AppColors.text3For(context),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  InfoBlock(
+                    title: 'PRODUCT NOTE',
+                    child: Text(
+                      'This section is ready in the UI. Payment, enrollment, and admin challenge publishing still need backend wiring before it can go live.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        height: 1.5,
+                        color: AppColors.text2For(context),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  AppButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    backgroundColor: accent,
+                    child: const Text(
+                      'Close',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -167,6 +348,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
     );
   }
 
+
   Widget _buildMainCard(BuildContext context, DailyChallengeModel challenge) {
     return AppGlassCard(
       child: Column(
@@ -206,7 +388,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
             ),
           ),
           const SizedBox(height: 18),
-          _InfoBlock(
+          InfoBlock(
             title: 'Question',
             child: Text(
               challenge.question,
@@ -218,7 +400,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
             ),
           ),
           const SizedBox(height: 14),
-          _InfoBlock(
+          InfoBlock(
             title: 'Rule',
             child: Text(
               'You get one answer per day. Correct answers give +${challenge.pointsReward} aura. Wrong answers still give +${DailyChallengeModel.attemptReward} aura, but the mission locks until tomorrow.',
@@ -367,6 +549,9 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
         return AppColors.text3;
     }
   }
+
+  static String _dateKeyFor(DateTime dateTime) =>
+      dateTime.toIso8601String().split('T').first;
 }
 
 class _HeaderBadge extends StatelessWidget {
@@ -402,45 +587,6 @@ class _HeaderBadge extends StatelessWidget {
               fontSize: 14,
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoBlock extends StatelessWidget {
-  final String title;
-  final Widget child;
-
-  const _InfoBlock({
-    required this.title,
-    required this.child,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.bg2For(context),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.borderFor(context)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.8,
-              color: AppColors.text3For(context),
-            ),
-          ),
-          const SizedBox(height: 8),
-          child,
         ],
       ),
     );

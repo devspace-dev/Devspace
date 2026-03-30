@@ -52,7 +52,7 @@ class BackendApiService {
     final user = _client.auth.currentUser;
     if (user == null) return null;
 
-    final today = DateTime.now().toUtc().toIso8601String().split('T').first;
+    final today = DateTime.now().toIso8601String().split('T').first;
 
     final userRow = await _client
         .from('users')
@@ -541,12 +541,16 @@ class BackendApiService {
       }
 
       try {
-        final today = DateTime.now().toUtc().toIso8601String().split('T').first;
+        final user = _client.auth.currentUser;
+        if (user == null) return null;
+
+        final today = DateTime.now().toIso8601String().split('T').first;
         Map<String, dynamic>? row = await _client
             .from('user_missions')
             .select(
               'id, mission_id, assigned_date, selected_tech_stack, completed, completed_at, is_correct',
             )
+            .eq('user_id', user.id)
             .eq('assigned_date', today)
             .order('assigned_date', ascending: false)
             .limit(1)

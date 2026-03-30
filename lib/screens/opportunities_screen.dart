@@ -34,44 +34,41 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> with SingleTi
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.bgFor(context),
-      body: AppGradientBackground(
-        child: Column(
-          children: [
-            _buildTabBar(context),
-            Expanded(
-              child: Consumer<EngagementProvider>(
-                builder: (context, provider, _) {
-                  if (provider.isLoading && provider.events.isEmpty) {
-                    return const Center(child: CircularProgressIndicator.adaptive());
-                  }
+    return AppGradientBackground(
+      child: Column(
+        children: [
+          _buildTabBar(context),
+          Expanded(
+            child: Consumer<EngagementProvider>(
+              builder: (context, provider, _) {
+                if (provider.isLoading && provider.events.isEmpty) {
+                  return const Center(child: CircularProgressIndicator.adaptive());
+                }
 
-                  if (provider.error != null && provider.events.isEmpty) {
-                    return AppErrorState(
-                      title: 'Could not load data',
-                      message: provider.error!,
-                      actionLabel: 'Retry',
-                      onAction: provider.fetchOverview,
-                    );
-                  }
-
-                  final allEvents = provider.events;
-                  final opportunities = allEvents.where((e) => e.requiredAura > 0).toList();
-                  final events = allEvents.where((e) => e.requiredAura == 0 || e.type.toLowerCase() == 'event').toList();
-
-                  return TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _OpportunitiesList(opportunities: opportunities),
-                      _EventsList(events: events),
-                    ],
+                if (provider.error != null && provider.events.isEmpty) {
+                  return AppErrorState(
+                    title: 'Could not load data',
+                    message: provider.error!,
+                    actionLabel: 'Retry',
+                    onAction: provider.fetchOverview,
                   );
-                },
-              ),
+                }
+
+                final allEvents = provider.events;
+                final opportunities = allEvents.where((e) => e.requiredAura > 0).toList();
+                final events = allEvents.where((e) => e.requiredAura == 0 || e.type.toLowerCase() == 'event').toList();
+
+                return TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _OpportunitiesList(opportunities: opportunities),
+                    _EventsList(events: events),
+                  ],
+                );
+              },
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

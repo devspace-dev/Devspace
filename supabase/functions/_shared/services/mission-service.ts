@@ -144,10 +144,19 @@ export class MissionService {
   }
 
   async getTodayAssignment() {
-    const todayUtc = new Date().toISOString().slice(0, 10);
+    const {
+      data: { user },
+      error: userError,
+    } = await this.client.auth.getUser();
+
+    if (userError) throw userError;
+    if (!user) return null;
+
+    const todayUtc = this.currentIndiaDate();
     const { data, error } = await this.client
       .from("user_missions")
       .select("id")
+      .eq("user_id", user.id)
       .eq("assigned_date", todayUtc)
       .order("assigned_date", { ascending: false })
       .limit(1)
@@ -266,5 +275,16 @@ export class MissionService {
 
   private normalizePoints(points?: number) {
     return Math.max(0, Number(points ?? 20));
+  }
+
+  private currentIndiaDate() {
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+
+    return formatter.format(new Date());
   }
 }

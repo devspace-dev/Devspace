@@ -22,7 +22,7 @@ from (
       'setState',
       null,
       20,
-      timezone('utc'::text, now())::date,
+      timezone('Asia/Kolkata'::text, now())::date,
       true
     ),
     (
@@ -34,7 +34,7 @@ from (
       'filter',
       null,
       20,
-      timezone('utc'::text, now())::date,
+      timezone('Asia/Kolkata'::text, now())::date,
       true
     ),
     (
@@ -46,7 +46,7 @@ from (
       'JOIN',
       null,
       20,
-      timezone('utc'::text, now())::date,
+      timezone('Asia/Kolkata'::text, now())::date,
       true
     ),
     (
@@ -58,7 +58,7 @@ from (
       'Queue',
       null,
       20,
-      timezone('utc'::text, now())::date,
+      timezone('Asia/Kolkata'::text, now())::date,
       true
     )
 ) as seed_data(

@@ -131,16 +131,38 @@ export class ChallengeService {
   }
 
   async getTodayAssignment() {
+    const {
+      data: { user },
+      error: userError,
+    } = await this.client.auth.getUser();
+
+    if (userError) throw userError;
+    if (!user) return null;
+
+    const todayIndia = this.currentIndiaDate();
     const { data, error } = await this.client
       .from("user_challenges")
       .select(
         "id, challenge_id, assigned_date, selected_tech_stack, completed, completed_at, submission_text, submission_link",
       )
+      .eq("user_id", user.id)
+      .eq("assigned_date", todayIndia)
       .order("assigned_date", { ascending: false })
       .limit(1)
       .maybeSingle();
 
     if (error) throw error;
     return data;
+  }
+
+  private currentIndiaDate() {
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+
+    return formatter.format(new Date());
   }
 }
