@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'supabase_service.dart';
+import 'analytics_service.dart';
 import '../models/user_model.dart';
 
 class AuthResult {
@@ -16,7 +18,7 @@ class AuthService {
 
   static const String _collegeDomain = 'mnit.ac.in';
   final SupabaseClient _supabase = Supabase.instance.client;
-  final bool _enforceCollegeDomain = false;
+  final bool _enforceCollegeDomain = true;
   UserModel? _currentUser;
   final _authStateController = StreamController<UserModel?>.broadcast();
 
@@ -207,6 +209,11 @@ class AuthService {
       _currentUser = await _loadOrCreateProfile(user);
       _authStateController.add(_currentUser);
 
+      AnalyticsService.instance.logSignUp('email');
+      if (_currentUser != null) {
+        AnalyticsService.instance.setUserIdentifier(_currentUser!.id);
+      }
+
       return AuthResult(user: _currentUser);
     } on AuthException catch (e) {
       return AuthResult(error: _friendlySignUpError(e));
@@ -237,6 +244,11 @@ class AuthService {
       _currentUser = await _loadOrCreateProfile(user);
       _authStateController.add(_currentUser);
 
+      AnalyticsService.instance.logLogin('email');
+      if (_currentUser != null) {
+        AnalyticsService.instance.setUserIdentifier(_currentUser!.id);
+      }
+
       return AuthResult(user: _currentUser);
     } on AuthException catch (e) {
       return AuthResult(error: _friendlySignInError(e));
@@ -252,9 +264,48 @@ class AuthService {
   }
 
   Future<AuthResult> signInWithGoogle() async {
-    return const AuthResult(
-      error: 'Google sign-in is coming soon. Use email and password for now.',
-    );
+    try {
+      final googleSignIn = GoogleSignIn();
+      final googleUser = await googleSignIn.signIn();
+      if (googleUser == null) return const AuthResult(error: 'Google sign-in cancelled.');
+
+      if (!_isAllowedEmail(googleUser.email)) {
+        await googleSignIn.signOut();
+        return const AuthResult(
+            error: 'Please use your @$_collegeDomain college email.');
+      }
+
+      final googleAuth = await googleUser.authentication;
+      final accessToken = googleAuth.accessToken;
+      final idToken = googleAuth.idToken;
+
+      if (accessToken == null || idToken == null) {
+        return const AuthResult(error: 'Google authentication failed.');
+      }
+
+      final AuthResponse res = await _supabase.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: idToken,
+        accessToken: accessToken,
+      );
+
+      final user = res.user;
+      if (user == null) return const AuthResult(error: 'Google sign-in failed.');
+
+      _currentUser = await _loadOrCreateProfile(user);
+      _authStateController.add(_currentUser);
+
+      AnalyticsService.instance.logLogin('google');
+      if (_currentUser != null) {
+        AnalyticsService.instance.setUserIdentifier(_currentUser!.id);
+      }
+
+      return AuthResult(user: _currentUser);
+    } on AuthException catch (e) {
+      return AuthResult(error: _friendlySignInError(e));
+    } catch (e) {
+      return AuthResult(error: 'Google sign-in failed: $e');
+    }
   }
 
   Future<void> signOut() async {

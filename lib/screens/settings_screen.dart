@@ -7,6 +7,7 @@ import '../providers/theme_provider.dart';
 import '../screens/profile_setup_screen.dart';
 import '../screens/saved_posts_screen.dart';
 import '../screens/founder_tools_screen.dart';
+import '../screens/terms_and_conditions_screen.dart';
 import '../services/backend_api_service.dart';
 import '../theme/app_colors.dart';
 
@@ -121,6 +122,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   );
                 },
+              );
+            },
+          ),
+          _SettingsTile(
+            icon: Icons.description_outlined,
+            title: 'Terms & Conditions',
+            subtitle: 'Read our terms of service and privacy policy.',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const TermsAndConditionsScreen(),
+                ),
               );
             },
           ),

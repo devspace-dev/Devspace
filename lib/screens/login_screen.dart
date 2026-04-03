@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'terms_and_conditions_screen.dart';
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
 
@@ -489,6 +490,44 @@ class _LoginScreenState extends State<LoginScreen>
                                                 ),
                                         ),
                                       ),
+                                      if (_isSignUp) ...[
+                                        const SizedBox(height: 16),
+                                        Center(
+                                          child: GestureDetector(
+                                            onTap: () {
+                                              Navigator.of(context).push(
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      const TermsAndConditionsScreen(),
+                                                ),
+                                              );
+                                            },
+                                            child: RichText(
+                                              textAlign: TextAlign.center,
+                                              text: TextSpan(
+                                                style: GoogleFonts.spaceGrotesk(
+                                                  fontSize: 12,
+                                                  color: AppColors.text4,
+                                                  height: 1.4,
+                                                ),
+                                                children: [
+                                                  const TextSpan(
+                                                      text:
+                                                          'By signing up, you agree to our '),
+                                                  TextSpan(
+                                                    text: 'Terms & Conditions',
+                                                    style: TextStyle(
+                                                      color: AppColors.primary,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ),
                                 ),

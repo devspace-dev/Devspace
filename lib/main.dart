@@ -1,7 +1,10 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'app.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_colors.dart';
@@ -20,9 +23,29 @@ import 'screens/splash_screen.dart';
 import 'screens/auth_intro_screen.dart';
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
+import 'services/analytics_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase
+  bool firebaseInitialized = false;
+  try {
+    await Firebase.initializeApp();
+    firebaseInitialized = true;
+    
+    // Pass all uncaught "fatal" errors from the framework to Crashlytics
+    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+    
+    // Pass all uncaught asynchronous errors that aren't handled by the Flutter framework to Crashlytics
+    PlatformDispatcher.instance.onError = (error, stack) {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      return true;
+    };
+  } catch (e) {
+    debugPrint('Firebase initialization failed: $e');
+  }
+
   String? bootstrapError;
 
   const String supabaseUrl = String.fromEnvironment(
@@ -94,6 +117,7 @@ class DevSpaceRoot extends StatelessWidget {
             theme: AppTheme.light,
             darkTheme: AppTheme.dark,
             themeMode: themeProvider.themeMode,
+            navigatorObservers: [AnalyticsService.instance.observer],
             home: const _Root(),
           );
         },
@@ -116,6 +140,7 @@ class DevSpaceSetupApp extends StatelessWidget {
       title: 'DevSpace',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark,
+      navigatorObservers: [AnalyticsService.instance.observer],
       home: _SetupRequiredScreen(error: error),
     );
   }

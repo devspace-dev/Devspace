@@ -1,0 +1,8 @@
+# Add your keystore properties here for release signing
+# DO NOT COMMIT THIS FILE TO VERSION CONTROL
+# Create a file named 'key.properties' in the 'android/' directory with the following content:
+
+# storePassword=<your-store-password>
+# keyPassword=<your-key-password>
+# keyAlias=<your-key-alias>
+# storeFile=<path-to-your-keystore-file>
