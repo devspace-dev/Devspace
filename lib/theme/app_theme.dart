@@ -37,7 +37,7 @@ class AppTheme {
         surface: bg2Color,
         onSurface: textColor,
       ),
-      textTheme: GoogleFonts.interTextTheme(baseTheme.textTheme).apply(
+      textTheme: GoogleFonts.plusJakartaSansTextTheme(baseTheme.textTheme).apply(
         bodyColor: textColor,
         displayColor: textColor,
       ),

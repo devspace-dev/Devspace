@@ -22,37 +22,37 @@ class AppColors {
   static const solved    = Color(0xFF32D74B);
 
   // Backwards-compatible default palette used across the existing UI.
-  static const bg        = Color(0xFF000000); // Pure Black for OLED
-  static const bg2       = Color(0xFF1C1C1E); // System Background Secondary
-  static const bg3       = Color(0xFF2C2C2E); // System Background Tertiary
-  static const border    = Color(0xFF38383A); // Standard Separator
-  static const border2   = Color(0xFF48484A); // Stronger Separator
-  static const text      = Color(0xFFFFFFFF); // Primary Text
-  static const text2     = Color(0xFFEBEBF5); // Secondary Text
-  static const text3     = Color(0xFF8E8E93); // Tertiary Text
-  static const text4     = Color(0xFF48484A); // Quaternary Text
+  static const bg        = Color(0xFF000000); // Deep OLED Black
+  static const bg2       = Color(0xFF0D0D0F); // Premium Deep Gray
+  static const bg3       = Color(0xFF161618); // Elevated Surface
+  static const border    = Color(0xFF242426); // Subtle Border
+  static const border2   = Color(0xFF2C2C2E); // Stronger Border
+  static const text      = Color(0xFFFFFFFF); // Primary White
+  static const text2     = Color(0xFFB0B0B5); // Secondary Muted
+  static const text3     = Color(0xFF636366); // Tertiary Muted
+  static const text4     = Color(0xFF3A3A3C); // Quaternary Muted
 
   // Dark Mode Colors
-  static const bgDark        = Color(0xFF000000); // Pure Black for OLED
-  static const bg2Dark       = Color(0xFF1C1C1E); // System Background Secondary
-  static const bg3Dark       = Color(0xFF2C2C2E); // System Background Tertiary
-  static const borderDark    = Color(0xFF38383A); // Standard Separator
-  static const border2Dark   = Color(0xFF48484A); // Stronger Separator
-  static const textDark      = Color(0xFFFFFFFF); // Primary Text
-  static const text2Dark     = Color(0xFFEBEBF5); // Secondary Text (60% white)
-  static const text3Dark     = Color(0xFF8E8E93); // Tertiary Text (30% white)
-  static const text4Dark     = Color(0xFF48484A); // Quaternary Text
+  static const bgDark        = Color(0xFF000000);
+  static const bg2Dark       = Color(0xFF0D0D0F);
+  static const bg3Dark       = Color(0xFF161618);
+  static const borderDark    = Color(0xFF242426);
+  static const border2Dark   = Color(0xFF2C2C2E);
+  static const textDark      = Color(0xFFFFFFFF);
+  static const text2Dark     = Color(0xFFB0B0B5);
+  static const text3Dark     = Color(0xFF636366);
+  static const text4Dark     = Color(0xFF3A3A3C);
 
   // Light Mode Colors
-  static const bgLight        = Color(0xFFF2F2F7); // System Grouped Background
-  static const bg2Light       = Color(0xFFFFFFFF); // Pure White
-  static const bg3Light       = Color(0xFFE5E5EA); // System Background Tertiary
-  static const borderLight    = Color(0xFFC6C6C8); // Standard Separator
-  static const border2Light   = Color(0xFFAEAEB2); // Stronger Separator
-  static const textLight      = Color(0xFF000000); // Primary Text
-  static const text2Light     = Color(0xFF3C3C43); // Secondary Text (60% black)
-  static const text3Light     = Color(0xFF8E8E93); // Tertiary Text (30% black)
-  static const text4Light     = Color(0xFFC7C7CC); // Quaternary Text
+  static const bgLight        = Color(0xFFF9F9FB); // Paper White
+  static const bg2Light       = Color(0xFFFFFFFF);
+  static const bg3Light       = Color(0xFFF2F2F7);
+  static const borderLight    = Color(0xFFE5E5EA);
+  static const border2Light   = Color(0xFFD1D1D6);
+  static const textLight      = Color(0xFF000000);
+  static const text2Light     = Color(0xFF3A3A3C);
+  static const text3Light     = Color(0xFF8E8E93);
+  static const text4Light     = Color(0xFFC7C7CC);
 
   // Helper getters to use in widgets (though ThemeData is preferred)
   static bool isDark(BuildContext context) => Theme.of(context).brightness == Brightness.dark;

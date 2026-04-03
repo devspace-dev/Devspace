@@ -64,15 +64,15 @@ class _PostCardState extends State<PostCard> {
         AppColors.isDark(context) ? AppColors.bg : AppColors.bg2For(context);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: Container(
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: surfaceColor,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: AppColors.borderFor(context),
-            width: 1,
+            color: AppColors.borderFor(context).withValues(alpha: 0.5),
+            width: 0.8,
           ),
         ),
         child: Column(
@@ -83,9 +83,9 @@ class _PostCardState extends State<PostCard> {
               children: [
                 GestureDetector(
                   onTap: () => _openProfile(context, user.id),
-                  child: UserAvatar(user: user, size: 34),
+                  child: UserAvatar(user: user, size: 36),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -93,21 +93,21 @@ class _PostCardState extends State<PostCard> {
                       GestureDetector(
                         onTap: () => _openProfile(context, user.id),
                         child: Text(
-                          'e/${user.handle}',
+                          user.handle,
                           style: TextStyle(
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w800,
                             fontSize: 15,
+                            letterSpacing: -0.3,
                             color: AppColors.textFor(context),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 2),
                       Text(
                         timeago.format(post.createdAt, locale: 'en_short'),
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
                           color: AppColors.text3For(context),
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],

@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
+import '../providers/engagement_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_ui_kit.dart';
 import '../widgets/info_block.dart';
 import '../widgets/weekly_challenge_card.dart';
+import 'weekly_challenge_registration_screen.dart';
 
 class WeeklyChallengeScreen extends StatelessWidget {
   const WeeklyChallengeScreen({super.key});
@@ -13,6 +15,7 @@ class WeeklyChallengeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final me = context.watch<AuthProvider>().currentUserOrNull;
+    final engagement = context.watch<EngagementProvider>();
 
     return Scaffold(
       backgroundColor: AppColors.bgFor(context),
@@ -49,11 +52,21 @@ class WeeklyChallengeScreen extends StatelessWidget {
                 const SizedBox(height: 24),
                 WeeklyChallengeCard(
                   user: me,
+                  isEnrolled: engagement.isWeeklyChallengeEnrolled,
+                  isLoading: engagement.isEnrollingWeekly,
                   onDetailsPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text(
-                            'Weekly challenge enrollment and payment will land here soon.'),
+                            'Weekly challenge details and submission portal.'),
+                      ),
+                    );
+                  },
+                  onRegisterPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const WeeklyChallengeRegistrationScreen(),
                       ),
                     );
                   },

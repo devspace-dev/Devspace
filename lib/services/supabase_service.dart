@@ -175,8 +175,34 @@ import '../models/message_model.dart';
 class SupabaseService {
   SupabaseService._internal();
   static final SupabaseService instance = SupabaseService._internal();
+  static final RegExp _uuidPattern = RegExp(
+    r'^[0-9a-fA-F]{8}-'
+    r'[0-9a-fA-F]{4}-'
+    r'[0-9a-fA-F]{4}-'
+    r'[0-9a-fA-F]{4}-'
+    r'[0-9a-fA-F]{12}$',
+  );
 
   SupabaseClient get _client => Supabase.instance.client;
+
+  String? _normalizeOptionalId(String? value) {
+    final trimmed = value?.trim();
+    if (trimmed == null || trimmed.isEmpty) {
+      return null;
+    }
+    return trimmed;
+  }
+
+  String? _normalizeOptionalUuid(String? value) {
+    final normalized = _normalizeOptionalId(value);
+    if (normalized == null) {
+      return null;
+    }
+    if (!_uuidPattern.hasMatch(normalized)) {
+      throw StateError('Quoted post reference is invalid. Please reopen the post and try again.');
+    }
+    return normalized;
+  }
 
   Future<void> init() async {
     // Handled in main.dart initialization
@@ -358,14 +384,19 @@ class SupabaseService {
       throw StateError('Authenticated user does not match post creator.');
     }
 
+    final normalizedQuotePostId = _normalizeOptionalUuid(quotePostId);
+    final params = <String, dynamic>{
+      'p_content': content,
+      'p_tags': tags,
+      'p_image_url': imageUrl ?? '',
+    };
+    if (normalizedQuotePostId != null) {
+      params['p_quote_post_id'] = normalizedQuotePostId;
+    }
+
     final data = await _client.rpc(
       'create_post_with_aura',
-      params: {
-        'p_content': content,
-        'p_tags': tags,
-        'p_image_url': imageUrl ?? '',
-        'p_quote_post_id': quotePostId,
-      },
+      params: params,
     );
 
     return data.toString();

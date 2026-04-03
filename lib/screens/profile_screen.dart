@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
+import '../providers/messages_provider.dart';
 import '../providers/posts_provider.dart';
 import '../providers/users_provider.dart';
+import '../screens/chat_detail_screen.dart';
 import '../screens/connections_screen.dart';
 import '../screens/founder_tools_screen.dart';
 import '../screens/profile_setup_screen.dart';
@@ -72,24 +76,27 @@ class ProfileScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.bgFor(context),
       body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
         slivers: [
           SliverAppBar(
             pinned: true,
             backgroundColor: AppColors.bgFor(context).withValues(alpha: 0.92),
-            leading: userId != null
+            surfaceTintColor: Colors.transparent,
+            leading: Navigator.canPop(context)
                 ? IconButton(
                     icon: Icon(
-                      Icons.arrow_back_rounded,
+                      Icons.arrow_back_ios_new_rounded,
                       color: AppColors.textFor(context),
+                      size: 20,
                     ),
                     onPressed: () => Navigator.pop(context),
                   )
                 : null,
             title: Text(
-              profileUser.name,
-              style: TextStyle(
-                fontWeight: FontWeight.w900,
-                fontSize: 16,
+              profileUser.handle,
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w800,
+                fontSize: 17,
                 color: AppColors.textFor(context),
               ),
             ),
@@ -98,44 +105,24 @@ class ProfileScreen extends StatelessWidget {
                 Row(
                   children: [
                     if (profileUser.isAdmin || profileUser.isFounder)
-                      IconButton(
-                        tooltip: 'Founder Tools',
-                        icon: const Icon(Icons.admin_panel_settings_outlined),
-                        onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const FounderToolsScreen(
-                              mode: FounderToolsMode.founderTools,
+                      _HeaderAction(
+                        icon: Icons.admin_panel_settings_outlined,
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const FounderToolsScreen(
+                                mode: FounderToolsMode.founderTools,
+                              ),
                             ),
-                          ),
-                        ),
+                          );
+                        },
                       ),
-                    TextButton.icon(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const ProfileSetupScreen(
-                            mode: ProfileSetupMode.edit,
-                          ),
-                        ),
-                      ),
-                      icon: Icon(
-                        profileUser.profileCompleted
-                            ? Icons.edit_rounded
-                            : Icons.auto_fix_high_rounded,
-                        size: 16,
-                      ),
-                      label: Text(
-                        profileUser.profileCompleted ? 'Edit' : 'Finish',
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: 'Settings',
-                      icon: Icon(
-                        Icons.settings_outlined,
-                        color: AppColors.textFor(context),
-                      ),
-                      onPressed: () {
+                    _HeaderAction(
+                      icon: Icons.settings_outlined,
+                      onTap: () {
+                        HapticFeedback.lightImpact();
                         Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => const SettingsScreen(),
@@ -143,515 +130,410 @@ class ProfileScreen extends StatelessWidget {
                         );
                       },
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 8),
                   ],
                 )
               else
-                Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: GestureDetector(
-                    onTap: usersP.isFollowUpdating(profileUser.id)
-                        ? null
-                        : () async {
-                            await usersP.toggleFollow(me.id, profileUser.id);
-                            if (!context.mounted) return;
-
-                            final error = usersP.followError(profileUser.id);
-                            if (error == null) return;
-
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(error)),
-                            );
-                          },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 7,
-                      ),
-                      decoration: BoxDecoration(
-                        color: profileUser.isFollowing
-                            ? Colors.transparent
-                            : Colors.white,
-                        borderRadius: BorderRadius.circular(99),
-                        border: Border.all(
-                          color: profileUser.isFollowing
-                              ? AppColors.border2For(context)
-                              : Colors.white,
-                        ),
-                      ),
-                      child: Text(
-                        usersP.isFollowUpdating(profileUser.id)
-                            ? 'Saving...'
-                            : (profileUser.isFollowing ? 'Following' : 'Follow'),
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: profileUser.isFollowing
-                              ? AppColors.textFor(context)
-                              : AppColors.bgFor(context),
-                        ),
-                      ),
+                Row(
+                  children: [
+                    _HeaderAction(
+                      icon: Icons.mail_outline_rounded,
+                      onTap: () async {
+                        HapticFeedback.lightImpact();
+                        final provider = context.read<MessagesProvider>();
+                        try {
+                          final conv = await provider.startConversation(
+                            me.id,
+                            profileUser.id,
+                          );
+                          if (!context.mounted) return;
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ChatDetailScreen(
+                                conversation: conv,
+                                otherUser: profileUser,
+                              ),
+                            ),
+                          );
+                        } catch (e) {
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(e.toString()), behavior: SnackBarBehavior.floating),
+                          );
+                        }
+                      },
                     ),
-                  ),
+                    const SizedBox(width: 8),
+                  ],
                 ),
             ],
           ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: AppColors.bg2For(context),
-                      borderRadius: BorderRadius.circular(26),
-                      border: Border.all(color: AppColors.borderFor(context)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      UserAvatar(
+                        user: profileUser,
+                        size: 86,
+                        showRing: true,
+                        showStory: true,
+                      ),
+                      const SizedBox(width: 20),
+                      Expanded(
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: AppColors.bgFor(context),
-                                  width: 4,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: profileUser.color.withValues(alpha: 0.18),
-                                    blurRadius: 22,
-                                    spreadRadius: 1,
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Text(
+                                  profileUser.name,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w900,
+                                    color: AppColors.textFor(context),
+                                    letterSpacing: -0.5,
                                   ),
+                                ),
+                                if (profileUser.isFounder) ...[
+                                  const SizedBox(width: 6),
+                                  const Icon(Icons.verified_rounded, color: Colors.amber, size: 20),
                                 ],
+                              ],
+                            ),
+                            Text(
+                              '@${profileUser.handle}',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.text3For(context),
                               ),
-                              child: UserAvatar(
+                            ),
+                            const SizedBox(height: 12),
+                            if (isMe)
+                              _EditButton(onTap: () {
+                                HapticFeedback.lightImpact();
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const ProfileSetupScreen(
+                                      mode: ProfileSetupMode.edit,
+                                    ),
+                                  ),
+                                );
+                              })
+                            else
+                              _FollowButton(
+                                isFollowing: profileUser.isFollowing,
+                                isUpdating: usersP.isFollowUpdating(profileUser.id),
+                                onTap: () async {
+                                  HapticFeedback.mediumImpact();
+                                  await usersP.toggleFollow(me.id, profileUser.id);
+                                  if (!context.mounted) return;
+                                  final error = usersP.followError(profileUser.id);
+                                  if (error != null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text(error), behavior: SnackBarBehavior.floating),
+                                    );
+                                  }
+                                },
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    profileUser.bio.isEmpty
+                        ? 'Student builder on DevSpace.'
+                        : profileUser.bio,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 15,
+                      color: AppColors.text2For(context),
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _StatBox(
+                          count: profileUser.followers,
+                          label: 'Followers',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => ConnectionsScreen(
                                 user: profileUser,
-                                size: 78,
-                                showStory: true,
+                                type: ConnectionListType.followers,
                               ),
                             ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    profileUser.name,
-                                    style: TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.w900,
-                                      color: AppColors.textFor(context),
-                                      letterSpacing: -0.6,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '@${profileUser.handle}',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: AppColors.text3For(context),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Wrap(
-                                    spacing: 8,
-                                    runSpacing: 8,
-                                    children: [
-                                      _MetaChip(label: profileUser.role),
-                                      if (profileUser.year.isNotEmpty ||
-                                          profileUser.branch.isNotEmpty)
-                                        _MetaChip(label: profileUser.academicLabel),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 18),
-                        Text(
-                          profileUser.bio.isEmpty
-                              ? 'This student has not added a bio yet.'
-                              : profileUser.bio,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppColors.text2For(context),
-                            height: 1.6,
                           ),
-                        ),
-                        const SizedBox(height: 18),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _StatButton(
-                                count: profileUser.followers,
-                                label: 'Followers',
-                                onTap: () => Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => ConnectionsScreen(
-                                      user: profileUser,
-                                      type: ConnectionListType.followers,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: _StatButton(
-                                count: posts.length,
-                                label: 'Posts',
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: _StatButton(
-                                count: profileUser.following,
-                                label: 'Following',
-                                onTap: () => Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => ConnectionsScreen(
-                                      user: profileUser,
-                                      type: ConnectionListType.following,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ).animate().fadeIn(duration: 320.ms).slideY(begin: 0.06, end: 0),
-                  const SizedBox(height: 14),
-                  if (isMe && !profileUser.profileCompleted)
-                    Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.only(bottom: 14),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: AppColors.primary.withValues(alpha: 0.24),
                         ),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Complete your builder profile',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.text,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            'Add your branch, stack, and what you are building so students can discover you properly.',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: AppColors.text2,
-                              height: 1.5,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          ElevatedButton(
-                            onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const ProfileSetupScreen(
-                                  mode: ProfileSetupMode.onboarding,
-                                ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _StatBox(
+                          count: posts.length,
+                          label: 'Posts',
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _StatBox(
+                          count: profileUser.following,
+                          label: 'Following',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => ConnectionsScreen(
+                                user: profileUser,
+                                type: ConnectionListType.following,
                               ),
                             ),
-                            child: const Text('Complete profile'),
                           ),
-                        ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  if (profileUser.stack.isNotEmpty) ...[
+                    Text(
+                      'Tech Stack',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textFor(context),
+                        letterSpacing: 0.5,
                       ),
                     ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 10,
+                      children: profileUser.stack
+                          .map((s) => _SkillChip(label: s))
+                          .toList(),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
                   Container(
-                    width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: AppColors.bg2For(context),
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: AppColors.borderFor(context)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Builder details',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.textFor(context),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        if (profileUser.academicLabel.isNotEmpty)
-                          _InfoRow(
-                            icon: Icons.location_on_outlined,
-                            label: profileUser.academicLabel,
-                          ),
-                        _InfoRow(
-                          icon: Icons.construction_rounded,
-                          label: profileUser.building,
-                        ),
-                        _InfoRow(
-                          icon: Icons.school_outlined,
-                          label: profileUser.college,
-                          isLast: true,
-                        ),
-                        if (profileUser.stack.isNotEmpty) ...[
-                          const SizedBox(height: 14),
-                          Text(
-                            'Stack',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.text3For(context),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: profileUser.stack
-                                .map<Widget>(
-                                  (stackItem) => Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 7,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.bgFor(context),
-                                      borderRadius: BorderRadius.circular(999),
-                                      border: Border.all(
-                                        color: AppColors.borderFor(context),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      stackItem,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.text2For(context),
-                                      ),
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ).animate().fadeIn(delay: 140.ms, duration: 320.ms),
-                  const SizedBox(height: 14),
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: AppColors.bg3For(context),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.borderFor(context)),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.borderFor(context).withValues(alpha: 0.5)),
                     ),
                     child: AuraBar(aura: profileUser.aura),
-                  ).animate().fadeIn(delay: 220.ms, duration: 320.ms).slideY(begin: 0.04, end: 0),
+                  ),
                   const SizedBox(height: 16),
-                  GitHubCard(githubHandle: profileUser.githubHandle)
-                      .animate()
-                      .fadeIn(delay: 260.ms, duration: 320.ms),
+                  GitHubCard(githubHandle: profileUser.githubHandle),
+                  const SizedBox(height: 32),
+                  Text(
+                    'Recent Builds',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.textFor(context),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                 ],
               ),
             ),
           ),
-          const SliverToBoxAdapter(
-            child: Divider(color: AppColors.border, height: 1),
-          ),
-          postsP.isLoading && postsP.posts.isEmpty
-              ? const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.all(40),
-                    child: AppLoadingState(
-                      title: 'Loading posts',
-                      message: 'Fetching recent updates from this builder.',
-                    ),
-                  ),
-                )
-              : postsP.feedError != null && postsP.posts.isEmpty
-                  ? SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.all(40),
-                        child: AppErrorState(
-                          title: 'Posts unavailable',
-                          message: postsP.feedError!,
-                          actionLabel: 'Retry',
-                          onAction: postsP.refreshFeed,
-                        ),
+          if (posts.isEmpty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.auto_awesome_rounded, color: AppColors.text4For(context), size: 40),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No builds shared yet.',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: AppColors.text3For(context),
+                        fontWeight: FontWeight.w600,
                       ),
-                    )
-                  : posts.isEmpty
-                      ? const SliverToBoxAdapter(
-                          child: Padding(
-                            padding: EdgeInsets.all(40),
-                            child: Center(
-                              child: Text(
-                                'No posts yet',
-                                style: TextStyle(
-                                  color: AppColors.text3,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                          ),
-                        )
-                      : SliverList(
-                          delegate: SliverChildBuilderDelegate(
-                            (context, i) => PostCard(post: posts[i]),
-                            childCount: posts.length,
-                          ),
-                        ),
-          const SliverToBoxAdapter(child: SizedBox(height: 20)),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, i) => PostCard(post: posts[i])
+                    .animate()
+                    .fadeIn(duration: 400.ms, delay: (i * 50).ms),
+                childCount: posts.length,
+              ),
+            ),
+          const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
     );
   }
 }
 
-class _MetaChip extends StatelessWidget {
-  final String label;
-
-  const _MetaChip({required this.label});
+class _HeaderAction extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  const _HeaderAction({required this.icon, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: AppColors.bg3For(context),
-        borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: AppColors.borderFor(context)),
+    return IconButton(
+      onPressed: onTap,
+      icon: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: AppColors.textFor(context).withValues(alpha: 0.05),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, size: 20, color: AppColors.textFor(context)),
       ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          color: AppColors.text2,
+    );
+  }
+}
+
+class _StatBox extends StatelessWidget {
+  final int count;
+  final String label;
+  final VoidCallback? onTap;
+
+  const _StatBox({required this.count, required this.label, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        if (onTap != null) {
+          HapticFeedback.selectionClick();
+          onTap!();
+        }
+      },
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.bg2For(context),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.borderFor(context).withValues(alpha: 0.5)),
+        ),
+        child: Column(
+          children: [
+            Text(
+              '$count',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+                color: AppColors.textFor(context),
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppColors.text3For(context),
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _InfoRow extends StatelessWidget {
-  final IconData icon;
+class _SkillChip extends StatelessWidget {
   final String label;
-  final bool isLast;
-
-  const _InfoRow({
-    required this.icon,
-    required this.label,
-    this.isLast = false,
-  });
+  const _SkillChip({required this.label});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.only(bottom: isLast ? 0 : 10),
-      margin: EdgeInsets.only(bottom: isLast ? 0 : 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        border: isLast
-            ? null
-            : Border(
-                bottom: BorderSide(
-                  color: AppColors.borderFor(context).withValues(alpha: 0.6),
-                ),
-                ),
-              ),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: AppColors.primary),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                color: AppColors.text2For(context),
-              ),
-            ),
-          ),
-        ],
+        color: AppColors.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.plusJakartaSans(
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          color: AppColors.primary,
+        ),
       ),
     );
   }
 }
 
-class _StatButton extends StatelessWidget {
-  final int count;
-  final String label;
-  final VoidCallback? onTap;
+class _FollowButton extends StatelessWidget {
+  final bool isFollowing;
+  final bool isUpdating;
+  final VoidCallback onTap;
 
-  const _StatButton({
-    required this.count,
-    required this.label,
-    this.onTap,
-  });
+  const _FollowButton({required this.isFollowing, required this.isUpdating, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Ink(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            color: AppColors.bgFor(context),
-            border: Border.all(
-              color: AppColors.borderFor(context),
-            ),
+    return GestureDetector(
+      onTap: isUpdating ? null : onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+        decoration: BoxDecoration(
+          color: isFollowing ? Colors.transparent : AppColors.primary,
+          borderRadius: BorderRadius.circular(99),
+          border: Border.all(
+            color: isFollowing ? AppColors.borderFor(context) : AppColors.primary,
+            width: 1.2,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                '$count',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.textFor(context),
-                  letterSpacing: -0.4,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.text3For(context),
-                ),
-              ),
-            ],
+        ),
+        child: Text(
+          isUpdating ? '...' : (isFollowing ? 'Following' : 'Follow'),
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+            color: isFollowing ? AppColors.textFor(context) : Colors.white,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EditButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _EditButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
+        side: BorderSide(color: AppColors.borderFor(context), width: 1.2),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      ),
+      child: Text(
+        'Edit Profile',
+        style: GoogleFonts.plusJakartaSans(
+          fontWeight: FontWeight.w800,
+          fontSize: 13,
+          color: AppColors.textFor(context),
         ),
       ),
     );

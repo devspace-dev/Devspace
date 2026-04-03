@@ -106,6 +106,7 @@ alter publication supabase_realtime add table public.messages;
 alter publication supabase_realtime add table public.conversations;
 alter publication supabase_realtime add table public.users;
 alter publication supabase_realtime add table public.notifications;
+alter publication supabase_realtime add table public.notifications;
 
 -- 6. INDEXES FOR PERFORMANCE
 create index if not exists idx_messages_conversation_id on public.messages(conversation_id);

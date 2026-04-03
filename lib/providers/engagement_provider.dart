@@ -40,15 +40,19 @@ class EngagementProvider extends ChangeNotifier {
   AuraSummaryModel? _auraSummary;
   DailyChallengeModel? _dailyChallenge;
   List<EventAccessModel> _events = [];
+  bool _isWeeklyChallengeEnrolled = false;
   bool _isLoading = false;
   bool _isSubmittingChallenge = false;
+  bool _isEnrollingWeekly = false;
   String? _error;
 
   AuraSummaryModel? get auraSummary => _auraSummary;
   DailyChallengeModel? get dailyChallenge => _dailyChallenge;
   List<EventAccessModel> get events => List.unmodifiable(_events);
+  bool get isWeeklyChallengeEnrolled => _isWeeklyChallengeEnrolled;
   bool get isLoading => _isLoading;
   bool get isSubmittingChallenge => _isSubmittingChallenge;
+  bool get isEnrollingWeekly => _isEnrollingWeekly;
   String? get error => _error;
   List<EventAccessModel> get unlockedEvents =>
       _events.where((event) => event.unlocked).toList();
@@ -150,6 +154,28 @@ class EngagementProvider extends ChangeNotifier {
       return false;
     } finally {
       _isSubmittingChallenge = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> enrollInWeeklyChallenge() async {
+    if (_isEnrollingWeekly || _isWeeklyChallengeEnrolled) return false;
+
+    _isEnrollingWeekly = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      // Mocking enrollment for now
+      await Future.delayed(const Duration(seconds: 1));
+      _isWeeklyChallengeEnrolled = true;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = 'Failed to enroll: $e';
+      return false;
+    } finally {
+      _isEnrollingWeekly = false;
       notifyListeners();
     }
   }

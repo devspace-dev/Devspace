@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../models/badge_model.dart';
 import '../theme/app_colors.dart';
 
@@ -13,29 +14,32 @@ class AuraPill extends StatelessWidget {
     final badge = getBadge(aura);
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: small ? 8 : 10,
-        vertical: small ? 2 : 4,
+        horizontal: small ? 10 : 12,
+        vertical: small ? 4 : 6,
       ),
       decoration: BoxDecoration(
-        color: AppColors.bg3,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: AppColors.border),
+        color: badge.color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(
+          color: badge.color.withValues(alpha: 0.25),
+          width: 1,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             badge.icon,
-            style: TextStyle(fontSize: small ? 10 : 12),
+            style: TextStyle(fontSize: small ? 12 : 14),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 6),
           Text(
             aura.toString(),
-            style: TextStyle(
-              fontSize: small ? 10 : 11,
-              fontWeight: FontWeight.w700,
-              color: AppColors.text,
-              letterSpacing: 0.2,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: small ? 11 : 13,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textFor(context),
+              letterSpacing: 0.5,
             ),
           ),
         ],

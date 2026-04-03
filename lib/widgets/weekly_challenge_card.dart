@@ -7,12 +7,18 @@ import 'info_block.dart';
 
 class WeeklyChallengeCard extends StatelessWidget {
   final dynamic user;
+  final bool isEnrolled;
+  final bool isLoading;
   final VoidCallback onDetailsPressed;
+  final VoidCallback onRegisterPressed;
 
   const WeeklyChallengeCard({
     super.key,
     required this.user,
+    this.isEnrolled = false,
+    this.isLoading = false,
     required this.onDetailsPressed,
+    required this.onRegisterPressed,
   });
 
   @override
@@ -122,17 +128,46 @@ class WeeklyChallengeCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          AppButton(
-            onPressed: onDetailsPressed,
-            backgroundColor: accent,
-            child: const Text(
-              'Join weekly challenge',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w900,
+          if (isEnrolled)
+            AppButton(
+              onPressed: onDetailsPressed,
+              backgroundColor: Colors.green,
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    'Enrolled - View Details',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
               ),
+            )
+          else
+            AppButton(
+              onPressed: isLoading ? null : onRegisterPressed,
+              backgroundColor: accent,
+              child: isLoading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text(
+                      'Register for challenge',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
             ),
-          ),
         ],
       ),
     );

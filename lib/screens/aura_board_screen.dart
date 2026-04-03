@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/users_provider.dart';
 import '../providers/auth_provider.dart';
@@ -140,7 +141,7 @@ class _AuraBoardScreenState extends State<AuraBoardScreen> {
     if (top3.length > 2) podiumOrder.add(2);
 
     return Container(
-      height: 240,
+      height: 280,
       margin: const EdgeInsets.only(top: 20),
       padding: const EdgeInsets.symmetric(horizontal: 10),
       child: Row(
@@ -159,11 +160,22 @@ class _AuraBoardScreenState extends State<AuraBoardScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  UserAvatar(user: user, size: isFirst ? 80 : 64, showStory: true),
+                  Stack(
+                    alignment: Alignment.topCenter,
+                    clipBehavior: Clip.none,
+                    children: [
+                      UserAvatar(user: user, size: isFirst ? 86 : 70, showStory: true),
+                      if (isFirst)
+                        const Positioned(
+                          top: -24,
+                          child: Text('👑', style: TextStyle(fontSize: 28)),
+                        ),
+                    ],
+                  ),
                   const SizedBox(height: 12),
                   Text(
                     user.name.split(' ')[0],
-                    style: TextStyle(
+                    style: GoogleFonts.plusJakartaSans(
                       fontWeight: FontWeight.w800,
                       fontSize: 14,
                       color: AppColors.textFor(context),
@@ -174,9 +186,9 @@ class _AuraBoardScreenState extends State<AuraBoardScreen> {
                   const SizedBox(height: 4),
                   Text(
                     '${user.aura}',
-                    style: TextStyle(
+                    style: GoogleFonts.plusJakartaSans(
                       fontWeight: FontWeight.w900,
-                      fontSize: 18,
+                      fontSize: 20,
                       color: getBadge(user.aura).color,
                     ),
                   ),
@@ -188,73 +200,85 @@ class _AuraBoardScreenState extends State<AuraBoardScreen> {
           );
         }).toList(),
       ),
-    ).animate().fadeIn().moveY(begin: 20, curve: Curves.easeOut);
+    ).animate().fadeIn().moveY(begin: 30, curve: Curves.easeOutBack);
   }
 
   Widget _buildRankItem(BuildContext context, UserModel u, int index, bool isMe) {
     final badge = getBadge(u.aura);
-    return AppCard(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      borderRadius: 20,
-      color: isMe ? AppColors.primary.withValues(alpha: 0.1) : AppColors.bg2For(context),
-      border: isMe ? Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 1.5) : null,
-      boxShadow: [], // Flat look for list items
-      child: GestureDetector(
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => ProfileScreen(userId: u.id)),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: isMe ? AppColors.primary.withValues(alpha: 0.1) : AppColors.bg2For(context),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: isMe 
+              ? AppColors.primary.withValues(alpha: 0.3) 
+              : AppColors.borderFor(context).withValues(alpha: 0.5),
+            width: isMe ? 1.5 : 0.8,
+          ),
         ),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 32,
-              child: Text(
-                '#${index + 1}',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
-                  color: isMe ? AppColors.primary : AppColors.text3For(context),
+        child: GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => ProfileScreen(userId: u.id)),
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 36,
+                child: Text(
+                  '${index + 1}',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                    color: isMe ? AppColors.primary : AppColors.text3For(context),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
-            UserAvatar(user: u, size: 44),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(width: 4),
+              UserAvatar(user: u, size: 44),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(u.name,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                          color: AppColors.textFor(context))),
+                    Text('@${u.handle}',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.text3For(context))),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(u.name,
-                      style: TextStyle(
+                  Text(u.aura.toString(),
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: badge.color)),
+                  Text(badge.name,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 10,
                         fontWeight: FontWeight.w800,
-                        fontSize: 15,
-                        color: AppColors.textFor(context))),
-                  Text('@${u.handle}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.text3For(context))),
+                        color: AppColors.text3For(context),
+                        letterSpacing: 0.5,
+                      )),
                 ],
               ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(u.aura.toString(),
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                      color: badge.color)),
-                Text(badge.name,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.text3For(context))),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ).animate().fadeIn(delay: (index * 50).ms).slideX(begin: 0.1);
+    ).animate().fadeIn(delay: (index % 10 * 50).ms).slideX(begin: 0.1, curve: Curves.easeOutQuad);
   }
 
   Widget _buildTiersLegend(BuildContext context) {

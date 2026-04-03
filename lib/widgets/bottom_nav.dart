@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
 import 'glass_container.dart';
 
@@ -16,24 +17,27 @@ class DevSpaceBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 16),
       child: SafeArea(
         top: false,
         child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 20),
+          margin: const EdgeInsets.symmetric(horizontal: 24),
           child: GlassContainer(
-            color: AppColors.bg2,
-            opacity: 0.8,
-            blur: 25.0,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: AppColors.border, width: 0.5),
+            color: AppColors.bg2For(context),
+            opacity: 0.85,
+            blur: 30.0,
+            borderRadius: BorderRadius.circular(32),
+            border: Border.all(
+              color: AppColors.borderFor(context).withValues(alpha: 0.5),
+              width: 0.8,
+            ),
             child: SizedBox(
-              height: 64,
+              height: 72,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   _NavItem(
-                    icon: Icons.house_rounded,
+                    icon: Icons.house_outlined,
                     activeIcon: Icons.house_rounded,
                     label: 'Home',
                     index: 0,
@@ -41,7 +45,7 @@ class DevSpaceBottomNav extends StatelessWidget {
                     onTap: onTap,
                   ),
                   _NavItem(
-                    icon: Icons.person_search_rounded,
+                    icon: Icons.person_search_outlined,
                     activeIcon: Icons.person_search_rounded,
                     label: 'Devs',
                     index: 1,
@@ -49,7 +53,7 @@ class DevSpaceBottomNav extends StatelessWidget {
                     onTap: onTap,
                   ),
                   _NavItem(
-                    icon: Icons.bubble_chart_rounded,
+                    icon: Icons.bubble_chart_outlined,
                     activeIcon: Icons.bubble_chart_rounded,
                     label: 'Q&A',
                     index: 2,
@@ -57,7 +61,7 @@ class DevSpaceBottomNav extends StatelessWidget {
                     onTap: onTap,
                   ),
                   _NavItem(
-                    icon: Icons.rocket_launch_rounded,
+                    icon: Icons.rocket_launch_outlined,
                     activeIcon: Icons.rocket_launch_rounded,
                     label: 'Opps',
                     index: 3,
@@ -65,7 +69,7 @@ class DevSpaceBottomNav extends StatelessWidget {
                     onTap: onTap,
                   ),
                   _NavItem(
-                    icon: Icons.account_circle_rounded,
+                    icon: Icons.account_circle_outlined,
                     activeIcon: Icons.account_circle_rounded,
                     label: 'Me',
                     index: 4,
@@ -102,33 +106,43 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final active = index == current;
-    final color = active ? AppColors.primary : AppColors.text3;
+    final color = active ? AppColors.primary : AppColors.text3For(context);
 
     return Expanded(
       child: GestureDetector(
         onTap: () {
-          if (!active) HapticFeedback.selectionClick();
+          if (!active) HapticFeedback.mediumImpact();
           onTap(index);
         },
         behavior: HitTestBehavior.opaque,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              active ? activeIcon : icon,
-              size: 24,
-              color: color,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOutQuad,
+              padding: EdgeInsets.all(active ? 8 : 0),
+              decoration: BoxDecoration(
+                color: active ? AppColors.primary.withValues(alpha: 0.1) : Colors.transparent,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                active ? activeIcon : icon,
+                size: 26,
                 color: color,
-                letterSpacing: -0.2,
               ),
             ),
+            if (!active) const SizedBox(height: 4),
+            if (!active)
+              Text(
+                label,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                  letterSpacing: -0.2,
+                ),
+              ),
           ],
         ),
       ),

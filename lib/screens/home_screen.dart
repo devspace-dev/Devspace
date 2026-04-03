@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 import '../providers/posts_provider.dart';
 import '../providers/engagement_provider.dart';
@@ -8,6 +9,7 @@ import '../widgets/app_state_widgets.dart';
 import '../widgets/compose_box.dart';
 import '../widgets/engagement_overview.dart';
 import '../widgets/post_card.dart';
+import '../widgets/post_shimmer.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -69,10 +71,10 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           if (postsP.isLoading && posts.isEmpty)
-            const SliverFillRemaining(
-              child: AppLoadingState(
-                title: 'Loading',
-                message: 'Fetching the latest updates...',
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) => const PostShimmer(),
+                childCount: 5,
               ),
             )
           else if (postsP.feedError != null && posts.isEmpty)
@@ -93,10 +95,16 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             )
           else
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, i) => PostCard(post: posts[i]),
-                childCount: posts.length,
+            SliverPadding(
+              padding: const EdgeInsets.only(top: 8),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, i) => PostCard(post: posts[i])
+                      .animate()
+                      .fadeIn(duration: 400.ms, delay: (i % 5 * 100).ms)
+                      .moveY(begin: 20, end: 0, curve: Curves.easeOutQuad),
+                  childCount: posts.length,
+                ),
               ),
             ),
           if (postsP.isLoadingMore)

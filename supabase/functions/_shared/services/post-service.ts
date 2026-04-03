@@ -12,6 +12,20 @@ type AddCommentInput = {
   content: string;
 };
 
+function normalizeOptionalId(value?: string | null) {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return null;
+  }
+  return trimmed;
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+}
+
 export class PostService {
   constructor(private readonly client: SupabaseClient) {}
 
@@ -32,12 +46,23 @@ export class PostService {
   }
 
   async createPost(input: CreatePostInput) {
-    const { data, error } = await this.client.rpc("create_post_with_aura", {
+    const normalizedQuotePostId = normalizeOptionalId(input.quotePostId);
+    if (normalizedQuotePostId && !isUuid(normalizedQuotePostId)) {
+      throw new Error(
+        "Quoted post reference is invalid. Please reopen the post and try again.",
+      );
+    }
+
+    const params: Record<string, unknown> = {
       p_content: input.content,
       p_tags: input.tags ?? [],
       p_image_url: input.imageUrl ?? "",
-      p_quote_post_id: input.quotePostId ?? null,
-    });
+    };
+    if (normalizedQuotePostId) {
+      params.p_quote_post_id = normalizedQuotePostId;
+    }
+
+    const { data, error } = await this.client.rpc("create_post_with_aura", params);
 
     if (error) throw error;
     return { id: data };

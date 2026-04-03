@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'providers/posts_provider.dart';
 import 'providers/questions_provider.dart';
 import 'providers/users_provider.dart';
@@ -57,66 +59,87 @@ class _CupFabState extends State<CupFab> {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 80,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ClipRect(
-            child: Align(
-              heightFactor: _open ? 1 : 0,
-              child: Column(
-                children: [
-                  _CupOption(
-                    icon: Icons.today_rounded,
-                    visible: _open,
-                    onTap: () => _fireAction(widget.onDaily),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.fastOutSlowIn,
+          width: 58,
+          height: _open ? 116 : 0,
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: AppColors.bg2For(context).withValues(alpha: 0.95),
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.3),
+              width: 1.5,
+            ),
+            boxShadow: _open
+                ? [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.15),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ]
+                : [],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: SingleChildScrollView(
+            physics: const NeverScrollableScrollPhysics(),
+            child: Column(
+              children: [
+                const SizedBox(height: 8),
+                _CupOption(
+                  icon: Icons.today_rounded,
+                  visible: _open,
+                  onTap: () => _fireAction(widget.onDaily),
+                ),
+                const SizedBox(height: 8),
+                _CupOption(
+                  icon: Icons.code_rounded,
+                  visible: _open,
+                  onTap: () => _fireAction(widget.onWeekly),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        ),
+        GestureDetector(
+          onTap: _toggle,
+          child: AnimatedRotation(
+            turns: _open ? 1 : 0,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.fastOutSlowIn,
+            child: Container(
+              width: 58,
+              height: 58,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF0A84FF), Color(0xFF5E5CE6)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.35),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
                   ),
-                  const SizedBox(height: 8),
-                  _CupOption(
-                    icon: Icons.code_rounded,
-                    visible: _open,
-                    onTap: () => _fireAction(widget.onWeekly),
-                  ),
-                  const SizedBox(height: 8),
                 ],
               ),
-            ),
-          ),
-          GestureDetector(
-            onTap: _toggle,
-            child: AnimatedRotation(
-              turns: _open ? 1 : 0,
-              duration: const Duration(milliseconds: 420),
-              curve: Curves.easeInOut,
-              child: Container(
-                width: 58,
-                height: 58,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF0A84FF), Color(0xFF5E5CE6)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.35),
-                      blurRadius: 12,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.emoji_events_rounded,
-                  size: 28,
-                  color: Colors.white,
-                ),
+              child: const Icon(
+                Icons.emoji_events_rounded,
+                size: 28,
+                color: Colors.white,
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -167,6 +190,7 @@ class _CupOption extends StatelessWidget {
 
 class _DevSpaceAppState extends State<DevSpaceApp> {
   int _tab = 0;
+  bool _isUIVisible = true;
   late final PageController _pageController;
 
   static const List<String> _titles = [
@@ -182,17 +206,30 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
   void initState() {
     super.initState();
     _pageController = PageController();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    _initProviders();
+  }
+
+  Future<void> _initProviders() async {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       final auth = context.read<AuthProvider>();
+      final user = auth.currentUserOrNull;
+      
+      // Initialize shared public data
       context.read<UsersProvider>().fetchUsers();
       context.read<PostsProvider>().fetchFeed();
-      try {
-        context.read<QuestionsProvider>().fetchQuestions();
-        context.read<NotificationsProvider>().init(auth.currentUser.id);
-        context.read<EngagementProvider>().fetchOverview();
-        context.read<MessagesProvider>().init(auth.currentUser.id);
-      } catch (_) {/* no user yet */}
+      context.read<QuestionsProvider>().fetchQuestions();
+
+      // Initialize user-specific data
+      if (user != null) {
+        try {
+          context.read<NotificationsProvider>().init(user.id);
+          context.read<MessagesProvider>().init(user.id);
+          await context.read<EngagementProvider>().fetchOverview();
+        } catch (e) {
+          debugPrint('Provider initialization failed: $e');
+        }
+      }
     });
   }
 
@@ -354,14 +391,10 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
     return '${diff.inDays}d';
   }
 
-  Future<void> _onTabSelected(int index) async {
+  void _onTabSelected(int index) {
     if (index == _tab) return;
     setState(() => _tab = index);
-    await _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 420),
-      curve: Curves.easeOutCubic,
-    );
+    _pageController.jumpToPage(index);
   }
 
   @override
@@ -392,40 +425,44 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
       backgroundColor: AppColors.bgFor(context),
       extendBody: true,
       extendBodyBehindAppBar: false,
-      floatingActionButton: isHome
-          ? CupFab(
-              onDaily: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const DailyChallengeScreen(),
-                  ),
-                );
-              },
-              onWeekly: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const WeeklyChallengeScreen(),
-                  ),
-                );
-              },
-            )
-          : (showFab
-              ? FloatingActionButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const DailyChallengeScreen(),
-                      ),
-                    );
-                  },
-                  backgroundColor: AppColors.primary,
-                  child:
-                      const Icon(Icons.emoji_events_rounded, color: Colors.white),
-                )
-              : null),
+      floatingActionButton: AnimatedSlide(
+        offset: _isUIVisible ? Offset.zero : const Offset(0, 2),
+        duration: const Duration(milliseconds: 300),
+        child: isHome
+            ? CupFab(
+                onDaily: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const DailyChallengeScreen(),
+                    ),
+                  );
+                },
+                onWeekly: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const WeeklyChallengeScreen(),
+                    ),
+                  );
+                },
+              )
+            : (showFab
+                ? FloatingActionButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const DailyChallengeScreen(),
+                        ),
+                      );
+                    },
+                    backgroundColor: AppColors.primary,
+                    child:
+                        const Icon(Icons.emoji_events_rounded, color: Colors.white),
+                  )
+                : null),
+      ),
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(kToolbarHeight),
         child: GlassContainer(
@@ -444,17 +481,22 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
             title: _tab == 0
                 ? Text(
                     'DevSpace',
-                    style: TextStyle(
+                    style: GoogleFonts.plusJakartaSans(
                       fontWeight: FontWeight.w900,
-                      fontSize: 22,
-                      letterSpacing: -1.0,
+                      fontSize: 26,
+                      letterSpacing: -1.5,
                       color: AppColors.textFor(context),
                     ),
-                  )
+                  ).animate().fadeIn(duration: 400.ms).scale(
+                        begin: const Offset(0.9, 0.9),
+                        curve: Curves.easeOutBack,
+                      )
                 : Text(
                     _titles[_tab],
-                    style: TextStyle(
+                    style: GoogleFonts.plusJakartaSans(
                       fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                      letterSpacing: -0.5,
                       color: AppColors.textFor(context),
                     ),
                   ),
@@ -462,36 +504,38 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
               IconButton(
                 onPressed: () => _showNotifications(context),
                 icon: Badge(
+                  backgroundColor: AppColors.primary,
                   isLabelVisible: unreadCount > 0,
-                  label: Text('$unreadCount'),
-                  child: const Icon(Icons.notifications_none_rounded),
+                  label: Text('$unreadCount', style: const TextStyle(fontSize: 10, color: Colors.white)),
+                  child: const Icon(Icons.notifications_none_rounded, size: 24),
                 ),
               ),
               if (me != null)
                 Padding(
-                  padding: const EdgeInsets.only(right: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: Center(
                     child: GestureDetector(
                       onTap: () => _onTabSelected(5), // Navigate to Aura Board
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
+                            horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: AppColors.bg2For(context),
+                          color: AppColors.primary.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                              color: AppColors.borderFor(context), width: 0.5),
+                              color: AppColors.primary.withValues(alpha: 0.2), width: 1),
                         ),
                         child: Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Text('⚡', style: TextStyle(fontSize: 11)),
+                            const Text('⚡', style: TextStyle(fontSize: 12)),
                             const SizedBox(width: 4),
                             Text(
                               '${me.aura}',
-                              style: TextStyle(
+                              style: GoogleFonts.plusJakartaSans(
                                 fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textFor(context),
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.primary,
                               ),
                             ),
                           ],
@@ -508,28 +552,44 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                   );
                 },
                 icon: Badge(
+                  backgroundColor: AppColors.primary,
                   isLabelVisible: unreadMessages > 0,
-                  label: Text('$unreadMessages'),
-                  child: const Icon(Icons.email_outlined),
+                  label: Text('$unreadMessages', style: const TextStyle(fontSize: 10, color: Colors.white)),
+                  child: const Icon(Icons.mail_outline_rounded, size: 24),
                 ),
               ),
+              const SizedBox(width: 4),
             ],
           ),
         ),
       ),
-      body: PageView(
-        controller: _pageController,
-        physics: const NeverScrollableScrollPhysics(),
-        onPageChanged: (index) {
-          if (_tab != index && mounted) {
-            setState(() => _tab = index);
+      body: NotificationListener<UserScrollNotification>(
+        onNotification: (notification) {
+          if (notification.direction == ScrollDirection.forward) {
+            if (!_isUIVisible) setState(() => _isUIVisible = true);
+          } else if (notification.direction == ScrollDirection.reverse) {
+            if (_isUIVisible) setState(() => _isUIVisible = false);
           }
+          return false;
         },
-        children: screens,
+        child: PageView(
+          controller: _pageController,
+          physics: const NeverScrollableScrollPhysics(),
+          onPageChanged: (index) {
+            if (_tab != index && mounted) {
+              setState(() => _tab = index);
+            }
+          },
+          children: screens,
+        ),
       ),
-      bottomNavigationBar: DevSpaceBottomNav(
-        currentIndex: _tab,
-        onTap: _onTabSelected,
+      bottomNavigationBar: AnimatedSlide(
+        offset: _isUIVisible ? Offset.zero : const Offset(0, 1),
+        duration: const Duration(milliseconds: 300),
+        child: DevSpaceBottomNav(
+          currentIndex: _tab,
+          onTap: _onTabSelected,
+        ),
       ),
     );
   }

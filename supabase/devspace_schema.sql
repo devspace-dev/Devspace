@@ -1967,11 +1967,13 @@ $$;
 grant execute on function public.sync_post_like_count(uuid) to authenticated;
 grant execute on function public.sync_post_comment_count(uuid) to authenticated;
 
+drop function if exists public.create_post_with_aura(text, text[], text, uuid);
+
 create or replace function public.create_post_with_aura(
   p_content text,
   p_tags text[] default '{}'::text[],
   p_image_url text default '',
-  p_quote_post_id uuid default null
+  p_quote_post_id text default null
 )
 returns uuid
 language plpgsql
@@ -1981,6 +1983,7 @@ as $$
 declare
   actor_id uuid;
   new_post_id uuid;
+  normalized_quote_post_id uuid;
 begin
   actor_id := auth.uid();
   if actor_id is null then
@@ -1991,6 +1994,14 @@ begin
     raise exception 'Post content or image is required';
   end if;
 
+  if nullif(trim(coalesce(p_quote_post_id, '')), '') is not null then
+    if trim(p_quote_post_id) !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
+      raise exception 'Quoted post reference is invalid';
+    end if;
+
+    normalized_quote_post_id := trim(p_quote_post_id)::uuid;
+  end if;
+
   perform public.register_rate_limited_action('create_post', 20, 3600, null);
 
   insert into public.posts(user_id, content, tags, image_url, quote_post_id)
@@ -1999,7 +2010,7 @@ begin
     coalesce(trim(p_content), ''),
     coalesce(p_tags, '{}'::text[]),
     coalesce(trim(p_image_url), ''),
-    p_quote_post_id
+    normalized_quote_post_id
   )
   returning id into new_post_id;
 
@@ -2015,7 +2026,7 @@ begin
 end;
 $$;
 
-grant execute on function public.create_post_with_aura(text, text[], text, uuid) to authenticated;
+grant execute on function public.create_post_with_aura(text, text[], text, text) to authenticated;
 
 create or replace function public.like_post_with_aura(p_post_id uuid)
 returns jsonb

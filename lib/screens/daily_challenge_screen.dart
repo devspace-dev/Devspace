@@ -11,7 +11,6 @@ import '../theme/app_colors.dart';
 import '../widgets/app_state_widgets.dart';
 import '../widgets/app_ui_kit.dart';
 import '../widgets/info_block.dart';
-import '../utils/weekly_challenge_helpers.dart';
 
 class DailyChallengeScreen extends StatefulWidget {
   const DailyChallengeScreen({super.key});
@@ -21,15 +20,23 @@ class DailyChallengeScreen extends StatefulWidget {
 }
 
 class _DailyChallengeScreenState extends State<DailyChallengeScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, TickerProviderStateMixin {
   String? _selectedOption;
   Timer? _midnightRefreshTimer;
+  Timer? _successOverlayTimer;
   String _activeDateKey = _dateKeyFor(DateTime.now());
+  late final AnimationController _successController;
+  bool _showSuccessOverlay = false;
+  int _celebrationPoints = 0;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _successController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2200),
+    );
     _midnightRefreshTimer = Timer.periodic(
       const Duration(minutes: 1),
       (_) => _refreshIfDateChanged(),
@@ -40,6 +47,8 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _midnightRefreshTimer?.cancel();
+    _successOverlayTimer?.cancel();
+    _successController.dispose();
     super.dispose();
   }
 
@@ -67,6 +76,10 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
       final awardedPoints =
           solved ? (challenge?.pointsReward ?? 20) : DailyChallengeModel.attemptReward;
 
+      if (solved) {
+        _playSuccessOverlay(awardedPoints);
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -87,6 +100,25 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
     }
   }
 
+  void _playSuccessOverlay(int awardedPoints) {
+    _successOverlayTimer?.cancel();
+    _successController
+      ..reset()
+      ..forward();
+
+    setState(() {
+      _celebrationPoints = awardedPoints;
+      _showSuccessOverlay = true;
+    });
+
+    _successOverlayTimer = Timer(const Duration(milliseconds: 2400), () {
+      if (!mounted) return;
+      setState(() {
+        _showSuccessOverlay = false;
+      });
+    });
+  }
+
   Future<void> _refreshIfDateChanged() async {
     final nextDateKey = _dateKeyFor(DateTime.now());
     if (nextDateKey == _activeDateKey || !mounted) return;
@@ -99,208 +131,81 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
         );
   }
 
-  void _showWeeklyChallengeSheet(BuildContext context, dynamic me) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) {
-        final accent = AppColors.indigo;
-        final focusLabel = weeklyChallengeFocus(me);
-
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: AppCard(
-              color: AppColors.bg2For(context),
-              borderRadius: 28,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 42,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: AppColors.borderFor(context),
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: accent.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: Icon(
-                          Icons.code_rounded,
-                          color: accent,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Weekly Coding Challenge',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w900,
-                                color: AppColors.textFor(context),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Paid entry: Rs 59 per user',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: accent,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    'Each week, users get one deeper coding problem aligned to their career direction, target role, or what they are currently building.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      height: 1.55,
-                      color: AppColors.text2For(context),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  InfoBlock(
-                    title: 'HOW IT FITS',
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'This user would see prompts around $focusLabel.',
-                          style: TextStyle(
-                            fontSize: 14,
-                            height: 1.5,
-                            color: AppColors.text2For(context),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          'Examples: placement DSA rounds, frontend mini builds, backend API tasks, debugging exercises, or product-style questions tied to future goals.',
-                          style: TextStyle(
-                            fontSize: 13,
-                            height: 1.5,
-                            color: AppColors.text3For(context),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  InfoBlock(
-                    title: 'PRODUCT NOTE',
-                    child: Text(
-                      'This section is ready in the UI. Payment, enrollment, and admin challenge publishing still need backend wiring before it can go live.',
-                      style: TextStyle(
-                        fontSize: 13,
-                        height: 1.5,
-                        color: AppColors.text2For(context),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  AppButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    backgroundColor: accent,
-                    child: const Text(
-                      'Close',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final me = context.watch<AuthProvider>().currentUserOrNull;
 
     return Scaffold(
       backgroundColor: AppColors.bgFor(context),
-      body: AppGradientBackground(
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            _buildAppBar(context),
-            SliverToBoxAdapter(
-              child: Consumer<EngagementProvider>(
-                builder: (context, provider, _) {
-                  if (provider.isLoading && provider.dailyChallenge == null) {
-                    return const Center(
-                      child: Padding(
-                        padding: EdgeInsets.only(top: 100),
-                        child: CircularProgressIndicator.adaptive(),
-                      ),
-                    );
-                  }
+      body: Stack(
+        children: [
+          AppGradientBackground(
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                _buildAppBar(context),
+                SliverToBoxAdapter(
+                  child: Consumer<EngagementProvider>(
+                    builder: (context, provider, _) {
+                      if (provider.isLoading && provider.dailyChallenge == null) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.only(top: 100),
+                            child: CircularProgressIndicator.adaptive(),
+                          ),
+                        );
+                      }
 
-                  final daily = provider.dailyChallenge;
-                  if (daily == null) {
-                    return const AppEmptyState(
-                      icon: Icons.auto_awesome_rounded,
-                      title: 'No mission today',
-                      message: 'Check back later for a new mission.',
-                    );
-                  }
+                      final daily = provider.dailyChallenge;
+                      if (daily == null) {
+                        return const AppEmptyState(
+                          icon: Icons.auto_awesome_rounded,
+                          title: 'No mission today',
+                          message: 'Check back later for a new mission.',
+                        );
+                      }
 
-                  if (!daily.completed &&
-                      _selectedOption != null &&
-                      !daily.options.contains(_selectedOption)) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted) {
-                        setState(() {
-                          _selectedOption = null;
+                      if (!daily.completed &&
+                          _selectedOption != null &&
+                          !daily.options.contains(_selectedOption)) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) {
+                            setState(() {
+                              _selectedOption = null;
+                            });
+                          }
                         });
                       }
-                    });
-                  }
 
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildMissionHeader(context, me),
-                        const SizedBox(height: 24),
-                        _buildMainCard(context, daily),
-                        const SizedBox(height: 24),
-                        if (!daily.completed) _buildActionSection(context, provider),
-                        if (daily.completed) _buildCompletionStatus(context, daily),
-                        const SizedBox(height: 40),
-                      ],
-                    ),
-                  );
-                },
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildMissionHeader(context, me),
+                            const SizedBox(height: 24),
+                            _buildMainCard(context, daily),
+                            const SizedBox(height: 24),
+                            if (!daily.completed) _buildActionSection(context, provider),
+                            if (daily.completed) _buildCompletionStatus(context, daily),
+                            const SizedBox(height: 40),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_showSuccessOverlay)
+            Positioned.fill(
+              child: _MissionSolvedOverlay(
+                controller: _successController,
+                awardedPoints: _celebrationPoints,
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -588,6 +493,186 @@ class _HeaderBadge extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MissionSolvedOverlay extends StatelessWidget {
+  final AnimationController controller;
+  final int awardedPoints;
+
+  const _MissionSolvedOverlay({
+    required this.controller,
+    required this.awardedPoints,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final curved = CurvedAnimation(
+      parent: controller,
+      curve: Curves.easeOutCubic,
+    );
+
+    return IgnorePointer(
+      ignoring: true,
+      child: AnimatedBuilder(
+        animation: controller,
+        builder: (context, _) {
+          final fade = (1 - (controller.value - 0.82).clamp(0.0, 0.18) / 0.18)
+              .clamp(0.0, 1.0);
+
+          return Opacity(
+            opacity: fade,
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0xCC07111F),
+                    Color(0xF0142B46),
+                    Color(0xF0050A12),
+                  ],
+                ),
+              ),
+              child: Stack(
+                children: [
+                  ...List.generate(
+                    18,
+                    (index) => _CelebrationParticle(
+                      controller: controller,
+                      index: index,
+                    ),
+                  ),
+                  Center(
+                    child: Transform.scale(
+                      scale: 0.82 + (curved.value * 0.18),
+                      child: Opacity(
+                        opacity: curved.value.clamp(0.0, 1.0),
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 28),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 28,
+                            vertical: 30,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(28),
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Color(0xFFF7B733),
+                                Color(0xFFFC4A1A),
+                              ],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFF7B733).withValues(alpha: 0.32),
+                                blurRadius: 30,
+                                spreadRadius: 4,
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.emoji_events_rounded,
+                                size: 56,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Correct Answer!',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 30,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                  letterSpacing: -0.8,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                '+$awardedPoints Aura added',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Mission completed for today',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  height: 1.4,
+                                  color: Color(0xFFFDF1E3),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _CelebrationParticle extends StatelessWidget {
+  final AnimationController controller;
+  final int index;
+
+  const _CelebrationParticle({
+    required this.controller,
+    required this.index,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final left = ((index * 37) % 100) / 100;
+    final size = 10.0 + (index % 5) * 6.0;
+    final startY = -0.12 - ((index % 4) * 0.08);
+    final endY = 1.05 + ((index % 3) * 0.08);
+    final drift = ((index % 6) - 2.5) * 0.03;
+    final turns = ((index % 5) + 1) * 0.22;
+    final colors = <Color>[
+      const Color(0xFFFFD54F),
+      const Color(0xFFFF7043),
+      const Color(0xFF4DD0E1),
+      const Color(0xFF81C784),
+      const Color(0xFFBA68C8),
+    ];
+    final color = colors[index % colors.length];
+
+    return Align(
+      alignment: Alignment(left * 2 - 1, 0),
+      child: FractionalTranslation(
+        translation: Offset(
+          drift * controller.value * 10,
+          startY + ((endY - startY) * controller.value),
+        ),
+        child: Transform.rotate(
+          angle: controller.value * turns * 6.28318,
+          child: Container(
+            width: size,
+            height: size * (index.isEven ? 1.6 : 1),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(index.isEven ? 3 : size),
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -230,17 +230,26 @@ class _RootState extends State<_Root> {
   @override
   Widget build(BuildContext context) {
     return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 600),
-      switchInCurve: Curves.easeInOutCubic,
-      switchOutCurve: Curves.easeInOutCubic,
+      duration: const Duration(milliseconds: 1000),
+      reverseDuration: const Duration(milliseconds: 800),
+      switchInCurve: Curves.easeInOutQuart,
+      switchOutCurve: Curves.easeInOutQuart,
       transitionBuilder: (child, animation) {
+        final isApp = child is DevSpaceApp;
+        
+        // Premium zoom-in effect for the main app entry
+        final scale = Tween<double>(
+          begin: isApp ? 1.05 : 0.96,
+          end: 1.0,
+        ).animate(CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutQuart,
+        ));
+
         return FadeTransition(
           opacity: animation,
-          child: SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0, 0.02),
-              end: Offset.zero,
-            ).animate(animation),
+          child: ScaleTransition(
+            scale: scale,
             child: child,
           ),
         );

@@ -32,11 +32,36 @@ class NotificationService {
           ?.createNotificationChannel(_channel);
 
       if (kDebugMode) {
-          print('Notification service initialized (Local notifications only).');
+          print('Notification service initialized.');
       }
     } catch (e) {
       debugPrint('Notification initialization failed: $e');
     }
+  }
+
+  Future<void> showLocalNotification({
+    required String id,
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    final android = AndroidNotificationDetails(
+      _channel.id,
+      _channel.name,
+      channelDescription: _channel.description,
+      importance: Importance.high,
+      priority: Priority.high,
+    );
+    const ios = DarwinNotificationDetails();
+    final details = NotificationDetails(android: android, iOS: ios);
+
+    await _local.show(
+      id.hashCode,
+      title,
+      body,
+      details,
+      payload: payload,
+    );
   }
 
   Future<void> notifyLike({
