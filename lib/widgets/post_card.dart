@@ -74,6 +74,14 @@ class _PostCardState extends State<PostCard> {
             color: AppColors.borderFor(context).withValues(alpha: 0.5),
             width: 0.8,
           ),
+          boxShadow: [ // Added boxShadow for card effect
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 5,
+              spreadRadius: 1,
+              offset: Offset(0, 2),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

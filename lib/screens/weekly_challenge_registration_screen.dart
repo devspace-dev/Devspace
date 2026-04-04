@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/engagement_provider.dart';
+import '../providers/auth_provider.dart';
+import '../services/razorpay_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_ui_kit.dart';
 import '../widgets/info_block.dart';
@@ -21,11 +23,51 @@ class _WeeklyChallengeRegistrationScreenState
   bool _isProcessingPayment = false;
   Timer? _countdownTimer;
   Duration _timeLeft = const Duration(days: 2, hours: 14, minutes: 30);
+  late RazorpayService _razorpayService;
+
+  @override
+  void initState() {
+    super.initState();
+    _razorpayService = RazorpayService();
+    _razorpayService.onPaymentSuccess = _handlePaymentSuccess;
+    _razorpayService.onPaymentError = _handlePaymentError;
+  }
 
   @override
   void dispose() {
     _countdownTimer?.cancel();
+    _razorpayService.dispose();
     super.dispose();
+  }
+
+  void _handlePaymentSuccess(dynamic response) async {
+    if (!mounted) return;
+
+    final engagement = context.read<EngagementProvider>();
+    final success = await engagement.enrollInWeeklyChallenge();
+
+    if (success) {
+      setState(() {
+        _showPaymentSuccess = true;
+        _isProcessingPayment = false;
+      });
+      _startTimer();
+    } else {
+      setState(() => _isProcessingPayment = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(engagement.error ?? 'Enrollment failed')),
+        );
+      }
+    }
+  }
+
+  void _handlePaymentError(dynamic response) {
+    if (!mounted) return;
+    setState(() => _isProcessingPayment = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Payment cancelled or failed.')),
+    );
   }
 
   void _startTimer() {
@@ -49,28 +91,23 @@ class _WeeklyChallengeRegistrationScreenState
   }
 
   Future<void> _handlePayment() async {
+    final user = context.read<AuthProvider>().currentUserOrNull;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User session not found. Please login again.')),
+      );
+      return;
+    }
+
     setState(() => _isProcessingPayment = true);
 
-    // Mocking Razorpay payment process
-    await Future.delayed(const Duration(seconds: 2));
-
-    if (!mounted) return;
-
-    final engagement = context.read<EngagementProvider>();
-    final success = await engagement.enrollInWeeklyChallenge();
-
-    if (success) {
-      setState(() {
-        _showPaymentSuccess = true;
-        _isProcessingPayment = false;
-      });
-      _startTimer();
-    } else {
-      setState(() => _isProcessingPayment = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(engagement.error ?? 'Payment failed')),
-      );
-    }
+    _razorpayService.openCheckout(
+      amountInPaise: 5900,
+      name: 'DevSpace',
+      description: 'Weekly Coding Challenge',
+      email: user.email ?? 'dev@devspace.com',
+      contact: '9876543210',
+    );
   }
 
   @override

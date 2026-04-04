@@ -6,6 +6,7 @@ import '../models/comment_model.dart';
 import '../models/notification_model.dart';
 import '../models/question_model.dart';
 import '../models/question_reply_model.dart';
+import '../models/question_pull_request_model.dart';
 import '../models/conversation_model.dart';
 import '../models/message_model.dart';
 
@@ -605,6 +606,16 @@ class SupabaseService {
       throw StateError('Reply cannot be empty.');
     }
 
+    // Check if user can reply
+    final canReply = await _client.rpc('can_user_reply', params: {
+      'p_question_id': questionId,
+      'p_user_id': userId,
+    });
+
+    if (canReply != true) {
+      throw StateError('Your request to answer this question has not been accepted yet.');
+    }
+
     String? normalizedParentReplyId;
     if (parentReplyId != null && parentReplyId.trim().isNotEmpty) {
       final parentReply = await _client
@@ -636,6 +647,55 @@ class SupabaseService {
       'parent_reply_id': normalizedParentReplyId,
       'replying_to_user_id': replyingToUserId,
     });
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // PULL REQUESTS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  Future<void> submitPullRequest({
+    required String questionId,
+    required String userId,
+    required String message,
+  }) async {
+    await _client.from('question_pull_requests').upsert({
+      'question_id': questionId,
+      'user_id': userId,
+      'message': message,
+      'status': 'pending',
+    });
+  }
+
+  Future<List<QuestionPullRequestModel>> getPullRequestsForQuestion(
+      String questionId) async {
+    final data = await _client
+        .from('question_pull_requests')
+        .select()
+        .eq('question_id', questionId)
+        .order('created_at', ascending: true);
+    return (data as List)
+        .map((d) => QuestionPullRequestModel.fromJson(d))
+        .toList();
+  }
+
+  Future<void> updatePullRequestStatus({
+    required String prId,
+    required String status,
+  }) async {
+    await _client
+        .from('question_pull_requests')
+        .update({'status': status}).eq('id', prId);
+  }
+
+  Future<QuestionPullRequestModel?> getPullRequestStatus(
+      String questionId, String userId) async {
+    final data = await _client
+        .from('question_pull_requests')
+        .select()
+        .eq('question_id', questionId)
+        .eq('user_id', userId)
+        .maybeSingle();
+    return data == null ? null : QuestionPullRequestModel.fromJson(data);
   }
 
   Future<void> upvoteQuestion(String questionId, String userId) async {

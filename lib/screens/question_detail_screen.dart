@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../models/question_reply_model.dart';
+import '../models/question_pull_request_model.dart';
 import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/questions_provider.dart';
@@ -28,6 +29,7 @@ class QuestionDetailScreen extends StatefulWidget {
 class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
   final TextEditingController _replyCtrl = TextEditingController();
   final TextEditingController _threadReplyCtrl = TextEditingController();
+  final TextEditingController _prMessageCtrl = TextEditingController();
   String? _activeReplyComposerForId;
   String? _replyThreadParentId;
   String? _replyingToUserId;
@@ -39,6 +41,7 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<QuestionsProvider>().fetchReplies(widget.questionId);
+      context.read<QuestionsProvider>().fetchPullRequests(widget.questionId);
     });
   }
 
@@ -46,7 +49,106 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
   void dispose() {
     _replyCtrl.dispose();
     _threadReplyCtrl.dispose();
+    _prMessageCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _submitPR() async {
+    final questionsP = context.read<QuestionsProvider>();
+    final authP = context.read<AuthProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    if (_prMessageCtrl.text.trim().isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(
+            content: Text('Please enter a message for your request.')),
+      );
+      return;
+    }
+
+    final result = await questionsP.submitPullRequest(
+      questionId: widget.questionId,
+      userId: authP.currentUser.id,
+      message: _prMessageCtrl.text,
+    );
+
+    if (!mounted) return;
+
+    if (!result.success) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(result.error ?? 'Failed to submit request.')),
+      );
+      return;
+    }
+
+    _prMessageCtrl.clear();
+    Navigator.of(context).pop();
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Request submitted successfully.')),
+    );
+  }
+
+  void _showPRDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.bg2,
+        title: const Text('Request to Answer'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Tell the asker why you are the right person to answer this question.',
+              style: TextStyle(color: AppColors.text2, fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _prMessageCtrl,
+              maxLines: 3,
+              style: const TextStyle(color: AppColors.text),
+              decoration: const InputDecoration(
+                hintText:
+                    'I have experience with this framework and can help you debug...',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: _submitPR,
+            child: const Text('Submit'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _updatePRStatus(String prId, String status) async {
+    final questionsP = context.read<QuestionsProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    final result = await questionsP.updatePullRequestStatus(
+      questionId: widget.questionId,
+      prId: prId,
+      status: status,
+    );
+
+    if (!mounted) return;
+
+    if (!result.success) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(result.error ?? 'Failed to update request.')),
+      );
+      return;
+    }
+
+    messenger.showSnackBar(
+      SnackBar(content: Text('Request $status.')),
+    );
   }
 
   Future<void> _submitReply() async {
@@ -198,7 +300,12 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
       repliesById,
     );
     final childRepliesByParent = _childRepliesByParent(allReplies, repliesById);
-    final canMarkSolved = currentUser.id == question.userId && !question.isSolved;
+    final canMarkSolved =
+        currentUser.id == question.userId && !question.isSolved;
+    final isAsker = currentUser.id == question.userId;
+    final myPR = questionsP.getMyPullRequest(widget.questionId, currentUser.id);
+    final allPRs = questionsP.pullRequestsForQuestion(widget.questionId);
+    final pendingPRs = allPRs.where((pr) => pr.status == 'pending').toList();
 
     if (_activeReplyComposerForId != null &&
         !repliesById.containsKey(_activeReplyComposerForId)) {
@@ -218,6 +325,7 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
         onRefresh: () async {
           await questionsP.refreshQuestions();
           await questionsP.fetchReplies(widget.questionId, force: true);
+          await questionsP.fetchPullRequests(widget.questionId);
         },
         child: ListView(
           padding: EdgeInsets.only(
@@ -242,6 +350,13 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
                 );
               },
             ),
+            if (isAsker && pendingPRs.isNotEmpty)
+              _PullRequestsSection(
+                pendingPRs: pendingPRs,
+                usersP: usersP,
+                onAccept: (prId) => _updatePRStatus(prId, 'accepted'),
+                onReject: (prId) => _updatePRStatus(prId, 'rejected'),
+              ),
             Container(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
               decoration: const BoxDecoration(
@@ -335,11 +450,13 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
                     canMarkSolved: canMarkSolved,
                     isMarkingSolved: questionsP.isSolveUpdating(question.id),
                     onMarkSolved: () => _markSolved(reply),
-                    onReply: () => _startReplyComposer(
-                      targetReply: reply,
-                      parentReply: reply,
-                      targetAuthor: replyAuthor,
-                    ),
+                    onReply: (isAsker || (myPR?.status == 'accepted'))
+                        ? () => _startReplyComposer(
+                              targetReply: reply,
+                              parentReply: reply,
+                              targetAuthor: replyAuthor,
+                            )
+                        : null,
                   ),
                 ];
 
@@ -377,11 +494,13 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
                         reply: childReply,
                         author: childAuthor,
                         replyingToHandle: replyingToUser?.handle,
-                        onReply: () => _startReplyComposer(
-                          targetReply: childReply,
-                          parentReply: reply,
-                          targetAuthor: childAuthor,
-                        ),
+                        onReply: (isAsker || (myPR?.status == 'accepted'))
+                            ? () => _startReplyComposer(
+                                  targetReply: childReply,
+                                  parentReply: reply,
+                                  targetAuthor: childAuthor,
+                                )
+                            : null,
                       ),
                     ),
                   );
@@ -416,44 +535,50 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
             color: AppColors.bg2,
             border: Border(top: BorderSide(color: AppColors.border)),
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _replyCtrl,
-                  minLines: 1,
-                  maxLines: 4,
-                  textInputAction: TextInputAction.newline,
-                  style: const TextStyle(color: AppColors.text),
-                  decoration: const InputDecoration(
-                    hintText:
-                        'Reply with what worked, what you tried, or what to fix next...',
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              ElevatedButton(
-                onPressed: questionsP.isReplySubmitting(widget.questionId)
-                    ? null
-                    : _submitReply,
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(56, 48),
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                ),
-                child: questionsP.isReplySubmitting(widget.questionId)
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          color: Colors.white,
+          child: (isAsker || (myPR?.status == 'accepted'))
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _replyCtrl,
+                        minLines: 1,
+                        maxLines: 4,
+                        textInputAction: TextInputAction.newline,
+                        style: const TextStyle(color: AppColors.text),
+                        decoration: const InputDecoration(
+                          hintText:
+                              'Reply with what worked, what you tried, or what to fix next...',
                         ),
-                      )
-                    : const Icon(Icons.send_rounded, size: 18),
-              ),
-            ],
-          ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton(
+                      onPressed: questionsP.isReplySubmitting(widget.questionId)
+                          ? null
+                          : _submitReply,
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(56, 48),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                      ),
+                      child: questionsP.isReplySubmitting(widget.questionId)
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.send_rounded, size: 18),
+                    ),
+                  ],
+                )
+              : _PRStatusFooter(
+                  myPR: myPR,
+                  onShowDialog: _showPRDialog,
+                  isSubmitting: questionsP.isPRSubmitting(widget.questionId),
+                ),
         ),
       ),
     );
@@ -464,12 +589,10 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
     String? solvedReplyId,
     Map<String, QuestionReplyModel> repliesById,
   ) {
-    final sorted = replies
-        .where((reply) {
-          if (reply.isTopLevel) return true;
-          return !repliesById.containsKey(reply.parentReplyId);
-        })
-        .toList();
+    final sorted = replies.where((reply) {
+      if (reply.isTopLevel) return true;
+      return !repliesById.containsKey(reply.parentReplyId);
+    }).toList();
 
     sorted.sort((a, b) {
       if (solvedReplyId != null && solvedReplyId.isNotEmpty) {
@@ -708,6 +831,202 @@ class _QuestionReplyTile extends StatelessWidget {
   }
 }
 
+class _PullRequestsSection extends StatelessWidget {
+  final List<QuestionPullRequestModel> pendingPRs;
+  final UsersProvider usersP;
+  final Function(String) onAccept;
+  final Function(String) onReject;
+
+  const _PullRequestsSection({
+    required this.pendingPRs,
+    required this.usersP,
+    required this.onAccept,
+    required this.onReject,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
+              children: [
+                const Icon(Icons.call_merge_rounded,
+                    color: AppColors.primary, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  'Pending Requests (${pendingPRs.length})',
+                  style: const TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(color: AppColors.border),
+          ...pendingPRs.map((pr) {
+            final requester = usersP.getUserById(pr.userId);
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: AppColors.border)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      if (requester != null)
+                        UserAvatar(user: requester, size: 32),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          requester?.name ?? 'DevSpace User',
+                          style: const TextStyle(
+                            color: AppColors.text,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        timeago.format(pr.createdAt),
+                        style: const TextStyle(
+                          color: AppColors.text3,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    pr.message,
+                    style:
+                        const TextStyle(color: AppColors.text2, fontSize: 13),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => onReject(pr.id),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.flame,
+                            side: const BorderSide(color: AppColors.flame),
+                          ),
+                          child: const Text('Decline'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => onAccept(pr.id),
+                          child: const Text('Accept'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+class _PRStatusFooter extends StatelessWidget {
+  final QuestionPullRequestModel? myPR;
+  final VoidCallback onShowDialog;
+  final bool isSubmitting;
+
+  const _PRStatusFooter({
+    required this.myPR,
+    required this.onShowDialog,
+    required this.isSubmitting,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (myPR == null) {
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: isSubmitting ? null : onShowDialog,
+          icon: isSubmitting
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white),
+                )
+              : const Icon(Icons.call_merge_rounded),
+          label: const Text('Request to Answer'),
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+          ),
+        ),
+      );
+    }
+
+    if (myPR!.status == 'pending') {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: AppColors.bg3,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Column(
+          children: [
+            Icon(Icons.hourglass_empty_rounded, color: AppColors.text3),
+            SizedBox(height: 4),
+            Text(
+              'Your request to answer is pending approval...',
+              style: TextStyle(color: AppColors.text3, fontSize: 13),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (myPR!.status == 'rejected') {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: AppColors.flame.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Column(
+          children: [
+            Icon(Icons.block_rounded, color: AppColors.flame),
+            SizedBox(height: 4),
+            Text(
+              'Your request to answer was declined.',
+              style: TextStyle(color: AppColors.flame, fontSize: 13),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
+  }
+}
+
 class _InlineReplyComposer extends StatelessWidget {
   final TextEditingController controller;
   final String replyingToHandle;
@@ -726,61 +1045,83 @@ class _InlineReplyComposer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
+      padding: const EdgeInsets.all(12),
+      decoration: const BoxDecoration(
         color: AppColors.bg2,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
+              const Icon(Icons.reply_rounded,
+                  size: 16, color: AppColors.primary),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   'Replying to @$replyingToHandle',
                   style: const TextStyle(
                     color: AppColors.primary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
                   ),
                 ),
               ),
-              TextButton(
-                onPressed: submitting ? null : onCancel,
-                child: const Text('Cancel'),
-              ),
             ],
           ),
+          const SizedBox(height: 8),
           TextField(
             controller: controller,
             minLines: 1,
             maxLines: 4,
-            textInputAction: TextInputAction.newline,
-            style: const TextStyle(color: AppColors.text),
+            style: const TextStyle(color: AppColors.text, fontSize: 13),
             decoration: const InputDecoration(
-              hintText: 'Add context, a fix, or what they should try next...',
+              hintText: 'Type your reply...',
+              isDense: true,
+              contentPadding:
+                  EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(8)),
+                borderSide: BorderSide(color: AppColors.border),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(8)),
+                borderSide: BorderSide(color: AppColors.border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(8)),
+                borderSide: BorderSide(color: AppColors.primary),
+              ),
             ),
           ),
-          const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerRight,
-            child: ElevatedButton.icon(
-              onPressed: submitting ? null : onSubmit,
-              icon: submitting
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.send_rounded, size: 16),
-              label: const Text('Reply'),
-            ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: submitting ? null : onCancel,
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.text3,
+                ),
+                child: const Text('Cancel'),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: submitting ? null : onSubmit,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                ),
+                child: submitting
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('Reply'),
+              ),
+            ],
           ),
         ],
       ),

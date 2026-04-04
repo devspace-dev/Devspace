@@ -286,6 +286,10 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                         context
                             .read<NotificationsProvider>()
                             .markAllAsRead(me.id);
+                        // Force a UI rebuild to reflect the changes
+                        if (mounted) {
+                          setState(() {}); 
+                        }
                       },
                       child: const Text('Mark all as read'),
                     ),
@@ -572,15 +576,24 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
           }
           return false;
         },
-        child: PageView(
-          controller: _pageController,
-          physics: const NeverScrollableScrollPhysics(),
-          onPageChanged: (index) {
-            if (_tab != index && mounted) {
-              setState(() => _tab = index);
+        child: WillPopScope( // Intercept back button presses
+          onWillPop: () async {
+            if (_tab == 0) { // If on the Home screen (index 0)
+              return false; // Prevent app from closing, do nothing.
             }
+            // For other tabs, let the default behavior occur (pop route)
+            return true;
           },
-          children: screens,
+          child: PageView(
+            controller: _pageController,
+            physics: const NeverScrollableScrollPhysics(),
+            onPageChanged: (index) {
+              if (_tab != index && mounted) {
+                setState(() => _tab = index);
+              }
+            },
+            children: screens,
+          ),
         ),
       ),
       bottomNavigationBar: AnimatedSlide(

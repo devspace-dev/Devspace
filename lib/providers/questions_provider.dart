@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models/question_model.dart';
 import '../models/question_reply_model.dart';
+import '../models/question_pull_request_model.dart';
 import '../services/auth_service.dart';
 import '../services/supabase_service.dart';
 
@@ -31,6 +32,11 @@ class QuestionsProvider extends ChangeNotifier {
   String? _error;
   StreamSubscription<List<QuestionModel>>? _questionsSub;
 
+  final Map<String, List<QuestionPullRequestModel>> _pullRequestsByQuestion = {};
+  final Map<String, bool> _prLoading = {};
+  final Map<String, String?> _prErrors = {};
+  final Map<String, bool> _prSubmitting = {};
+
   List<QuestionModel> get questions => List.unmodifiable(_questions);
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -43,6 +49,9 @@ class QuestionsProvider extends ChangeNotifier {
   bool isSolveUpdating(String questionId) =>
       _solveUpdating[questionId] ?? false;
   String? solveError(String questionId) => _solveErrors[questionId];
+  bool isPRLoading(String questionId) => _prLoading[questionId] ?? false;
+  String? prError(String questionId) => _prErrors[questionId];
+  bool isPRSubmitting(String questionId) => _prSubmitting[questionId] ?? false;
 
   QuestionModel? getQuestionById(String questionId) {
     try {
@@ -55,6 +64,109 @@ class QuestionsProvider extends ChangeNotifier {
   List<QuestionReplyModel> repliesForQuestion(String questionId) {
     return List.unmodifiable(_repliesByQuestion[questionId] ?? const []);
   }
+
+  List<QuestionPullRequestModel> pullRequestsForQuestion(String questionId) {
+    return List.unmodifiable(_pullRequestsByQuestion[questionId] ?? const []);
+  }
+
+  QuestionPullRequestModel? getMyPullRequest(String questionId, String userId) {
+    try {
+      return _pullRequestsByQuestion[questionId]?.firstWhere(
+        (pr) => pr.userId == userId,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> fetchPullRequests(String questionId) async {
+    _prLoading[questionId] = true;
+    _prErrors[questionId] = null;
+    notifyListeners();
+
+    try {
+      final prs =
+          await SupabaseService.instance.getPullRequestsForQuestion(questionId);
+      _pullRequestsByQuestion[questionId] = prs;
+    } catch (e) {
+      _prErrors[questionId] = 'Failed to load pull requests: $e';
+    } finally {
+      _prLoading[questionId] = false;
+      notifyListeners();
+    }
+  }
+
+  Future<QuestionActionResult> submitPullRequest({
+    required String questionId,
+    required String userId,
+    required String message,
+  }) async {
+    final trimmedMessage = message.trim();
+    if (trimmedMessage.isEmpty) {
+      return const QuestionActionResult(
+        success: false,
+        error: 'Message is required.',
+      );
+    }
+
+    _prSubmitting[questionId] = true;
+    notifyListeners();
+
+    try {
+      await SupabaseService.instance.submitPullRequest(
+        questionId: questionId,
+        userId: userId,
+        message: trimmedMessage,
+      );
+      await fetchPullRequests(questionId);
+      return const QuestionActionResult(success: true);
+    } catch (e) {
+      return QuestionActionResult(
+        success: false,
+        error: 'Failed to submit pull request: $e',
+      );
+    } finally {
+      _prSubmitting[questionId] = false;
+      notifyListeners();
+    }
+  }
+
+  Future<QuestionActionResult> updatePullRequestStatus({
+    required String questionId,
+    required String prId,
+    required String status,
+  }) async {
+    try {
+      await SupabaseService.instance.updatePullRequestStatus(
+        prId: prId,
+        status: status,
+      );
+
+      // Send notification if accepted
+      if (status == 'accepted') {
+        final prs = _pullRequestsByQuestion[questionId] ?? [];
+        final pr = prs.firstWhere((p) => p.id == prId);
+        final question = getQuestionById(questionId);
+        if (question != null) {
+          await SupabaseService.instance.pushNotification(
+            toUid: pr.userId,
+            fromUid: question.userId,
+            type: 'pr_accepted',
+            message: 'Your request to answer "${question.title}" was accepted!',
+          );
+        }
+      }
+
+      await fetchPullRequests(questionId);
+      return const QuestionActionResult(success: true);
+    } catch (e) {
+      return QuestionActionResult(
+        success: false,
+        error: 'Failed to update request: $e',
+      );
+    }
+  }
+
 
   Future<void> fetchQuestions() async {
     if (_questionsSub != null) {

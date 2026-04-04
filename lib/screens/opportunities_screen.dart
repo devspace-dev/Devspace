@@ -53,10 +53,24 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> with SingleTi
                     onAction: provider.fetchOverview,
                   );
                 }
+                
+                // Add a fallback for unexpected empty states when not loading or in error
+                if (provider.events.isEmpty) {
+                  return AppEmptyState(
+                    icon: Icons.auto_awesome_rounded,
+                    title: 'No opportunities found',
+                    message: 'We could not find any opportunities or events at this time.',
+                  );
+                }
 
                 final allEvents = provider.events;
-                final opportunities = allEvents.where((e) => e.requiredAura > 0).toList();
-                final events = allEvents.where((e) => e.requiredAura == 0 || e.type.toLowerCase() == 'event').toList();
+                
+                // Opportunities: Items that are aura-locked or specifically for growing.
+                // Ongoing opportunities that will be unlocked by aura points.
+                final opportunities = allEvents.where((e) => e.requiredAura > 0 && e.type.toLowerCase() != 'hackathon').toList();
+                
+                // Events: Special hackathons and general events.
+                final events = allEvents.where((e) => e.type.toLowerCase() == 'hackathon' || (e.requiredAura == 0 && e.type.toLowerCase() == 'event')).toList();
 
                 return TabBarView(
                   controller: _tabController,
@@ -224,12 +238,14 @@ class _EventsList extends StatelessWidget {
       );
     }
 
+    final myAura = context.watch<AuthProvider>().currentUserOrNull?.aura ?? 0;
+
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 100),
       itemCount: events.length,
       itemBuilder: (context, index) {
         final event = events[index];
-        return _EventCard(event: event)
+        return _EventCard(event: event, myAura: myAura)
             .animate()
             .fadeIn(delay: (index * 100).ms)
             .slideX(begin: 0.1);
@@ -240,37 +256,55 @@ class _EventsList extends StatelessWidget {
 
 class _EventCard extends StatelessWidget {
   final EventAccessModel event;
+  final int myAura;
 
-  const _EventCard({required this.event});
+  const _EventCard({required this.event, required this.myAura});
 
   @override
   Widget build(BuildContext context) {
-    return Container( // Wrap AppCard with Container to apply margin
-      margin: const EdgeInsets.only(bottom: 16),
-      child: AppCard(
+    final isHackathon = event.type.toLowerCase() == 'hackathon';
+    final auraNeeded = event.requiredAura - myAura;
+    final progress = event.requiredAura > 0 ? (myAura / event.requiredAura).clamp(0.0, 1.0) : 1.0;
+    final isLocked = event.requiredAura > myAura;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      child: AppGlassCard(
+        opacity: isLocked ? 0.15 : 0.4,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                AppBadge(
-                  label: event.type.toUpperCase(),
-                  color: event.type.toLowerCase() == 'hackathon' ? Colors.purple : AppColors.primary,
+                Row(
+                  children: [
+                    Icon(
+                      isLocked ? Icons.lock_rounded : (isHackathon ? Icons.terminal_rounded : Icons.event_rounded),
+                      size: 20,
+                      color: isLocked ? AppColors.text3For(context) : (isHackathon ? Colors.purpleAccent : AppColors.primary),
+                    ),
+                    const SizedBox(width: 8),
+                    AppBadge(
+                      label: event.type.toUpperCase(),
+                      color: isLocked ? AppColors.text3For(context) : (isHackathon ? Colors.purple : AppColors.primary),
+                    ),
+                  ],
                 ),
-                Text(
-                  'Coming Soon', // In a real app, use event.date
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.text3For(context)),
-                ),
+                if (!isLocked && isHackathon)
+                  const AppBadge(
+                    label: 'EXCLUSIVE',
+                    color: Colors.amber,
+                  ),
               ],
             ),
             const SizedBox(height: 16),
             Text(
               event.title,
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 20,
                 fontWeight: FontWeight.w900,
-                color: AppColors.textFor(context),
+                color: isLocked ? AppColors.text3For(context) : AppColors.textFor(context),
               ),
             ),
             const SizedBox(height: 8),
@@ -278,25 +312,46 @@ class _EventCard extends StatelessWidget {
               event.description,
               style: TextStyle(
                 fontSize: 14,
-                color: AppColors.text2For(context),
-                height: 1.4,
+                height: 1.5,
+                color: isLocked ? AppColors.text4For(context) : AppColors.text2For(context),
               ),
             ),
-            const SizedBox(height: 16),
-            AppButton(
-              height: 44,
-              backgroundColor: AppColors.bg3For(context),
-              foregroundColor: AppColors.textFor(context),
-              onPressed: () async {
-                await Clipboard.setData(ClipboardData(text: event.link));
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Link copied')),
-                  );
-                }
-              },
-              child: const Text('View Details', style: TextStyle(fontWeight: FontWeight.w800)),
-            ),
+            const SizedBox(height: 20),
+            if (isLocked) ...[
+              LinearProgressIndicator(
+                value: progress,
+                backgroundColor: AppColors.bg3For(context),
+                color: isHackathon ? Colors.purpleAccent : AppColors.primary,
+                borderRadius: BorderRadius.circular(10),
+                minHeight: 6,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Unlock at ${event.requiredAura} Aura · $auraNeeded more to go',
+                style: TextStyle(
+                  fontSize: 12, 
+                  fontWeight: FontWeight.w700, 
+                  color: AppColors.text3For(context),
+                ),
+              ),
+            ] else
+              AppButton(
+                height: 48,
+                backgroundColor: isHackathon ? Colors.purple.withValues(alpha: 0.2) : null,
+                foregroundColor: isHackathon ? Colors.purpleAccent : null,
+                onPressed: () async {
+                  await Clipboard.setData(ClipboardData(text: event.link));
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Registration link copied!')),
+                    );
+                  }
+                },
+                child: Text(
+                  isHackathon ? 'Register for Hackathon' : 'Join Event', 
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ),
           ],
         ),
       ),

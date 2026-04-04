@@ -194,7 +194,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
 
     if (confirm == true && context.mounted) {
+      // Wait for signOut to complete
       await context.read<AuthProvider>().signOut();
+
+      // Ensure navigation happens only after signOut is confirmed complete
+      // and currentUser is null (or will become null shortly via listener).
+      // popUntil route.isFirst navigates to the root. Assuming the root is the login/splash screen.
       if (context.mounted) {
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
