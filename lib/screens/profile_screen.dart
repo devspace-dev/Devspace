@@ -27,7 +27,11 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final me = context.watch<AuthProvider>().currentUser;
+    final me = context.watch<AuthProvider>().currentUserOrNull;
+    if (me == null) {
+      return Scaffold(backgroundColor: AppColors.bgFor(context));
+    }
+
     final usersP = context.watch<UsersProvider>();
     final postsP = context.watch<PostsProvider>();
     final isMe = userId == null || userId == me.id;
@@ -159,7 +163,9 @@ class ProfileScreen extends StatelessWidget {
                         } catch (e) {
                           if (!context.mounted) return;
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(e.toString()), behavior: SnackBarBehavior.floating),
+                            SnackBar(
+                                content: Text(e.toString()),
+                                behavior: SnackBarBehavior.floating),
                           );
                         }
                       },
@@ -203,7 +209,8 @@ class ProfileScreen extends StatelessWidget {
                                 ),
                                 if (profileUser.isFounder) ...[
                                   const SizedBox(width: 6),
-                                  const Icon(Icons.verified_rounded, color: Colors.amber, size: 20),
+                                  const Icon(Icons.verified_rounded,
+                                      color: Colors.amber, size: 20),
                                 ],
                               ],
                             ),
@@ -231,15 +238,20 @@ class ProfileScreen extends StatelessWidget {
                             else
                               _FollowButton(
                                 isFollowing: profileUser.isFollowing,
-                                isUpdating: usersP.isFollowUpdating(profileUser.id),
+                                isUpdating:
+                                    usersP.isFollowUpdating(profileUser.id),
                                 onTap: () async {
                                   HapticFeedback.mediumImpact();
-                                  await usersP.toggleFollow(me.id, profileUser.id);
+                                  await usersP.toggleFollow(
+                                      me.id, profileUser.id);
                                   if (!context.mounted) return;
-                                  final error = usersP.followError(profileUser.id);
+                                  final error =
+                                      usersP.followError(profileUser.id);
                                   if (error != null) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text(error), behavior: SnackBarBehavior.floating),
+                                      SnackBar(
+                                          content: Text(error),
+                                          behavior: SnackBarBehavior.floating),
                                     );
                                   }
                                 },
@@ -327,7 +339,9 @@ class ProfileScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: AppColors.bg2For(context),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.borderFor(context).withValues(alpha: 0.5)),
+                      border: Border.all(
+                          color: AppColors.borderFor(context)
+                              .withValues(alpha: 0.5)),
                     ),
                     child: AuraBar(aura: profileUser.aura),
                   ),
@@ -354,7 +368,8 @@ class ProfileScreen extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.auto_awesome_rounded, color: AppColors.text4For(context), size: 40),
+                    Icon(Icons.auto_awesome_rounded,
+                        color: AppColors.text4For(context), size: 40),
                     const SizedBox(height: 16),
                     Text(
                       'No builds shared yet.',
@@ -426,7 +441,8 @@ class _StatBox extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.bg2For(context),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.borderFor(context).withValues(alpha: 0.5)),
+          border: Border.all(
+              color: AppColors.borderFor(context).withValues(alpha: 0.5)),
         ),
         child: Column(
           children: [
@@ -485,7 +501,10 @@ class _FollowButton extends StatelessWidget {
   final bool isUpdating;
   final VoidCallback onTap;
 
-  const _FollowButton({required this.isFollowing, required this.isUpdating, required this.onTap});
+  const _FollowButton(
+      {required this.isFollowing,
+      required this.isUpdating,
+      required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -498,7 +517,8 @@ class _FollowButton extends StatelessWidget {
           color: isFollowing ? Colors.transparent : AppColors.primary,
           borderRadius: BorderRadius.circular(99),
           border: Border.all(
-            color: isFollowing ? AppColors.borderFor(context) : AppColors.primary,
+            color:
+                isFollowing ? AppColors.borderFor(context) : AppColors.primary,
             width: 1.2,
           ),
         ),

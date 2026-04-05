@@ -214,7 +214,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
       if (!mounted) return;
       final auth = context.read<AuthProvider>();
       final user = auth.currentUserOrNull;
-      
+
       // Initialize shared public data
       context.read<UsersProvider>().fetchUsers();
       context.read<PostsProvider>().fetchFeed();
@@ -288,7 +288,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                             .markAllAsRead(me.id);
                         // Force a UI rebuild to reflect the changes
                         if (mounted) {
-                          setState(() {}); 
+                          setState(() {});
                         }
                       },
                       child: const Text('Mark all as read'),
@@ -462,8 +462,8 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                       );
                     },
                     backgroundColor: AppColors.primary,
-                    child:
-                        const Icon(Icons.emoji_events_rounded, color: Colors.white),
+                    child: const Icon(Icons.emoji_events_rounded,
+                        color: Colors.white),
                   )
                 : null),
       ),
@@ -492,9 +492,9 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                       color: AppColors.textFor(context),
                     ),
                   ).animate().fadeIn(duration: 400.ms).scale(
-                        begin: const Offset(0.9, 0.9),
-                        curve: Curves.easeOutBack,
-                      )
+                      begin: const Offset(0.9, 0.9),
+                      curve: Curves.easeOutBack,
+                    )
                 : Text(
                     _titles[_tab],
                     style: GoogleFonts.plusJakartaSans(
@@ -510,7 +510,9 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                 icon: Badge(
                   backgroundColor: AppColors.primary,
                   isLabelVisible: unreadCount > 0,
-                  label: Text('$unreadCount', style: const TextStyle(fontSize: 10, color: Colors.white)),
+                  label: Text('$unreadCount',
+                      style:
+                          const TextStyle(fontSize: 10, color: Colors.white)),
                   child: const Icon(Icons.notifications_none_rounded, size: 24),
                 ),
               ),
@@ -527,7 +529,8 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                           color: AppColors.primary.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                              color: AppColors.primary.withValues(alpha: 0.2), width: 1),
+                              color: AppColors.primary.withValues(alpha: 0.2),
+                              width: 1),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -558,7 +561,9 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                 icon: Badge(
                   backgroundColor: AppColors.primary,
                   isLabelVisible: unreadMessages > 0,
-                  label: Text('$unreadMessages', style: const TextStyle(fontSize: 10, color: Colors.white)),
+                  label: Text('$unreadMessages',
+                      style:
+                          const TextStyle(fontSize: 10, color: Colors.white)),
                   child: const Icon(Icons.mail_outline_rounded, size: 24),
                 ),
               ),
@@ -576,13 +581,13 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
           }
           return false;
         },
-        child: WillPopScope( // Intercept back button presses
+        child: WillPopScope(
           onWillPop: () async {
-            if (_tab == 0) { // If on the Home screen (index 0)
-              return false; // Prevent app from closing, do nothing.
+            if (_tab != 0) {
+              _onTabSelected(0); // Go back to Home tab
+              return false; // Prevent app from closing
             }
-            // For other tabs, let the default behavior occur (pop route)
-            return true;
+            return true; // Let the app close when on the Home tab
           },
           child: PageView(
             controller: _pageController,

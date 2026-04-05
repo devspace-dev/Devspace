@@ -9,7 +9,12 @@ import '../services/backend_api_service.dart';
 typedef AuraSummaryLoader = Future<AuraSummaryModel> Function();
 typedef EligibleEventsLoader = Future<List<EventAccessModel>> Function();
 typedef DailyChallengeLoader = Future<DailyChallengeModel?> Function();
+typedef WeeklyFreeChallengeLoader = Future<DailyChallengeModel?> Function();
 typedef DailyChallengeSubmitter = Future<Map<String, dynamic>> Function({
+  required String submissionText,
+  required String submissionLink,
+});
+typedef WeeklyFreeChallengeSubmitter = Future<Map<String, dynamic>> Function({
   required String submissionText,
   required String submissionLink,
 });
@@ -20,25 +25,34 @@ class EngagementProvider extends ChangeNotifier {
     AuraSummaryLoader? auraSummaryLoader,
     EligibleEventsLoader? eligibleEventsLoader,
     DailyChallengeLoader? dailyChallengeLoader,
+    WeeklyFreeChallengeLoader? weeklyFreeChallengeLoader,
     DailyChallengeSubmitter? dailyChallengeSubmitter,
+    WeeklyFreeChallengeSubmitter? weeklyFreeChallengeSubmitter,
     UserRefreshCallback? refreshCurrentUser,
   })  : _auraSummaryLoader = auraSummaryLoader ?? _defaultAuraSummaryLoader,
         _eligibleEventsLoader =
             eligibleEventsLoader ?? _defaultEligibleEventsLoader,
         _dailyChallengeLoader =
             dailyChallengeLoader ?? _defaultDailyChallengeLoader,
+        _weeklyFreeChallengeLoader =
+            weeklyFreeChallengeLoader ?? _defaultWeeklyFreeChallengeLoader,
         _dailyChallengeSubmitter =
             dailyChallengeSubmitter ?? _defaultDailyChallengeSubmitter,
+        _weeklyFreeChallengeSubmitter =
+            weeklyFreeChallengeSubmitter ?? _defaultWeeklyFreeChallengeSubmitter,
         _refreshCurrentUser =
             refreshCurrentUser ?? _defaultRefreshCurrentUser;
 
   final AuraSummaryLoader _auraSummaryLoader;
   final EligibleEventsLoader _eligibleEventsLoader;
   final DailyChallengeLoader _dailyChallengeLoader;
+  final WeeklyFreeChallengeLoader _weeklyFreeChallengeLoader;
   final DailyChallengeSubmitter _dailyChallengeSubmitter;
+  final WeeklyFreeChallengeSubmitter _weeklyFreeChallengeSubmitter;
   final UserRefreshCallback _refreshCurrentUser;
   AuraSummaryModel? _auraSummary;
   DailyChallengeModel? _dailyChallenge;
+  DailyChallengeModel? _weeklyFreeChallenge;
   List<EventAccessModel> _events = [];
   bool _isWeeklyChallengeEnrolled = false;
   bool _isLoading = false;
@@ -48,6 +62,7 @@ class EngagementProvider extends ChangeNotifier {
 
   AuraSummaryModel? get auraSummary => _auraSummary;
   DailyChallengeModel? get dailyChallenge => _dailyChallenge;
+  DailyChallengeModel? get weeklyFreeChallenge => _weeklyFreeChallenge;
   List<EventAccessModel> get events => List.unmodifiable(_events);
   bool get isWeeklyChallengeEnrolled => _isWeeklyChallengeEnrolled;
   bool get isLoading => _isLoading;
@@ -71,11 +86,25 @@ class EngagementProvider extends ChangeNotifier {
     return BackendApiService.instance.getDailyChallenge();
   }
 
+  static Future<DailyChallengeModel?> _defaultWeeklyFreeChallengeLoader() {
+    return BackendApiService.instance.getWeeklyFreeChallenge();
+  }
+
   static Future<Map<String, dynamic>> _defaultDailyChallengeSubmitter({
     required String submissionText,
     required String submissionLink,
   }) {
     return BackendApiService.instance.completeDailyChallenge(
+      submissionText: submissionText,
+      submissionLink: submissionLink,
+    );
+  }
+
+  static Future<Map<String, dynamic>> _defaultWeeklyFreeChallengeSubmitter({
+    required String submissionText,
+    required String submissionLink,
+  }) {
+    return BackendApiService.instance.submitWeeklyFreeChallenge(
       submissionText: submissionText,
       submissionLink: submissionLink,
     );
@@ -93,6 +122,7 @@ class EngagementProvider extends ChangeNotifier {
     AuraSummaryModel? nextSummary = _auraSummary;
     List<EventAccessModel> nextEvents = _events;
     DailyChallengeModel? nextChallenge = _dailyChallenge;
+    DailyChallengeModel? nextWeeklyFree = _weeklyFreeChallenge;
     String? nextError;
 
     try {
@@ -114,9 +144,16 @@ class EngagementProvider extends ChangeNotifier {
     }
 
     try {
+      nextWeeklyFree = await _weeklyFreeChallengeLoader();
+    } catch (_) {
+      nextWeeklyFree = _weeklyFreeChallenge;
+    }
+
+    try {
       _auraSummary = nextSummary;
       _events = nextEvents;
       _dailyChallenge = nextChallenge;
+      _weeklyFreeChallenge = nextWeeklyFree;
       _error = nextSummary == null ? nextError : null;
       await _refreshCurrentUser();
     } finally {
@@ -143,6 +180,39 @@ class EngagementProvider extends ChangeNotifier {
 
     try {
       await _dailyChallengeSubmitter(
+        submissionText: submissionText,
+        submissionLink: submissionLink,
+      );
+
+      await fetchOverview(forceChallengeRefresh: true);
+      return true;
+    } catch (e) {
+      _error = 'Failed to submit challenge: $e';
+      return false;
+    } finally {
+      _isSubmittingChallenge = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> submitWeeklyFreeChallenge({
+    required String submissionText,
+    required String submissionLink,
+  }) async {
+    if (_isSubmittingChallenge) return false;
+
+    if (submissionText.trim().isEmpty) {
+      _error = 'Select one answer before submitting.';
+      notifyListeners();
+      return false;
+    }
+
+    _isSubmittingChallenge = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      await _weeklyFreeChallengeSubmitter(
         submissionText: submissionText,
         submissionLink: submissionLink,
       );

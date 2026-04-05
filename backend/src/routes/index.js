@@ -11,6 +11,7 @@ router.post('/challenges/complete', protect, challengeCtrl.submitCompletion);
 
 // Admin Routes
 router.post('/admin/challenges', protect, isAdmin, adminCtrl.createChallenge);
+router.post('/admin/challenges/auto-generate', protect, isAdmin, adminCtrl.autoGenerateChallenge);
 router.get('/admin/challenges', protect, isAdmin, adminCtrl.getAllChallenges);
 router.put('/admin/challenges/:id', protect, isAdmin, adminCtrl.updateChallenge);
 router.delete('/admin/challenges/:id', protect, isAdmin, adminCtrl.deleteChallenge);

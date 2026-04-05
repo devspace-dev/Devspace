@@ -17,7 +17,8 @@ class OpportunitiesScreen extends StatefulWidget {
   State<OpportunitiesScreen> createState() => _OpportunitiesScreenState();
 }
 
-class _OpportunitiesScreenState extends State<OpportunitiesScreen> with SingleTickerProviderStateMixin {
+class _OpportunitiesScreenState extends State<OpportunitiesScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -34,55 +35,87 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> with SingleTi
 
   @override
   Widget build(BuildContext context) {
-    return AppGradientBackground(
-      child: Column(
-        children: [
-          _buildTabBar(context),
-          Expanded(
-            child: Consumer<EngagementProvider>(
-              builder: (context, provider, _) {
-                if (provider.isLoading && provider.events.isEmpty) {
-                  return const Center(child: CircularProgressIndicator.adaptive());
-                }
-
-                if (provider.error != null && provider.events.isEmpty) {
-                  return AppErrorState(
-                    title: 'Could not load data',
-                    message: provider.error!,
-                    actionLabel: 'Retry',
-                    onAction: provider.fetchOverview,
-                  );
-                }
-                
-                // Add a fallback for unexpected empty states when not loading or in error
-                if (provider.events.isEmpty) {
-                  return AppEmptyState(
-                    icon: Icons.auto_awesome_rounded,
-                    title: 'No opportunities found',
-                    message: 'We could not find any opportunities or events at this time.',
-                  );
-                }
-
-                final allEvents = provider.events;
-                
-                // Opportunities: Items that are aura-locked or specifically for growing.
-                // Ongoing opportunities that will be unlocked by aura points.
-                final opportunities = allEvents.where((e) => e.requiredAura > 0 && e.type.toLowerCase() != 'hackathon').toList();
-                
-                // Events: Special hackathons and general events.
-                final events = allEvents.where((e) => e.type.toLowerCase() == 'hackathon' || (e.requiredAura == 0 && e.type.toLowerCase() == 'event')).toList();
-
-                return TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _OpportunitiesList(opportunities: opportunities),
-                    _EventsList(events: events),
-                  ],
-                );
-              },
-            ),
+    return Scaffold(
+      backgroundColor: AppColors.bgFor(context),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        iconTheme: IconThemeData(color: AppColors.textFor(context)),
+        title: Text(
+          'Opportunities',
+          style: TextStyle(
+            fontWeight: FontWeight.w900,
+            fontSize: 24,
+            color: AppColors.textFor(context),
+            letterSpacing: -1,
           ),
-        ],
+        ),
+      ),
+      extendBodyBehindAppBar: true,
+      body: AppGradientBackground(
+        child: SafeArea(
+          child: Column(
+            children: [
+              _buildTabBar(context),
+              Expanded(
+                child: Consumer<EngagementProvider>(
+                  builder: (context, provider, _) {
+                    if (provider.isLoading && provider.events.isEmpty) {
+                      return const Center(
+                          child: CircularProgressIndicator.adaptive());
+                    }
+
+                    if (provider.error != null && provider.events.isEmpty) {
+                      return AppErrorState(
+                        title: 'Could not load data',
+                        message: provider.error!,
+                        actionLabel: 'Retry',
+                        onAction: provider.fetchOverview,
+                      );
+                    }
+
+                    // Add a fallback for unexpected empty states when not loading or in error
+                    if (provider.events.isEmpty) {
+                      return AppEmptyState(
+                        icon: Icons.auto_awesome_rounded,
+                        title: 'No opportunities found',
+                        message:
+                            'We could not find any opportunities or events at this time.',
+                      );
+                    }
+
+                    final allEvents = provider.events;
+
+                    // Opportunities: Items that are aura-locked or specifically for growing.
+                    // Ongoing opportunities that will be unlocked by aura points.
+                    final opportunities = allEvents
+                        .where((e) =>
+                            e.requiredAura > 0 &&
+                            e.type.toLowerCase() != 'hackathon')
+                        .toList();
+
+                    // Events: Special hackathons and general events.
+                    final events = allEvents
+                        .where((e) =>
+                            e.type.toLowerCase() == 'hackathon' ||
+                            (e.requiredAura == 0 &&
+                                e.type.toLowerCase() == 'event'))
+                        .toList();
+
+                    return TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _OpportunitiesList(opportunities: opportunities),
+                        _EventsList(events: events),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -98,7 +131,8 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> with SingleTi
         labelColor: AppColors.textFor(context),
         unselectedLabelColor: AppColors.text3For(context),
         labelStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
-        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+        unselectedLabelStyle:
+            const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
         tabs: const [
           Tab(text: 'Opportunities'),
           Tab(text: 'Events'),
@@ -162,12 +196,15 @@ class _OpportunityCard extends StatelessWidget {
                 Icon(
                   opp.unlocked ? Icons.lock_open_rounded : Icons.lock_rounded,
                   size: 20,
-                  color: opp.unlocked ? Colors.green : AppColors.text3For(context),
+                  color:
+                      opp.unlocked ? Colors.green : AppColors.text3For(context),
                 ),
                 const SizedBox(width: 8),
                 AppBadge(
                   label: opp.type.toUpperCase(),
-                  color: opp.unlocked ? AppColors.primary : AppColors.text3For(context),
+                  color: opp.unlocked
+                      ? AppColors.primary
+                      : AppColors.text3For(context),
                 ),
               ],
             ),
@@ -177,7 +214,9 @@ class _OpportunityCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w900,
-                color: opp.unlocked ? AppColors.textFor(context) : AppColors.text3For(context),
+                color: opp.unlocked
+                    ? AppColors.textFor(context)
+                    : AppColors.text3For(context),
               ),
             ),
             const SizedBox(height: 8),
@@ -186,7 +225,9 @@ class _OpportunityCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: 14,
                 height: 1.5,
-                color: opp.unlocked ? AppColors.text2For(context) : AppColors.text4For(context),
+                color: opp.unlocked
+                    ? AppColors.text2For(context)
+                    : AppColors.text4For(context),
               ),
             ),
             const SizedBox(height: 20),
@@ -201,7 +242,10 @@ class _OpportunityCard extends StatelessWidget {
               const SizedBox(height: 10),
               Text(
                 'Requires ${opp.requiredAura} Aura · You are $auraNeeded away',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.text3For(context)),
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.text3For(context)),
               ),
             ] else
               AppButton(
@@ -214,7 +258,8 @@ class _OpportunityCard extends StatelessWidget {
                     );
                   }
                 },
-                child: const Text('Join Now', style: TextStyle(fontWeight: FontWeight.w900)),
+                child: const Text('Join Now',
+                    style: TextStyle(fontWeight: FontWeight.w900)),
               ),
           ],
         ),
@@ -264,7 +309,9 @@ class _EventCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isHackathon = event.type.toLowerCase() == 'hackathon';
     final auraNeeded = event.requiredAura - myAura;
-    final progress = event.requiredAura > 0 ? (myAura / event.requiredAura).clamp(0.0, 1.0) : 1.0;
+    final progress = event.requiredAura > 0
+        ? (myAura / event.requiredAura).clamp(0.0, 1.0)
+        : 1.0;
     final isLocked = event.requiredAura > myAura;
 
     return Container(
@@ -280,14 +327,24 @@ class _EventCard extends StatelessWidget {
                 Row(
                   children: [
                     Icon(
-                      isLocked ? Icons.lock_rounded : (isHackathon ? Icons.terminal_rounded : Icons.event_rounded),
+                      isLocked
+                          ? Icons.lock_rounded
+                          : (isHackathon
+                              ? Icons.terminal_rounded
+                              : Icons.event_rounded),
                       size: 20,
-                      color: isLocked ? AppColors.text3For(context) : (isHackathon ? Colors.purpleAccent : AppColors.primary),
+                      color: isLocked
+                          ? AppColors.text3For(context)
+                          : (isHackathon
+                              ? Colors.purpleAccent
+                              : AppColors.primary),
                     ),
                     const SizedBox(width: 8),
                     AppBadge(
                       label: event.type.toUpperCase(),
-                      color: isLocked ? AppColors.text3For(context) : (isHackathon ? Colors.purple : AppColors.primary),
+                      color: isLocked
+                          ? AppColors.text3For(context)
+                          : (isHackathon ? Colors.purple : AppColors.primary),
                     ),
                   ],
                 ),
@@ -304,7 +361,9 @@ class _EventCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w900,
-                color: isLocked ? AppColors.text3For(context) : AppColors.textFor(context),
+                color: isLocked
+                    ? AppColors.text3For(context)
+                    : AppColors.textFor(context),
               ),
             ),
             const SizedBox(height: 8),
@@ -313,7 +372,9 @@ class _EventCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: 14,
                 height: 1.5,
-                color: isLocked ? AppColors.text4For(context) : AppColors.text2For(context),
+                color: isLocked
+                    ? AppColors.text4For(context)
+                    : AppColors.text2For(context),
               ),
             ),
             const SizedBox(height: 20),
@@ -329,26 +390,28 @@ class _EventCard extends StatelessWidget {
               Text(
                 'Unlock at ${event.requiredAura} Aura · $auraNeeded more to go',
                 style: TextStyle(
-                  fontSize: 12, 
-                  fontWeight: FontWeight.w700, 
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
                   color: AppColors.text3For(context),
                 ),
               ),
             ] else
               AppButton(
                 height: 48,
-                backgroundColor: isHackathon ? Colors.purple.withValues(alpha: 0.2) : null,
+                backgroundColor:
+                    isHackathon ? Colors.purple.withValues(alpha: 0.2) : null,
                 foregroundColor: isHackathon ? Colors.purpleAccent : null,
                 onPressed: () async {
                   await Clipboard.setData(ClipboardData(text: event.link));
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Registration link copied!')),
+                      const SnackBar(
+                          content: Text('Registration link copied!')),
                     );
                   }
                 },
                 child: Text(
-                  isHackathon ? 'Register for Hackathon' : 'Join Event', 
+                  isHackathon ? 'Register for Hackathon' : 'Join Event',
                   style: const TextStyle(fontWeight: FontWeight.w900),
                 ),
               ),

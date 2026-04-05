@@ -1047,6 +1047,127 @@ class BackendApiService {
 
   String cleanErrorText(Object error) => _cleanErrorText(error);
 
+  Future<Map<String, dynamic>?> _resolveWeeklyFreeChallengeFallback({
+    String? techStack,
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) return null;
+
+    final userRow = await _client
+        .from('users')
+        .select('stack')
+        .eq('id', user.id)
+        .maybeSingle();
+
+    final requestedCandidates = <String>{};
+    if (techStack != null && techStack.trim().isNotEmpty) {
+      requestedCandidates.addAll(_stackCandidates(techStack));
+      requestedCandidates.add(techStack.trim().toLowerCase());
+    }
+
+    final rawStacks = (userRow?['stack'] as List?) ?? const [];
+    for (final item in rawStacks) {
+      final value = item.toString().trim();
+      if (value.isEmpty) continue;
+      requestedCandidates.add(value.toLowerCase());
+      requestedCandidates.addAll(_stackCandidates(value));
+    }
+    requestedCandidates.add('general');
+
+    // Fetch from challenges table for weekly tasks
+    final challengeRows = await _client
+        .from('challenges')
+        .select(
+          'id, title, description, difficulty, tech_stack, points_reward, publish_date, is_active',
+        )
+        .eq('is_active', true)
+        .order('publish_date', ascending: false)
+        .limit(20);
+
+    if (challengeRows is! List || challengeRows.isEmpty) {
+      return null;
+    }
+
+    Map<String, dynamic>? matchedChallenge;
+    for (final row in challengeRows) {
+      final challenge = Map<String, dynamic>.from(row as Map);
+      final challengeStack = challenge['tech_stack']?.toString().trim() ?? '';
+      final challengeCandidates = <String>{
+        challengeStack.toLowerCase(),
+        ..._stackCandidates(challengeStack),
+      }..remove('');
+
+      if (challengeCandidates.any(requestedCandidates.contains)) {
+        matchedChallenge = challenge;
+        break;
+      }
+    }
+
+    matchedChallenge ??= challengeRows
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .firstWhere(
+          (c) =>
+              (c['tech_stack']?.toString().trim().toLowerCase() ?? '') ==
+              'general',
+          orElse: () => Map<String, dynamic>.from(challengeRows.first as Map),
+        );
+
+    return {
+      'id': '',
+      'challenge_id': matchedChallenge['id'],
+      'assigned_date': DateTime.now().toIso8601String().split('T').first,
+      'selected_tech_stack': requestedCandidates.first,
+      'completed': false,
+      'completed_at': null,
+      'is_correct': false,
+      'challenge': matchedChallenge,
+    };
+  }
+
+  Future<DailyChallengeModel?> getWeeklyFreeChallenge({String? techStack}) async {
+    try {
+      final data = Map<String, dynamic>.from(
+        await _request(
+          'GET',
+          '/missions/weekly-free',
+          queryParameters: techStack == null ? null : {'techStack': techStack},
+        ) as Map,
+      );
+      return DailyChallengeModel.fromJson(data);
+    } catch (error) {
+      if (!_isRouteMissingError(error)) rethrow;
+      
+      final data = await _resolveWeeklyFreeChallengeFallback(techStack: techStack);
+      if (data == null) return null;
+      return DailyChallengeModel.fromJson(data);
+    }
+  }
+
+  Future<Map<String, dynamic>> submitWeeklyFreeChallenge({
+    required String submissionText,
+    String submissionLink = '',
+  }) async {
+    try {
+      final data = await _request(
+        'POST',
+        '/missions/weekly-free/submit',
+        body: {
+          'submissionText': submissionText,
+          'submissionLink': submissionLink,
+        },
+      ) as Map;
+      return Map<String, dynamic>.from(data);
+    } catch (error) {
+      if (!_isRouteMissingError(error)) rethrow;
+      
+      // Use the daily submission as a fallback
+      return completeDailyChallenge(
+        submissionText: submissionText,
+        submissionLink: submissionLink,
+      );
+    }
+  }
+
   Future<Map<String, dynamic>> completeDailyChallenge({
     String submissionText = '',
     String submissionLink = '',

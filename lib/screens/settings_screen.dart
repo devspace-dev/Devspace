@@ -29,7 +29,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final me = context.watch<AuthProvider>().currentUser;
+    final me = context.watch<AuthProvider>().currentUserOrNull;
+    if (me == null) {
+      return Scaffold(backgroundColor: AppColors.bgFor(context));
+    }
+
     final posts = context.watch<PostsProvider>().postsForUser(me.id);
     final totalLikes = posts.fold<int>(0, (sum, post) => sum + post.likes);
 
@@ -90,7 +94,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _SettingsTile(
               icon: Icons.developer_mode_rounded,
               title: 'Developer Dashboard',
-              subtitle: 'Backend checks, device access, and internal system tools.',
+              subtitle:
+                  'Backend checks, device access, and internal system tools.',
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(

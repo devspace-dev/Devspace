@@ -93,12 +93,12 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.bg2,
-        title: const Text('Request to Answer'),
+        title: const Text('Submit Pull Request'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              'Tell the asker why you are the right person to answer this question.',
+              'Describe your proposed answer, fix, or solution to the asker.',
               style: TextStyle(color: AppColors.text2, fontSize: 14),
             ),
             const SizedBox(height: 16),
@@ -147,7 +147,7 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
     }
 
     messenger.showSnackBar(
-      SnackBar(content: Text('Request $status.')),
+      SnackBar(content: Text('Pull Request $status.')),
     );
   }
 
@@ -812,7 +812,7 @@ class _QuestionReplyTile extends StatelessWidget {
                                 size: 16,
                                 color: AppColors.solved,
                               ),
-                        label: const Text('Mark as solved'),
+                        label: const Text('Accept Pull Request'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.solved,
                           side: BorderSide(
@@ -864,7 +864,7 @@ class _PullRequestsSection extends StatelessWidget {
                     color: AppColors.primary, size: 20),
                 const SizedBox(width: 8),
                 Text(
-                  'Pending Requests (${pendingPRs.length})',
+                  'Pending Pull Requests (${pendingPRs.length})',
                   style: const TextStyle(
                     color: AppColors.primary,
                     fontWeight: FontWeight.w800,
@@ -973,7 +973,7 @@ class _PRStatusFooter extends StatelessWidget {
                       strokeWidth: 2, color: Colors.white),
                 )
               : const Icon(Icons.call_merge_rounded),
-          label: const Text('Request to Answer'),
+          label: const Text('Put Pull Request'),
           style: ElevatedButton.styleFrom(
             padding: const EdgeInsets.symmetric(vertical: 16),
           ),
@@ -994,7 +994,7 @@ class _PRStatusFooter extends StatelessWidget {
             Icon(Icons.hourglass_empty_rounded, color: AppColors.text3),
             SizedBox(height: 4),
             Text(
-              'Your request to answer is pending approval...',
+              'Your pull request is pending review...',
               style: TextStyle(color: AppColors.text3, fontSize: 13),
             ),
           ],
@@ -1015,7 +1015,7 @@ class _PRStatusFooter extends StatelessWidget {
             Icon(Icons.block_rounded, color: AppColors.flame),
             SizedBox(height: 4),
             Text(
-              'Your request to answer was declined.',
+              'Your pull request was declined.',
               style: TextStyle(color: AppColors.flame, fontSize: 13),
             ),
           ],

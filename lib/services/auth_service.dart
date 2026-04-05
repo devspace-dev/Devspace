@@ -18,7 +18,7 @@ class AuthService {
 
   static const String _collegeDomain = 'mnit.ac.in';
   final SupabaseClient _supabase = Supabase.instance.client;
-  final bool _enforceCollegeDomain = true;
+  final bool _enforceCollegeDomain = false;
   UserModel? _currentUser;
   final _authStateController = StreamController<UserModel?>.broadcast();
 

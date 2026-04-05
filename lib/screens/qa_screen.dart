@@ -48,156 +48,171 @@ class _QAScreenState extends State<QAScreen> {
     final currentUser = context.read<AuthProvider>().currentUser;
     final questions = questionsP.questions;
 
-    return RefreshIndicator(
-      color: AppColors.primary,
-      backgroundColor: AppColors.bg2For(context),
-      onRefresh: questionsP.refreshQuestions,
-      edgeOffset: 0,
-      child: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-              decoration: BoxDecoration(
-                border: Border(bottom: BorderSide(color: AppColors.borderFor(context), width: 0.5)),
+    return Scaffold(
+      backgroundColor: AppColors.bgFor(context),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: Text(
+          'Q&A',
+          style: TextStyle(
+            color: AppColors.textFor(context),
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        backgroundColor: AppColors.bg2For(context),
+        onRefresh: questionsP.refreshQuestions,
+        edgeOffset: 0,
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                decoration: BoxDecoration(
+                  border: Border(bottom: BorderSide(color: AppColors.borderFor(context), width: 0.5)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Questions & Answers',
+                            style: TextStyle(
+                              color: AppColors.textFor(context),
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Ask practical doubts, get real replies, and close loops with solved answers.',
+                            style: TextStyle(
+                              color: AppColors.text3For(context),
+                              fontSize: 12,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _showAskSheet,
+                      icon: const Icon(Icons.add_rounded, size: 16),
+                      label: const Text('Ask'),
+                    ),
+                  ],
+                ),
               ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Q&A',
-                          style: TextStyle(
-                            color: AppColors.textFor(context),
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Ask practical doubts, get real replies, and close loops with solved answers.',
-                          style: TextStyle(
-                            color: AppColors.text3For(context),
-                            fontSize: 12,
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
+            ),
+            SliverToBoxAdapter(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  border: Border(
+                    bottom: BorderSide(
+                      color: AppColors.primary.withValues(alpha: 0.18),
                     ),
                   ),
-                  ElevatedButton.icon(
-                    onPressed: _showAskSheet,
-                    icon: const Icon(Icons.add_rounded, size: 16),
-                    label: const Text('Ask'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.08),
-                border: Border(
-                  bottom: BorderSide(
-                    color: AppColors.primary.withValues(alpha: 0.18),
+                ),
+                child: Text(
+                  'Replies earn aura. Solved answers stay visible so the next student can learn faster.',
+                  style: TextStyle(
+                    color: AppColors.text2For(context),
+                    fontSize: 12,
+                    height: 1.45,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
-              child: Text(
-                'Replies earn aura. Solved answers stay visible so the next student can learn faster.',
-                style: TextStyle(
-                  color: AppColors.text2For(context),
-                  fontSize: 12,
-                  height: 1.45,
-                  fontWeight: FontWeight.w600,
+            ),
+            if (questionsP.error != null && questions.isNotEmpty)
+              SliverToBoxAdapter(
+                child: _InlineWarningBanner(
+                  message: questionsP.error!,
+                  onRetry: questionsP.refreshQuestions,
                 ),
               ),
-            ),
-          ),
-          if (questionsP.error != null && questions.isNotEmpty)
-            SliverToBoxAdapter(
-              child: _InlineWarningBanner(
-                message: questionsP.error!,
-                onRetry: questionsP.refreshQuestions,
-              ),
-            ),
-          if (questionsP.isLoading && questions.isEmpty)
-            const SliverFillRemaining(
-              hasScrollBody: false,
-              child: AppLoadingState(
-                title: 'Loading questions',
-                message: 'Pulling in the latest doubts and solutions from your community.',
-              ),
-            )
-          else if (questionsP.error != null && questions.isEmpty)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: AppErrorState(
-                title: 'Q&A unavailable',
-                message: questionsP.error!,
-                actionLabel: 'Retry',
-                onAction: questionsP.refreshQuestions,
-              ),
-            )
-          else if (questions.isEmpty)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: AppEmptyState(
-                icon: Icons.help_center_outlined,
-                title: 'No questions yet',
-                message:
-                    'Start the first useful thread for your college by posting a real doubt or technical decision.',
-                actionLabel: 'Ask question',
-                onAction: _showAskSheet,
-              ),
-            )
-          else
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final question = questions[index];
-                  final author = usersP.getUserById(question.userId) ??
-                      (currentUser.id == question.userId ? currentUser : null);
-                  return QuestionCard(
-                    question: question,
-                    author: author,
-                    isUpvoteUpdating: questionsP.isVoteUpdating(question.id),
-                    onUpvote: () async {
-                      final questionsProvider = context.read<QuestionsProvider>();
-                      final messenger = ScaffoldMessenger.of(context);
-                      final result = await questionsProvider.toggleUpvote(
-                        questionId: question.id,
-                        userId: currentUser.id,
-                      );
-                      if (!mounted || result.success || result.error == null) {
-                        return;
-                      }
-                      messenger.showSnackBar(
-                        SnackBar(content: Text(result.error!)),
-                      );
-                    },
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => QuestionDetailScreen(
-                            questionId: question.id,
+            if (questionsP.isLoading && questions.isEmpty)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: AppLoadingState(
+                  title: 'Loading questions',
+                  message: 'Pulling in the latest doubts and solutions from your community.',
+                ),
+              )
+            else if (questionsP.error != null && questions.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: AppErrorState(
+                  title: 'Q&A unavailable',
+                  message: questionsP.error!,
+                  actionLabel: 'Retry',
+                  onAction: questionsP.refreshQuestions,
+                ),
+              )
+            else if (questions.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: AppEmptyState(
+                  icon: Icons.help_center_outlined,
+                  title: 'No questions yet',
+                  message:
+                      'Start the first useful thread for your college by posting a real doubt or technical decision.',
+                  actionLabel: 'Ask question',
+                  onAction: _showAskSheet,
+                ),
+              )
+            else
+              SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final question = questions[index];
+                    final author = usersP.getUserById(question.userId) ??
+                        (currentUser.id == question.userId ? currentUser : null);
+                    return QuestionCard(
+                      question: question,
+                      author: author,
+                      isUpvoteUpdating: questionsP.isVoteUpdating(question.id),
+                      onUpvote: () async {
+                        final questionsProvider = context.read<QuestionsProvider>();
+                        final messenger = ScaffoldMessenger.of(context);
+                        final result = await questionsProvider.toggleUpvote(
+                          questionId: question.id,
+                          userId: currentUser.id,
+                        );
+                        if (!mounted || result.success || result.error == null) {
+                          return;
+                        }
+                        messenger.showSnackBar(
+                          SnackBar(content: Text(result.error!)),
+                        );
+                      },
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => QuestionDetailScreen(
+                              questionId: question.id,
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                  );
-                },
-                childCount: questions.length,
+                        );
+                      },
+                    );
+                  },
+                  childCount: questions.length,
+                ),
               ),
+            const SliverToBoxAdapter(
+              child: SizedBox(height: 20),
             ),
-          const SliverToBoxAdapter(
-            child: SizedBox(height: 20),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

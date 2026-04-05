@@ -2052,9 +2052,9 @@ begin
     raise exception 'Post not found';
   end if;
 
-  if post_owner_id = actor_id then
-    raise exception 'You cannot like your own post';
-  end if;
+  -- if post_owner_id = actor_id then
+  --   raise exception 'You cannot like your own post';
+  -- end if;
 
   perform public.register_rate_limited_action('like_post', 120, 3600, p_post_id::text);
 
@@ -2068,7 +2068,8 @@ begin
 
   perform public.sync_post_like_count(p_post_id);
 
-  perform public.award_aura(
+  if post_owner_id != actor_id then
+    perform public.award_aura(
     post_owner_id,
     'receive_like',
     2,
@@ -2077,6 +2078,7 @@ begin
     actor_id,
     jsonb_build_object('postId', p_post_id)
   );
+  end if;
 
   return jsonb_build_object('liked', true);
 end;
