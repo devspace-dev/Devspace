@@ -31,9 +31,10 @@
 - Notifications plumbing exists, but there is no full inbox/product flow beyond activity and message alerts
 - Automated coverage exists, but it is still light for a production beta
 - Feed still relies on realtime stream loading in the current UI, though paginated backend endpoints now exist
+- Pre-production release hardening now covers runtime config gating, Crashlytics wiring, notification permission requests, HTTPS-only backend expectations, and friendlier network failure handling
 
 ## Missing
 - Settings/account surface beyond sign-out
 - Notifications screen/inbox
 - Broader automated coverage for core flows
-- Production-grade release/config discipline beyond founder testing
+- External privacy policy URL and full Play Store listing assets/metadata

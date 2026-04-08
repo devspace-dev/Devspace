@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
-import '../providers/users_provider.dart';
 import '../providers/messages_provider.dart';
+import '../providers/users_provider.dart';
 import '../screens/chat_detail_screen.dart';
 import '../theme/app_colors.dart';
-import 'user_avatar.dart';
 import 'aura_bar.dart';
+import 'user_avatar.dart';
 
 class ProfileCard extends StatelessWidget {
   final UserModel user;
@@ -17,15 +18,20 @@ class ProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final usersP   = context.watch<UsersProvider>();
+    final usersP = context.watch<UsersProvider>();
     final liveUser = usersP.getUserById(user.id) ?? user;
 
     return InkWell(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(16),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: AppColors.border, width: 0.5)),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: AppColors.borderFor(context),
+              width: 0.5,
+            ),
+          ),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -44,17 +50,17 @@ class ProfileCard extends StatelessWidget {
                           children: [
                             Text(
                               liveUser.name,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 16,
-                                color: AppColors.text,
+                                color: AppColors.textFor(context),
                               ),
                             ),
                             Text(
-                              '@${liveUser.handle} · ${liveUser.role}',
-                              style: const TextStyle(
+                              '@${liveUser.handle} • ${liveUser.role}',
+                              style: TextStyle(
                                 fontSize: 13,
-                                color: AppColors.text3,
+                                color: AppColors.text3For(context),
                               ),
                             ),
                           ],
@@ -71,7 +77,11 @@ class ProfileCard extends StatelessWidget {
                       liveUser.bio,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 14, color: AppColors.text2, height: 1.3),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.text2For(context),
+                        height: 1.3,
+                      ),
                     ),
                   ],
                   const SizedBox(height: 12),
@@ -88,6 +98,7 @@ class ProfileCard extends StatelessWidget {
 
 class _MessageButton extends StatelessWidget {
   final UserModel user;
+
   const _MessageButton({required this.user});
 
   @override
@@ -117,7 +128,7 @@ class _MessageButton extends StatelessWidget {
       },
       icon: const Icon(Icons.mail_outline_rounded, size: 20),
       style: IconButton.styleFrom(
-        backgroundColor: AppColors.bg2,
+        backgroundColor: AppColors.bg2For(context),
         padding: EdgeInsets.zero,
         minimumSize: const Size(32, 32),
       ),
@@ -127,6 +138,7 @@ class _MessageButton extends StatelessWidget {
 
 class _FollowButton extends StatelessWidget {
   final UserModel user;
+
   const _FollowButton({required this.user});
 
   @override
@@ -139,8 +151,10 @@ class _FollowButton extends StatelessWidget {
     return ElevatedButton(
       onPressed: () => context.read<UsersProvider>().toggleFollow(me.id, user.id),
       style: ElevatedButton.styleFrom(
-        backgroundColor: isFollowing ? AppColors.bg2 : AppColors.text,
-        foregroundColor: isFollowing ? AppColors.text : AppColors.bg,
+        backgroundColor:
+            isFollowing ? AppColors.bg2For(context) : AppColors.textFor(context),
+        foregroundColor:
+            isFollowing ? AppColors.textFor(context) : AppColors.bgFor(context),
         padding: const EdgeInsets.symmetric(horizontal: 16),
         minimumSize: const Size(0, 32),
         elevation: 0,

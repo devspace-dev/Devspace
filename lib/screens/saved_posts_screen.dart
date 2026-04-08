@@ -32,14 +32,14 @@ class _SavedPostsScreenState extends State<SavedPostsScreen> {
     final savedPosts = postsProvider.savedPosts;
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.bgFor(context),
       appBar: AppBar(
-        backgroundColor: AppColors.bg,
+        backgroundColor: AppColors.bgFor(context),
         elevation: 0,
-        title: const Text(
+        title: Text(
           'Saved posts',
           style: TextStyle(
-            color: AppColors.text,
+            color: AppColors.textFor(context),
             fontWeight: FontWeight.w900,
           ),
         ),

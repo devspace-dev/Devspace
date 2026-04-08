@@ -13,7 +13,7 @@ class TermsAndConditionsScreen extends StatelessWidget {
         backgroundColor: AppColors.bgFor(context),
         elevation: 0,
         title: Text(
-          'Terms & Conditions',
+          'Terms & Privacy',
           style: GoogleFonts.spaceGrotesk(
             fontWeight: FontWeight.w900,
             color: AppColors.textFor(context),
@@ -45,13 +45,29 @@ class TermsAndConditionsScreen extends StatelessWidget {
             _sectionText(
               'Your privacy is important to us. We collect minimal data (email, name, profile details) to provide the service. We do not sell your data to third parties.',
             ),
-            _sectionTitle('5. Intellectual Property'),
+            _sectionTitle('5. Data We Collect'),
+            _sectionText(
+              'We collect account information you provide during sign up, profile information you add to your builder identity, and app activity needed to power posts, questions, comments, challenges, notifications, analytics, and account security.',
+            ),
+            _sectionTitle('6. How We Use Data'),
+            _sectionText(
+              'We use collected data to run the app, keep sessions secure, improve reliability, understand feature usage, and moderate misuse when needed for community safety.',
+            ),
+            _sectionTitle('7. Data Security'),
+            _sectionText(
+              'DevSpace uses authenticated backend services and encrypted HTTPS network requests for app communication. Access is limited to the data needed to operate the product.',
+            ),
+            _sectionTitle('8. Intellectual Property'),
             _sectionText(
               'The app\'s design, logo, and code are the property of DevSpace. You retain ownership of the content you post but grant us a license to display it within the app.',
             ),
-            _sectionTitle('6. Modifications'),
+            _sectionTitle('9. Modifications'),
             _sectionText(
               'We may update these terms from time to time. Continued use of the app after changes constitutes acceptance of the new terms.',
+            ),
+            _sectionTitle('10. Contact'),
+            _sectionText(
+              'For account, privacy, or policy questions, contact the DevSpace founders through the support channel shared with your college launch group before using the production app.',
             ),
             const SizedBox(height: 40),
             Center(

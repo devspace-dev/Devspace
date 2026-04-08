@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -14,12 +16,13 @@ class BackendApiService {
   static final BackendApiService instance = BackendApiService._internal();
   static const String _supabaseUrl = String.fromEnvironment(
     'SUPABASE_URL',
-    defaultValue: 'https://hybvsgxqstnxamdkijsk.supabase.co',
+    defaultValue: '',
   );
   static const String _supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
-    defaultValue: 'sb_publishable_PawpVpaKL2oGSMNT92IzkA_wjiORWQ4',
+    defaultValue: '',
   );
+  static const Duration _requestTimeout = Duration(seconds: 20);
 
   SupabaseClient get _client => Supabase.instance.client;
 
@@ -170,6 +173,12 @@ class BackendApiService {
   Future<Map<String, String>> _headers({
     bool includeFounderDevice = false,
   }) async {
+    if (_supabaseAnonKey.isEmpty) {
+      throw StateError(
+        'Missing Supabase runtime config. Add SUPABASE_ANON_KEY with --dart-define before using backend APIs.',
+      );
+    }
+
     final token = _client.auth.currentSession?.accessToken;
     if (token == null || token.isEmpty) {
       throw StateError('No authenticated session is available. Sign in again.');
@@ -189,7 +198,17 @@ class BackendApiService {
   }
 
   Uri _uri(String path, [Map<String, dynamic>? queryParameters]) {
+    if (_supabaseUrl.isEmpty) {
+      throw StateError(
+        'Missing Supabase runtime config. Add SUPABASE_URL with --dart-define before using backend APIs.',
+      );
+    }
+
     final base = Uri.parse(_supabaseUrl);
+    if (base.scheme != 'https') {
+      throw StateError('Backend requests must use HTTPS in production-ready builds.');
+    }
+
     return base.replace(
       path: '${base.path}/functions/v1$path',
       queryParameters: queryParameters?.map(
@@ -208,43 +227,61 @@ class BackendApiService {
     final headers = await _headers(includeFounderDevice: includeFounderDevice);
     final uri = _uri(path, queryParameters);
 
-    late final http.Response response;
-    switch (method) {
-      case 'GET':
-        response = await http.get(uri, headers: headers);
-        break;
-      case 'POST':
-        response = await http.post(
-          uri,
-          headers: headers,
-          body: jsonEncode(body ?? const {}),
-        );
-        break;
-      case 'DELETE':
-        response = await http.delete(
-          uri,
-          headers: headers,
-          body: body == null ? null : jsonEncode(body),
-        );
-        break;
-      case 'PATCH':
-        response = await http.patch(
-          uri,
-          headers: headers,
-          body: jsonEncode(body ?? const {}),
-        );
-        break;
-      default:
-        throw UnsupportedError('Unsupported method: $method');
-    }
+    try {
+      late final http.Response response;
+      switch (method) {
+        case 'GET':
+          response = await http
+              .get(uri, headers: headers)
+              .timeout(_requestTimeout);
+          break;
+        case 'POST':
+          response = await http
+              .post(
+                uri,
+                headers: headers,
+                body: jsonEncode(body ?? const {}),
+              )
+              .timeout(_requestTimeout);
+          break;
+        case 'DELETE':
+          response = await http
+              .delete(
+                uri,
+                headers: headers,
+                body: body == null ? null : jsonEncode(body),
+              )
+              .timeout(_requestTimeout);
+          break;
+        case 'PATCH':
+          response = await http
+              .patch(
+                uri,
+                headers: headers,
+                body: jsonEncode(body ?? const {}),
+              )
+              .timeout(_requestTimeout);
+          break;
+        default:
+          throw UnsupportedError('Unsupported method: $method');
+      }
 
-    if (response.statusCode >= 400) {
-      throw StateError(_friendlyErrorMessage(response));
-    }
+      if (response.statusCode >= 400) {
+        throw StateError(_friendlyErrorMessage(response));
+      }
 
-    if (response.body.isEmpty) return null;
-    final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-    return decoded['data'];
+      if (response.body.isEmpty) return null;
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      return decoded['data'];
+    } on SocketException {
+      throw StateError(
+        'No internet connection. Check your network and try again.',
+      );
+    } on TimeoutException {
+      throw StateError(
+        'The request took too long. Please retry on a stronger connection.',
+      );
+    }
   }
 
   Future<AuraSummaryModel> getAuraSummary([String? userId]) async {
@@ -507,21 +544,23 @@ class BackendApiService {
       ) as Map;
       return Map<String, dynamic>.from(data);
     } catch (error) {
-      if (!_isRouteMissingError(error)) rethrow;
+      try {
+        final data = await _client
+            .from('events')
+            .update({
+              'is_active': false,
+              'updated_at': DateTime.now().toUtc().toIso8601String(),
+            })
+            .eq('id', eventId)
+            .select(
+              'id, title, description, required_aura, link, type, is_active, created_by, created_at, updated_at',
+            )
+            .single();
 
-      final data = await _client
-          .from('events')
-          .update({
-            'is_active': false,
-            'updated_at': DateTime.now().toUtc().toIso8601String(),
-          })
-          .eq('id', eventId)
-          .select(
-            'id, title, description, required_aura, link, type, is_active, created_by, created_at, updated_at',
-          )
-          .single();
-
-      return Map<String, dynamic>.from(data);
+        return Map<String, dynamic>.from(data);
+      } catch (_) {
+        rethrow;
+      }
     }
   }
 

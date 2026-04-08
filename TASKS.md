@@ -30,13 +30,15 @@ Upgrade the app backend for launch-ready gamification and gated engagement witho
 ## In Progress
 - [ ] Feed migration from stream-only loading to explicit paginated API consumption
 - [ ] Stronger regression coverage for new backend rules
+- [ ] Pre-production verification across release config, notifications, privacy surface, and network-failure handling
 
 ## Next
 1. Test rate limits, duplicate-prevention, and streak reset behavior on real devices
 2. Move feed reads to paginated requests where infinite scrolling is needed
-3. Add targeted tests for aura awarding and challenge completion edge cases
-4. Add a simple founder-device registration checklist for phone changes and reinstalls
-5. Founder-test direct messaging on two real accounts after re-running the latest Supabase schema
+3. Run Android release smoke checks on at least one low-end and one mid-range phone
+4. Add targeted tests for aura awarding and challenge completion edge cases
+5. Add a simple founder-device registration checklist for phone changes and reinstalls
+6. Founder-test direct messaging on two real accounts after re-running the latest Supabase schema
 
 ## Later
 - [ ] Google sign-in

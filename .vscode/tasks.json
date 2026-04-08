@@ -1,0 +1,31 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Flutter Build APK (Local Config)",
+      "type": "shell",
+      "command": "flutter",
+      "args": [
+        "build",
+        "apk",
+        "--release",
+        "--dart-define-from-file=.env.local.json"
+      ],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Flutter Build AAB (Local Config)",
+      "type": "shell",
+      "command": "flutter",
+      "args": [
+        "build",
+        "appbundle",
+        "--release",
+        "--dart-define-from-file=.env.local.json"
+      ],
+      "group": "build",
+      "problemMatcher": []
+    }
+  ]
+}

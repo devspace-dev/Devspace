@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'supabase_service.dart';
@@ -8,8 +9,17 @@ import '../models/user_model.dart';
 class AuthResult {
   final UserModel? user;
   final String? error;
+  final String? message;
+  final bool pendingEmailConfirmation;
+
   bool get success => user != null && error == null;
-  const AuthResult({this.user, this.error});
+
+  const AuthResult({
+    this.user,
+    this.error,
+    this.message,
+    this.pendingEmailConfirmation = false,
+  });
 }
 
 class AuthService {
@@ -50,9 +60,34 @@ class AuthService {
     return 'Sign-in failed: ${e.message}';
   }
 
+  String _friendlyGoogleError(Object error) {
+    if (error is PlatformException) {
+      final details = '${error.code} ${error.message ?? ''}'.toLowerCase();
+      if (details.contains('sign_in_failed') ||
+          details.contains('developer_error') ||
+          details.contains('10')) {
+        return 'Google sign-in is not configured correctly yet. Verify Firebase/Google OAuth setup for this app package, add the Android SHA-1, enable Google in Supabase Auth, and only add --dart-define=GOOGLE_WEB_CLIENT_ID=... if you need an explicit web client ID override.';
+      }
+    }
+
+    return 'Google sign-in failed: $error';
+  }
+
   String? _friendlyDatabaseError(Object error) {
-    if (error is PostgrestException && error.code == 'PGRST204') {
-      return 'Supabase schema is incomplete. Run supabase/devspace_schema.sql in the Supabase SQL editor, then retry sign in.';
+    if (error is PostgrestException) {
+      if (error.code == 'PGRST204') {
+        return 'Supabase schema is incomplete. Run supabase/devspace_schema.sql in the Supabase SQL editor, then retry sign in.';
+      }
+
+      if (error.code == '42501') {
+        return 'Supabase access policy blocked profile creation. Re-run supabase/devspace_schema.sql so the users table policies match the app.';
+      }
+
+      if (error.code == '23505' &&
+          (error.message.contains('users_email_key') ||
+              error.message.toLowerCase().contains('duplicate key value'))) {
+        return 'That email already has an account. Sign in with the method you used before for this email, or delete the old account before using Google sign-in.';
+      }
     }
 
     return null;
@@ -71,7 +106,8 @@ class AuthService {
       final AuthChangeEvent event = data.event;
       final Session? session = data.session;
 
-      if (event == AuthChangeEvent.signedIn || event == AuthChangeEvent.tokenRefreshed) {
+      if (event == AuthChangeEvent.signedIn ||
+          event == AuthChangeEvent.tokenRefreshed) {
         if (session != null) {
           _currentUser = await _loadOrCreateProfile(session.user);
           _authStateController.add(_currentUser);
@@ -95,7 +131,8 @@ class AuthService {
           .split(RegExp(r'\s+'))
           .where((part) => part.isNotEmpty)
           .toList();
-      final initials = parts.take(2).map((part) => part[0].toUpperCase()).join();
+      final initials =
+          parts.take(2).map((part) => part[0].toUpperCase()).join();
       if (initials.isNotEmpty) return initials;
     }
 
@@ -154,6 +191,23 @@ class AuthService {
     if (existing != null) return existing;
 
     final email = user.email ?? '';
+    if (email.isNotEmpty) {
+      final existingByEmail = await SupabaseService.instance.getUserByEmail(
+        email,
+      );
+      if (existingByEmail != null) {
+        if (existingByEmail.id == user.id) {
+          return existingByEmail;
+        }
+
+        throw PostgrestException(
+          message:
+              'A profile with this email already exists under a different auth account (users_email_key).',
+          code: '23505',
+        );
+      }
+    }
+
     final name = _fallbackName(user);
     final handle = await _generateUniqueHandle(
       email.isNotEmpty ? email : user.id,
@@ -201,8 +255,9 @@ class AuthService {
 
       if (res.session == null && user.emailConfirmedAt == null) {
         return const AuthResult(
-          error:
-              'Account created, but email confirmation is enabled for this Supabase project. For testing, disable "Confirm email" in Supabase Auth settings. Otherwise confirm the email, then sign in.',
+          message:
+              'Account created. Check your email to confirm the account, then sign in. If you are testing only, you can disable "Confirm email" in Supabase Auth settings.',
+          pendingEmailConfirmation: true,
         );
       }
 
@@ -265,9 +320,22 @@ class AuthService {
 
   Future<AuthResult> signInWithGoogle() async {
     try {
-      final googleSignIn = GoogleSignIn();
+      const webClientId =
+          String.fromEnvironment('GOOGLE_WEB_CLIENT_ID', defaultValue: '');
+      final googleSignIn = webClientId.isEmpty
+          ? GoogleSignIn()
+          : GoogleSignIn(serverClientId: webClientId);
+
+      // Clear the previously selected Google account so the chooser appears.
+      try {
+        await googleSignIn.disconnect();
+      } catch (_) {
+        await googleSignIn.signOut();
+      }
+
       final googleUser = await googleSignIn.signIn();
-      if (googleUser == null) return const AuthResult(error: 'Google sign-in cancelled.');
+      if (googleUser == null)
+        return const AuthResult(error: 'Google sign-in cancelled.');
 
       if (!_isAllowedEmail(googleUser.email)) {
         await googleSignIn.signOut();
@@ -290,7 +358,8 @@ class AuthService {
       );
 
       final user = res.user;
-      if (user == null) return const AuthResult(error: 'Google sign-in failed.');
+      if (user == null)
+        return const AuthResult(error: 'Google sign-in failed.');
 
       _currentUser = await _loadOrCreateProfile(user);
       _authStateController.add(_currentUser);
@@ -303,8 +372,13 @@ class AuthService {
       return AuthResult(user: _currentUser);
     } on AuthException catch (e) {
       return AuthResult(error: _friendlySignInError(e));
+    } on PostgrestException catch (e) {
+      return AuthResult(
+        error:
+            _friendlyDatabaseError(e) ?? 'Google sign-in failed: ${e.message}',
+      );
     } catch (e) {
-      return AuthResult(error: 'Google sign-in failed: $e');
+      return AuthResult(error: _friendlyGoogleError(e));
     }
   }
 

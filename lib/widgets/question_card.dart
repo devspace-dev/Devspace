@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:timeago/timeago.dart' as timeago;
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:timeago/timeago.dart' as timeago;
 
 import '../models/question_model.dart';
 import '../models/user_model.dart';
@@ -27,14 +27,19 @@ class QuestionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final borderColor = AppColors.borderFor(context);
+    final titleColor = AppColors.textFor(context);
+    final bodyColor = AppColors.text2For(context);
+    final metaColor = AppColors.text3For(context);
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          border: isDetail 
-            ? null 
-            : const Border(bottom: BorderSide(color: AppColors.border, width: 0.5)),
+          border: isDetail
+              ? null
+              : Border(bottom: BorderSide(color: borderColor, width: 0.5)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -46,21 +51,25 @@ class QuestionCard extends StatelessWidget {
                   const SizedBox(width: 8),
                   Text(
                     author!.name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.text2,
+                      color: bodyColor,
                     ),
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    '· ${timeago.format(question.createdAt, locale: 'en_short')}',
-                    style: const TextStyle(fontSize: 13, color: AppColors.text3),
+                    '• ${timeago.format(question.createdAt, locale: 'en_short')}',
+                    style: TextStyle(fontSize: 13, color: metaColor),
                   ),
                 ],
                 const Spacer(),
                 if (question.isSolved)
-                  const Icon(Icons.check_circle_rounded, size: 16, color: AppColors.solved),
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    size: 16,
+                    color: AppColors.solved,
+                  ),
               ],
             ),
             const SizedBox(height: 10),
@@ -69,7 +78,7 @@ class QuestionCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: isDetail ? 24 : 18,
                 fontWeight: FontWeight.w700,
-                color: AppColors.text,
+                color: titleColor,
                 letterSpacing: -0.4,
               ),
             ),
@@ -77,10 +86,11 @@ class QuestionCard extends StatelessWidget {
             Text(
               question.body,
               maxLines: isDetail ? null : 3,
-              overflow: isDetail ? TextOverflow.visible : TextOverflow.ellipsis,
+              overflow:
+                  isDetail ? TextOverflow.visible : TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 15,
-                color: isDetail ? AppColors.text : AppColors.text2,
+                color: isDetail ? titleColor : bodyColor,
                 height: 1.4,
               ),
             ),
@@ -88,7 +98,7 @@ class QuestionCard extends StatelessWidget {
             Row(
               children: [
                 _StatItem(
-                  icon: question.isUpvoted ? Icons.arrow_upward_rounded : Icons.arrow_upward_rounded,
+                  icon: Icons.arrow_upward_rounded,
                   label: '${question.upvotesCount}',
                   active: question.isUpvoted,
                   onTap: onUpvote,
@@ -101,9 +111,17 @@ class QuestionCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 if (question.tags.isNotEmpty)
+                  const Text(
+                    '',
+                  ),
+                if (question.tags.isNotEmpty)
                   Text(
                     '#${question.tags.first}',
-                    style: const TextStyle(fontSize: 13, color: AppColors.primary, fontWeight: FontWeight.w500),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
               ],
             ),
@@ -120,11 +138,17 @@ class _StatItem extends StatelessWidget {
   final bool active;
   final VoidCallback? onTap;
 
-  const _StatItem({required this.icon, required this.label, required this.active, this.onTap});
+  const _StatItem({
+    required this.icon,
+    required this.label,
+    required this.active,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final color = active ? AppColors.primary : AppColors.text3;
+    final color = active ? AppColors.primary : AppColors.text3For(context);
+
     return GestureDetector(
       onTap: onTap,
       child: Row(
@@ -133,7 +157,11 @@ class _StatItem extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             label,
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
           ),
         ],
       ),

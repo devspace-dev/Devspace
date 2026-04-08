@@ -199,13 +199,20 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().currentUser;
+    final backgroundColor = AppColors.bgFor(context);
+    final surfaceColor = AppColors.bg2For(context);
+    final elevatedSurfaceColor = AppColors.bg3For(context);
+    final borderColor = AppColors.borderFor(context);
+    final primaryTextColor = AppColors.textFor(context);
+    final secondaryTextColor = AppColors.text2For(context);
+    final tertiaryTextColor = AppColors.text3For(context);
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: backgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.text),
+          icon: Icon(Icons.arrow_back_rounded, color: primaryTextColor),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: Text(_isOnboarding ? 'Complete Profile' : 'Edit Profile'),
@@ -222,13 +229,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   gradient: LinearGradient(
                     colors: [
                       user.color.withValues(alpha: 0.15),
-                      AppColors.bg,
+                      backgroundColor,
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  border: const Border(
-                    bottom: BorderSide(color: AppColors.border),
+                  border: Border(
+                    bottom: BorderSide(color: borderColor),
                   ),
                 ),
                 child: Column(
@@ -239,10 +246,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       child: Text(
                         _title,
                         key: ValueKey(_title),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.w900,
-                          color: AppColors.text,
+                          color: primaryTextColor,
                           letterSpacing: -0.8,
                         ),
                       ),
@@ -253,9 +260,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       child: Text(
                         _subtitle,
                         key: ValueKey(_subtitle),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
-                          color: AppColors.text2,
+                          color: secondaryTextColor,
                           height: 1.4,
                         ),
                       ),
@@ -270,7 +277,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                             height: 6,
                             margin: EdgeInsets.only(right: index == 2 ? 0 : 8),
                             decoration: BoxDecoration(
-                              color: active ? AppColors.primary : AppColors.bg3,
+                              color: active ? AppColors.primary : elevatedSurfaceColor,
                               borderRadius: BorderRadius.circular(99),
                               boxShadow: active
                                   ? [
@@ -289,10 +296,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     const SizedBox(height: 12),
                     Text(
                       'Step ${_step + 1} of 3',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
-                        color: AppColors.text3,
+                        color: tertiaryTextColor,
                         letterSpacing: 0.5,
                       ),
                     ),
@@ -333,43 +340,89 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                child: Row(
-                  children: [
-                    if (_step > 0)
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: _saving ? null : _back,
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                          ),
-                          child: const Text('Back'),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: surfaceColor,
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(color: borderColor),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 18,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _step == 0
+                            ? 'Start with the basics'
+                            : _step == 1
+                                ? 'Show what you build'
+                                : 'Finish your public profile',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: primaryTextColor,
                         ),
                       ),
-                    if (_step > 0) const SizedBox(width: 12),
-                    Expanded(
-                      flex: 2,
-                      child: ElevatedButton(
-                        onPressed: _saving ? null : _next,
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                      const SizedBox(height: 4),
+                      Text(
+                        _step == 0
+                            ? 'This helps other students recognize you in the feed.'
+                            : _step == 1
+                                ? 'Add your stack so your profile feels useful, not empty.'
+                                : 'Optional details make your profile look complete and trustworthy.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.4,
+                          color: tertiaryTextColor,
                         ),
-                        child: _saving
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
+                      ),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          if (_step > 0)
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: _saving ? null : _back,
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
                                 ),
-                              )
-                            : Text(
-                                _step == 2
-                                    ? (_isOnboarding ? 'Finish setup' : 'Save changes')
-                                    : 'Continue',
+                                child: const Text('Back'),
                               ),
+                            ),
+                          if (_step > 0) const SizedBox(width: 12),
+                          Expanded(
+                            flex: 2,
+                            child: ElevatedButton(
+                              onPressed: _saving ? null : _next,
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                              ),
+                              child: _saving
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : Text(
+                                      _step == 2
+                                          ? (_isOnboarding ? 'Finish setup' : 'Save changes')
+                                          : 'Continue',
+                                    ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -385,40 +438,58 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Center(
-            child: Stack(
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: AppColors.bg2For(context),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: AppColors.borderFor(context)),
+            ),
+            child: Column(
               children: [
-                ImageUploadWidget(
-                  existingUrl: _avatarPath,
-                  uploadPath: 'profiles/$uid.jpg',
-                  size: 112,
-                  isCircle: true,
-                  onUploaded: (url) {
-                    HapticFeedback.mediumImpact();
-                    setState(() => _avatarPath = url);
-                  },
-                ),
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: const BoxDecoration(
-                      color: AppColors.primary,
-                      shape: BoxShape.circle,
+                Stack(
+                  children: [
+                    ImageUploadWidget(
+                      existingUrl: _avatarPath,
+                      uploadPath: 'profiles/$uid.jpg',
+                      size: 112,
+                      isCircle: true,
+                      onUploaded: (url) {
+                        HapticFeedback.mediumImpact();
+                        setState(() => _avatarPath = url);
+                      },
                     ),
-                    child: const Icon(Icons.camera_alt_rounded, size: 16, color: Colors.white),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: const BoxDecoration(
+                          color: AppColors.primary,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.camera_alt_rounded, size: 16, color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'Add a profile photo',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textFor(context),
                   ),
                 ),
+                const SizedBox(height: 4),
+                Text(
+                  'A clean photo makes your account look real when people see your posts and profile.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12, height: 1.45, color: AppColors.text3For(context)),
+                ),
               ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Center(
-            child: Text(
-              'A professional photo helps you build trust.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: AppColors.text3),
             ),
           ),
           const SizedBox(height: 32),
@@ -426,7 +497,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           const SizedBox(height: 8),
           TextFormField(
             controller: _nameCtrl,
-            style: const TextStyle(color: AppColors.text),
+            style: TextStyle(color: AppColors.textFor(context)),
             decoration: const InputDecoration(hintText: 'Your full name'),
             validator: (v) => (v == null || v.isEmpty) ? 'Name is required' : null,
           ),
@@ -435,7 +506,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           const SizedBox(height: 8),
           TextFormField(
             controller: _handleCtrl,
-            style: const TextStyle(color: AppColors.text),
+            style: TextStyle(color: AppColors.textFor(context)),
             decoration: const InputDecoration(
               hintText: 'your_handle',
               prefixText: '@ ',
@@ -508,7 +579,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           const SizedBox(height: 10),
           TextFormField(
             controller: _buildingCtrl,
-            style: const TextStyle(color: AppColors.text),
+            style: TextStyle(color: AppColors.textFor(context)),
             decoration: const InputDecoration(
               hintText: 'Ex: Placement prep app, ML attendance system...',
             ),
@@ -519,7 +590,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           const SizedBox(height: 10),
           TextFormField(
             controller: _stackCtrl,
-            style: const TextStyle(color: AppColors.text),
+            style: TextStyle(color: AppColors.textFor(context)),
             onFieldSubmitted: (_) => _addStackTag(),
             decoration: InputDecoration(
               hintText: 'Add a skill, then tap +',
@@ -571,7 +642,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           TextFormField(
             controller: _bioCtrl,
             maxLines: 4,
-            style: const TextStyle(color: AppColors.text, height: 1.5),
+            style: TextStyle(color: AppColors.textFor(context), height: 1.5),
             decoration: const InputDecoration(
               hintText: 'What do you like building? What do you want people to know about you?',
             ),
@@ -591,11 +662,11 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           const SizedBox(height: 10),
           TextFormField(
             controller: _githubCtrl,
-            style: const TextStyle(color: AppColors.text),
-            decoration: const InputDecoration(
+            style: TextStyle(color: AppColors.textFor(context)),
+            decoration: InputDecoration(
               hintText: 'github_username',
               prefixText: '@ ',
-              prefixStyle: TextStyle(color: AppColors.text3),
+              prefixStyle: TextStyle(color: AppColors.text3For(context)),
             ),
           ),
           const SizedBox(height: 32),
@@ -605,9 +676,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppColors.bg2,
+              color: AppColors.bg2For(context),
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: AppColors.borderFor(context)),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.2),
@@ -644,12 +715,12 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                         children: [
                           Text(
                             _nameCtrl.text.isEmpty ? 'Your Name' : _nameCtrl.text,
-                            style: const TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.text),
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.textFor(context)),
                           ),
                           Text(
                             '@${_handleCtrl.text.isEmpty ? 'handle' : _handleCtrl.text}',
-                            style: const TextStyle(fontSize: 13, color: AppColors.text3),
+                            style: TextStyle(fontSize: 13, color: AppColors.text3For(context)),
                           ),
                         ],
                       ),
@@ -667,20 +738,20 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                const Divider(color: AppColors.border),
+                Divider(color: AppColors.borderFor(context)),
                 const SizedBox(height: 14),
-                const Text(
+                Text(
                   'CURRENTLY BUILDING',
                   style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
-                      color: AppColors.text3,
+                      color: AppColors.text3For(context),
                       letterSpacing: 0.5),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   _buildingCtrl.text.isEmpty ? 'No project described yet' : _buildingCtrl.text,
-                  style: const TextStyle(fontSize: 15, color: AppColors.text2, height: 1.4),
+                  style: TextStyle(fontSize: 15, color: AppColors.text2For(context), height: 1.4),
                 ),
                 if (_stack.isNotEmpty) ...[
                   const SizedBox(height: 16),
@@ -692,12 +763,12 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                         .map((tag) => Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                               decoration: BoxDecoration(
-                                color: AppColors.bg3,
+                                color: AppColors.bg3For(context),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
                                 tag,
-                                style: const TextStyle(fontSize: 12, color: AppColors.text2),
+                                style: TextStyle(fontSize: 12, color: AppColors.text2For(context)),
                               ),
                             ))
                         .toList(),
@@ -714,10 +785,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   Widget _sectionLabel(String text) {
     return Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 11,
         fontWeight: FontWeight.w900,
-        color: AppColors.text3,
+        color: AppColors.text3For(context),
         letterSpacing: 1.2,
       ),
     );
@@ -748,10 +819,10 @@ class _ChoiceWrap extends StatelessWidget {
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: active ? AppColors.primary : AppColors.bg2,
+              color: active ? AppColors.primary : AppColors.bg2For(context),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: active ? AppColors.primary : AppColors.border,
+                color: active ? AppColors.primary : AppColors.borderFor(context),
                 width: 1.5,
               ),
               boxShadow: active
@@ -769,7 +840,7 @@ class _ChoiceWrap extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w800,
-                color: active ? Colors.white : AppColors.text2,
+                color: active ? Colors.white : AppColors.text2For(context),
               ),
             ),
           ),
@@ -793,16 +864,16 @@ class _ReviewChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: AppColors.bg3.withValues(alpha: 0.5),
+        color: AppColors.bg3For(context).withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+        border: Border.all(color: AppColors.borderFor(context).withValues(alpha: 0.5)),
       ),
       child: Text(
         '$icon  $label',
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w700,
-          color: AppColors.text2,
+          color: AppColors.text2For(context),
         ),
       ),
     );

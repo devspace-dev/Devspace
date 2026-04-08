@@ -132,8 +132,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           _SettingsTile(
             icon: Icons.description_outlined,
-            title: 'Terms & Conditions',
-            subtitle: 'Read our terms of service and privacy policy.',
+            title: 'Terms & Privacy',
+            subtitle: 'Read the terms of service and in-app privacy policy.',
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(

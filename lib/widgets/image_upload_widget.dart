@@ -1,14 +1,14 @@
 import 'dart:io';
-import 'package:flutter/material.dart';
+
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
+
 import '../services/storage_service.dart';
 import '../theme/app_colors.dart';
 
-/// A tappable image widget that lets the user pick and upload a photo.
-/// [onUploaded] is called with the Supabase Storage public URL.
 class ImageUploadWidget extends StatefulWidget {
   final String? existingUrl;
-  final String uploadPath;           // e.g. 'post_images/postId.jpg'
+  final String uploadPath;
   final double size;
   final bool isCircle;
   final void Function(String url) onUploaded;
@@ -27,59 +27,87 @@ class ImageUploadWidget extends StatefulWidget {
 }
 
 class _ImageUploadWidgetState extends State<ImageUploadWidget> {
-  File?   _localFile;
+  File? _localFile;
   double? _progress;
-  bool    _uploading = false;
+  bool _uploading = false;
 
   Future<void> _pick({required bool fromCamera}) async {
     final file = await StorageService.instance.pickImage(fromCamera: fromCamera);
     if (file == null || !mounted) return;
 
-    setState(() { _localFile = file; _uploading = true; _progress = 0; });
+    setState(() {
+      _localFile = file;
+      _uploading = true;
+      _progress = 0;
+    });
 
     try {
       final url = await StorageService.instance.uploadWithProgress(
-        widget.uploadPath, file,
+        widget.uploadPath,
+        file,
         onProgress: (p) => setState(() => _progress = p),
       );
       widget.onUploaded(url);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Upload failed: $e'),
-              backgroundColor: Colors.redAccent));
+          SnackBar(
+            content: Text('Upload failed: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
       }
     } finally {
-      if (mounted) setState(() { _uploading = false; _progress = null; });
+      if (mounted) {
+        setState(() {
+          _uploading = false;
+          _progress = null;
+        });
+      }
     }
   }
 
   void _showPicker() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.bg2,
+      backgroundColor: AppColors.bg2For(context),
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (_) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 8),
-            Container(width: 36, height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.border2,
-                  borderRadius: BorderRadius.circular(2))),
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.border2For(context),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
             ListTile(
               leading: const Icon(Icons.camera_alt_rounded, color: AppColors.primary),
-              title: const Text('Take a photo',
-                  style: TextStyle(color: AppColors.text)),
-              onTap: () { Navigator.pop(context); _pick(fromCamera: true); },
+              title: Text(
+                'Take a photo',
+                style: TextStyle(color: AppColors.textFor(context)),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _pick(fromCamera: true);
+              },
             ),
             ListTile(
               leading: const Icon(Icons.photo_library_rounded, color: AppColors.primary),
-              title: const Text('Choose from gallery',
-                  style: TextStyle(color: AppColors.text)),
-              onTap: () { Navigator.pop(context); _pick(fromCamera: false); },
+              title: Text(
+                'Choose from gallery',
+                style: TextStyle(color: AppColors.textFor(context)),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _pick(fromCamera: false);
+              },
             ),
             const SizedBox(height: 8),
           ],
@@ -97,32 +125,35 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
     Widget imageContent;
 
     if (_localFile != null) {
-      imageContent = Image.file(_localFile!, fit: BoxFit.cover,
-          width: widget.size, height: widget.size);
+      imageContent = Image.file(
+        _localFile!,
+        fit: BoxFit.cover,
+        width: widget.size,
+        height: widget.size,
+      );
     } else if (widget.existingUrl != null && widget.existingUrl!.isNotEmpty) {
       imageContent = CachedNetworkImage(
         imageUrl: StorageService.instance.resolvePublicUrl(widget.existingUrl!),
         fit: BoxFit.cover,
         width: widget.size,
         height: widget.size,
-        placeholder: (_, __) => Container(color: AppColors.bg3),
-        errorWidget: (_, __, ___) => _placeholder(),
+        placeholder: (_, __) => Container(color: AppColors.bg3For(context)),
+        errorWidget: (_, __, ___) => _placeholder(context),
       );
     } else {
-      imageContent = _placeholder();
+      imageContent = _placeholder(context);
     }
 
     return GestureDetector(
       onTap: _showPicker,
       child: SizedBox(
-        width: widget.size, height: widget.size,
+        width: widget.size,
+        height: widget.size,
         child: ClipRRect(
           borderRadius: borderRadius,
           child: Stack(
             children: [
               imageContent,
-
-              // Upload progress overlay
               if (_uploading)
                 Container(
                   color: Colors.black54,
@@ -137,28 +168,37 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
                         ),
                         if (_progress != null) ...[
                           const SizedBox(height: 6),
-                          Text('${(_progress! * 100).toStringAsFixed(0)}%',
-                              style: const TextStyle(
-                                fontSize: 11, color: Colors.white)),
+                          Text(
+                            '${(_progress! * 100).toStringAsFixed(0)}%',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.white,
+                            ),
+                          ),
                         ],
                       ],
                     ),
                   ),
                 ),
-
-              // Camera icon overlay (when not uploading)
               if (!_uploading)
                 Positioned(
-                  right: 6, bottom: 6,
+                  right: 6,
+                  bottom: 6,
                   child: Container(
                     padding: const EdgeInsets.all(5),
                     decoration: BoxDecoration(
                       color: AppColors.primary,
                       shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.bg, width: 1.5),
+                      border: Border.all(
+                        color: AppColors.bgFor(context),
+                        width: 1.5,
+                      ),
                     ),
-                    child: const Icon(Icons.camera_alt_rounded,
-                        size: 13, color: Colors.white),
+                    child: const Icon(
+                      Icons.camera_alt_rounded,
+                      size: 13,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
             ],
@@ -168,15 +208,20 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
     );
   }
 
-  Widget _placeholder() => Container(
-    width: widget.size, height: widget.size,
-    color: AppColors.bg3,
-    child: Icon(Icons.add_photo_alternate_outlined,
-        color: AppColors.text3, size: widget.size * 0.3),
-  );
+  Widget _placeholder(BuildContext context) {
+    return Container(
+      width: widget.size,
+      height: widget.size,
+      color: AppColors.bg3For(context),
+      child: Icon(
+        Icons.add_photo_alternate_outlined,
+        color: AppColors.text3For(context),
+        size: widget.size * 0.3,
+      ),
+    );
+  }
 }
 
-/// Compact inline image attach button for the compose box.
 class PostImagePicker extends StatefulWidget {
   final void Function(File file) onPicked;
   final VoidCallback? onCleared;
@@ -208,11 +253,16 @@ class _PostImagePickerState extends State<PostImagePicker> {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
-            child: Image.file(_preview!, height: 160, width: double.infinity,
-                fit: BoxFit.cover),
+            child: Image.file(
+              _preview!,
+              height: 160,
+              width: double.infinity,
+              fit: BoxFit.cover,
+            ),
           ),
           Positioned(
-            top: 6, right: 6,
+            top: 6,
+            right: 6,
             child: GestureDetector(
               onTap: () {
                 setState(() => _preview = null);
@@ -221,7 +271,9 @@ class _PostImagePickerState extends State<PostImagePicker> {
               child: Container(
                 padding: const EdgeInsets.all(4),
                 decoration: const BoxDecoration(
-                  color: Colors.black54, shape: BoxShape.circle),
+                  color: Colors.black54,
+                  shape: BoxShape.circle,
+                ),
                 child: const Icon(Icons.close, size: 16, color: Colors.white),
               ),
             ),
@@ -252,7 +304,12 @@ class _PickerBtn extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  const _PickerBtn({required this.icon, required this.label, required this.onTap});
+
+  const _PickerBtn({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -261,16 +318,18 @@ class _PickerBtn extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          color: AppColors.bg3,
+          color: AppColors.bg3For(context),
           borderRadius: BorderRadius.circular(99),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: AppColors.borderFor(context)),
         ),
         child: Row(
           children: [
             Icon(icon, size: 15, color: AppColors.primary),
             const SizedBox(width: 5),
-            Text(label,
-                style: const TextStyle(fontSize: 13, color: AppColors.text2)),
+            Text(
+              label,
+              style: TextStyle(fontSize: 13, color: AppColors.text2For(context)),
+            ),
           ],
         ),
       ),

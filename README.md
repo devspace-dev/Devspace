@@ -43,6 +43,13 @@ Not complete yet:
 3. Get your Supabase project URL and anon key.
 4. Read [SUPABASE_SETUP.md](/Users/mohammad/Desktop/devspace/SUPABASE_SETUP.md) for auth and storage notes.
 
+### VS Code One-Click Setup
+
+1. Copy `.env.example.json` to `.env.local.json`
+2. Add your real `SUPABASE_URL` and `SUPABASE_ANON_KEY`
+3. In VS Code, run `DevSpace (Local Config)` from Run and Debug
+4. For release output, run `Flutter Build APK (Local Config)` or `Flutter Build AAB (Local Config)` from the command palette task runner
+
 The checked-in schema now includes direct-message tables, RPCs, policies, and realtime publication setup, so fresh projects do not need a separate messaging SQL patch.
 
 ## Run The App

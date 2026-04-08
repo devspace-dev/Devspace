@@ -92,20 +92,20 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.bg2,
+        backgroundColor: AppColors.bg2For(context),
         title: const Text('Submit Pull Request'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
+            Text(
               'Describe your proposed answer, fix, or solution to the asker.',
-              style: TextStyle(color: AppColors.text2, fontSize: 14),
+              style: TextStyle(color: AppColors.text2For(context), fontSize: 14),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _prMessageCtrl,
               maxLines: 3,
-              style: const TextStyle(color: AppColors.text),
+              style: TextStyle(color: AppColors.textFor(context)),
               decoration: const InputDecoration(
                 hintText:
                     'I have experience with this framework and can help you debug...',
@@ -263,8 +263,8 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
     final question = questionsP.getQuestionById(widget.questionId);
 
     if (question == null && questionsP.isLoading) {
-      return const Scaffold(
-        backgroundColor: AppColors.bg,
+      return Scaffold(
+        backgroundColor: AppColors.bgFor(context),
         body: AppLoadingState(
           title: 'Loading question',
           message: 'Pulling in the full thread and replies.',
@@ -274,7 +274,7 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
 
     if (question == null) {
       return Scaffold(
-        backgroundColor: AppColors.bg,
+        backgroundColor: AppColors.bgFor(context),
         appBar: AppBar(title: const Text('Question')),
         body: AppEmptyState(
           icon: Icons.help_outline_rounded,
@@ -315,13 +315,13 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.bgFor(context),
       appBar: AppBar(
         title: const Text('Question'),
       ),
       body: RefreshIndicator(
         color: AppColors.primary,
-        backgroundColor: AppColors.bg2,
+        backgroundColor: AppColors.bg2For(context),
         onRefresh: () async {
           await questionsP.refreshQuestions();
           await questionsP.fetchReplies(widget.questionId, force: true);
@@ -359,19 +359,19 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
               ),
             Container(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 border: Border(
-                  top: BorderSide(color: AppColors.border),
-                  bottom: BorderSide(color: AppColors.border),
+                  top: BorderSide(color: AppColors.borderFor(context)),
+                  bottom: BorderSide(color: AppColors.borderFor(context)),
                 ),
-                color: AppColors.bg2,
+                color: AppColors.bg2For(context),
               ),
               child: Row(
                 children: [
                   Text(
                     '${allReplies.length} ${allReplies.length == 1 ? 'reply' : 'replies'}',
-                    style: const TextStyle(
-                      color: AppColors.text,
+                    style: TextStyle(
+                      color: AppColors.textFor(context),
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
                     ),
@@ -531,9 +531,9 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
         top: false,
         child: Container(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-          decoration: const BoxDecoration(
-            color: AppColors.bg2,
-            border: Border(top: BorderSide(color: AppColors.border)),
+          decoration: BoxDecoration(
+            color: AppColors.bg2For(context),
+            border: Border(top: BorderSide(color: AppColors.borderFor(context))),
           ),
           child: (isAsker || (myPR?.status == 'accepted'))
               ? Row(
@@ -545,7 +545,7 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
                         minLines: 1,
                         maxLines: 4,
                         textInputAction: TextInputAction.newline,
-                        style: const TextStyle(color: AppColors.text),
+                        style: TextStyle(color: AppColors.textFor(context)),
                         decoration: const InputDecoration(
                           hintText:
                               'Reply with what worked, what you tried, or what to fix next...',
@@ -657,10 +657,16 @@ class _QuestionReplyTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final borderColor = AppColors.borderFor(context);
+    final surfaceColor = AppColors.bg3For(context);
+    final titleColor = AppColors.textFor(context);
+    final metaColor = AppColors.text3For(context);
+    final bodyColor = AppColors.text2For(context);
+
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       decoration: BoxDecoration(
-        border: const Border(bottom: BorderSide(color: AppColors.border)),
+        border: Border(bottom: BorderSide(color: borderColor)),
         color: isSolved
             ? AppColors.solved.withValues(alpha: 0.05)
             : Colors.transparent,
@@ -676,13 +682,13 @@ class _QuestionReplyTile extends StatelessWidget {
               height: reply.isTopLevel ? 38 : 34,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.bg3,
-                border: Border.all(color: AppColors.border),
+                color: surfaceColor,
+                border: Border.all(color: borderColor),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.person_outline_rounded,
                 size: 18,
-                color: AppColors.text3,
+                color: metaColor,
               ),
             ),
           const SizedBox(width: 12),
@@ -702,7 +708,7 @@ class _QuestionReplyTile extends StatelessWidget {
                           Text(
                             author?.name ?? 'DevSpace User',
                             style: TextStyle(
-                              color: AppColors.text,
+                              color: titleColor,
                               fontSize: reply.isTopLevel ? 14 : 13,
                               fontWeight: FontWeight.w800,
                             ),
@@ -710,16 +716,16 @@ class _QuestionReplyTile extends StatelessWidget {
                           if (author != null)
                             Text(
                               '@${author!.handle}',
-                              style: const TextStyle(
-                                color: AppColors.text3,
+                              style: TextStyle(
+                                color: metaColor,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
                           Text(
                             timeago.format(reply.createdAt),
-                            style: const TextStyle(
-                              color: AppColors.text3,
+                            style: TextStyle(
+                              color: metaColor,
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
                             ),
@@ -767,7 +773,7 @@ class _QuestionReplyTile extends StatelessWidget {
                 Text(
                   reply.content,
                   style: TextStyle(
-                    color: AppColors.text2,
+                    color: bodyColor,
                     fontSize: reply.isTopLevel ? 14 : 13,
                     height: 1.55,
                   ),
@@ -786,7 +792,7 @@ class _QuestionReplyTile extends StatelessWidget {
                       ),
                       label: const Text('Reply'),
                       style: TextButton.styleFrom(
-                        foregroundColor: AppColors.text3,
+                        foregroundColor: metaColor,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 0,
                           vertical: 0,
@@ -846,6 +852,11 @@ class _PullRequestsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dividerColor = AppColors.borderFor(context);
+    final titleColor = AppColors.textFor(context);
+    final metaColor = AppColors.text3For(context);
+    final bodyColor = AppColors.text2For(context);
+
     return Container(
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -874,13 +885,13 @@ class _PullRequestsSection extends StatelessWidget {
               ],
             ),
           ),
-          const Divider(color: AppColors.border),
+          Divider(color: dividerColor),
           ...pendingPRs.map((pr) {
             final requester = usersP.getUserById(pr.userId);
             return Container(
               padding: const EdgeInsets.all(16),
-              decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: AppColors.border)),
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: dividerColor)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -893,8 +904,8 @@ class _PullRequestsSection extends StatelessWidget {
                       Expanded(
                         child: Text(
                           requester?.name ?? 'DevSpace User',
-                          style: const TextStyle(
-                            color: AppColors.text,
+                          style: TextStyle(
+                            color: titleColor,
                             fontWeight: FontWeight.w700,
                             fontSize: 14,
                           ),
@@ -902,8 +913,8 @@ class _PullRequestsSection extends StatelessWidget {
                       ),
                       Text(
                         timeago.format(pr.createdAt),
-                        style: const TextStyle(
-                          color: AppColors.text3,
+                        style: TextStyle(
+                          color: metaColor,
                           fontSize: 11,
                         ),
                       ),
@@ -912,8 +923,7 @@ class _PullRequestsSection extends StatelessWidget {
                   const SizedBox(height: 12),
                   Text(
                     pr.message,
-                    style:
-                        const TextStyle(color: AppColors.text2, fontSize: 13),
+                    style: TextStyle(color: bodyColor, fontSize: 13),
                   ),
                   const SizedBox(height: 16),
                   Row(
@@ -986,16 +996,16 @@ class _PRStatusFooter extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 12),
         width: double.infinity,
         decoration: BoxDecoration(
-          color: AppColors.bg3,
+          color: AppColors.bg3For(context),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: const Column(
+        child: Column(
           children: [
-            Icon(Icons.hourglass_empty_rounded, color: AppColors.text3),
-            SizedBox(height: 4),
+            Icon(Icons.hourglass_empty_rounded, color: AppColors.text3For(context)),
+            const SizedBox(height: 4),
             Text(
               'Your pull request is pending review...',
-              style: TextStyle(color: AppColors.text3, fontSize: 13),
+              style: TextStyle(color: AppColors.text3For(context), fontSize: 13),
             ),
           ],
         ),
@@ -1044,11 +1054,16 @@ class _InlineReplyComposer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surfaceColor = AppColors.bg2For(context);
+    final borderColor = AppColors.borderFor(context);
+    final textColor = AppColors.textFor(context);
+    final mutedColor = AppColors.text3For(context);
+
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: const BoxDecoration(
-        color: AppColors.bg2,
-        border: Border(bottom: BorderSide(color: AppColors.border)),
+      decoration: BoxDecoration(
+        color: surfaceColor,
+        border: Border(bottom: BorderSide(color: borderColor)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1075,7 +1090,7 @@ class _InlineReplyComposer extends StatelessWidget {
             controller: controller,
             minLines: 1,
             maxLines: 4,
-            style: const TextStyle(color: AppColors.text, fontSize: 13),
+            style: TextStyle(color: textColor, fontSize: 13),
             decoration: const InputDecoration(
               hintText: 'Type your reply...',
               isDense: true,
@@ -1102,7 +1117,7 @@ class _InlineReplyComposer extends StatelessWidget {
               TextButton(
                 onPressed: submitting ? null : onCancel,
                 style: TextButton.styleFrom(
-                  foregroundColor: AppColors.text3,
+                  foregroundColor: mutedColor,
                 ),
                 child: const Text('Cancel'),
               ),

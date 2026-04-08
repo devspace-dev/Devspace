@@ -14,6 +14,9 @@ class AppLoadingState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primaryTextColor = AppColors.textFor(context);
+    final secondaryTextColor = AppColors.text3For(context);
+
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -22,8 +25,8 @@ class AppLoadingState extends StatelessWidget {
           const SizedBox(height: 20),
           Text(
             title,
-            style: const TextStyle(
-              color: AppColors.text,
+            style: TextStyle(
+              color: primaryTextColor,
               fontSize: 17,
               fontWeight: FontWeight.w600,
             ),
@@ -32,8 +35,8 @@ class AppLoadingState extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: AppColors.text3,
+            style: TextStyle(
+              color: secondaryTextColor,
               fontSize: 14,
             ),
           ),
@@ -61,18 +64,22 @@ class AppEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final iconColor = AppColors.text4For(context);
+    final primaryTextColor = AppColors.textFor(context);
+    final secondaryTextColor = AppColors.text3For(context);
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: AppColors.text4, size: 48),
+            Icon(icon, color: iconColor, size: 48),
             const SizedBox(height: 20),
             Text(
               title,
-              style: const TextStyle(
-                color: AppColors.text,
+              style: TextStyle(
+                color: primaryTextColor,
                 fontSize: 19,
                 fontWeight: FontWeight.w700,
               ),
@@ -81,8 +88,8 @@ class AppEmptyState extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: AppColors.text3,
+              style: TextStyle(
+                color: secondaryTextColor,
                 fontSize: 15,
               ),
             ),
@@ -116,6 +123,9 @@ class AppErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primaryTextColor = AppColors.textFor(context);
+    final secondaryTextColor = AppColors.text3For(context);
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -126,8 +136,8 @@ class AppErrorState extends StatelessWidget {
             const SizedBox(height: 20),
             Text(
               title,
-              style: const TextStyle(
-                color: AppColors.text,
+              style: TextStyle(
+                color: primaryTextColor,
                 fontSize: 19,
                 fontWeight: FontWeight.w700,
               ),
@@ -136,8 +146,8 @@ class AppErrorState extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: AppColors.text3,
+              style: TextStyle(
+                color: secondaryTextColor,
                 fontSize: 15,
               ),
             ),

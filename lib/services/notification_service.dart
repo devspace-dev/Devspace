@@ -31,11 +31,33 @@ class NotificationService {
               AndroidFlutterLocalNotificationsPlugin>()
           ?.createNotificationChannel(_channel);
 
+      await _requestPermissions();
+
       if (kDebugMode) {
-          print('Notification service initialized.');
+        debugPrint('Notification service initialized for $uid.');
       }
     } catch (e) {
       debugPrint('Notification initialization failed: $e');
+    }
+  }
+
+  Future<void> _requestPermissions() async {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      await _local
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.requestNotificationsPermission();
+    }
+
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+      await _local
+          .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin>()
+          ?.requestPermissions(
+            alert: true,
+            badge: true,
+            sound: true,
+          );
     }
   }
 

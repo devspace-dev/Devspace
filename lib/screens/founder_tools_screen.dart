@@ -933,9 +933,9 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
       await _loadEvents();
       _showSnack('Event deactivated.');
     } catch (e) {
-      // Display the error message to the user instead of crashing
-      _showSnack('Failed to deactivate event: $e');
-      // Optionally log the error for further debugging
+      _showSnack(
+        'Failed to deactivate event: ${BackendApiService.instance.cleanErrorText(e)}',
+      );
       debugPrint('Error deactivating event $eventId: $e');
     }
   }

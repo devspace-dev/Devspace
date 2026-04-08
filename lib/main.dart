@@ -50,16 +50,19 @@ void main() async {
 
   const String supabaseUrl = String.fromEnvironment(
     'SUPABASE_URL',
-    defaultValue: 'https://hybvsgxqstnxamdkijsk.supabase.co',
+    defaultValue: '',
   );
   const String supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
-    defaultValue: 'sb_publishable_PawpVpaKL2oGSMNT92IzkA_wjiORWQ4',
+    defaultValue: '',
   );
 
   if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
     bootstrapError =
         'Missing Supabase runtime config. Run with SUPABASE_URL and SUPABASE_ANON_KEY using --dart-define.';
+  } else if (!supabaseUrl.startsWith('https://')) {
+    bootstrapError =
+        'Invalid Supabase runtime config. SUPABASE_URL must use HTTPS in production-ready builds.';
   } else {
     try {
       await Supabase.initialize(
@@ -67,6 +70,9 @@ void main() async {
         anonKey: supabaseAnonKey,
       );
       await AuthService.instance.init();
+      if (firebaseInitialized) {
+        await AnalyticsService.instance.logAppOpen();
+      }
     } catch (e) {
       bootstrapError = 'Supabase initialization failed: $e';
       debugPrint(bootstrapError);
@@ -173,7 +179,15 @@ class _RootState extends State<_Root> {
       final openSetup = await showModalBottomSheet<bool>(
         context: context,
         backgroundColor: Colors.transparent,
+        isScrollControlled: true,
         builder: (sheetContext) {
+          final bgColor = AppColors.bg2For(sheetContext);
+          final elevatedBgColor = AppColors.bg3For(sheetContext);
+          final textColor = AppColors.textFor(sheetContext);
+          final secondaryTextColor = AppColors.text2For(sheetContext);
+          final tertiaryTextColor = AppColors.text3For(sheetContext);
+          final borderColor = AppColors.borderFor(sheetContext);
+
           return SafeArea(
             child: Padding(
               padding: EdgeInsets.only(
@@ -182,56 +196,143 @@ class _RootState extends State<_Root> {
                 top: 18,
                 bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 42,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.border2For(context),
-                      borderRadius: BorderRadius.circular(99),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+                decoration: BoxDecoration(
+                  color: bgColor,
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(color: borderColor),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.12),
+                      blurRadius: 30,
+                      offset: const Offset(0, 14),
                     ),
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    'Complete your profile',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.textFor(context),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Good profiles make discovery, follows, and collaboration much better. Add your year, branch, stack, and what you are building.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.text2For(context),
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.pop(sheetContext, false),
-                          child: const Text('Later'),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 42,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.border2For(sheetContext),
+                          borderRadius: BorderRadius.circular(99),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        flex: 2,
-                        child: ElevatedButton(
-                          onPressed: () => Navigator.pop(sheetContext, true),
-                          child: const Text('Complete profile'),
+                    ),
+                    const SizedBox(height: 18),
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: const Icon(
+                        Icons.auto_awesome_rounded,
+                        color: AppColors.primary,
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: elevatedBgColor,
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: borderColor),
+                      ),
+                      child: Text(
+                        '2 minute setup',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: tertiaryTextColor,
+                          letterSpacing: 0.2,
                         ),
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      'Complete your profile',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w900,
+                        color: textColor,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Make your account look real before you start posting. A clear profile helps people trust, follow, and reply to you faster.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: secondaryTextColor,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: elevatedBgColor,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: borderColor),
+                      ),
+                      child: Column(
+                        children: const [
+                          _ProfilePromptPoint(
+                            icon: Icons.person_outline_rounded,
+                            title: 'Identity',
+                            subtitle: 'Name, handle, year, and branch',
+                          ),
+                          SizedBox(height: 12),
+                          _ProfilePromptPoint(
+                            icon: Icons.handyman_outlined,
+                            title: 'Builder stack',
+                            subtitle: 'Skills and what you are building',
+                          ),
+                          SizedBox(height: 12),
+                          _ProfilePromptPoint(
+                            icon: Icons.verified_outlined,
+                            title: 'Better discovery',
+                            subtitle: 'Makes your profile easier to trust',
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(sheetContext, false),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                            ),
+                            child: const Text('Later'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton.icon(
+                            onPressed: () => Navigator.pop(sheetContext, true),
+                            icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                            label: const Text('Complete profile'),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           );
@@ -320,6 +421,61 @@ class _RootState extends State<_Root> {
   }
 }
 
+class _ProfilePromptPoint extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _ProfilePromptPoint({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, size: 18, color: AppColors.primary),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textFor(context),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.4,
+                  color: AppColors.text3For(context),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _SetupRequiredScreen extends StatelessWidget {
   final String error;
 
@@ -347,21 +503,21 @@ class _SetupRequiredScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'DevSpace setup required',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w800,
-                        color: AppColors.text,
+                        color: AppColors.textFor(context),
                       ),
                     ),
                     const SizedBox(height: 12),
-                    const Text(
+                    Text(
                       'This build needs explicit Supabase runtime values before it can start.',
                       style: TextStyle(
                         fontSize: 14,
                         height: 1.5,
-                        color: AppColors.text2,
+                        color: AppColors.text2For(context),
                       ),
                     ),
                     const SizedBox(height: 18),
@@ -373,13 +529,13 @@ class _SetupRequiredScreen extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 18),
-                    const Text(
+                    Text(
                       'Current error',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.4,
-                        color: AppColors.text3,
+                        color: AppColors.text3For(context),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -421,11 +577,11 @@ class _SetupCodeBlock extends StatelessWidget {
       ),
       child: Text(
         lines.join('\n'),
-        style: const TextStyle(
+        style: TextStyle(
           fontFamily: 'monospace',
           fontSize: 12,
           height: 1.5,
-          color: AppColors.text,
+          color: AppColors.textFor(context),
         ),
       ),
     );
