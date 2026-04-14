@@ -1,9 +1,11 @@
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:flutter/foundation.dart';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class RazorpayService {
   late Razorpay _razorpay;
-  final String _keyId = 'rzp_test_SZIXbE7gN0GHyp';
+  String get _keyId => dotenv.env['RAZORPAY_KEY_ID'] ?? 'rzp_test_SZIXbE7gN0GHyp';
 
   Function(PaymentSuccessResponse)? onPaymentSuccess;
   Function(PaymentFailureResponse)? onPaymentError;
@@ -17,17 +19,17 @@ class RazorpayService {
   }
 
   void _handlePaymentSuccess(PaymentSuccessResponse response) {
-    debugPrint("Payment Success: ${response.paymentId}");
+    if (kDebugMode) debugPrint("Payment Success: ${response.paymentId}");
     onPaymentSuccess?.call(response);
   }
 
   void _handlePaymentError(PaymentFailureResponse response) {
-    debugPrint("Payment Error: ${response.code} - ${response.message}");
+    if (kDebugMode) debugPrint("Payment Error: ${response.code} - ${response.message}");
     onPaymentError?.call(response);
   }
 
   void _handleExternalWallet(ExternalWalletResponse response) {
-    debugPrint("External Wallet: ${response.walletName}");
+    if (kDebugMode) debugPrint("External Wallet: ${response.walletName}");
     onExternalWallet?.call(response);
   }
 

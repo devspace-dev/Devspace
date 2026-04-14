@@ -46,84 +46,90 @@ class _PeopleScreenState extends State<PeopleScreen> {
     final usersP = context.watch<UsersProvider>();
     final users = usersP.search(_query);
 
-    return RefreshIndicator.adaptive(
-      color: AppColors.primary,
-      onRefresh: usersP.refreshUsers,
-      child: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-              child: _DevelopersHero(
-                totalDevelopers: usersP.users.length,
-                activeQuery: _query,
-                searchController: _searchController,
-                onChanged: (value) => setState(() => _query = value.trim()),
-                onClear: () {
-                  _searchController.clear();
-                  setState(() => _query = '');
-                },
-              ),
-            ),
-          ),
-          if (usersP.isLoading && usersP.users.isEmpty)
-            const SliverFillRemaining(
-              child: AppLoadingState(
-                title: 'Searching',
-                message: 'Finding developers on campus...',
-              ),
-            )
-          else if (usersP.error != null && users.isEmpty)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: AppErrorState(
-                title: 'Developers unavailable',
-                message: usersP.error!,
-                actionLabel: 'Retry',
-                onAction: usersP.refreshUsers,
-              ),
-            )
-          else if (usersP.error != null && users.isNotEmpty)
+    return Scaffold(
+      backgroundColor: AppColors.bgFor(context),
+      body: RefreshIndicator.adaptive(
+        color: AppColors.primary,
+        onRefresh: usersP.refreshUsers,
+        child: CustomScrollView(
+          slivers: [
             SliverToBoxAdapter(
-              child: _InlineWarningBanner(
-                message: usersP.error!,
-                onRetry: usersP.refreshUsers,
-              ),
-            )
-          else if (users.isEmpty)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: AppEmptyState(
-                icon: Icons.people_outline_rounded,
-                title: _query.isEmpty ? 'No Developers' : 'No matches',
-                message: _query.isEmpty
-                    ? 'Be the first to join the community.'
-                    : 'Try a different skill, branch, or name.',
-              ),
-            )
-          else
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, i) {
-                  final user = users[i];
-                  return ProfileCard(
-                    user: user,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ProfileScreen(userId: user.id),
-                      ),
-                    ),
-                  ).animate().fadeIn(
-                        delay: (i * 30).ms,
-                        duration: 300.ms,
-                      ).slideX(begin: 0.03, end: 0);
-                },
-                childCount: users.length,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                child: _DevelopersHero(
+                  totalDevelopers: usersP.users.length,
+                  activeQuery: _query,
+                  searchController: _searchController,
+                  onChanged: (value) => setState(() => _query = value.trim()),
+                  onClear: () {
+                    _searchController.clear();
+                    setState(() => _query = '');
+                  },
+                ),
               ),
             ),
-          const SliverToBoxAdapter(child: SizedBox(height: 100)),
-        ],
+            if (usersP.isLoading && usersP.users.isEmpty)
+              const SliverFillRemaining(
+                child: AppLoadingState(
+                  title: 'Searching',
+                  message: 'Finding developers on campus...',
+                ),
+              )
+            else if (usersP.error != null && users.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: AppErrorState(
+                  title: 'Developers unavailable',
+                  message: usersP.error!,
+                  actionLabel: 'Retry',
+                  onAction: usersP.refreshUsers,
+                ),
+              )
+            else if (usersP.error != null && users.isNotEmpty)
+              SliverToBoxAdapter(
+                child: _InlineWarningBanner(
+                  message: usersP.error!,
+                  onRetry: usersP.refreshUsers,
+                ),
+              )
+            else if (users.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: AppEmptyState(
+                  icon: Icons.people_outline_rounded,
+                  title: _query.isEmpty ? 'No Developers' : 'No matches',
+                  message: _query.isEmpty
+                      ? 'Be the first to join the community.'
+                      : 'Try a different skill, branch, or name.',
+                ),
+              )
+            else
+              SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, i) {
+                    final user = users[i];
+                    return ProfileCard(
+                      user: user,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ProfileScreen(userId: user.id),
+                        ),
+                      ),
+                    )
+                        .animate()
+                        .fadeIn(
+                          delay: (i * 30).ms,
+                          duration: 300.ms,
+                        )
+                        .slideX(begin: 0.03, end: 0);
+                  },
+                  childCount: users.length,
+                ),
+              ),
+            const SliverToBoxAdapter(child: SizedBox(height: 100)),
+          ],
+        ),
       ),
     );
   }
@@ -195,7 +201,8 @@ class _DevelopersHero extends StatelessWidget {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: AppColors.bgFor(context).withValues(alpha: 0.45),
                       borderRadius: BorderRadius.circular(999),

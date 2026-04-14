@@ -2,6 +2,7 @@ class MessageModel {
   final String id;
   final String conversationId;
   final String senderId;
+  final String recipientId;
   final String content;
   final bool isRead;
   final DateTime? readAt;
@@ -11,6 +12,7 @@ class MessageModel {
     required this.id,
     required this.conversationId,
     required this.senderId,
+    required this.recipientId,
     required this.content,
     required this.isRead,
     this.readAt,
@@ -22,6 +24,7 @@ class MessageModel {
       id: json['id'].toString(),
       conversationId: json['conversation_id'].toString(),
       senderId: json['sender_id'].toString(),
+      recipientId: json['recipient_id']?.toString() ?? '',
       content: json['content'] as String? ?? '',
       isRead: json['is_read'] as bool? ?? false,
       readAt: json['read_at'] != null
@@ -35,6 +38,7 @@ class MessageModel {
         'id': id,
         'conversation_id': conversationId,
         'sender_id': senderId,
+        'recipient_id': recipientId,
         'content': content,
         'is_read': isRead,
         'read_at': readAt?.toIso8601String(),

@@ -32,6 +32,7 @@ create table if not exists public.messages (
 -- Ensure all columns exist
 alter table public.messages add column if not exists is_read boolean default false;
 alter table public.messages add column if not exists read_at timestamp with time zone;
+alter table public.messages add column if not exists recipient_id uuid references public.users(id) on delete cascade;
 
 -- 2. INDEXES
 create unique index if not exists idx_conversations_participant_key on public.conversations(participant_key);
@@ -133,13 +134,26 @@ as $$
 declare
   actor_id uuid;
   new_message public.messages%rowtype;
+  v_recipient_id uuid;
 begin
   actor_id := auth.uid();
   if actor_id is null then raise exception 'Authentication required'; end if;
   if trim(coalesce(p_content, '')) = '' then raise exception 'Message cannot be empty'; end if;
 
-  insert into public.messages(conversation_id, sender_id, content)
-  values (p_conversation_id, actor_id, trim(p_content))
+  -- Find the recipient_id from the conversation participants
+  select participant
+  into v_recipient_id
+  from public.conversations c, unnest(c.participants) as participant
+  where c.id = p_conversation_id
+    and participant <> actor_id
+  limit 1;
+
+  if v_recipient_id is null then
+    raise exception 'Recipient not found in conversation';
+  end if;
+
+  insert into public.messages(conversation_id, sender_id, recipient_id, content)
+  values (p_conversation_id, actor_id, v_recipient_id, trim(p_content))
   returning * into new_message;
   return to_jsonb(new_message);
 end;

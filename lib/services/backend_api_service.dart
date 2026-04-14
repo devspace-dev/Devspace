@@ -10,18 +10,11 @@ import '../models/daily_challenge_model.dart';
 import '../models/event_access_model.dart';
 import '../models/post_model.dart';
 import 'founder_device_service.dart';
+import '../utils/runtime_config.dart';
 
 class BackendApiService {
   BackendApiService._internal();
   static final BackendApiService instance = BackendApiService._internal();
-  static const String _supabaseUrl = String.fromEnvironment(
-    'SUPABASE_URL',
-    defaultValue: '',
-  );
-  static const String _supabaseAnonKey = String.fromEnvironment(
-    'SUPABASE_ANON_KEY',
-    defaultValue: '',
-  );
   static const Duration _requestTimeout = Duration(seconds: 20);
 
   SupabaseClient get _client => Supabase.instance.client;
@@ -173,9 +166,10 @@ class BackendApiService {
   Future<Map<String, String>> _headers({
     bool includeFounderDevice = false,
   }) async {
-    if (_supabaseAnonKey.isEmpty) {
+    final supabaseAnonKey = RuntimeConfig.instance.supabaseAnonKey;
+    if (supabaseAnonKey.isEmpty) {
       throw StateError(
-        'Missing Supabase runtime config. Add SUPABASE_ANON_KEY with --dart-define before using backend APIs.',
+        'Missing Supabase runtime config. Add SUPABASE_ANON_KEY with --dart-define or .env.local.json before using backend APIs.',
       );
     }
 
@@ -187,7 +181,7 @@ class BackendApiService {
     final headers = {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer $token',
-      'apikey': _supabaseAnonKey,
+      'apikey': supabaseAnonKey,
     };
 
     if (includeFounderDevice) {
@@ -198,13 +192,14 @@ class BackendApiService {
   }
 
   Uri _uri(String path, [Map<String, dynamic>? queryParameters]) {
-    if (_supabaseUrl.isEmpty) {
+    final supabaseUrl = RuntimeConfig.instance.supabaseUrl;
+    if (supabaseUrl.isEmpty) {
       throw StateError(
-        'Missing Supabase runtime config. Add SUPABASE_URL with --dart-define before using backend APIs.',
+        'Missing Supabase runtime config. Add SUPABASE_URL with --dart-define or .env.local.json before using backend APIs.',
       );
     }
 
-    final base = Uri.parse(_supabaseUrl);
+    final base = Uri.parse(supabaseUrl);
     if (base.scheme != 'https') {
       throw StateError('Backend requests must use HTTPS in production-ready builds.');
     }

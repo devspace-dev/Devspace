@@ -88,32 +88,27 @@ class _HomeScreenState extends State<HomeScreen> {
             )
           else if (posts.isEmpty)
             const SliverFillRemaining(
-              child: AppEmptyState(
-                icon: Icons.auto_awesome_rounded,
-                title: 'No Posts',
-                message: 'Be the first to share an update.',
-              ),
+              child: _WelcomeCard(),
             )
           else
             SliverPadding(
               padding: const EdgeInsets.only(top: 8),
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
-                  (context, i) => PostCard(post: posts[i])
-                      .animate()
-                      .fadeIn(duration: 400.ms, delay: (i % 5 * 100).ms)
-                      .moveY(begin: 20, end: 0, curve: Curves.easeOutQuad),
+                  (context, i) {
+                    return RepaintBoundary(
+                      child: PostCard(post: posts[i]),
+                    );
+                  },
                   childCount: posts.length,
                 ),
               ),
             ),
           if (postsP.isLoadingMore)
-            const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 20),
-                child: Center(
-                  child: CircularProgressIndicator.adaptive(),
-                ),
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) => const PostShimmer(),
+                childCount: 2,
               ),
             )
           else if (!postsP.hasMore && posts.isNotEmpty)
@@ -181,6 +176,92 @@ class _InlineWarningBanner extends StatelessWidget {
             child: const Text('Retry'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _WelcomeCard extends StatelessWidget {
+  const _WelcomeCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.bg2For(context),
+                borderRadius: BorderRadius.circular(32),
+                border: Border.all(color: AppColors.borderFor(context)),
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.auto_awesome_rounded,
+                      color: AppColors.primary,
+                      size: 32,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Welcome to DevSpace',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.textFor(context),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'The feed is quiet right now. Start the conversation by sharing what you are building or learning today.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 15,
+                      height: 1.5,
+                      color: AppColors.text2For(context),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.bg3For(context),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      children: [
+                        const Text('⚡', style: TextStyle(fontSize: 20)),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Earn your first 10 Aura points by posting your first builder update.',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.text2For(context),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

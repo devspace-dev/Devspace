@@ -55,10 +55,14 @@ create table if not exists public.messages (
   id uuid default gen_random_uuid() primary key,
   conversation_id uuid references public.conversations(id) on delete cascade,
   sender_id uuid references public.users(id) on delete cascade,
+  recipient_id uuid references public.users(id) on delete cascade,
   content text not null,
   is_read boolean default false,
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
+
+-- Ensure recipient_id exists
+alter table public.messages add column if not exists recipient_id uuid references public.users(id) on delete cascade;
 
 -- 4. CHALLENGES TABLES
 create table if not exists public.challenges (

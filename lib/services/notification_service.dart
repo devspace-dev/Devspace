@@ -19,7 +19,7 @@ class NotificationService {
     try {
       // Local notifications setup
       await _local.initialize(
-        const InitializationSettings(
+        settings: const InitializationSettings(
           android: AndroidInitializationSettings('@mipmap/ic_launcher'),
           iOS: DarwinInitializationSettings(),
         ),
@@ -78,10 +78,10 @@ class NotificationService {
     final details = NotificationDetails(android: android, iOS: ios);
 
     await _local.show(
-      id.hashCode,
-      title,
-      body,
-      details,
+      id: id.hashCode,
+      title: title,
+      body: body,
+      notificationDetails: details,
       payload: payload,
     );
   }

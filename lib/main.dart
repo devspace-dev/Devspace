@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -24,6 +25,9 @@ import 'screens/auth_intro_screen.dart';
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
 import 'services/analytics_service.dart';
+import 'utils/runtime_config.dart';
+import 'utils/secure_local_storage.dart';
+import 'package:safe_device/safe_device.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,33 +37,35 @@ void main() async {
   try {
     await Firebase.initializeApp();
     firebaseInitialized = true;
-    
+
     // Pass all uncaught "fatal" errors from the framework to Crashlytics
     FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
-    
+
     // Pass all uncaught asynchronous errors that aren't handled by the Flutter framework to Crashlytics
     PlatformDispatcher.instance.onError = (error, stack) {
       FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
       return true;
     };
   } catch (e) {
-    debugPrint('Firebase initialization failed: $e');
+    if (kDebugMode) debugPrint('Firebase initialization failed: $e');
   }
+
+  // SECURITY: Check for compromised device (Root/Jailbreak)
+  bool isCompromised = false;
+  try {
+    isCompromised = await SafeDevice.isJailBroken ||
+        !await SafeDevice.isRealDevice;
+  } catch (_) {}
 
   String? bootstrapError;
 
-  const String supabaseUrl = String.fromEnvironment(
-    'SUPABASE_URL',
-    defaultValue: '',
-  );
-  const String supabaseAnonKey = String.fromEnvironment(
-    'SUPABASE_ANON_KEY',
-    defaultValue: '',
-  );
+  final runtimeConfig = await RuntimeConfig.load();
+  final supabaseUrl = runtimeConfig.supabaseUrl;
+  final supabaseAnonKey = runtimeConfig.supabaseAnonKey;
 
   if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
     bootstrapError =
-        'Missing Supabase runtime config. Run with SUPABASE_URL and SUPABASE_ANON_KEY using --dart-define.';
+        'Missing Supabase runtime config. Run with SUPABASE_URL and SUPABASE_ANON_KEY using --dart-define, or add them to .env.local.json for local debug builds.';
   } else if (!supabaseUrl.startsWith('https://')) {
     bootstrapError =
         'Invalid Supabase runtime config. SUPABASE_URL must use HTTPS in production-ready builds.';
@@ -68,10 +74,19 @@ void main() async {
       await Supabase.initialize(
         url: supabaseUrl,
         anonKey: supabaseAnonKey,
+        authOptions: const FlutterAuthClientOptions(
+          authFlowType: AuthFlowType.pkce,
+          localStorage: SecureLocalStorage(),
+        ),
       );
       await AuthService.instance.init();
       if (firebaseInitialized) {
         await AnalyticsService.instance.logAppOpen();
+      }
+      if (kDebugMode) {
+        debugPrint(
+          'Supabase initialized with RuntimeConfig.',
+        );
       }
     } catch (e) {
       bootstrapError = 'Supabase initialization failed: $e';
@@ -93,13 +108,14 @@ void main() async {
 
   runApp(
     bootstrapError == null
-        ? const DevSpaceRoot()
+        ? DevSpaceRoot(isCompromised: isCompromised)
         : DevSpaceSetupApp(error: bootstrapError),
   );
 }
 
 class DevSpaceRoot extends StatelessWidget {
-  const DevSpaceRoot({super.key});
+  final bool isCompromised;
+  const DevSpaceRoot({super.key, required this.isCompromised});
 
   @override
   Widget build(BuildContext context) {
@@ -124,7 +140,7 @@ class DevSpaceRoot extends StatelessWidget {
             darkTheme: AppTheme.dark,
             themeMode: themeProvider.themeMode,
             navigatorObservers: [AnalyticsService.instance.observer],
-            home: const _Root(),
+            home: _Root(isCompromised: isCompromised),
           );
         },
       ),
@@ -153,7 +169,8 @@ class DevSpaceSetupApp extends StatelessWidget {
 }
 
 class _Root extends StatefulWidget {
-  const _Root();
+  final bool isCompromised;
+  const _Root({required this.isCompromised});
   @override
   State<_Root> createState() => _RootState();
 }
@@ -161,197 +178,6 @@ class _Root extends StatefulWidget {
 class _RootState extends State<_Root> {
   bool _showSplash = true;
   String? _notificationsInitializedForUid;
-  String? _profilePromptShownForUid;
-  bool _showingProfilePrompt = false;
-
-  void _maybePromptProfileCompletion(UserModel user) {
-    if (user.profileCompleted ||
-        _profilePromptShownForUid == user.id ||
-        _showingProfilePrompt) {
-      return;
-    }
-
-    _profilePromptShownForUid = user.id;
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted) return;
-      _showingProfilePrompt = true;
-
-      final openSetup = await showModalBottomSheet<bool>(
-        context: context,
-        backgroundColor: Colors.transparent,
-        isScrollControlled: true,
-        builder: (sheetContext) {
-          final bgColor = AppColors.bg2For(sheetContext);
-          final elevatedBgColor = AppColors.bg3For(sheetContext);
-          final textColor = AppColors.textFor(sheetContext);
-          final secondaryTextColor = AppColors.text2For(sheetContext);
-          final tertiaryTextColor = AppColors.text3For(sheetContext);
-          final borderColor = AppColors.borderFor(sheetContext);
-
-          return SafeArea(
-            child: Padding(
-              padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 18,
-                bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
-              ),
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
-                decoration: BoxDecoration(
-                  color: bgColor,
-                  borderRadius: BorderRadius.circular(28),
-                  border: Border.all(color: borderColor),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.12),
-                      blurRadius: 30,
-                      offset: const Offset(0, 14),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 42,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: AppColors.border2For(sheetContext),
-                          borderRadius: BorderRadius.circular(99),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: const Icon(
-                        Icons.auto_awesome_rounded,
-                        color: AppColors.primary,
-                        size: 28,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: elevatedBgColor,
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(color: borderColor),
-                      ),
-                      child: Text(
-                        '2 minute setup',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          color: tertiaryTextColor,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    Text(
-                      'Complete your profile',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w900,
-                        color: textColor,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Make your account look real before you start posting. A clear profile helps people trust, follow, and reply to you faster.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: secondaryTextColor,
-                        height: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: elevatedBgColor,
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: borderColor),
-                      ),
-                      child: Column(
-                        children: const [
-                          _ProfilePromptPoint(
-                            icon: Icons.person_outline_rounded,
-                            title: 'Identity',
-                            subtitle: 'Name, handle, year, and branch',
-                          ),
-                          SizedBox(height: 12),
-                          _ProfilePromptPoint(
-                            icon: Icons.handyman_outlined,
-                            title: 'Builder stack',
-                            subtitle: 'Skills and what you are building',
-                          ),
-                          SizedBox(height: 12),
-                          _ProfilePromptPoint(
-                            icon: Icons.verified_outlined,
-                            title: 'Better discovery',
-                            subtitle: 'Makes your profile easier to trust',
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => Navigator.pop(sheetContext, false),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                            ),
-                            child: const Text('Later'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          flex: 2,
-                          child: ElevatedButton.icon(
-                            onPressed: () => Navigator.pop(sheetContext, true),
-                            icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-                            label: const Text('Complete profile'),
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
-      );
-
-      _showingProfilePrompt = false;
-
-      if (!mounted || openSetup != true) return;
-
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => const ProfileSetupScreen(
-            mode: ProfileSetupMode.onboarding,
-          ),
-        ),
-      );
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -362,7 +188,7 @@ class _RootState extends State<_Root> {
       switchOutCurve: Curves.easeInOutQuart,
       transitionBuilder: (child, animation) {
         final isApp = child is DevSpaceApp;
-        
+
         // Premium zoom-in effect for the main app entry
         final scale = Tween<double>(
           begin: isApp ? 1.05 : 0.96,
@@ -401,6 +227,10 @@ class _RootState extends State<_Root> {
       builder: (context, snap) {
         final user = snap.data ?? AuthService.instance.currentUser;
 
+        if (widget.isCompromised) {
+          return const _SecurityCompromisedScreen();
+        }
+
         if (user == null) {
           return AuthIntroScreen(
             key: const ValueKey('login'),
@@ -413,65 +243,15 @@ class _RootState extends State<_Root> {
           NotificationService.instance.init(user.id);
         }
 
-        _maybePromptProfileCompletion(user);
+        if (!user.profileCompleted) {
+          return const ProfileSetupScreen(
+            key: ValueKey('onboarding'),
+            mode: ProfileSetupMode.onboarding,
+          );
+        }
 
         return const DevSpaceApp(key: ValueKey('app'));
       },
-    );
-  }
-}
-
-class _ProfilePromptPoint extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  const _ProfilePromptPoint({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, size: 18, color: AppColors.primary),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textFor(context),
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 12,
-                  height: 1.4,
-                  color: AppColors.text3For(context),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }
@@ -582,6 +362,43 @@ class _SetupCodeBlock extends StatelessWidget {
           fontSize: 12,
           height: 1.5,
           color: AppColors.textFor(context),
+        ),
+      ),
+    );
+  }
+}
+
+class _SecurityCompromisedScreen extends StatelessWidget {
+  const _SecurityCompromisedScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0F0F12),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.security_rounded,
+                  color: Colors.redAccent, size: 64),
+              const SizedBox(height: 24),
+              const Text(
+                'Security Check Failed',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'DevSpace cannot run on this device because it appears to be rooted, jailbroken, or running in an unsafe environment. This is to protect your developer identity and aura points.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white70, height: 1.5),
+              ),
+            ],
+          ),
         ),
       ),
     );

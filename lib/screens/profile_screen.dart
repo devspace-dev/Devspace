@@ -21,6 +21,7 @@ import '../widgets/aura_bar.dart';
 import '../widgets/github_card.dart';
 import '../widgets/post_card.dart';
 import '../widgets/user_avatar.dart';
+import '../widgets/skeleton_loaders.dart';
 
 class ProfileScreen extends StatelessWidget {
   final String? userId;
@@ -221,10 +222,7 @@ class ProfileScreen extends StatelessWidget {
     if (!isMe && user == null && usersP.isLoading) {
       return Scaffold(
         backgroundColor: AppColors.bgFor(context),
-        body: const AppLoadingState(
-          title: 'Loading profile',
-          message: 'Fetching this builder profile from DevSpace.',
-        ),
+        body: const SafeArea(child: ProfileSkeleton()),
       );
     }
 

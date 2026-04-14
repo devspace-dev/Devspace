@@ -15,9 +15,9 @@ class StorageService {
   Future<File?> pickImage({bool fromCamera = false}) async {
     final picked = await _picker.pickImage(
       source: fromCamera ? ImageSource.camera : ImageSource.gallery,
-      maxWidth: 1920, // Increased for cover photos
-      maxHeight: 1080,
-      imageQuality: 85,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 70,
     );
     return picked != null ? File(picked.path) : null;
   }
@@ -28,7 +28,7 @@ class StorageService {
     await _supabase.storage.from('images').upload(
           path,
           file,
-          fileOptions: const FileOptions(upsert: true),
+          fileOptions: const FileOptions(upsert: true, contentType: 'image/jpeg'),
         );
     return _supabase.storage.from('images').getPublicUrl(path);
   }
@@ -39,7 +39,7 @@ class StorageService {
     await _supabase.storage.from('images').upload(
           path,
           file,
-          fileOptions: const FileOptions(upsert: true),
+          fileOptions: const FileOptions(upsert: true, contentType: 'image/jpeg'),
         );
     return _supabase.storage.from('images').getPublicUrl(path);
   }
@@ -50,7 +50,7 @@ class StorageService {
     await _supabase.storage.from('images').upload(
           path,
           file,
-          fileOptions: const FileOptions(upsert: true),
+          fileOptions: const FileOptions(upsert: true, contentType: 'image/jpeg'),
         );
     return _supabase.storage.from('images').getPublicUrl(path);
   }
@@ -60,7 +60,7 @@ class StorageService {
     await _supabase.storage.from('images').upload(
           path,
           file,
-          fileOptions: const FileOptions(upsert: true),
+          fileOptions: const FileOptions(upsert: true, contentType: 'image/jpeg'),
         );
     return _supabase.storage.from('images').getPublicUrl(path);
   }
@@ -75,7 +75,7 @@ class StorageService {
     await _supabase.storage.from('images').upload(
           path,
           file,
-          fileOptions: const FileOptions(upsert: true),
+          fileOptions: const FileOptions(upsert: true, contentType: 'image/jpeg'),
         );
     if (onProgress != null) onProgress(1.0);
     return _supabase.storage.from('images').getPublicUrl(path);
@@ -89,5 +89,15 @@ class StorageService {
   String resolvePublicUrl(String pathOrUrl) {
     if (pathOrUrl.startsWith('http')) return pathOrUrl;
     return _supabase.storage.from('images').getPublicUrl(pathOrUrl);
+  }
+
+  Future<String> uploadChatImage(String conversationId, File file) async {
+    final path = 'chat/$conversationId/${_uuid.v4()}.jpg';
+    await _supabase.storage.from('images').upload(
+          path,
+          file,
+          fileOptions: const FileOptions(upsert: true, contentType: 'image/jpeg'),
+        );
+    return _supabase.storage.from('images').getPublicUrl(path);
   }
 }

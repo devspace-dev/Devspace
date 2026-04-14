@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
@@ -150,7 +151,12 @@ class _StatItem extends StatelessWidget {
     final color = active ? AppColors.primary : AppColors.text3For(context);
 
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        if (onTap != null) {
+          HapticFeedback.lightImpact();
+          onTap!();
+        }
+      },
       child: Row(
         children: [
           Icon(icon, size: 16, color: color),

@@ -148,6 +148,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: 'Why this app exists and what it is built for.',
             onTap: () => _showAbout(context),
           ),
+          const _SectionHeader(title: 'DANGER ZONE'),
+          _SettingsTile(
+            icon: Icons.delete_forever_rounded,
+            title: 'Delete account',
+            subtitle: 'Permanently remove your profile and all your data.',
+            onTap: () => _handleDeleteAccount(context),
+          ),
           const SizedBox(height: 28),
           ElevatedButton.icon(
             onPressed: () => _handleLogout(context),
@@ -207,6 +214,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
       // popUntil route.isFirst navigates to the root. Assuming the root is the login/splash screen.
       if (context.mounted) {
         Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    }
+  }
+
+  Future<void> _handleDeleteAccount(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bg2For(context),
+        title: Text(
+          'Delete account?',
+          style: TextStyle(color: AppColors.textFor(context)),
+        ),
+        content: Text(
+          'This action is permanent. All your posts, profile, and aura points will be removed. You cannot undo this.',
+          style: TextStyle(color: AppColors.text2For(context)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete permanently'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && context.mounted) {
+      try {
+        await context.read<AuthProvider>().deleteAccount();
+        if (context.mounted) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to delete account: $e')),
+          );
+        }
       }
     }
   }

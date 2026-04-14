@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'skeleton_loaders.dart';
 
 import '../models/user_model.dart';
 import '../models/badge_model.dart';
@@ -126,12 +128,13 @@ class _AvatarImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Image.network(
-      StorageService.instance.resolvePublicUrl(avatar),
+    return CachedNetworkImage(
+      imageUrl: StorageService.instance.resolvePublicUrl(avatar),
       fit: BoxFit.cover,
       width: size,
       height: size,
-      errorBuilder: (_, __, ___) => _fallback(),
+      placeholder: (context, url) => SkeletonLoader(width: size, height: size, borderRadius: size / 2),
+      errorWidget: (_, __, ___) => _fallback(),
     );
   }
 

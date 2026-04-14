@@ -6,12 +6,16 @@ create table if not exists public.notifications (
   id uuid default gen_random_uuid() primary key,
   to_uid uuid references public.users(id) on delete cascade,
   from_uid uuid references public.users(id) on delete cascade,
-  type text not null, -- 'like', 'comment', 'follow', 'message', 'solved'
+  type text default '',
   post_id uuid references public.posts(id) on delete set null,
+  question_id uuid references public.questions(id) on delete set null,
   message text default '',
   read boolean default false,
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
+
+alter table public.notifications add column if not exists question_id uuid references public.questions(id) on delete set null;
+
 
 -- Ensure RLS is enabled
 alter table public.notifications enable row level security;
@@ -52,9 +56,10 @@ begin
     raise exception 'Post not found';
   end if;
 
-  if post_owner_id = actor_id then
-    raise exception 'You cannot like your own post';
-  end if;
+  -- Removed restriction: Users can now like their own posts
+  -- if post_owner_id = actor_id then
+  --   raise exception 'You cannot like your own post';
+  -- end if;
 
   select coalesce(name, handle, 'Someone') into actor_name from public.users where id = actor_id;
 
@@ -68,19 +73,22 @@ begin
 
   perform public.sync_post_like_count(p_post_id);
 
-  perform public.award_aura(
-    post_owner_id,
-    'receive_like',
-    2,
-    'post_like',
-    p_post_id::text,
-    actor_id,
-    jsonb_build_object('postId', p_post_id)
-  );
+  -- Only award aura and send notification if it's NOT the user's own post
+  if post_owner_id != actor_id then
+    perform public.award_aura(
+      post_owner_id,
+      'receive_like',
+      2,
+      'post_like',
+      p_post_id::text,
+      actor_id,
+      jsonb_build_object('postId', p_post_id)
+    );
 
-  -- SEND NOTIFICATION
-  insert into public.notifications(to_uid, from_uid, type, post_id, message)
-  values (post_owner_id, actor_id, 'like', p_post_id, actor_name || ' liked your post');
+    -- SEND NOTIFICATION
+    insert into public.notifications(to_uid, from_uid, type, post_id, message)
+    values (post_owner_id, actor_id, 'like', p_post_id, actor_name || ' liked your post');
+  end if;
 
   return jsonb_build_object('liked', true);
 end;
@@ -241,4 +249,14 @@ for each row
 execute function public.push_follow_notification();
 
 -- 6. ENABLE REALTIME FOR NOTIFICATIONS
-alter publication supabase_realtime add table public.notifications;
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables 
+    where pubname = 'supabase_realtime' 
+    and schemaname = 'public' 
+    and tablename = 'notifications'
+  ) then
+    alter publication supabase_realtime add table public.notifications;
+  end if;
+end $$;

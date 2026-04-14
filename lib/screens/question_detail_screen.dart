@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../models/question_reply_model.dart';
@@ -89,40 +90,160 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
   }
 
   void _showPRDialog() {
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.bg2For(context),
-        title: const Text('Submit Pull Request'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Describe your proposed answer, fix, or solution to the asker.',
-              style: TextStyle(color: AppColors.text2For(context), fontSize: 14),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          24,
+          20,
+          MediaQuery.of(context).viewInsets.bottom + 24,
+        ),
+        decoration: BoxDecoration(
+          color: AppColors.bgFor(context),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border(
+            top: BorderSide(
+              color: AppColors.primary.withValues(alpha: 0.2),
+              width: 1.5,
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _prMessageCtrl,
-              maxLines: 3,
-              style: TextStyle(color: AppColors.textFor(context)),
-              decoration: const InputDecoration(
-                hintText:
-                    'I have experience with this framework and can help you debug...',
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              blurRadius: 40,
+              offset: const Offset(0, -10),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.call_merge_rounded,
+                    color: AppColors.primary,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Submit Pull Request',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.textFor(context),
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      Text(
+                        'Offer your help to this builder',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.text2For(context),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: Icon(
+                    Icons.close_rounded,
+                    color: AppColors.text3For(context),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'PROPOSED SOLUTION',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: AppColors.primary,
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.bg2For(context),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppColors.borderFor(context),
+                ),
+              ),
+              child: TextField(
+                controller: _prMessageCtrl,
+                maxLines: 5,
+                style: TextStyle(
+                  color: AppColors.textFor(context),
+                  fontSize: 15,
+                  height: 1.4,
+                ),
+                decoration: InputDecoration(
+                  hintText:
+                      'E.g., "I have experience with this framework and can help you debug the state management issue. I can jump on a call or share code snippets."',
+                  hintStyle: TextStyle(
+                    color: AppColors.text3For(context),
+                    fontSize: 14,
+                  ),
+                  contentPadding: const EdgeInsets.all(16),
+                  border: InputBorder.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton(
+                onPressed: _submitPR,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: const Text(
+                  'Submit Request',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Center(
+              child: Text(
+                'Once accepted, you\'ll be able to reply directly to the thread.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.text3For(context),
+                ),
               ),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: _submitPR,
-            child: const Text('Submit'),
-          ),
-        ],
       ),
     );
   }
@@ -971,8 +1092,19 @@ class _PRStatusFooter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (myPR == null) {
-      return SizedBox(
+      return Container(
         width: double.infinity,
+        decoration: BoxDecoration(
+          gradient: AppColors.premiumGradient,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
         child: ElevatedButton.icon(
           onPressed: isSubmitting ? null : onShowDialog,
           icon: isSubmitting
@@ -982,10 +1114,23 @@ class _PRStatusFooter extends StatelessWidget {
                   child: CircularProgressIndicator(
                       strokeWidth: 2, color: Colors.white),
                 )
-              : const Icon(Icons.call_merge_rounded),
-          label: const Text('Put Pull Request'),
+              : const Icon(Icons.call_merge_rounded, color: Colors.white),
+          label: const Text(
+            'Put Pull Request',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+            ),
+          ),
           style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            foregroundColor: Colors.white,
+            shadowColor: Colors.transparent,
             padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
           ),
         ),
       );
@@ -993,44 +1138,125 @@ class _PRStatusFooter extends StatelessWidget {
 
     if (myPR!.status == 'pending') {
       return Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.all(16),
         width: double.infinity,
         decoration: BoxDecoration(
           color: AppColors.bg3For(context),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          children: [
-            Icon(Icons.hourglass_empty_rounded, color: AppColors.text3For(context)),
-            const SizedBox(height: 4),
-            Text(
-              'Your pull request is pending review...',
-              style: TextStyle(color: AppColors.text3For(context), fontSize: 13),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: AppColors.primary.withValues(alpha: 0.3),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
-      );
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.hourglass_empty_rounded,
+                color: AppColors.primary,
+                size: 20,
+              ).animate(onPlay: (c) => c.repeat()).rotate(
+                    duration: 2.seconds,
+                    begin: 0,
+                    end: 1,
+                  ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Pull Request Pending',
+                    style: TextStyle(
+                      color: AppColors.textFor(context),
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'The asker is reviewing your proposal.',
+                    style: TextStyle(
+                      color: AppColors.text3For(context),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ).animate().fadeIn().slideY(begin: 0.2, end: 0);
     }
 
     if (myPR!.status == 'rejected') {
       return Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.all(16),
         width: double.infinity,
         decoration: BoxDecoration(
-          color: AppColors.flame.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
+          color: AppColors.flame.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: AppColors.flame.withValues(alpha: 0.2),
+            width: 1,
+          ),
         ),
-        child: const Column(
+        child: Row(
           children: [
-            Icon(Icons.block_rounded, color: AppColors.flame),
-            SizedBox(height: 4),
-            Text(
-              'Your pull request was declined.',
-              style: TextStyle(color: AppColors.flame, fontSize: 13),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.flame.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.block_rounded,
+                color: AppColors.flame,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Request Declined',
+                    style: TextStyle(
+                      color: AppColors.flame,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Try helping out with another question!',
+                    style: TextStyle(
+                      color: AppColors.flame.withValues(alpha: 0.7),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
-      );
+      ).animate().shake();
     }
 
     return const SizedBox.shrink();

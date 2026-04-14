@@ -7,8 +7,10 @@ import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
 import '../providers/posts_provider.dart';
+import '../screens/profile_screen.dart';
 import '../services/storage_service.dart';
 import '../theme/app_colors.dart';
+import '../utils/constants.dart';
 import 'user_avatar.dart';
 import 'glass_container.dart';
 
@@ -20,6 +22,17 @@ class ComposeBox extends StatefulWidget {
 }
 
 class _ComposeBoxState extends State<ComposeBox> {
+  void _goToProfile() {
+    HapticFeedback.lightImpact();
+    final me = context.read<AuthProvider>().currentUser;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProfileScreen(userId: me.id),
+      ),
+    );
+  }
+
   Future<void> _openComposer({bool showTags = false}) async {
     HapticFeedback.lightImpact();
     final result = await showModalBottomSheet<_CreatePostSheetResult>(
@@ -57,7 +70,10 @@ class _ComposeBoxState extends State<ComposeBox> {
       ),
       child: Row(
         children: [
-          UserAvatar(user: me, size: 36),
+          GestureDetector(
+            onTap: _goToProfile,
+            child: UserAvatar(user: me, size: 36),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: GestureDetector(
@@ -122,18 +138,110 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
   bool _posting = false;
   File? _selectedImage;
   int _charCount = 0;
-  static const int _maxChars = 280;
+
+  List<String> _hashtagSuggestions = [];
+  String _currentHashtagQuery = '';
+  int _hashtagStartIndex = -1;
+
+  final List<String> _allCommonTags = [
+    ...kTrendingTags.map((t) => t.replaceAll('#', '')),
+    'Flutter', 'React', 'NodeJS', 'Python', 'ML', 'AI', 'Web3', 'Blockchain',
+    'OpenSource', 'Design', 'UI', 'UX', 'Backend', 'Frontend', 'DevOps',
+    'Cloud', 'AWS', 'Firebase', 'Supabase', 'Dart', 'JavaScript', 'TypeScript',
+    'Java', 'Kotlin', 'Swift', 'C++', 'Go', 'Rust', 'Docker', 'Kubernetes',
+    'Mobile', 'Android', 'iOS', 'Web', 'GameDev', 'CyberSecurity', 'Networking',
+    'Database', 'SQL', 'NoSQL', 'Git', 'GitHub', 'Algorithms', 'DataStructures',
+    'CompetitiveProgramming', 'Hackathon', 'Internship', 'Job', 'Remote',
+    'MNIT', 'College', 'Engineering', 'Developer', 'Code', 'Programming',
+  ];
 
   @override
   void initState() {
     super.initState();
-    _textCtrl.addListener(() {
-      setState(() => _charCount = _textCtrl.text.length);
+    _textCtrl.addListener(_onTextChanged);
+  }
+
+  void _onTextChanged() {
+    setState(() => _charCount = _textCtrl.text.length);
+    _checkHashtagSuggestions();
+  }
+
+  void _checkHashtagSuggestions() {
+    final text = _textCtrl.text;
+    final selection = _textCtrl.selection;
+    if (!selection.isValid || !selection.isCollapsed) {
+      _hideSuggestions();
+      return;
+    }
+
+    final cursorPosition = selection.baseOffset;
+    if (cursorPosition == 0) {
+      _hideSuggestions();
+      return;
+    }
+
+    // Look back from cursor to find the last '#'
+    final textBeforeCursor = text.substring(0, cursorPosition);
+    final lastSpace = textBeforeCursor.lastIndexOf(' ');
+    final lastNewline = textBeforeCursor.lastIndexOf('\n');
+    final lastBound = lastSpace > lastNewline ? lastSpace : lastNewline;
+    
+    final hashtagIndex = textBeforeCursor.lastIndexOf('#');
+    
+    if (hashtagIndex != -1 && hashtagIndex >= lastBound) {
+      final query = textBeforeCursor.substring(hashtagIndex + 1);
+      if (query.contains(' ')) {
+        _hideSuggestions();
+        return;
+      }
+      
+      _hashtagStartIndex = hashtagIndex;
+      _currentHashtagQuery = query;
+      
+      final filtered = _allCommonTags
+          .where((tag) => 
+              tag.toLowerCase().startsWith(query.toLowerCase()) && 
+              !_tags.contains(tag))
+          .take(10)
+          .toList();
+          
+      setState(() {
+        _hashtagSuggestions = filtered;
+      });
+    } else {
+      _hideSuggestions();
+    }
+  }
+
+  void _hideSuggestions() {
+    if (_hashtagSuggestions.isNotEmpty) {
+      setState(() {
+        _hashtagSuggestions = [];
+        _hashtagStartIndex = -1;
+        _currentHashtagQuery = '';
+      });
+    }
+  }
+
+  void _addSuggestedTag(String tag) {
+    HapticFeedback.lightImpact();
+    final text = _textCtrl.text;
+    final textBefore = text.substring(0, _hashtagStartIndex);
+    final textAfter = text.substring(_textCtrl.selection.baseOffset);
+    
+    setState(() {
+      if (!_tags.contains(tag)) {
+        _tags.add(tag);
+      }
+      _textCtrl.text = textBefore + textAfter;
+      _textCtrl.selection = TextSelection.collapsed(offset: textBefore.length);
+      _hideSuggestions();
     });
   }
 
   @override
   void dispose() {
+    _textCtrl.removeListener(_onTextChanged);
     _textCtrl.dispose();
     super.dispose();
   }
@@ -141,7 +249,6 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
   @override
   Widget build(BuildContext context) {
     final me = context.read<AuthProvider>().currentUser;
-    final isOverLimit = _charCount > _maxChars;
 
     return GlassContainer(
       color: AppColors.bgFor(context),
@@ -160,7 +267,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                   child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: AppColors.textFor(context), fontWeight: FontWeight.w600)),
                 ),
                 ElevatedButton(
-                  onPressed: (_posting || (isOverLimit)) ? null : _submit,
+                  onPressed: _posting ? null : _submit,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
@@ -176,129 +283,185 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              child: Stack(
+                children: [
+                  SingleChildScrollView(
+                    child: Column(
                       children: [
-                        UserAvatar(user: me, size: 40),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              TextField(
-                                controller: _textCtrl,
-                                maxLines: null,
-                                autofocus: true,
-                                style: GoogleFonts.plusJakartaSans(fontSize: 18, color: AppColors.textFor(context), height: 1.5),
-                                decoration: const InputDecoration(
-                                  hintText: 'Share your build journey...',
-                                  filled: false,
-                                  contentPadding: EdgeInsets.zero,
-                                  border: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                ),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                HapticFeedback.lightImpact();
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ProfileScreen(userId: me.id),
+                                  ),
+                                );
+                              },
+                              child: UserAvatar(user: me, size: 40),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  TextField(
+                                    controller: _textCtrl,
+                                    maxLines: null,
+                                    autofocus: true,
+                                    style: GoogleFonts.plusJakartaSans(fontSize: 18, color: AppColors.textFor(context), height: 1.5),
+                                    decoration: const InputDecoration(
+                                      hintText: 'Share your build journey...',
+                                      filled: false,
+                                      contentPadding: EdgeInsets.zero,
+                                      border: InputBorder.none,
+                                      enabledBorder: InputBorder.none,
+                                      focusedBorder: InputBorder.none,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    '$_charCount characters',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.text3For(context),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                '$_charCount / $_maxChars',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: isOverLimit ? AppColors.flame : AppColors.text3For(context),
+                            ),
+                          ],
+                        ),
+                        if (_selectedImage != null) ...[
+                          const SizedBox(height: 20),
+                          Stack(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: Image.file(_selectedImage!, fit: BoxFit.cover, width: double.infinity),
+                              ),
+                              Positioned(
+                                right: 12,
+                                top: 12,
+                                child: GestureDetector(
+                                  onTap: () {
+                                    HapticFeedback.selectionClick();
+                                    setState(() => _selectedImage = null);
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.black54,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.close_rounded,
+                                      size: 20,
+                                      color: Colors.white,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                      ],
-                    ),
-                    if (_selectedImage != null) ...[
-                      const SizedBox(height: 20),
-                      Stack(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: Image.file(_selectedImage!, fit: BoxFit.cover, width: double.infinity),
-                          ),
-                          Positioned(
-                            right: 12,
-                            top: 12,
-                            child: GestureDetector(
-                              onTap: () {
-                                HapticFeedback.selectionClick();
-                                setState(() => _selectedImage = null);
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: const BoxDecoration(
-                                  color: Colors.black54,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.close_rounded,
-                                  size: 20,
-                                  color: Colors.white,
-                                ),
-                              ),
+                        ],
+                        if (_tags.isNotEmpty) ...[
+                          const SizedBox(height: 20),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Wrap(
+                              spacing: 8,
+                              runSpacing: 10,
+                              children: _tags
+                                  .map(
+                                    (tag) => GestureDetector(
+                                      onTap: () {
+                                        HapticFeedback.selectionClick();
+                                        setState(() => _tags.remove(tag));
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 14,
+                                          vertical: 8,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primary.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(99),
+                                          border: Border.all(
+                                            color: AppColors.primary.withValues(alpha: 0.3),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              '#$tag',
+                                              style: GoogleFonts.plusJakartaSans(
+                                                color: AppColors.primary,
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            const Icon(Icons.close_rounded, size: 14, color: AppColors.primary),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
                             ),
                           ),
                         ],
-                      ),
-                    ],
-                    if (_tags.isNotEmpty) ...[
-                      const SizedBox(height: 20),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Wrap(
-                          spacing: 8,
-                          runSpacing: 10,
-                          children: _tags
-                              .map(
-                                (tag) => GestureDetector(
-                                  onTap: () {
-                                    HapticFeedback.selectionClick();
-                                    setState(() => _tags.remove(tag));
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 14,
-                                      vertical: 8,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primary.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(99),
-                                      border: Border.all(
-                                        color: AppColors.primary.withValues(alpha: 0.3),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          '#$tag',
-                                          style: GoogleFonts.plusJakartaSans(
-                                            color: AppColors.primary,
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 6),
-                                        const Icon(Icons.close_rounded, size: 14, color: AppColors.primary),
-                                      ],
-                                    ),
-                                  ),
+                        const SizedBox(height: 100), // Space for keyboard
+                      ],
+                    ),
+                  ),
+                  if (_hashtagSuggestions.isNotEmpty)
+                    Positioned(
+                      left: 52,
+                      right: 0,
+                      top: 40, 
+                      child: Container(
+                        constraints: const BoxConstraints(maxHeight: 200),
+                        decoration: BoxDecoration(
+                          color: AppColors.bg2For(context),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.borderFor(context)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.2),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          padding: EdgeInsets.zero,
+                          itemCount: _hashtagSuggestions.length,
+                          itemBuilder: (context, index) {
+                            final tag = _hashtagSuggestions[index];
+                            return ListTile(
+                              dense: true,
+                              title: Text(
+                                '#$tag',
+                                style: GoogleFonts.plusJakartaSans(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w700,
                                 ),
-                              )
-                              .toList(),
+                              ),
+                              onTap: () => _addSuggestedTag(tag),
+                            );
+                          },
                         ),
                       ),
-                    ],
-                  ],
-                ),
+                    ),
+                ],
               ),
             ),
             const SizedBox(height: 12),
@@ -502,5 +665,3 @@ class _ToolbarIcon extends StatelessWidget {
     );
   }
 }
-
-

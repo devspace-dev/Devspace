@@ -7,11 +7,15 @@ import 'glass_container.dart';
 class DevSpaceBottomNav extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
+  final int unreadNotifications;
+  final int unreadMessages;
 
   const DevSpaceBottomNav({
     super.key,
     required this.currentIndex,
     required this.onTap,
+    this.unreadNotifications = 0,
+    this.unreadMessages = 0,
   });
 
   @override
@@ -43,6 +47,7 @@ class DevSpaceBottomNav extends StatelessWidget {
                     index: 0,
                     current: currentIndex,
                     onTap: onTap,
+                    badgeCount: unreadNotifications,
                   ),
                   _NavItem(
                     icon: Icons.person_search_outlined,
@@ -75,6 +80,7 @@ class DevSpaceBottomNav extends StatelessWidget {
                     index: 4,
                     current: currentIndex,
                     onTap: onTap,
+                    badgeCount: unreadMessages,
                   ),
                 ],
               ),
@@ -93,6 +99,7 @@ class _NavItem extends StatelessWidget {
   final int index;
   final int current;
   final ValueChanged<int> onTap;
+  final int badgeCount;
 
   const _NavItem({
     required this.icon,
@@ -101,6 +108,7 @@ class _NavItem extends StatelessWidget {
     required this.index,
     required this.current,
     required this.onTap,
+    this.badgeCount = 0,
   });
 
   @override
@@ -118,18 +126,26 @@ class _NavItem extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeOutQuad,
-              padding: EdgeInsets.all(active ? 8 : 0),
-              decoration: BoxDecoration(
-                color: active ? AppColors.primary.withValues(alpha: 0.1) : Colors.transparent,
-                shape: BoxShape.circle,
+            Badge(
+              backgroundColor: AppColors.primary,
+              isLabelVisible: badgeCount > 0,
+              label: Text(
+                badgeCount > 9 ? '9+' : '$badgeCount',
+                style: const TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.bold),
               ),
-              child: Icon(
-                active ? activeIcon : icon,
-                size: 26,
-                color: color,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeOutQuad,
+                padding: EdgeInsets.all(active ? 8 : 0),
+                decoration: BoxDecoration(
+                  color: active ? AppColors.primary.withValues(alpha: 0.1) : Colors.transparent,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  active ? activeIcon : icon,
+                  size: 26,
+                  color: color,
+                ),
               ),
             ),
             if (!active) const SizedBox(height: 4),

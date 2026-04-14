@@ -266,6 +266,21 @@ alter table public.question_votes add column if not exists question_id uuid refe
 alter table public.question_votes add column if not exists user_id uuid references public.users(id) on delete cascade;
 alter table public.question_votes add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
 
+create table if not exists public.question_pull_requests (
+  id uuid default gen_random_uuid() primary key,
+  question_id uuid references public.questions(id) on delete cascade,
+  user_id uuid references public.users(id) on delete cascade,
+  status text not null default 'pending',
+  message text not null default '',
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+alter table public.question_pull_requests add column if not exists question_id uuid references public.questions(id) on delete cascade;
+alter table public.question_pull_requests add column if not exists user_id uuid references public.users(id) on delete cascade;
+alter table public.question_pull_requests add column if not exists status text not null default 'pending';
+alter table public.question_pull_requests add column if not exists message text not null default '';
+alter table public.question_pull_requests add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
+
 do $$
 begin
   if not exists (
@@ -278,6 +293,81 @@ begin
   end if;
 end
 $$;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'question_pull_requests_question_id_user_id_key'
+  ) then
+    alter table public.question_pull_requests
+      add constraint question_pull_requests_question_id_user_id_key unique (question_id, user_id);
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'questions_solved_reply_id_fkey'
+  ) then
+    alter table public.questions
+      add constraint questions_solved_reply_id_fkey
+      foreign key (solved_reply_id)
+      references public.question_replies(id)
+      on delete set null;
+  end if;
+end
+$$;
+
+create table if not exists public.notifications (
+  id uuid default gen_random_uuid() primary key,
+  to_uid uuid references public.users(id) on delete cascade,
+  from_uid uuid references public.users(id) on delete cascade,
+  type text default '',
+  post_id uuid references public.posts(id) on delete set null,
+  message text default '',
+  read boolean default false,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+alter table public.notifications add column if not exists to_uid uuid references public.users(id) on delete cascade;
+alter table public.notifications add column if not exists from_uid uuid references public.users(id) on delete cascade;
+alter table public.notifications add column if not exists type text default '';
+alter table public.notifications add column if not exists post_id uuid references public.posts(id) on delete set null;
+alter table public.notifications add column if not exists message text default '';
+alter table public.notifications add column if not exists read boolean default false;
+alter table public.notifications add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
+
+create table if not exists public.conversations (
+  id uuid default gen_random_uuid() primary key,
+  participants uuid[] not null,
+  participant_key text,
+  last_message text,
+  last_message_at timestamp with time zone,
+  last_message_sender_id uuid references public.users(id) on delete set null,
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  updated_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+alter table public.conversations add column if not exists participants uuid[];
+alter table public.conversations add column if not exists participant_key text;
+alter table public.conversations add column if not exists last_message text;
+alter table public.conversations add column if not exists last_message_at timestamp with time zone;
+alter table public.conversations add column if not exists last_message_sender_id uuid references public.users(id) on delete set null;
+alter table public.conversations add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
+alter table public.conversations add column if not exists updated_at timestamp with time zone default timezone('utc'::text, now());
+
+create table if not exists public.messages (
+  id uuid default gen_random_uuid() primary key,
+  conversation_id uuid references public.conversations(id) on delete cascade,
+  sender_id uuid references public.users(id) on delete cascade,
+  content text not null,
+  is_read boolean default false,
+  read_at timestamp with time zone,
 
 do $$
 begin
@@ -349,6 +439,7 @@ alter table public.messages add column if not exists content text;
 alter table public.messages add column if not exists is_read boolean default false;
 alter table public.messages add column if not exists read_at timestamp with time zone;
 alter table public.messages add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
+alter table public.messages add column if not exists recipient_id uuid references public.users(id) on delete cascade;
 
 do $$
 begin
@@ -467,6 +558,10 @@ create index if not exists idx_question_replies_replying_to_user_id on public.qu
 create index if not exists idx_question_replies_created_at on public.question_replies(created_at desc);
 create index if not exists idx_question_votes_question_id on public.question_votes(question_id);
 create index if not exists idx_question_votes_user_id on public.question_votes(user_id);
+create index if not exists idx_question_pull_requests_question_id on public.question_pull_requests(question_id);
+create index if not exists idx_question_pull_requests_user_id on public.question_pull_requests(user_id);
+create index if not exists idx_question_pull_requests_status on public.question_pull_requests(status);
+create index if not exists idx_question_pull_requests_created_at on public.question_pull_requests(created_at desc);
 create unique index if not exists idx_conversations_participant_key
   on public.conversations(participant_key);
 create index if not exists idx_conversations_last_message_at
@@ -714,6 +809,7 @@ alter table public.comments enable row level security;
 alter table public.questions enable row level security;
 alter table public.question_replies enable row level security;
 alter table public.question_votes enable row level security;
+alter table public.question_pull_requests enable row level security;
 alter table public.notifications enable row level security;
 alter table public.conversations enable row level security;
 alter table public.messages enable row level security;
@@ -740,987 +836,107 @@ begin
   if not exists (
     select 1 from pg_policies
     where schemaname = 'public'
-      and tablename = 'notifications'
-      and policyname = 'notifications_update_recipient'
+      and tablename = 'question_pull_requests'
+      and policyname = 'question_pull_requests_select_authenticated'
   ) then
-    create policy notifications_update_recipient
-      on public.notifications
+    create policy question_pull_requests_select_authenticated
+      on public.question_pull_requests
+      for select
+      to authenticated
+      using (true);
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'question_pull_requests'
+      and policyname = 'question_pull_requests_insert_owner'
+  ) then
+    create policy question_pull_requests_insert_owner
+      on public.question_pull_requests
+      for insert
+      to authenticated
+      with check (auth.uid() = user_id);
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'question_pull_requests'
+      and policyname = 'question_pull_requests_update_question_owner'
+  ) then
+    create policy question_pull_requests_update_question_owner
+      on public.question_pull_requests
       for update
-      to authenticated
-      using (auth.uid() = to_uid)
-      with check (auth.uid() = to_uid);
-  end if;
-end
-$$;
-
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public'
-      and tablename = 'conversations'
-      and policyname = 'conversations_select_participant'
-  ) then
-    create policy conversations_select_participant
-      on public.conversations
-      for select
-      to authenticated
-      using (auth.uid() = any(participants));
-  end if;
-end
-$$;
-
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public'
-      and tablename = 'messages'
-      and policyname = 'messages_select_participant'
-  ) then
-    create policy messages_select_participant
-      on public.messages
-      for select
       to authenticated
       using (
         exists (
           select 1
-          from public.conversations c
-          where c.id = conversation_id
-            and auth.uid() = any(c.participants)
+          from public.questions
+          where public.questions.id = question_pull_requests.question_id
+            and public.questions.user_id = auth.uid()
+        )
+      )
+      with check (
+        exists (
+          select 1
+          from public.questions
+          where public.questions.id = question_pull_requests.question_id
+            and public.questions.user_id = auth.uid()
         )
       );
   end if;
 end
 $$;
 
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public'
-      and tablename = 'questions'
-      and policyname = 'questions_select_authenticated'
-  ) then
-    create policy questions_select_authenticated
-      on public.questions
-      for select
-      to authenticated
-      using (true);
-  end if;
-end
-$$;
-
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public'
-      and tablename = 'questions'
-      and policyname = 'questions_insert_owner'
-  ) then
-    create policy questions_insert_owner
-      on public.questions
-      for insert
-      to authenticated
-      with check (auth.uid() = user_id);
-  end if;
-end
-$$;
-
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public'
-      and tablename = 'question_replies'
-      and policyname = 'question_replies_select_authenticated'
-  ) then
-    create policy question_replies_select_authenticated
-      on public.question_replies
-      for select
-      to authenticated
-      using (true);
-  end if;
-end
-$$;
-
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public'
-      and tablename = 'question_replies'
-      and policyname = 'question_replies_insert_owner'
-  ) then
-    create policy question_replies_insert_owner
-      on public.question_replies
-      for insert
-      to authenticated
-      with check (auth.uid() = user_id);
-  end if;
-end
-$$;
-
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public'
-      and tablename = 'question_votes'
-      and policyname = 'question_votes_select_authenticated'
-  ) then
-    create policy question_votes_select_authenticated
-      on public.question_votes
-      for select
-      to authenticated
-      using (true);
-  end if;
-end
-$$;
-
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public'
-      and tablename = 'question_votes'
-      and policyname = 'question_votes_insert_owner'
-  ) then
-    create policy question_votes_insert_owner
-      on public.question_votes
-      for insert
-      to authenticated
-      with check (auth.uid() = user_id);
-  end if;
-end
-$$;
-
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public'
-      and tablename = 'question_votes'
-      and policyname = 'question_votes_delete_owner'
-  ) then
-    create policy question_votes_delete_owner
-      on public.question_votes
-      for delete
-      to authenticated
-      using (auth.uid() = user_id);
-  end if;
-end
-$$;
-
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public'
-      and tablename = 'users'
-      and policyname = 'users_insert_own_profile'
-  ) then
-    create policy users_insert_own_profile
-      on public.users
-      for insert
-      to authenticated
-      with check (auth.uid() = id);
-  end if;
-end
-$$;
-
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public'
-      and tablename = 'users'
-      and policyname = 'users_update_own_profile'
-  ) then
-    create policy users_update_own_profile
-      on public.users
-      for update
-      to authenticated
-      using (auth.uid() = id)
-      with check (auth.uid() = id);
-  end if;
-end
-$$;
-
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public'
-      and tablename = 'posts'
-      and policyname = 'posts_select_authenticated'
-  ) then
-    create policy posts_select_authenticated
-      on public.posts
-      for select
-      to authenticated
-      using (true);
-  end if;
-end
-$$;
-
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public'
-      and tablename = 'posts'
-      and policyname = 'posts_insert_authenticated'
-  ) then
-    create policy posts_insert_authenticated
-      on public.posts
-      for insert
-      to authenticated
-      with check (auth.uid() = user_id);
-  end if;
-end
-$$;
-
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public'
-      and tablename = 'posts'
-      and policyname = 'posts_update_owner'
-  ) then
-    create policy posts_update_owner
-      on public.posts
-      for update
-      to authenticated
-      using (auth.uid() = user_id)
-      with check (auth.uid() = user_id);
-  end if;
-end
-$$;
-
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public'
-      and tablename = 'follows'
-      and policyname = 'follows_select_authenticated'
-  ) then
-    create policy follows_select_authenticated
-      on public.follows
-      for select
-      to authenticated
-      using (true);
-  end if;
-end
-$$;
-
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public'
-      and tablename = 'follows'
-      and policyname = 'follows_insert_owner'
-  ) then
-    create policy follows_insert_owner
-      on public.follows
-      for insert
-      to authenticated
-      with check (auth.uid() = follower_id);
-  end if;
-end
-$$;
-
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public'
-      and tablename = 'follows'
-      and policyname = 'follows_delete_owner'
-  ) then
-    create policy follows_delete_owner
-      on public.follows
-      for delete
-      to authenticated
-      using (auth.uid() = follower_id);
-  end if;
-end
-$$;
-
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public'
-      and tablename = 'likes'
-      and policyname = 'likes_select_authenticated'
-  ) then
-    create policy likes_select_authenticated
-      on public.likes
-      for select
-      to authenticated
-      using (true);
-  end if;
-end
-$$;
-
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public'
-      and tablename = 'likes'
-      and policyname = 'likes_insert_owner'
-  ) then
-    create policy likes_insert_owner
-      on public.likes
-      for insert
-      to authenticated
-      with check (auth.uid() = user_id);
-  end if;
-end
-$$;
-
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public'
-      and tablename = 'likes'
-      and policyname = 'likes_delete_owner'
-  ) then
-    create policy likes_delete_owner
-      on public.likes
-      for delete
-      to authenticated
-      using (auth.uid() = user_id);
-  end if;
-end
-$$;
-
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public'
-      and tablename = 'bookmarks'
-      and policyname = 'bookmarks_select_owner'
-  ) then
-    create policy bookmarks_select_owner
-      on public.bookmarks
-      for select
-      to authenticated
-      using (auth.uid() = user_id);
-  end if;
-end
-$$;
-
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public'
-      and tablename = 'bookmarks'
-      and policyname = 'bookmarks_insert_owner'
-  ) then
-    create policy bookmarks_insert_owner
-      on public.bookmarks
-      for insert
-      to authenticated
-      with check (auth.uid() = user_id);
-  end if;
-end
-$$;
-
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public'
-      and tablename = 'bookmarks'
-      and policyname = 'bookmarks_delete_owner'
-  ) then
-    create policy bookmarks_delete_owner
-      on public.bookmarks
-      for delete
-      to authenticated
-      using (auth.uid() = user_id);
-  end if;
-end
-$$;
-
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public'
-      and tablename = 'comments'
-      and policyname = 'comments_select_authenticated'
-  ) then
-    create policy comments_select_authenticated
-      on public.comments
-      for select
-      to authenticated
-      using (true);
-  end if;
-end
-$$;
-
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public'
-      and tablename = 'comments'
-      and policyname = 'comments_insert_owner'
-  ) then
-    create policy comments_insert_owner
-      on public.comments
-      for insert
-      to authenticated
-      with check (auth.uid() = user_id);
-  end if;
-end
-$$;
-
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public'
-      and tablename = 'notifications'
-      and policyname = 'notifications_select_recipient'
-  ) then
-    create policy notifications_select_recipient
-      on public.notifications
-      for select
-      to authenticated
-      using (auth.uid() = to_uid);
-  end if;
-end
-$$;
-
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public'
-      and tablename = 'notifications'
-      and policyname = 'notifications_insert_sender'
-  ) then
-    create policy notifications_insert_sender
-      on public.notifications
-      for insert
-      to authenticated
-      with check (auth.uid() = from_uid);
-  end if;
-end
-$$;
-
-alter table public.users add column if not exists aura_points bigint default 0;
-alter table public.users add column if not exists current_streak integer default 0;
-alter table public.users add column if not exists longest_streak integer default 0;
-alter table public.users add column if not exists last_challenge_completed_on date;
-alter table public.users add column if not exists is_admin boolean default false;
-alter table public.users add column if not exists updated_at timestamp with time zone default timezone('utc'::text, now());
-
-update public.users
-set aura_points = coalesce(aura_points, aura, 0),
-    aura = coalesce(aura_points, aura, 0),
-    current_streak = coalesce(current_streak, 0),
-    longest_streak = coalesce(longest_streak, 0);
-
-create or replace function public.sync_user_aura_columns()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  if tg_op = 'INSERT' then
-    if new.aura_points is null and new.aura is not null then
-      new.aura_points := new.aura;
-    elsif new.aura is null and new.aura_points is not null then
-      new.aura := new.aura_points;
-    end if;
-  elsif new.aura_points is null and new.aura is not null then
-    new.aura_points := new.aura;
-  elsif new.aura is null and new.aura_points is not null then
-    new.aura := new.aura_points;
-  elsif new.aura_points is distinct from old.aura_points then
-    new.aura := new.aura_points;
-  elsif new.aura is distinct from old.aura then
-    new.aura_points := new.aura;
-  end if;
-
-  new.updated_at := timezone('utc'::text, now());
-  return new;
-end;
-$$;
-
-drop trigger if exists trg_sync_user_aura_columns on public.users;
-
-create trigger trg_sync_user_aura_columns
-before insert or update on public.users
-for each row
-execute function public.sync_user_aura_columns();
-
-create or replace function public.get_aura_level(points bigint)
-returns text
-language sql
-immutable
-as $$
-  select case
-    when coalesce(points, 0) < 500 then 'Beginner'
-    when coalesce(points, 0) < 2000 then 'Builder'
-    when coalesce(points, 0) < 5000 then 'Hacker'
-    else 'Elite'
-  end;
-$$;
-
-create table if not exists public.aura_ledger (
-  id uuid default gen_random_uuid() primary key,
-  user_id uuid references public.users(id) on delete cascade not null,
-  action text not null,
-  points integer not null,
-  reference_type text not null,
-  reference_id text not null,
-  source_user_id uuid references public.users(id) on delete set null,
-  metadata jsonb default '{}'::jsonb,
-  created_at timestamp with time zone default timezone('utc'::text, now())
-);
-
-create unique index if not exists idx_aura_ledger_dedupe
-  on public.aura_ledger(user_id, action, reference_type, reference_id, coalesce(source_user_id, '00000000-0000-0000-0000-000000000000'::uuid));
-create index if not exists idx_aura_ledger_user_created_at
-  on public.aura_ledger(user_id, created_at desc);
-
-create table if not exists public.rate_limit_events (
-  id uuid default gen_random_uuid() primary key,
-  user_id uuid references public.users(id) on delete cascade not null,
-  action text not null,
-  reference_id text,
-  created_at timestamp with time zone default timezone('utc'::text, now())
-);
-
-create index if not exists idx_rate_limit_events_lookup
-  on public.rate_limit_events(user_id, action, created_at desc);
-
-create table if not exists public.events (
-  id uuid default gen_random_uuid() primary key,
-  title text not null,
-  description text not null default '',
-  required_aura bigint not null default 0,
-  link text not null default '',
-  type text not null default 'event',
-  is_active boolean not null default true,
-  created_by uuid references public.users(id) on delete set null,
-  created_at timestamp with time zone default timezone('utc'::text, now()),
-  updated_at timestamp with time zone default timezone('utc'::text, now()),
-  constraint events_type_check check (type in ('hackathon', 'event'))
-);
-
-alter table public.events add column if not exists is_active boolean not null default true;
-
-create table if not exists public.user_events (
-  user_id uuid references public.users(id) on delete cascade not null,
-  event_id uuid references public.events(id) on delete cascade not null,
-  unlocked boolean not null default false,
-  unlocked_at timestamp with time zone,
-  created_at timestamp with time zone default timezone('utc'::text, now()),
-  updated_at timestamp with time zone default timezone('utc'::text, now()),
-  primary key (user_id, event_id)
-);
-
-create index if not exists idx_events_required_aura on public.events(required_aura);
-
-create table if not exists public.challenges (
-  id uuid default gen_random_uuid() primary key,
-  title text not null,
-  description text not null default '',
-  difficulty text not null default 'easy',
-  tech_stack text not null default 'General',
-  points_reward integer not null default 20,
-  publish_date date not null default (timezone('utc'::text, now())::date),
-  is_active boolean not null default true,
-  created_by uuid references public.users(id) on delete set null,
-  created_at timestamp with time zone default timezone('utc'::text, now()),
-  updated_at timestamp with time zone default timezone('utc'::text, now()),
-  constraint challenges_difficulty_check check (difficulty in ('easy', 'medium', 'hard'))
-);
-
-create index if not exists idx_challenges_publish_date on public.challenges(publish_date);
-
-create table if not exists public.user_challenges (
-  id uuid default gen_random_uuid() primary key,
-  user_id uuid references public.users(id) on delete cascade not null,
-  challenge_id uuid references public.challenges(id) on delete cascade not null,
-  assigned_date date not null default timezone('utc'::text, now())::date,
-  selected_tech_stack text not null default 'General',
-  submission_text text default '',
-  submission_link text default '',
-  completed boolean not null default false,
-  completed_at timestamp with time zone,
-  created_at timestamp with time zone default timezone('utc'::text, now()),
-  updated_at timestamp with time zone default timezone('utc'::text, now()),
-  unique (user_id, assigned_date)
-);
-
-create index if not exists idx_challenges_stack_active
-  on public.challenges(tech_stack, is_active);
-create index if not exists idx_user_challenges_user_date
-  on public.user_challenges(user_id, assigned_date desc);
-
-create table if not exists public.user_badges (
-  id uuid default gen_random_uuid() primary key,
-  user_id uuid references public.users(id) on delete cascade not null,
-  badge_key text not null,
-  badge_name text not null,
-  awarded_at timestamp with time zone default timezone('utc'::text, now()),
-  unique (user_id, badge_key)
-);
-
-create or replace function public.touch_updated_at()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  new.updated_at := timezone('utc'::text, now());
-  return new;
-end;
-$$;
-
-drop trigger if exists trg_touch_events_updated_at on public.events;
-create trigger trg_touch_events_updated_at
-before update on public.events
-for each row
-execute function public.touch_updated_at();
-
-drop trigger if exists trg_touch_user_events_updated_at on public.user_events;
-create trigger trg_touch_user_events_updated_at
-before update on public.user_events
-for each row
-execute function public.touch_updated_at();
-
-drop trigger if exists trg_touch_challenges_updated_at on public.challenges;
-create trigger trg_touch_challenges_updated_at
-before update on public.challenges
-for each row
-execute function public.touch_updated_at();
-
-drop trigger if exists trg_touch_user_challenges_updated_at on public.user_challenges;
-create trigger trg_touch_user_challenges_updated_at
-before update on public.user_challenges
-for each row
-execute function public.touch_updated_at();
-
-update public.conversations
-set participants = normalized.sorted_participants,
-    participant_key = normalized.participant_key,
-    updated_at = coalesce(updated_at, timezone('utc'::text, now()))
-from (
-  select
-    id,
-    array_agg(participant order by participant::text) as sorted_participants,
-    string_agg(participant::text, ':' order by participant::text) as participant_key
-  from public.conversations c
-  cross join lateral unnest(c.participants) as participant
-  group by id
-) as normalized
-where public.conversations.id = normalized.id
-  and coalesce(array_length(public.conversations.participants, 1), 0) = 2
-  and public.conversations.participants[1] is distinct from public.conversations.participants[2]
-  and (
-    public.conversations.participant_key is null
-    or public.conversations.participant_key <> normalized.participant_key
-  );
-
-update public.conversations
-set last_message = latest_message.last_message,
-    last_message_at = latest_message.last_message_at,
-    last_message_sender_id = latest_message.last_message_sender_id
-from (
-  select distinct on (m.conversation_id)
-    m.conversation_id,
-    left(trim(m.content), 280) as last_message,
-    m.created_at as last_message_at,
-    m.sender_id as last_message_sender_id
-  from public.messages m
-  order by m.conversation_id, m.created_at desc, m.id desc
-) as latest_message
-where public.conversations.id = latest_message.conversation_id
-  and (
-    public.conversations.last_message is distinct from latest_message.last_message
-    or public.conversations.last_message_at is distinct from latest_message.last_message_at
-    or public.conversations.last_message_sender_id is distinct from latest_message.last_message_sender_id
-  );
-
-create or replace function public.normalize_direct_message_conversation()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  sorted_participants uuid[];
-begin
-  if coalesce(array_length(new.participants, 1), 0) <> 2 then
-    raise exception 'Direct conversations must include exactly two participants';
-  end if;
-
-  if new.participants[1] is null or new.participants[2] is null then
-    raise exception 'Conversation participants are required';
-  end if;
-
-  if new.participants[1] = new.participants[2] then
-    raise exception 'You cannot create a conversation with yourself';
-  end if;
-
-  select array_agg(participant order by participant::text)
-  into sorted_participants
-  from unnest(new.participants) as participant;
-
-  new.participants := sorted_participants;
-  new.participant_key := sorted_participants[1]::text || ':' || sorted_participants[2]::text;
-
-  if new.created_at is null then
-    new.created_at := timezone('utc'::text, now());
-  end if;
-
-  new.updated_at := timezone('utc'::text, now());
-  return new;
-end;
-$$;
-
-drop trigger if exists trg_normalize_direct_message_conversation on public.conversations;
-create trigger trg_normalize_direct_message_conversation
-before insert or update on public.conversations
-for each row
-execute function public.normalize_direct_message_conversation();
-
-create or replace function public.sync_message_read_state()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  if new.is_read and (tg_op = 'INSERT' or coalesce(old.is_read, false) = false) then
-    new.read_at := coalesce(new.read_at, timezone('utc'::text, now()));
-  elsif not coalesce(new.is_read, false) then
-    new.read_at := null;
-  end if;
-
-  if new.created_at is null then
-    new.created_at := timezone('utc'::text, now());
-  end if;
-
-  return new;
-end;
-$$;
-
-drop trigger if exists trg_sync_message_read_state on public.messages;
-create trigger trg_sync_message_read_state
-before insert or update on public.messages
-for each row
-execute function public.sync_message_read_state();
-
-create or replace function public.sync_conversation_last_message()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  update public.conversations
-  set last_message = left(trim(new.content), 280),
-      last_message_at = coalesce(new.created_at, timezone('utc'::text, now())),
-      last_message_sender_id = new.sender_id,
-      updated_at = timezone('utc'::text, now())
-  where id = new.conversation_id;
-
-  return new;
-end;
-$$;
-
-drop trigger if exists trg_sync_conversation_last_message on public.messages;
-create trigger trg_sync_conversation_last_message
-after insert on public.messages
-for each row
-execute function public.sync_conversation_last_message();
-
-create or replace function public.push_direct_message_notification()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  recipient_id uuid;
-  sender_name text;
-begin
-  select participant
-  into recipient_id
-  from public.conversations c
-  cross join lateral unnest(c.participants) as participant
-  where c.id = new.conversation_id
-    and participant <> new.sender_id
-  limit 1;
-
-  if recipient_id is null then
-    return new;
-  end if;
-
-  select coalesce(nullif(trim(name), ''), 'Someone')
-  into sender_name
-  from public.users
-  where id = new.sender_id;
-
-  insert into public.notifications(to_uid, from_uid, type, message)
-  values (
-    recipient_id,
-    new.sender_id,
-    'message',
-    sender_name || ' sent you a message'
-  );
-
-  return new;
-end;
-$$;
-
-drop trigger if exists trg_push_direct_message_notification on public.messages;
-create trigger trg_push_direct_message_notification
-after insert on public.messages
-for each row
-execute function public.push_direct_message_notification();
-
-create or replace function public.get_or_create_direct_conversation(
-  p_other_user_id uuid
+create or replace function public.can_user_reply(
+  p_question_id uuid,
+  p_user_id uuid
 )
-returns jsonb
+returns boolean
 language plpgsql
 security definer
 set search_path = public
 as $$
 declare
-  actor_id uuid;
-  existing_conversation public.conversations%rowtype;
-  created_conversation public.conversations%rowtype;
-  sorted_participants uuid[];
-  conversation_participant_key text;
+  is_asker boolean;
+  is_accepted_pr boolean;
 begin
-  actor_id := auth.uid();
-  if actor_id is null then
-    raise exception 'Authentication required';
-  end if;
-
-  if p_other_user_id is null then
-    raise exception 'A recipient is required';
-  end if;
-
-  if p_other_user_id = actor_id then
-    raise exception 'You cannot message yourself';
-  end if;
-
-  if not exists (
+  select exists (
     select 1
-    from public.users
-    where id = p_other_user_id
-  ) then
-    raise exception 'Recipient not found';
+    from public.questions
+    where id = p_question_id
+      and user_id = p_user_id
+  ) into is_asker;
+
+  if is_asker then
+    return true;
   end if;
 
-  select array_agg(participant order by participant::text)
-  into sorted_participants
-  from unnest(array[actor_id, p_other_user_id]) as participant;
+  select exists (
+    select 1
+    from public.question_pull_requests
+    where question_id = p_question_id
+      and user_id = p_user_id
+      and status = 'accepted'
+  ) into is_accepted_pr;
 
-  conversation_participant_key := sorted_participants[1]::text || ':' || sorted_participants[2]::text;
-
-  select *
-  into existing_conversation
-  from public.conversations
-  where public.conversations.participant_key = conversation_participant_key
-  limit 1;
-
-  if existing_conversation.id is not null then
-    return to_jsonb(existing_conversation);
-  end if;
-
-  insert into public.conversations(participants)
-  values (sorted_participants)
-  on conflict (participant_key) do update
-    set participant_key = excluded.participant_key
-  returning * into created_conversation;
-
-  return to_jsonb(created_conversation);
+  return is_accepted_pr;
 end;
 $$;
 
-grant execute on function public.get_or_create_direct_conversation(uuid) to authenticated;
-
-create or replace function public.send_direct_message(
-  p_conversation_id uuid,
-  p_content text
-)
-returns jsonb
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  actor_id uuid;
-  conversation_row public.conversations%rowtype;
-  new_message public.messages%rowtype;
-  trimmed_content text;
+do $$
 begin
-  actor_id := auth.uid();
-  if actor_id is null then
-    raise exception 'Authentication required';
-  end if;
-
-  trimmed_content := trim(coalesce(p_content, ''));
-  if trimmed_content = '' then
-    raise exception 'Message cannot be empty';
-  end if;
-
-  select *
-  into conversation_row
-  from public.conversations
-  where id = p_conversation_id;
-
-  if conversation_row.id is null then
-    raise exception 'Conversation not found';
-  end if;
-
-  if not actor_id = any(conversation_row.participants) then
-    raise exception 'You are not allowed to send messages to this conversation';
-  end if;
-
-  perform public.register_rate_limited_action(
-    'send_direct_message',
-    180,
-    3600,
-    p_conversation_id::text
-  );
-
-  insert into public.messages(conversation_id, sender_id, content)
-  values (p_conversation_id, actor_id, trimmed_content)
-  returning * into new_message;
-
-  return to_jsonb(new_message);
-end;
-$$;
-
-grant execute on function public.send_direct_message(uuid, text) to authenticated;
-
-create or replace function public.mark_conversation_messages_read(
-  p_conversation_id uuid
+  if not exists (
+    select 1 from pg_policies
 )
 returns integer
 language plpgsql
@@ -2048,10 +1264,7 @@ begin
   from public.posts
   where id = p_post_id;
 
-  if post_owner_id is null then
-    raise exception 'Post not found';
-  end if;
-
+  -- Removed restriction: Users can now like their own posts
   -- if post_owner_id = actor_id then
   --   raise exception 'You cannot like your own post';
   -- end if;

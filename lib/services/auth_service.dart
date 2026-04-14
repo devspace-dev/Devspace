@@ -2,9 +2,11 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'supabase_service.dart';
 import 'analytics_service.dart';
 import '../models/user_model.dart';
+import '../utils/sanitizer.dart';
 
 class AuthResult {
   final UserModel? user;
@@ -29,6 +31,7 @@ class AuthService {
   static const String _collegeDomain = 'mnit.ac.in';
   final SupabaseClient _supabase = Supabase.instance.client;
   final bool _enforceCollegeDomain = false;
+  bool _googleSignInInitialized = false;
   UserModel? _currentUser;
   final _authStateController = StreamController<UserModel?>.broadcast();
 
@@ -61,6 +64,16 @@ class AuthService {
   }
 
   String _friendlyGoogleError(Object error) {
+    if (error is GoogleSignInException) {
+      final details = '${error.code} ${error.description ?? ''}'.toLowerCase();
+      if (details.contains('requestedscopes cannot be null or empty')) {
+        return 'Google sign-in hit a local app bug while requesting tokens. Update to the latest app build and try again.';
+      }
+      if (details.contains('canceled')) {
+        return 'Google sign-in was canceled.';
+      }
+    }
+
     if (error is PlatformException) {
       final details = '${error.code} ${error.message ?? ''}'.toLowerCase();
       if (details.contains('sign_in_failed') ||
@@ -322,9 +335,14 @@ class AuthService {
     try {
       const webClientId =
           String.fromEnvironment('GOOGLE_WEB_CLIENT_ID', defaultValue: '');
-      final googleSignIn = webClientId.isEmpty
-          ? GoogleSignIn()
-          : GoogleSignIn(serverClientId: webClientId);
+      final googleSignIn = GoogleSignIn.instance;
+
+      if (!_googleSignInInitialized) {
+        await googleSignIn.initialize(
+          serverClientId: webClientId.isEmpty ? null : webClientId,
+        );
+        _googleSignInInitialized = true;
+      }
 
       // Clear the previously selected Google account so the chooser appears.
       try {
@@ -333,9 +351,7 @@ class AuthService {
         await googleSignIn.signOut();
       }
 
-      final googleUser = await googleSignIn.signIn();
-      if (googleUser == null)
-        return const AuthResult(error: 'Google sign-in cancelled.');
+      final googleUser = await googleSignIn.authenticate();
 
       if (!_isAllowedEmail(googleUser.email)) {
         await googleSignIn.signOut();
@@ -343,18 +359,15 @@ class AuthService {
             error: 'Please use your @$_collegeDomain college email.');
       }
 
-      final googleAuth = await googleUser.authentication;
-      final accessToken = googleAuth.accessToken;
+      final googleAuth = googleUser.authentication;
       final idToken = googleAuth.idToken;
-
-      if (accessToken == null || idToken == null) {
+      if (idToken == null || idToken.isEmpty) {
         return const AuthResult(error: 'Google authentication failed.');
       }
 
       final AuthResponse res = await _supabase.auth.signInWithIdToken(
         provider: OAuthProvider.google,
         idToken: idToken,
-        accessToken: accessToken,
       );
 
       final user = res.user;

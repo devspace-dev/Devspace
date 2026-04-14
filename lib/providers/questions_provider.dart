@@ -89,7 +89,8 @@ class QuestionsProvider extends ChangeNotifier {
           await SupabaseService.instance.getPullRequestsForQuestion(questionId);
       _pullRequestsByQuestion[questionId] = prs;
     } catch (e) {
-      _prErrors[questionId] = 'Failed to load pull requests: $e';
+      _prErrors[questionId] =
+          'Failed to load pull requests: ${SupabaseService.instance.cleanErrorText(e)}';
     } finally {
       _prLoading[questionId] = false;
       notifyListeners();
@@ -118,12 +119,26 @@ class QuestionsProvider extends ChangeNotifier {
         userId: userId,
         message: trimmedMessage,
       );
+
+      // Send notification to question owner
+      final question = getQuestionById(questionId);
+      if (question != null) {
+        await SupabaseService.instance.pushNotification(
+          toUid: question.userId,
+          fromUid: userId,
+          type: 'pr_request',
+          questionId: questionId,
+          message: 'Someone wants to answer your question: "${question.title}"',
+        );
+      }
+
       await fetchPullRequests(questionId);
       return const QuestionActionResult(success: true);
     } catch (e) {
       return QuestionActionResult(
         success: false,
-        error: 'Failed to submit pull request: $e',
+        error:
+            'Failed to submit pull request: ${SupabaseService.instance.cleanErrorText(e)}',
       );
     } finally {
       _prSubmitting[questionId] = false;
@@ -162,7 +177,8 @@ class QuestionsProvider extends ChangeNotifier {
     } catch (e) {
       return QuestionActionResult(
         success: false,
-        error: 'Failed to update request: $e',
+        error:
+            'Failed to update request: ${SupabaseService.instance.cleanErrorText(e)}',
       );
     }
   }

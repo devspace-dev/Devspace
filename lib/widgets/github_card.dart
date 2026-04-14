@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../services/github_service.dart';
 import '../theme/app_colors.dart';
+import 'skeleton_loaders.dart';
 
 class GitHubCard extends StatefulWidget {
   final String githubHandle;
@@ -382,18 +383,35 @@ class _GitHubSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 100,
       margin: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.bg2,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
       ),
-      child: const Center(
-        child: SizedBox(
-          width: 20, height: 20,
-          child: CircularProgressIndicator(
-              color: AppColors.primary, strokeWidth: 2)),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              const SkeletonLoader(width: 36, height: 36, borderRadius: 10),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SkeletonLoader(width: 140, height: 14),
+                  const SizedBox(height: 6),
+                  const SkeletonLoader(width: 100, height: 10),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: List.generate(4, (_) => const SkeletonLoader(width: 50, height: 40, borderRadius: 10)),
+          ),
+        ],
       ),
     );
   }

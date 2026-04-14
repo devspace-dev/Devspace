@@ -156,7 +156,38 @@ class _LoginScreenState extends State<LoginScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const DevSpaceLogo(size: 64),
+                        Row(
+                          children: [
+                            const DevSpaceLogo(size: 70),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'DevSpace',
+                                    style: GoogleFonts.spaceGrotesk(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w900,
+                                      color: AppColors.text,
+                                      letterSpacing: -0.9,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Your campus builder identity starts here.',
+                                    style: GoogleFonts.spaceGrotesk(
+                                      fontSize: 13,
+                                      color: AppColors.text3,
+                                      fontWeight: FontWeight.w500,
+                                      height: 1.35,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                         const SizedBox(height: 28),
                         Text(
                           _isSignUp
@@ -214,13 +245,89 @@ class _LoginScreenState extends State<LoginScreen>
                           decoration: BoxDecoration(
                             color: AppColors.bg2,
                             borderRadius: BorderRadius.circular(28),
-                            border: Border.all(color: AppColors.border, width: 1),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.08),
+                              width: 1,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primary.withValues(alpha: 0.08),
+                                blurRadius: 24,
+                                offset: const Offset(0, 16),
+                              ),
+                            ],
                           ),
                           child: Form(
                             key: _formKey,
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                Container(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    20,
+                                    18,
+                                    20,
+                                    16,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    border: Border(
+                                      bottom: BorderSide(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.06,
+                                        ),
+                                      ),
+                                    ),
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [
+                                        AppColors.primary.withValues(alpha: 0.07),
+                                        const Color(0xFFF97316).withValues(
+                                          alpha: 0.03,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const DevSpaceLogo(
+                                        size: 42,
+                                        elevated: false,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              _isSignUp
+                                                  ? 'Create your builder account'
+                                                  : 'Continue as a builder',
+                                              style: GoogleFonts.spaceGrotesk(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w800,
+                                                color: AppColors.text,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              _isSignUp
+                                                  ? 'Use Google or email to join your college dev community.'
+                                                  : 'Pick up where your last build session stopped.',
+                                              style: GoogleFonts.spaceGrotesk(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w500,
+                                                color: AppColors.text3,
+                                                height: 1.35,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                                 Padding(
                                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                                   child: _GoogleButton(
@@ -581,11 +688,15 @@ class _GoogleButton extends StatelessWidget {
         onPressed: loading ? null : onPressed,
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.text,
-          side: const BorderSide(color: AppColors.border2, width: 1.5),
+          side: BorderSide(
+            color: Colors.white.withValues(alpha: 0.08),
+            width: 1.2,
+          ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(18),
           ),
           padding: const EdgeInsets.symmetric(vertical: 14),
+          backgroundColor: Colors.white.withValues(alpha: 0.02),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,

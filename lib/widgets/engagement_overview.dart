@@ -298,40 +298,42 @@ class _NeonStatsCardState extends State<_NeonStatsCard>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, _) {
-        final hue = _controller.value * 360;
-        final leading = HSVColor.fromAHSV(1, hue, 0.82, 1).toColor();
-        final trailing =
-            HSVColor.fromAHSV(1, (hue + 70) % 360, 0.78, 1).toColor();
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          final hue = _controller.value * 360;
+          final leading = HSVColor.fromAHSV(1, hue, 0.82, 1).toColor();
+          final trailing =
+              HSVColor.fromAHSV(1, (hue + 70) % 360, 0.78, 1).toColor();
 
-        return Container(
-          padding: const EdgeInsets.all(1.4),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                leading.withValues(alpha: 0.95),
-                trailing.withValues(alpha: 0.85),
-                AppColors.primary.withValues(alpha: 0.75),
+          return Container(
+            padding: const EdgeInsets.all(1.4),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  leading.withValues(alpha: 0.95),
+                  trailing.withValues(alpha: 0.85),
+                  AppColors.primary.withValues(alpha: 0.75),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: leading.withValues(alpha: 0.18),
+                  blurRadius: 18,
+                  spreadRadius: 1,
+                ),
               ],
             ),
-            boxShadow: [
-              BoxShadow(
-                color: leading.withValues(alpha: 0.18),
-                blurRadius: 18,
-                spreadRadius: 1,
-              ),
-            ],
-          ),
-          child: _SectionCard(
-            child: widget.child,
-          ),
-        );
-      },
+            child: _SectionCard(
+              child: widget.child,
+            ),
+          );
+        },
+      ),
     );
   }
 }
@@ -351,65 +353,67 @@ class _Metric extends StatelessWidget {
   Widget build(BuildContext context) {
     final numericValue = int.tryParse(value);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 28,
-          height: 3,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(999),
-            gradient: LinearGradient(
-              colors: [
-                AppColors.primary.withValues(alpha: 0.9),
-                AppColors.mint.withValues(alpha: 0.8),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.2,
-            color: AppColors.text3For(context),
-          ),
-        ),
-        const SizedBox(height: 6),
-        TweenAnimationBuilder<int>(
-          tween: IntTween(begin: 0, end: numericValue ?? 0),
-          duration: const Duration(milliseconds: 900),
-          curve: Curves.easeOutCubic,
-          builder: (context, animatedValue, _) {
-            return Text(
-              numericValue == null ? value : '$animatedValue',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -0.7,
-                color: AppColors.textFor(context),
-                shadows: [
-                  Shadow(
-                    color: AppColors.primary.withValues(alpha: 0.18),
-                    blurRadius: 14,
-                  ),
+    return RepaintBoundary(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 28,
+            height: 3,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(999),
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.primary.withValues(alpha: 0.9),
+                  AppColors.mint.withValues(alpha: 0.8),
                 ],
               ),
-            );
-          },
-        ),
-        const SizedBox(height: 4),
-        Text(
-          hint,
-          style: TextStyle(
-            fontSize: 12,
-            height: 1.3,
-            color: AppColors.text3For(context),
+            ),
           ),
-        ),
-      ],
+          const SizedBox(height: 10),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.2,
+              color: AppColors.text3For(context),
+            ),
+          ),
+          const SizedBox(height: 6),
+          TweenAnimationBuilder<int>(
+            tween: IntTween(begin: 0, end: numericValue ?? 0),
+            duration: const Duration(milliseconds: 900),
+            curve: Curves.easeOutCubic,
+            builder: (context, animatedValue, _) {
+              return Text(
+                numericValue == null ? value : '$animatedValue',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.7,
+                  color: AppColors.textFor(context),
+                  shadows: [
+                    Shadow(
+                      color: AppColors.primary.withValues(alpha: 0.18),
+                      blurRadius: 14,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 4),
+          Text(
+            hint,
+            style: TextStyle(
+              fontSize: 12,
+              height: 1.3,
+              color: AppColors.text3For(context),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

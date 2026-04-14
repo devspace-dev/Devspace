@@ -3,19 +3,12 @@ import java.io.FileInputStream
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("dev.flutter.flutter-gradle-plugin")
+    id("org.jetbrains.kotlin.android")
+    id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
 }
 
-val hasGoogleServicesConfig =
-    file("google-services.json").exists() ||
-    file("src/debug/google-services.json").exists() ||
-    file("src/release/google-services.json").exists()
-
-if (hasGoogleServicesConfig) {
-    apply(plugin = "com.google.gms.google-services")
-    apply(plugin = "com.google.firebase.crashlytics")
-}
 
 val keystorePropertiesFile = rootProject.file("key.properties")
 val keystoreProperties = Properties()
@@ -25,7 +18,6 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.example.devspace"
-    compileSdk = flutter.compileSdkVersion
     ndkVersion = "28.2.13676358"
 
     compileOptions {
@@ -37,6 +29,8 @@ android {
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_17.toString()
     }
+
+    compileSdk = flutter.compileSdkVersion
 
     defaultConfig {
         applicationId = "com.example.devspace"
@@ -67,6 +61,8 @@ android {
         }
     }
 }
+
+
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")

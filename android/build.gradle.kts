@@ -1,32 +1,33 @@
 import org.gradle.api.tasks.Delete
 
-buildscript {
-  repositories {
-    google()
-    mavenCentral()
-  }
-  dependencies {
-    classpath("com.google.gms:google-services:4.4.1")
-    classpath("com.google.firebase:firebase-crashlytics-gradle:3.0.3")
-  }
-}
-
 allprojects {
-  repositories {
-    google()
-    mavenCentral()
-  }
+    repositories {
+        google()
+        mavenCentral()
+    }
 }
-
-val newBuildDir = rootProject.layout.buildDirectory.dir("../../build").get()
-rootProject.layout.buildDirectory.set(newBuildDir)
 
 subprojects {
-  val newSubprojectBuildDir = newBuildDir.dir(project.name)
-  project.layout.buildDirectory.set(newSubprojectBuildDir)
-  evaluationDependsOn(":app")
+    if (project.name != "app") {
+        evaluationDependsOn(":app")
+    }
 }
 
+subprojects {
+    val fixNamespace: Project.() -> Unit = {
+        extensions.findByName("android")?.let { android ->
+            if (android is com.android.build.gradle.BaseExtension && android.namespace == null) {
+                android.namespace = "com.example.${project.name.replace("-", "_")}"
+            }
+        }
+    }
+
+    if (state.executed) {
+        fixNamespace()
+    } else {
+        afterEvaluate { fixNamespace() }
+    }
+}
 tasks.register<Delete>("clean") {
-  delete(rootProject.layout.buildDirectory)
+    delete(rootProject.layout.buildDirectory)
 }

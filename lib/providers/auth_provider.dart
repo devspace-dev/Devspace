@@ -79,6 +79,12 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> signOut() => AuthService.instance.signOut();
 
+  Future<void> deleteAccount() async {
+    await SupabaseService.instance.deleteAccount();
+    _currentUser = null;
+    notifyListeners();
+  }
+
   @override
   void dispose() {
     _authSub?.cancel();

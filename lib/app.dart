@@ -17,12 +17,16 @@ import 'screens/daily_challenge_screen.dart';
 import 'screens/opportunities_screen.dart';
 import 'screens/messages_screen.dart';
 import 'screens/weekly_challenge_screen.dart';
+import 'screens/question_detail_screen.dart';
 import 'providers/auth_provider.dart';
 import 'providers/messages_provider.dart';
 import 'models/user_model.dart';
 import 'theme/app_colors.dart';
 import 'widgets/bottom_nav.dart';
 import 'widgets/glass_container.dart';
+import 'widgets/user_avatar.dart';
+import 'services/calling_service.dart';
+import 'screens/call_screen.dart';
 
 class DevSpaceApp extends StatefulWidget {
   const DevSpaceApp({super.key});
@@ -225,10 +229,32 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
         try {
           context.read<NotificationsProvider>().init(user.id);
           context.read<MessagesProvider>().init(user.id);
+          CallingService.instance.init(user.id);
+          _listenForCalls();
           await context.read<EngagementProvider>().fetchOverview();
         } catch (e) {
           debugPrint('Provider initialization failed: $e');
         }
+      }
+    });
+  }
+
+  void _listenForCalls() {
+    CallingService.instance.callEvents.listen((event) {
+      if (!mounted) return;
+      if (event['type'] == 'offer') {
+        final data = event['data'];
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CallScreen(
+              channelId: data['channelId'],
+              otherUser: UserModel.fromJson(data['callerData']),
+              isVideo: data['isVideo'],
+              isIncoming: true,
+            ),
+          ),
+        );
       }
     });
   }
@@ -320,8 +346,19 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                       itemBuilder: (context, i) {
                         final n = provider.notifications[i];
                         return ListTile(
-                          onTap: () {
+                          onTap: () async {
                             if (!n.read) provider.markAsRead(n.id);
+                            if (n.questionId != null) {
+                              Navigator.pop(context);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => QuestionDetailScreen(
+                                    questionId: n.questionId!,
+                                  ),
+                                ),
+                              );
+                            }
                           },
                           leading: Container(
                             width: 40,
@@ -339,23 +376,98 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                                       ? Icons.comment_rounded
                                       : n.type == 'message'
                                           ? Icons.mail_outline_rounded
-                                          : Icons.person_add_rounded,
+                                          : n.type == 'pr_request'
+                                              ? Icons.call_merge_rounded
+                                              : Icons.person_add_rounded,
                               size: 18,
                               color: n.read
                                   ? AppColors.text3For(context)
                                   : AppColors.primary,
                             ),
                           ),
-                          title: Text(
-                            n.message,
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: n.read
-                                  ? AppColors.text2For(context)
-                                  : AppColors.textFor(context),
-                              fontWeight:
-                                  n.read ? FontWeight.w400 : FontWeight.w600,
-                            ),
+                          title: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                n.message,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  color: n.read
+                                      ? AppColors.text2For(context)
+                                      : AppColors.textFor(context),
+                                  fontWeight: n.read
+                                      ? FontWeight.w400
+                                      : FontWeight.w600,
+                                ),
+                              ),
+                              if (n.type == 'pr_request' && !n.read)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: Row(
+                                    children: [
+                                      ElevatedButton(
+                                        onPressed: () async {
+                                          final qp = context
+                                              .read<QuestionsProvider>();
+                                          await qp.fetchPullRequests(
+                                              n.questionId!);
+                                          final pr = qp.getMyPullRequest(
+                                              n.questionId!, n.fromUid);
+                                          if (pr != null) {
+                                            await qp.updatePullRequestStatus(
+                                              questionId: n.questionId!,
+                                              prId: pr.id,
+                                              status: 'accepted',
+                                            );
+                                            provider.markAsRead(n.id);
+                                          }
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppColors.primary,
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 16, vertical: 8),
+                                          minimumSize: Size.zero,
+                                          tapTargetSize:
+                                              MaterialTapTargetSize.shrinkWrap,
+                                        ),
+                                        child: const Text('Accept',
+                                            style: TextStyle(fontSize: 12)),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      TextButton(
+                                        onPressed: () async {
+                                          final qp = context
+                                              .read<QuestionsProvider>();
+                                          await qp.fetchPullRequests(
+                                              n.questionId!);
+                                          final pr = qp.getMyPullRequest(
+                                              n.questionId!, n.fromUid);
+                                          if (pr != null) {
+                                            await qp.updatePullRequestStatus(
+                                              questionId: n.questionId!,
+                                              prId: pr.id,
+                                              status: 'rejected',
+                                            );
+                                            provider.markAsRead(n.id);
+                                          }
+                                        },
+                                        style: TextButton.styleFrom(
+                                          foregroundColor:
+                                              AppColors.text3For(context),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 12, vertical: 8),
+                                          minimumSize: Size.zero,
+                                          tapTargetSize:
+                                              MaterialTapTargetSize.shrinkWrap,
+                                        ),
+                                        child: const Text('Decline',
+                                            style: TextStyle(fontSize: 12)),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
                           ),
                           subtitle: Text(
                             _formatTime(n.createdAt),
@@ -482,6 +594,18 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
             elevation: 0,
             scrolledUnderElevation: 0,
             centerTitle: false,
+            titleSpacing: 0,
+            leading: me != null
+                ? Padding(
+                    padding: const EdgeInsets.only(left: 12),
+                    child: Center(
+                      child: GestureDetector(
+                        onTap: () => _onTabSelected(4),
+                        child: UserAvatar(user: me, size: 34),
+                      ),
+                    ),
+                  )
+                : null,
             title: _tab == 0
                 ? Text(
                     'DevSpace',
@@ -607,6 +731,8 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
         child: DevSpaceBottomNav(
           currentIndex: _tab,
           onTap: _onTabSelected,
+          unreadNotifications: unreadCount,
+          unreadMessages: unreadMessages,
         ),
       ),
     );

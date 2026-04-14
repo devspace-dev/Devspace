@@ -550,18 +550,63 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           const SizedBox(height: 20),
           _sectionLabel('COLLEGE'),
           const SizedBox(height: 10),
-          DropdownButtonFormField<String>(
-            value: kCollegeOptions.contains(_college) ? _college : kCollegeOptions.first,
-            decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 16)),
-            items: kCollegeOptions
-                .map((college) => DropdownMenuItem<String>(
-                      value: college,
-                      child: Text(college, style: const TextStyle(fontSize: 14)),
-                    ))
-                .toList(),
-            onChanged: (value) {
-              if (value == null) return;
-              setState(() => _college = value);
+          Autocomplete<String>(
+            optionsBuilder: (TextEditingValue textEditingValue) {
+              if (textEditingValue.text.isEmpty) {
+                return kCollegeOptions;
+              }
+              return kCollegeOptions.where((String option) {
+                return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
+              });
+            },
+            onSelected: (String selection) {
+              setState(() => _college = selection);
+            },
+            fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+              if (controller.text.isEmpty && _college.isNotEmpty) {
+                controller.text = _college;
+              }
+              return TextFormField(
+                controller: controller,
+                focusNode: focusNode,
+                style: TextStyle(color: AppColors.textFor(context), fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: 'Search or type your college name',
+                  hintStyle: TextStyle(color: AppColors.text3For(context), fontSize: 14),
+                ),
+                onChanged: (value) {
+                  setState(() => _college = value);
+                },
+              );
+            },
+            optionsViewBuilder: (context, onSelected, options) {
+              return Align(
+                alignment: Alignment.topLeft,
+                child: Material(
+                  elevation: 4.0,
+                  color: AppColors.bg2For(context),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    width: MediaQuery.of(context).size.width - 40,
+                    constraints: const BoxConstraints(maxHeight: 250),
+                    child: ListView.builder(
+                      padding: EdgeInsets.zero,
+                      shrinkWrap: true,
+                      itemCount: options.length,
+                      itemBuilder: (BuildContext context, int index) {
+                        final String option = options.elementAt(index);
+                        return ListTile(
+                          title: Text(
+                            option,
+                            style: TextStyle(color: AppColors.textFor(context), fontSize: 14),
+                          ),
+                          onTap: () => onSelected(option),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              );
             },
           ),
         ],

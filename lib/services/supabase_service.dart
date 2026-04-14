@@ -9,6 +9,7 @@ import '../models/question_reply_model.dart';
 import '../models/question_pull_request_model.dart';
 import '../models/conversation_model.dart';
 import '../models/message_model.dart';
+import 'calling_service.dart';
 
 /// SQL Schema for Supabase (Run this in Supabase SQL Editor):
 ///
@@ -138,6 +139,7 @@ import '../models/message_model.dart';
 ///   id uuid default gen_random_uuid() primary key,
 ///   conversation_id uuid references conversations(id) on delete cascade,
 ///   sender_id uuid references users(id) on delete cascade,
+///   recipient_id uuid references users(id) on delete cascade,
 ///   content text not null,
 ///   is_read boolean default false,
 ///   created_at timestamp with time zone default timezone('utc'::text, now())
@@ -186,6 +188,32 @@ class SupabaseService {
 
   SupabaseClient get _client => Supabase.instance.client;
 
+  String cleanErrorText(Object error) {
+    if (error is PostgrestException) {
+      final message = error.message.toLowerCase();
+
+      if (error.code == 'PGRST205' ||
+          message.contains('could not find the table')) {
+        return 'Supabase schema is missing the Q&A pull request table. Run the latest schema SQL, then retry.';
+      }
+
+      if (error.code == '42883' && message.contains('can_user_reply')) {
+        return 'Supabase schema is missing the Q&A reply permission function. Run the latest schema SQL, then retry.';
+      }
+
+      if (error.code == '42501') {
+        return 'Supabase access policy blocked this Q&A action. Re-run the latest schema SQL so the policies match the app.';
+      }
+    }
+
+    final message = error.toString().trim();
+    const badStatePrefix = 'Bad state: ';
+    if (message.startsWith(badStatePrefix)) {
+      return message.substring(badStatePrefix.length).trim();
+    }
+    return message;
+  }
+
   String? _normalizeOptionalId(String? value) {
     final trimmed = value?.trim();
     if (trimmed == null || trimmed.isEmpty) {
@@ -207,6 +235,10 @@ class SupabaseService {
 
   Future<void> init() async {
     // Handled in main.dart initialization
+  }
+
+  void initCalling(String userId) {
+    CallingService.instance.init(userId);
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -290,6 +322,16 @@ class SupabaseService {
 
   Future<void> updateUser(String uid, Map<String, dynamic> data) async {
     await _client.from('users').update(data).eq('id', uid);
+  }
+
+  Future<void> deleteAccount() async {
+    final user = _client.auth.currentUser;
+    if (user == null) return;
+    
+    // Call the RPC to delete from public.users and potentially trigger auth deletion
+    // Or just delete from public.users and let the user know they are unsubscribed
+    await _client.from('users').delete().eq('id', user.id);
+    await _client.auth.signOut();
   }
 
   Stream<List<UserModel>> streamUsers() {
@@ -658,12 +700,15 @@ class SupabaseService {
     required String userId,
     required String message,
   }) async {
-    await _client.from('question_pull_requests').upsert({
-      'question_id': questionId,
-      'user_id': userId,
-      'message': message,
-      'status': 'pending',
-    });
+    await _client.from('question_pull_requests').upsert(
+      {
+        'question_id': questionId,
+        'user_id': userId,
+        'message': message,
+        'status': 'pending',
+      },
+      onConflict: 'question_id,user_id',
+    );
   }
 
   Future<List<QuestionPullRequestModel>> getPullRequestsForQuestion(
@@ -743,6 +788,7 @@ class SupabaseService {
     required String fromUid,
     required String type,
     String? postId,
+    String? questionId,
     String? message,
   }) async {
     await _client.from('notifications').insert({
@@ -750,6 +796,7 @@ class SupabaseService {
       'from_uid': fromUid,
       'type': type,
       'post_id': postId,
+      'question_id': questionId,
       'message': message ?? '',
     });
   }
