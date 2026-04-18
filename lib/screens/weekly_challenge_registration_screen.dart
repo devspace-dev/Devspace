@@ -102,7 +102,7 @@ class _WeeklyChallengeRegistrationScreenState
     setState(() => _isProcessingPayment = true);
 
     _razorpayService.openCheckout(
-      amountInPaise: 5900,
+      amountInPaise: 2900,
       name: 'DevSpace',
       description: 'Weekly Coding Challenge',
       email: user.email ?? 'dev@devspace.com',
@@ -189,24 +189,37 @@ class _WeeklyChallengeRegistrationScreenState
           ),
         ),
         const SizedBox(height: 40),
-        AppButton(
-          onPressed: _isProcessingPayment ? null : _handlePayment,
-          backgroundColor: accent,
-          child: _isProcessingPayment
-              ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                )
-              : const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text('Pay Rs 59 to Register',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    SizedBox(width: 12),
-                    Icon(Icons.arrow_forward_rounded, size: 20),
-                  ],
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          decoration: BoxDecoration(
+            color: AppColors.bg2For(context),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.borderFor(context)),
+          ),
+          child: Column(
+            children: [
+              Icon(Icons.lock_clock_rounded, color: AppColors.text3For(context), size: 32),
+              const SizedBox(height: 12),
+              Text(
+                'PAYMENT COMING SOON',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.5,
+                  color: AppColors.textFor(context),
                 ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'We are finalizing the curriculum for you.',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.text3For(context),
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );

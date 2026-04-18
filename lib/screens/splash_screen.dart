@@ -1,204 +1,157 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../theme/app_colors.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 import '../widgets/devspace_logo.dart';
 
 class SplashScreen extends StatefulWidget {
   final VoidCallback onDone;
+
   const SplashScreen({super.key, required this.onDone});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
-  
+class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(milliseconds: 1200), widget.onDone);
+    Future.delayed(const Duration(milliseconds: 2200), widget.onDone);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgDark,
+      backgroundColor: const Color(0xFF07090D),
       body: Stack(
         children: [
           Positioned.fill(
-            child: Container(
+            child: DecoratedBox(
               decoration: const BoxDecoration(
                 gradient: RadialGradient(
-                  center: Alignment(0, -0.15),
-                  radius: 1.15,
+                  center: Alignment(0, -0.22),
+                  radius: 1.05,
                   colors: [
-                    Color(0xFF171C26),
-                    Color(0xFF0B0F15),
-                    Color(0xFF000000),
+                    Color(0xFF111723),
+                    Color(0xFF090C12),
+                    Color(0xFF05070B),
                   ],
-                  stops: [0.0, 0.52, 1.0],
+                  stops: [0.0, 0.48, 1.0],
                 ),
               ),
             ),
           ),
-
           Positioned(
             top: -120,
-            right: -90,
+            right: -40,
             child: Container(
-              width: 320,
-              height: 320,
-              decoration: BoxDecoration(
+              width: 280,
+              height: 280,
+              decoration: const BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppColors.primary.withValues(alpha: 0.18),
+                    Color(0x223DE1FF),
                     Colors.transparent,
                   ],
                 ),
               ),
-            ).animate(onPlay: (c) => c.repeat(reverse: true))
-             .scale(duration: 3.seconds, begin: const Offset(1, 1), end: const Offset(1.18, 1.18))
-             .move(duration: 3.seconds, begin: Offset.zero, end: const Offset(-18, 16)),
-          ),
-
-          Positioned(
-            bottom: -90,
-            left: -60,
-            child: Container(
-              width: 240,
-              height: 240,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    const Color(0xFFF97316).withValues(alpha: 0.16),
-                    Colors.transparent,
-                  ],
-                ),
+            ).animate(onPlay: (controller) => controller.repeat(reverse: true))
+              .scale(
+                duration: 3200.ms,
+                begin: const Offset(1, 1),
+                end: const Offset(1.08, 1.08),
               ),
-            ).animate(onPlay: (c) => c.repeat(reverse: true))
-             .scale(duration: 3400.ms, begin: const Offset(1, 1), end: const Offset(1.12, 1.12))
-             .move(duration: 3400.ms, begin: Offset.zero, end: const Offset(12, -12)),
           ),
-
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const DevSpaceLogo(size: 132).animate()
-                   .scale(duration: 850.ms, curve: Curves.easeOutBack)
-                   .fadeIn(duration: 500.ms)
-                   .shimmer(delay: 1.seconds, duration: 1400.ms),
-
-                  const SizedBox(height: 28),
-
-                  Text(
-                    'DevSpace',
-                    style: GoogleFonts.spaceGrotesk(
-                      fontSize: 42,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      letterSpacing: -1.2,
-                      height: 1.0,
-                    ),
-                  ).animate()
-                   .fadeIn(delay: 350.ms, duration: 600.ms)
-                   .slideY(begin: 0.16, end: 0),
-
-                  const SizedBox(height: 10),
-
-                  Text(
-                    'Build. Learn. Ship with your campus crew.',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
-                      fontSize: 15,
-                      color: Colors.white.withValues(alpha: 0.62),
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: 0.1,
-                    ),
-                  ).animate()
-                   .fadeIn(delay: 700.ms, duration: 600.ms),
-
-                  const SizedBox(height: 36),
-
-                  Container(
-                    width: 156,
-                    height: 48,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.04),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.08),
+          SafeArea(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const DevSpaceLogo(size: 118).animate()
+                      .fadeIn(duration: 420.ms)
+                      .scale(
+                        duration: 760.ms,
+                        begin: const Offset(0.92, 0.92),
+                        end: const Offset(1, 1),
+                        curve: Curves.easeOutCubic,
                       ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 10,
-                          height: 10,
+                    const SizedBox(height: 28),
+                    Text(
+                      'DevSpace',
+                      style: GoogleFonts.spaceGrotesk(
+                        fontSize: 38,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -1.3,
+                        color: const Color(0xFFF6F8FC),
+                      ),
+                    ).animate()
+                      .fadeIn(delay: 180.ms, duration: 500.ms)
+                      .slideY(begin: 0.18, end: 0),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Student builders, one shared space.',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF9AA3B2),
+                        letterSpacing: 0.1,
+                      ),
+                    ).animate().fadeIn(delay: 340.ms, duration: 520.ms),
+                    const SizedBox(height: 34),
+                    Container(
+                      width: 124,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      alignment: Alignment.centerLeft,
+                      child: FractionallySizedBox(
+                        widthFactor: 1,
+                        child: Container(
                           decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.primary.withValues(alpha: 0.55),
-                                blurRadius: 12,
-                              ),
-                            ],
-                          ),
-                        ).animate(onPlay: (controller) => controller.repeat())
-                         .fade(duration: 900.ms, begin: 0.35, end: 1),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ClipRRect(
                             borderRadius: BorderRadius.circular(999),
-                            child: LinearProgressIndicator(
-                              minHeight: 5,
-                              backgroundColor: Colors.white.withValues(alpha: 0.08),
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                AppColors.primary,
-                              ),
-                            ).animate()
-                             .scaleX(
-                               duration: 2.seconds,
-                               begin: 0,
-                               end: 1,
-                               alignment: Alignment.centerLeft,
-                               curve: Curves.easeInOutQuart,
-                             ),
+                            gradient: const LinearGradient(
+                              colors: [
+                                Color(0xFF3DE1FF),
+                                Color(0xFF9EF3FF),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ).animate()
-                   .fadeIn(delay: 950.ms, duration: 500.ms)
-                   .slideY(begin: 0.2, end: 0),
-                ],
+                        ).animate()
+                          .scaleX(
+                            duration: 1600.ms,
+                            begin: 0,
+                            end: 1,
+                            alignment: Alignment.centerLeft,
+                            curve: Curves.easeInOutCubic,
+                          ),
+                      ),
+                    ).animate().fadeIn(delay: 500.ms, duration: 400.ms),
+                  ],
+                ),
               ),
             ),
           ),
-
           Positioned(
-            bottom: 36,
             left: 0,
             right: 0,
+            bottom: 28,
             child: Text(
-              'for student builders',
+              'student developer community',
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
-                fontSize: 12,
-                color: Colors.white.withValues(alpha: 0.34),
-                letterSpacing: 1.6,
+                fontSize: 11,
+                color: const Color(0xFF6C7482),
+                letterSpacing: 1.4,
                 fontWeight: FontWeight.w600,
               ),
-            ).animate()
-             .fadeIn(delay: 1200.ms, duration: 600.ms),
+            ).animate().fadeIn(delay: 700.ms, duration: 520.ms),
           ),
         ],
       ),

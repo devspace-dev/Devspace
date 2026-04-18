@@ -118,9 +118,16 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
+    final bg = AppColors.bgFor(context);
+    final bg2 = AppColors.bg2For(context);
+    final text = AppColors.textFor(context);
+    final text3 = AppColors.text3For(context);
+    final text4 = AppColors.text4For(context);
+    final border = AppColors.borderFor(context);
+    final isDark = AppColors.isDark(context);
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: bg,
       body: Stack(
         children: [
           Positioned(
@@ -169,7 +176,7 @@ class _LoginScreenState extends State<LoginScreen>
                                     style: GoogleFonts.spaceGrotesk(
                                       fontSize: 24,
                                       fontWeight: FontWeight.w900,
-                                      color: AppColors.text,
+                                      color: text,
                                       letterSpacing: -0.9,
                                     ),
                                   ),
@@ -178,7 +185,7 @@ class _LoginScreenState extends State<LoginScreen>
                                     'Your campus builder identity starts here.',
                                     style: GoogleFonts.spaceGrotesk(
                                       fontSize: 13,
-                                      color: AppColors.text3,
+                                      color: text3,
                                       fontWeight: FontWeight.w500,
                                       height: 1.35,
                                     ),
@@ -196,7 +203,7 @@ class _LoginScreenState extends State<LoginScreen>
                           style: GoogleFonts.spaceGrotesk(
                             fontSize: 42,
                             fontWeight: FontWeight.w900,
-                            color: AppColors.text,
+                            color: text,
                             letterSpacing: -1.5,
                             height: 1.1,
                           ),
@@ -208,7 +215,7 @@ class _LoginScreenState extends State<LoginScreen>
                               : 'Sign in and get back to building.',
                           style: GoogleFonts.spaceGrotesk(
                             fontSize: 15,
-                            color: AppColors.text3,
+                            color: text3,
                             fontWeight: FontWeight.w500,
                             height: 1.5,
                           ),
@@ -217,9 +224,9 @@ class _LoginScreenState extends State<LoginScreen>
                         Container(
                           padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
-                            color: AppColors.bg2,
+                            color: bg2,
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: AppColors.border, width: 1),
+                            border: Border.all(color: border, width: 1),
                           ),
                           child: Row(
                             children: [
@@ -243,10 +250,12 @@ class _LoginScreenState extends State<LoginScreen>
                         const SizedBox(height: 28),
                         Container(
                           decoration: BoxDecoration(
-                            color: AppColors.bg2,
+                            color: bg2,
                             borderRadius: BorderRadius.circular(28),
                             border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.08),
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.08)
+                                  : Colors.black.withValues(alpha: 0.06),
                               width: 1,
                             ),
                             boxShadow: [
@@ -307,7 +316,7 @@ class _LoginScreenState extends State<LoginScreen>
                                               style: GoogleFonts.spaceGrotesk(
                                                 fontSize: 15,
                                                 fontWeight: FontWeight.w800,
-                                                color: AppColors.text,
+                                                color: text,
                                               ),
                                             ),
                                             const SizedBox(height: 2),
@@ -318,7 +327,7 @@ class _LoginScreenState extends State<LoginScreen>
                                               style: GoogleFonts.spaceGrotesk(
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w500,
-                                                color: AppColors.text3,
+                                                color: text3,
                                                 height: 1.35,
                                               ),
                                             ),
@@ -360,8 +369,8 @@ class _LoginScreenState extends State<LoginScreen>
                                   ),
                                   child: Row(
                                     children: [
-                                      const Expanded(
-                                        child: Divider(color: AppColors.border),
+                                      Expanded(
+                                        child: Divider(color: border),
                                       ),
                                       Padding(
                                         padding: const EdgeInsets.symmetric(
@@ -369,15 +378,15 @@ class _LoginScreenState extends State<LoginScreen>
                                         ),
                                         child: Text(
                                           'or continue with email',
-                                          style: const TextStyle(
-                                            color: AppColors.text4,
+                                          style: TextStyle(
+                                            color: text4,
                                             fontSize: 12,
                                             fontWeight: FontWeight.w600,
                                           ),
                                         ),
                                       ),
-                                      const Expanded(
-                                        child: Divider(color: AppColors.border),
+                                      Expanded(
+                                        child: Divider(color: border),
                                       ),
                                     ],
                                   ),
@@ -412,8 +421,8 @@ class _LoginScreenState extends State<LoginScreen>
                                                     controller: _nameCtrl,
                                                     textInputAction:
                                                         TextInputAction.next,
-                                                    style: const TextStyle(
-                                                      color: AppColors.text,
+                                                    style: TextStyle(
+                                                      color: text,
                                                       fontWeight: FontWeight.w600,
                                                     ),
                                                     decoration:
@@ -437,8 +446,8 @@ class _LoginScreenState extends State<LoginScreen>
                                         keyboardType:
                                             TextInputType.emailAddress,
                                         textInputAction: TextInputAction.next,
-                                        style: const TextStyle(
-                                          color: AppColors.text,
+                                        style: TextStyle(
+                                          color: text,
                                           fontWeight: FontWeight.w600,
                                         ),
                                         decoration: const InputDecoration(
@@ -462,8 +471,8 @@ class _LoginScreenState extends State<LoginScreen>
                                         obscureText: _obscurePassword,
                                         onFieldSubmitted: (_) =>
                                             _submitEmailAuth(),
-                                        style: const TextStyle(
-                                          color: AppColors.text,
+                                        style: TextStyle(
+                                          color: text,
                                           fontWeight: FontWeight.w600,
                                         ),
                                         decoration: InputDecoration(
@@ -479,7 +488,7 @@ class _LoginScreenState extends State<LoginScreen>
                                               _obscurePassword
                                                   ? Icons.visibility_off_rounded
                                                   : Icons.visibility_rounded,
-                                              color: AppColors.text4,
+                                              color: text4,
                                               size: 20,
                                             ),
                                           ),
@@ -494,6 +503,73 @@ class _LoginScreenState extends State<LoginScreen>
                                           return null;
                                         },
                                       ),
+                                      if (!_isSignUp)
+                                        Align(
+                                          alignment: Alignment.centerRight,
+                                          child: TextButton(
+                                            onPressed: _loading
+                                                ? null
+                                                : () async {
+                                                    final email =
+                                                        _emailCtrl.text.trim();
+                                                    if (email.isEmpty) {
+                                                      setState(() => _error =
+                                                          'Please enter your email to reset password.');
+                                                      return;
+                                                    }
+
+                                                    setState(() {
+                                                      _loading = true;
+                                                      _error = null;
+                                                    });
+
+                                                    final result =
+                                                        await AuthService
+                                                            .instance
+                                                            .sendPasswordResetEmail(
+                                                                email);
+
+                                                    if (!mounted) return;
+
+                                                    setState(() {
+                                                      _loading = false;
+                                                      if (result.error !=
+                                                          null) {
+                                                        _error = result.error;
+                                                      } else {
+                                                        // Show success message as a snackbar since _error is for errors
+                                                        ScaffoldMessenger.of(
+                                                                context)
+                                                            .showSnackBar(
+                                                          SnackBar(
+                                                            content: Text(result
+                                                                    .message ??
+                                                                'Reset link sent.'),
+                                                            backgroundColor:
+                                                                AppColors
+                                                                    .primary,
+                                                          ),
+                                                        );
+                                                      }
+                                                    });
+                                                  },
+                                            style: TextButton.styleFrom(
+                                              padding: EdgeInsets.zero,
+                                              minimumSize: const Size(0, 30),
+                                              tapTargetSize:
+                                                  MaterialTapTargetSize
+                                                      .shrinkWrap,
+                                            ),
+                                            child: Text(
+                                              'Forgot Password?',
+                                              style: GoogleFonts.spaceGrotesk(
+                                                color: AppColors.primary,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
                                       if (_error != null) ...[
                                         const SizedBox(height: 16),
                                         Container(
@@ -527,8 +603,8 @@ class _LoginScreenState extends State<LoginScreen>
                                         height: 54,
                                         child: ElevatedButton(
                                           style: ElevatedButton.styleFrom(
-                                            backgroundColor: AppColors.text,
-                                            foregroundColor: AppColors.bg,
+                                            backgroundColor: text,
+                                            foregroundColor: bg,
                                             elevation: 0,
                                             shape: RoundedRectangleBorder(
                                               borderRadius:
@@ -538,13 +614,13 @@ class _LoginScreenState extends State<LoginScreen>
                                           onPressed:
                                               _loading ? null : _submitEmailAuth,
                                           child: _loading
-                                              ? const SizedBox(
+                                              ? SizedBox(
                                                   height: 20,
                                                   width: 20,
                                                   child:
                                                       CircularProgressIndicator(
                                                     strokeWidth: 2.5,
-                                                    color: AppColors.bg,
+                                                    color: bg,
                                                   ),
                                                 )
                                               : Text(
@@ -575,7 +651,7 @@ class _LoginScreenState extends State<LoginScreen>
                                               text: TextSpan(
                                                 style: GoogleFonts.spaceGrotesk(
                                                   fontSize: 12,
-                                                  color: AppColors.text4,
+                                                  color: text4,
                                                   height: 1.4,
                                                 ),
                                                 children: [
@@ -610,8 +686,8 @@ class _LoginScreenState extends State<LoginScreen>
                             _isSignUp
                                 ? 'Already have an account? '
                                 : "Don't have an account? ",
-                            style: const TextStyle(
-                              color: AppColors.text3,
+                            style: TextStyle(
+                              color: text3,
                               fontSize: 13,
                             ),
                           ),
@@ -681,22 +757,30 @@ class _GoogleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = AppColors.isDark(context);
+    final text = AppColors.textFor(context);
+    final border = AppColors.borderFor(context);
+
     return SizedBox(
       width: double.infinity,
       height: 52,
       child: OutlinedButton(
         onPressed: loading ? null : onPressed,
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.text,
+          foregroundColor: text,
           side: BorderSide(
-            color: Colors.white.withValues(alpha: 0.08),
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.08)
+                : border,
             width: 1.2,
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
           padding: const EdgeInsets.symmetric(vertical: 14),
-          backgroundColor: Colors.white.withValues(alpha: 0.02),
+          backgroundColor: isDark
+              ? Colors.white.withValues(alpha: 0.02)
+              : Colors.black.withValues(alpha: 0.02),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -719,7 +803,7 @@ class _GoogleButton extends StatelessWidget {
               style: GoogleFonts.spaceGrotesk(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: AppColors.text,
+                color: text,
               ),
             ),
           ],
@@ -742,20 +826,24 @@ class _ModeButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final text = AppColors.textFor(context);
+    final bg = AppColors.bgFor(context);
+    final text3 = AppColors.text3For(context);
+
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: active ? AppColors.text : Colors.transparent,
+          color: active ? text : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(
           label,
           textAlign: TextAlign.center,
           style: GoogleFonts.spaceGrotesk(
-            color: active ? AppColors.bg : AppColors.text3,
+            color: active ? bg : text3,
             fontWeight: FontWeight.w800,
             fontSize: 13,
           ),
@@ -777,7 +865,7 @@ class _FieldLabel extends StatelessWidget {
       style: GoogleFonts.spaceGrotesk(
         fontSize: 11,
         fontWeight: FontWeight.w800,
-        color: AppColors.text3,
+        color: AppColors.text3For(context),
         letterSpacing: 1.2,
       ),
     );

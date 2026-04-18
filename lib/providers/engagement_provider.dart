@@ -9,7 +9,7 @@ import '../services/backend_api_service.dart';
 typedef AuraSummaryLoader = Future<AuraSummaryModel> Function();
 typedef EligibleEventsLoader = Future<List<EventAccessModel>> Function();
 typedef DailyChallengeLoader = Future<DailyChallengeModel?> Function();
-typedef WeeklyFreeChallengeLoader = Future<DailyChallengeModel?> Function();
+typedef WeeklyFreeChallengeLoader = Future<List<DailyChallengeModel>> Function({String? techStack});
 typedef DailyChallengeSubmitter = Future<Map<String, dynamic>> Function({
   required String submissionText,
   required String submissionLink,
@@ -19,6 +19,25 @@ typedef WeeklyFreeChallengeSubmitter = Future<Map<String, dynamic>> Function({
   required String submissionLink,
 });
 typedef UserRefreshCallback = Future<void> Function();
+
+class _OverviewLoadResult<T> {
+  final T? data;
+  final Object? error;
+
+  const _OverviewLoadResult._({this.data, this.error});
+
+  bool get hasError => error != null;
+
+  static Future<_OverviewLoadResult<T>> guard<T>(
+    Future<T> Function() task,
+  ) async {
+    try {
+      return _OverviewLoadResult._(data: await task());
+    } catch (error) {
+      return _OverviewLoadResult._(error: error);
+    }
+  }
+}
 
 class EngagementProvider extends ChangeNotifier {
   EngagementProvider({
@@ -52,7 +71,7 @@ class EngagementProvider extends ChangeNotifier {
   final UserRefreshCallback _refreshCurrentUser;
   AuraSummaryModel? _auraSummary;
   DailyChallengeModel? _dailyChallenge;
-  DailyChallengeModel? _weeklyFreeChallenge;
+  List<DailyChallengeModel> _weeklyFreeChallenges = [];
   List<EventAccessModel> _events = [];
   bool _isWeeklyChallengeEnrolled = false;
   bool _isLoading = false;
@@ -62,7 +81,8 @@ class EngagementProvider extends ChangeNotifier {
 
   AuraSummaryModel? get auraSummary => _auraSummary;
   DailyChallengeModel? get dailyChallenge => _dailyChallenge;
-  DailyChallengeModel? get weeklyFreeChallenge => _weeklyFreeChallenge;
+  List<DailyChallengeModel> get weeklyFreeChallenges => List.unmodifiable(_weeklyFreeChallenges);
+  DailyChallengeModel? get weeklyFreeChallenge => _weeklyFreeChallenges.isNotEmpty ? _weeklyFreeChallenges.first : null;
   List<EventAccessModel> get events => List.unmodifiable(_events);
   bool get isWeeklyChallengeEnrolled => _isWeeklyChallengeEnrolled;
   bool get isLoading => _isLoading;
@@ -86,8 +106,8 @@ class EngagementProvider extends ChangeNotifier {
     return BackendApiService.instance.getDailyChallenge();
   }
 
-  static Future<DailyChallengeModel?> _defaultWeeklyFreeChallengeLoader() {
-    return BackendApiService.instance.getWeeklyFreeChallenge();
+  static Future<List<DailyChallengeModel>> _defaultWeeklyFreeChallengeLoader({String? techStack}) {
+    return BackendApiService.instance.getWeeklyFreeChallenge(techStack: techStack);
   }
 
   static Future<Map<String, dynamic>> _defaultDailyChallengeSubmitter({
@@ -114,52 +134,71 @@ class EngagementProvider extends ChangeNotifier {
     return AuthService.instance.refreshCurrentUser();
   }
 
-  Future<void> fetchOverview({bool forceChallengeRefresh = false}) async {
+  Future<void> fetchOverview({bool forceChallengeRefresh = false, String? techStack}) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
-    AuraSummaryModel? nextSummary = _auraSummary;
-    List<EventAccessModel> nextEvents = _events;
-    DailyChallengeModel? nextChallenge = _dailyChallenge;
-    DailyChallengeModel? nextWeeklyFree = _weeklyFreeChallenge;
-    String? nextError;
+    final results = await Future.wait([
+      _OverviewLoadResult.guard(_auraSummaryLoader),
+      _OverviewLoadResult.guard(_eligibleEventsLoader),
+      _OverviewLoadResult.guard(_dailyChallengeLoader),
+      _OverviewLoadResult.guard(
+        () => _weeklyFreeChallengeLoader(techStack: techStack),
+      ),
+    ]);
 
-    try {
-      nextSummary = await _auraSummaryLoader();
-    } catch (e) {
-      nextError = 'Failed to load aura data: $e';
+    final auraResult = results[0] as _OverviewLoadResult<AuraSummaryModel>;
+    final eventsResult =
+        results[1] as _OverviewLoadResult<List<EventAccessModel>>;
+    final challengeResult =
+        results[2] as _OverviewLoadResult<DailyChallengeModel?>;
+    final weeklyResult =
+        results[3] as _OverviewLoadResult<List<DailyChallengeModel>>;
+
+    final failures = <Object>[];
+
+    if (auraResult.data != null) {
+      _auraSummary = auraResult.data;
+    } else if (auraResult.hasError) {
+      failures.add(auraResult.error!);
     }
 
-    try {
-      nextEvents = await _eligibleEventsLoader();
-    } catch (_) {
-      nextEvents = _events;
+    if (eventsResult.data != null) {
+      _events = eventsResult.data!;
+    } else if (eventsResult.hasError) {
+      failures.add(eventsResult.error!);
     }
 
-    try {
-      nextChallenge = await _dailyChallengeLoader();
-    } catch (_) {
-      nextChallenge = _dailyChallenge;
+    if (!challengeResult.hasError) {
+      _dailyChallenge = challengeResult.data;
+    } else {
+      failures.add(challengeResult.error!);
     }
 
-    try {
-      nextWeeklyFree = await _weeklyFreeChallengeLoader();
-    } catch (_) {
-      nextWeeklyFree = _weeklyFreeChallenge;
+    if (weeklyResult.data != null) {
+      _weeklyFreeChallenges = weeklyResult.data!;
+    } else if (weeklyResult.hasError) {
+      failures.add(weeklyResult.error!);
     }
 
-    try {
-      _auraSummary = nextSummary;
-      _events = nextEvents;
-      _dailyChallenge = nextChallenge;
-      _weeklyFreeChallenge = nextWeeklyFree;
-      _error = nextSummary == null ? nextError : null;
-      await _refreshCurrentUser();
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+    for (final failure in failures) {
+      debugPrint('Error loading engagement data: $failure');
     }
+
+    final hasAnyOverviewData = _auraSummary != null ||
+        _dailyChallenge != null ||
+        _events.isNotEmpty ||
+        _weeklyFreeChallenges.isNotEmpty;
+
+    _error = failures.isEmpty
+        ? null
+        : hasAnyOverviewData
+            ? 'Some engagement sections could not refresh. Pull to retry.'
+            : 'Failed to refresh engagement data. Please try again.';
+
+    _isLoading = false;
+    notifyListeners();
   }
 
   Future<bool> submitDailyChallenge({

@@ -150,7 +150,7 @@ class _WeeklyChallengeScreenState extends State<WeeklyChallengeScreen> {
           key: const ValueKey('paid_tier'),
           isPremium: true,
           title: 'Career & Skill Growth',
-          price: 'Rs 59 / WEEK',
+          price: 'Rs 29 / WEEK',
           description: 'The ultimate package for builders who are serious about their career and skill development.',
           icon: Icons.rocket_launch_rounded,
           accentColor: AppColors.indigo,

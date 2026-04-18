@@ -6,6 +6,7 @@ import '../providers/posts_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_state_widgets.dart';
 import '../widgets/post_card.dart';
+import '../widgets/skeleton_loaders.dart';
 
 class SavedPostsScreen extends StatefulWidget {
   const SavedPostsScreen({super.key});
@@ -47,9 +48,10 @@ class _SavedPostsScreenState extends State<SavedPostsScreen> {
       body: Builder(
         builder: (context) {
           if (postsProvider.isSavedPostsLoading && savedPosts.isEmpty) {
-            return const AppLoadingState(
-              title: 'Loading saved posts',
-              message: 'Fetching the posts you bookmarked.',
+            return ListView.builder(
+              padding: const EdgeInsets.only(top: 8),
+              itemCount: 5,
+              itemBuilder: (context, index) => PostCardSkeleton(),
             );
           }
 

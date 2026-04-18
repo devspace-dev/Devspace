@@ -17,7 +17,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.example.devspace"
+    namespace = "com.devspace.community"
     ndkVersion = "28.2.13676358"
 
     compileOptions {
@@ -33,7 +33,7 @@ android {
     compileSdk = flutter.compileSdkVersion
 
     defaultConfig {
-        applicationId = "com.example.devspace"
+        applicationId = "com.devspace.community"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -58,6 +58,16 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+    }
+
+    packaging {
+        jniLibs {
+            // Bypass stripping failure
+            keepDebugSymbols.add("**/*.so")
+        }
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
 }

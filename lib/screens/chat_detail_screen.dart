@@ -17,8 +17,7 @@ import '../widgets/user_avatar.dart';
 import '../services/storage_service.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'call_screen.dart';
-import '../services/calling_service.dart';
+// Calling feature deferred to future update
 
 class ChatDetailScreen extends StatefulWidget {
   final ConversationModel conversation;
@@ -185,28 +184,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     });
   }
 
-  void _startCall(bool isVideo) {
-    final me = context.read<AuthProvider>().currentUser;
-    
-    CallingService.instance.sendCallOffer(
-      toUserId: widget.otherUser.id,
-      fromUserId: me.id,
-      channelId: widget.conversation.id,
-      isVideo: isVideo,
-      callerData: me.toJson(),
-    );
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => CallScreen(
-          channelId: widget.conversation.id,
-          otherUser: widget.otherUser,
-          isVideo: isVideo,
-        ),
-      ),
-    );
-  }
 
   void _showOptions() {
     showModalBottomSheet(
@@ -368,17 +346,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            onPressed: () => _startCall(false),
-            icon: const Icon(Icons.call_outlined, size: 22),
-          ),
-          IconButton(
-            onPressed: () => _startCall(true),
-            icon: const Icon(Icons.videocam_outlined, size: 24),
-          ),
-          const SizedBox(width: 4),
-        ],
+        actions: const [SizedBox(width: 4)],
       ),
       body: Column(
         children: [

@@ -7,6 +7,10 @@ class EventAccessModel {
   final String type;
   final bool unlocked;
   final bool locked;
+  final String? bannerUrl;
+  final String? date;
+  final String? location;
+  final String? organizer;
 
   const EventAccessModel({
     required this.id,
@@ -17,6 +21,10 @@ class EventAccessModel {
     required this.type,
     required this.unlocked,
     required this.locked,
+    this.bannerUrl,
+    this.date,
+    this.location,
+    this.organizer,
   });
 
   factory EventAccessModel.fromJson(Map<String, dynamic> json) {
@@ -30,6 +38,10 @@ class EventAccessModel {
       type: (json['type'] ?? 'event').toString(),
       unlocked: json['unlocked'] as bool? ?? false,
       locked: json['locked'] as bool? ?? true,
+      bannerUrl: json['banner_url']?.toString(),
+      date: json['date']?.toString(),
+      location: json['location']?.toString(),
+      organizer: json['organizer']?.toString(),
     );
   }
 }

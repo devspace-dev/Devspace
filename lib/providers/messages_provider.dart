@@ -138,10 +138,20 @@ class MessagesProvider extends ChangeNotifier {
     _conversationSubscription = _conversationStreamLoader(userId).listen(
       (data) async {
         try {
+          final conversationIds = data.map((item) => item.id).toList();
+          if (conversationIds.isEmpty) {
+            _conversations = [];
+            _isLoading = false;
+            _error = null;
+            notifyListeners();
+            return;
+          }
+
           final unreadCounts = await _unreadCountsLoader(
             userId,
-            data.map((item) => item.id).toList(),
+            conversationIds,
           );
+          
           _conversations = data
               .map(
                 (conversation) => conversation.copyWith(
@@ -174,7 +184,10 @@ class MessagesProvider extends ChangeNotifier {
 
   Future<ConversationModel> startConversation(String myId, String otherId) async {
     try {
-      return await _conversationStarter(myId, otherId);
+      final conversation = await _conversationStarter(myId, otherId);
+      // If we don't have it in our list yet, we might want to refresh
+      // but the stream will catch it.
+      return conversation;
     } catch (e) {
       throw StateError('Failed to start conversation: $e');
     }
@@ -217,20 +230,24 @@ class MessagesProvider extends ChangeNotifier {
     String conversationId,
     String currentUserId,
   ) async {
+    // Optimistic UI update
+    bool changed = false;
+    _conversations = _conversations.map((c) {
+      if (c.id == conversationId && c.unreadCount > 0) {
+        changed = true;
+        return c.copyWith(unreadCount: 0);
+      }
+      return c;
+    }).toList();
+    
+    if (changed) notifyListeners();
+
     try {
       await _conversationReadMarker(conversationId, currentUserId);
-      _conversations = _conversations
-          .map(
-            (conversation) => conversation.id == conversationId
-                ? conversation.copyWith(unreadCount: 0)
-                : conversation,
-          )
-          .toList();
-      _error = null;
     } catch (e) {
       _error = 'Failed to update message read state: $e';
+      notifyListeners();
     }
-    notifyListeners();
   }
 
   void clearConversationError(String conversationId) {

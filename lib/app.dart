@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -25,8 +27,7 @@ import 'theme/app_colors.dart';
 import 'widgets/bottom_nav.dart';
 import 'widgets/glass_container.dart';
 import 'widgets/user_avatar.dart';
-import 'services/calling_service.dart';
-import 'screens/call_screen.dart';
+// Calling feature deferred to future update
 
 class DevSpaceApp extends StatefulWidget {
   const DevSpaceApp({super.key});
@@ -217,47 +218,35 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       final auth = context.read<AuthProvider>();
-      final user = auth.currentUserOrNull;
-
+      
       // Initialize shared public data
       context.read<UsersProvider>().fetchUsers();
       context.read<PostsProvider>().fetchFeed();
       context.read<QuestionsProvider>().fetchQuestions();
 
-      // Initialize user-specific data
-      if (user != null) {
-        try {
-          context.read<NotificationsProvider>().init(user.id);
-          context.read<MessagesProvider>().init(user.id);
-          CallingService.instance.init(user.id);
-          _listenForCalls();
-          await context.read<EngagementProvider>().fetchOverview();
-        } catch (e) {
-          debugPrint('Provider initialization failed: $e');
-        }
-      }
+      // Listen for auth changes to init user-specific services
+      auth.addListener(_onAuthChanged);
+      _onAuthChanged(); // Run once for initial state
     });
   }
 
-  void _listenForCalls() {
-    CallingService.instance.callEvents.listen((event) {
-      if (!mounted) return;
-      if (event['type'] == 'offer') {
-        final data = event['data'];
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => CallScreen(
-              channelId: data['channelId'],
-              otherUser: UserModel.fromJson(data['callerData']),
-              isVideo: data['isVideo'],
-              isIncoming: true,
-            ),
-          ),
-        );
+  void _onAuthChanged() {
+    if (!mounted) return;
+    final auth = context.read<AuthProvider>();
+    final user = auth.currentUserOrNull;
+
+    if (user != null) {
+      try {
+        context.read<NotificationsProvider>().init(user.id);
+        context.read<MessagesProvider>().init(user.id);
+        context.read<EngagementProvider>().fetchOverview();
+      } catch (e) {
+        debugPrint('Provider initialization failed: $e');
       }
-    });
+    }
   }
+
+
 
   void _showNotifications(BuildContext context) {
     late final UserModel me;
@@ -542,7 +531,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
       extendBody: true,
       extendBodyBehindAppBar: false,
       floatingActionButton: AnimatedSlide(
-        offset: _isUIVisible ? Offset.zero : const Offset(0, 2),
+        offset: _isUIVisible ? Offset.zero : const Offset(0, 3),
         duration: const Duration(milliseconds: 300),
         child: isHome
             ? CupFab(
@@ -594,18 +583,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
             elevation: 0,
             scrolledUnderElevation: 0,
             centerTitle: false,
-            titleSpacing: 0,
-            leading: me != null
-                ? Padding(
-                    padding: const EdgeInsets.only(left: 12),
-                    child: Center(
-                      child: GestureDetector(
-                        onTap: () => _onTabSelected(4),
-                        child: UserAvatar(user: me, size: 34),
-                      ),
-                    ),
-                  )
-                : null,
+            titleSpacing: 20,
             title: _tab == 0
                 ? Text(
                     'DevSpace',
@@ -705,13 +683,25 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
           }
           return false;
         },
-        child: WillPopScope(
-          onWillPop: () async {
+        child: PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, result) async {
+            if (didPop) return;
             if (_tab != 0) {
               _onTabSelected(0); // Go back to Home tab
-              return false; // Prevent app from closing
+            } else {
+              // If on home tab, we might want to allow popping if there's no other way
+              // But usually we want to exit the app or something.
+              // In Flutter, if we return true from onWillPop it closes.
+              // With PopScope(canPop: false), we need to manually pop if we want to.
+              final NavigatorState navigator = Navigator.of(context);
+              if (navigator.canPop()) {
+                navigator.pop();
+              } else {
+                // Exit app
+                SystemNavigator.pop();
+              }
             }
-            return true; // Let the app close when on the Home tab
           },
           child: PageView(
             controller: _pageController,

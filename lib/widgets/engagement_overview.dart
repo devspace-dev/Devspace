@@ -18,7 +18,30 @@ class EngagementOverview extends StatelessWidget {
             provider.auraSummary == null &&
             provider.dailyChallenge == null &&
             provider.events.isEmpty) {
-          return const SizedBox.shrink();
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: _SectionCard(
+              child: Row(
+                children: [
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2.2),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Loading your aura, streak, and opportunities...',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.text2For(context),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
         }
 
         if (provider.error != null &&

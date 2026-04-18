@@ -50,4 +50,28 @@ class NotificationModel {
       'created_at': createdAt.toUtc().toIso8601String(),
     };
   }
+
+  NotificationModel copyWith({
+    String? id,
+    String? toUid,
+    String? fromUid,
+    String? type,
+    String? postId,
+    String? questionId,
+    String? message,
+    bool? read,
+    DateTime? createdAt,
+  }) {
+    return NotificationModel(
+      id: id ?? this.id,
+      toUid: toUid ?? this.toUid,
+      fromUid: fromUid ?? this.fromUid,
+      type: type ?? this.type,
+      postId: postId ?? this.postId,
+      questionId: questionId ?? this.questionId,
+      message: message ?? this.message,
+      read: read ?? this.read,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
 }

@@ -14,7 +14,7 @@ class NotificationsProvider extends ChangeNotifier {
   String? get error => _error;
 
   StreamSubscription? _subscription;
-  String? _lastNotificationId;
+  final Set<String> _seenNotificationIds = {};
 
   void init(String uid) {
     _subscription?.cancel();
@@ -25,13 +25,12 @@ class NotificationsProvider extends ChangeNotifier {
     _subscription = SupabaseService.instance.streamNotifications(uid).listen(
       (data) {
         // If we have new notifications that are unread, show a local notification
-        if (data.isNotEmpty) {
-          final newest = data.first;
-          if (!newest.read &&
-              newest.id != _lastNotificationId &&
-              DateTime.now().difference(newest.createdAt).inMinutes < 5) {
-            _lastNotificationId = newest.id;
-            _showLocal(newest);
+        for (final n in data) {
+          if (!n.read &&
+              !_seenNotificationIds.contains(n.id) &&
+              DateTime.now().difference(n.createdAt).inMinutes < 5) {
+            _seenNotificationIds.add(n.id);
+            _showLocal(n);
           }
         }
 
@@ -55,6 +54,7 @@ class NotificationsProvider extends ChangeNotifier {
     if (n.type == 'follow') title = 'New Follower 👥';
     if (n.type == 'message') title = 'New Message ✉️';
     if (n.type == 'solved') title = 'Solution Accepted ✅';
+    if (n.type == 'pr_request') title = 'Collaboration Request 🤝';
 
     NotificationService.instance.showLocalNotification(
       id: n.id,
@@ -66,11 +66,33 @@ class NotificationsProvider extends ChangeNotifier {
   int get unreadCount => _notifications.where((n) => !n.read).length;
 
   Future<void> markAsRead(String id) async {
-    await SupabaseService.instance.markNotificationAsRead(id);
+    // Optimistic UI update
+    _notifications = _notifications.map<NotificationModel>((n) {
+      if (n.id == id) {
+        return n.copyWith(read: true);
+      }
+      return n;
+    }).toList();
+    notifyListeners();
+
+    try {
+      await SupabaseService.instance.markNotificationAsRead(id);
+    } catch (e) {
+      debugPrint('Failed to mark notification read: $e');
+    }
   }
 
   Future<void> markAllAsRead(String uid) async {
-    await SupabaseService.instance.markAllNotificationsAsRead(uid);
+    // Optimistic UI update
+    _notifications =
+        _notifications.map<NotificationModel>((n) => n.copyWith(read: true)).toList();
+    notifyListeners();
+
+    try {
+      await SupabaseService.instance.markAllNotificationsAsRead(uid);
+    } catch (e) {
+      debugPrint('Failed to mark all notifications read: $e');
+    }
   }
 
   @override

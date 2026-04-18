@@ -149,10 +149,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
                     builder: (context, provider, _) {
                       if (provider.isLoading && provider.dailyChallenge == null) {
                         return const Center(
-                          child: Padding(
-                            padding: EdgeInsets.only(top: 100),
-                            child: CircularProgressIndicator.adaptive(),
-                          ),
+                          child: CircularProgressIndicator.adaptive(),
                         );
                       }
 

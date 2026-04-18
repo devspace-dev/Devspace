@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -30,6 +32,10 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
   final _eventDescriptionController = TextEditingController();
   final _eventRequiredAuraController = TextEditingController(text: '0');
   final _eventLinkController = TextEditingController();
+  final _eventBannerUrlController = TextEditingController();
+  final _eventDateController = TextEditingController();
+  final _eventLocationController = TextEditingController();
+  final _eventOrganizerController = TextEditingController();
 
   final _challengeTitleController = TextEditingController();
   final _challengeDescriptionController = TextEditingController();
@@ -73,6 +79,10 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
     _eventDescriptionController.dispose();
     _eventRequiredAuraController.dispose();
     _eventLinkController.dispose();
+    _eventBannerUrlController.dispose();
+    _eventDateController.dispose();
+    _eventLocationController.dispose();
+    _eventOrganizerController.dispose();
     _challengeTitleController.dispose();
     _challengeDescriptionController.dispose();
     _challengeTechStackController.dispose();
@@ -243,6 +253,42 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
                     hintText: 'https://...',
                   ),
                   validator: _requiredValidator,
+                ),
+              ),
+              _LabeledField(
+                label: 'Banner Image URL',
+                child: TextFormField(
+                  controller: _eventBannerUrlController,
+                  decoration: const InputDecoration(
+                    hintText: 'https://images.unsplash.com/...',
+                  ),
+                ),
+              ),
+              _LabeledField(
+                label: 'Event Date (e.g., Apr 20, 10 AM)',
+                child: TextFormField(
+                  controller: _eventDateController,
+                  decoration: const InputDecoration(
+                    hintText: 'April 20th, 2026',
+                  ),
+                ),
+              ),
+              _LabeledField(
+                label: 'Location',
+                child: TextFormField(
+                  controller: _eventLocationController,
+                  decoration: const InputDecoration(
+                    hintText: 'Auditorium / Online',
+                  ),
+                ),
+              ),
+              _LabeledField(
+                label: 'Organizer / Club Name',
+                child: TextFormField(
+                  controller: _eventOrganizerController,
+                  decoration: const InputDecoration(
+                    hintText: 'GDG DevSpace',
+                  ),
                 ),
               ),
               _LabeledField(
@@ -435,6 +481,13 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
         _AdminSectionHeader(
           title: 'Manage missions',
           onRefresh: _loadChallenges,
+          actions: [
+            TextButton.icon(
+              onPressed: _bulkImportChallenges,
+              icon: const Icon(Icons.upload_file_rounded, size: 18),
+              label: const Text('Bulk Import'),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         if (_isLoadingChallenges)
@@ -578,12 +631,20 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
         requiredAura: int.parse(_eventRequiredAuraController.text.trim()),
         link: _eventLinkController.text.trim(),
         type: _eventType,
+        bannerUrl: _eventBannerUrlController.text.trim(),
+        date: _eventDateController.text.trim(),
+        location: _eventLocationController.text.trim(),
+        organizer: _eventOrganizerController.text.trim(),
       );
 
       _eventTitleController.clear();
       _eventDescriptionController.clear();
       _eventRequiredAuraController.text = '0';
       _eventLinkController.clear();
+      _eventBannerUrlController.clear();
+      _eventDateController.clear();
+      _eventLocationController.clear();
+      _eventOrganizerController.clear();
       await _loadEvents();
       _showSnack('Event created.');
     } catch (e) {
@@ -641,6 +702,100 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
     }
   }
 
+  Future<void> _bulkImportChallenges() async {
+    final jsonController = TextEditingController(
+      text: '''
+[
+  {
+    "title": "Flutter: State Management",
+    "techStack": "Flutter",
+    "question": "Explain the difference between Provider and Riverpod in Flutter.",
+    "options": ["State Management Libraries", "UI Rendering Engines", "Networking Libraries", "Testing Frameworks"],
+    "correctAnswer": "State Management Libraries",
+    "pointsReward": 50,
+    "publishDate": "${DateTime.now().toIso8601String().split('T')[0]}"
+  },
+  {
+    "title": "Node.js: Async Patterns",
+    "techStack": "Node.js",
+    "question": "What is the purpose of Promises in JavaScript?",
+    "options": ["Error Handling", "Asynchronous Operations", "Data Validation", "API Authentication"],
+    "correctAnswer": "Asynchronous Operations",
+    "pointsReward": 40,
+    "publishDate": "${DateTime.now().toIso8601String().split('T')[0]}"
+  }
+]
+''',
+    );
+
+    final imported = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Bulk Import Missions'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Paste a JSON array of missions below. Ensure each object has title, techStack, question, options (list), correctAnswer, pointsReward, and publishDate.',
+                  style: TextStyle(fontSize: 12),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: jsonController,
+                  maxLines: 12,
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                  decoration: const InputDecoration(
+                    hintText: '[{"title": "...", "techStack": "...", ...}]',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Import'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (imported == true) {
+      try {
+        final jsonString = jsonController.text.trim();
+        if (jsonString.isEmpty) {
+          _showSnack('Please paste valid JSON data.');
+          return;
+        }
+        
+        final data = jsonDecode(jsonString);
+        if (data is! List) throw 'Input must be a JSON array';
+
+        final List<Map<String, dynamic>> missions =
+            data.map((m) => Map<String, dynamic>.from(m as Map)).toList();
+
+        if (missions.isEmpty) throw 'No missions found in JSON data';
+
+        await BackendApiService.instance.bulkCreateMissions(missions);
+        await _loadChallenges();
+        _showSnack('Successfully imported ${missions.length} missions.');
+      } catch (e) {
+        _showSnack('Import failed: ${BackendApiService.instance.cleanErrorText(e)}');
+        debugPrint('Bulk import error: $e');
+      }
+    }
+    jsonController.dispose();
+  }
+
   Future<void> _editEvent(Map<String, dynamic> event) async {
     final titleController = TextEditingController(
       text: event['title']?.toString() ?? '',
@@ -653,6 +808,18 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
     );
     final linkController = TextEditingController(
       text: event['link']?.toString() ?? '',
+    );
+    final bannerUrlController = TextEditingController(
+      text: event['banner_url']?.toString() ?? '',
+    );
+    final dateController = TextEditingController(
+      text: event['date']?.toString() ?? '',
+    );
+    final locationController = TextEditingController(
+      text: event['location']?.toString() ?? '',
+    );
+    final organizerController = TextEditingController(
+      text: event['organizer']?.toString() ?? '',
     );
     var eventType = event['type']?.toString() ?? 'event';
     var isActive = event['is_active'] as bool? ?? true;
@@ -709,6 +876,26 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
                       },
                     ),
                     const SizedBox(height: 12),
+                    TextField(
+                      controller: bannerUrlController,
+                      decoration: const InputDecoration(labelText: 'Banner URL'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: dateController,
+                      decoration: const InputDecoration(labelText: 'Date'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: locationController,
+                      decoration: const InputDecoration(labelText: 'Location'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: organizerController,
+                      decoration: const InputDecoration(labelText: 'Organizer'),
+                    ),
+                    const SizedBox(height: 12),
                     SwitchListTile(
                       value: isActive,
                       onChanged: (value) {
@@ -746,6 +933,10 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
           link: linkController.text.trim(),
           type: eventType,
           isActive: isActive,
+          bannerUrl: bannerUrlController.text.trim(),
+          date: dateController.text.trim(),
+          location: locationController.text.trim(),
+          organizer: organizerController.text.trim(),
         );
         await _loadEvents();
         _showSnack('Event updated.');
@@ -758,6 +949,10 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
     descriptionController.dispose();
     auraController.dispose();
     linkController.dispose();
+    bannerUrlController.dispose();
+    dateController.dispose();
+    locationController.dispose();
+    organizerController.dispose();
   }
 
   Future<void> _editChallenge(Map<String, dynamic> challenge) async {
@@ -897,19 +1092,23 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
         _showSnack('Choose one valid option as the right answer.');
       } else {
         try {
-        await BackendApiService.instance.updateMission(
-          missionId: challenge['id'].toString(),
-          title: titleController.text.trim(),
-          type: 'mcq',
-          techStack: stackController.text.trim(),
-          question: descriptionController.text.trim(),
-          options: trimmedOptions,
-          pointsReward: int.tryParse(pointsController.text.trim()) ?? 20,
-          isActive: isActive,
-          correctAnswer: correctAnswer,
-        );
-        await _loadChallenges();
-        _showSnack('Mission updated.');
+          final pDate = challenge['publish_date']?.toString();
+          final resolvedPublishDate = pDate != null && pDate.isNotEmpty ? pDate : DateTime.now().toIso8601String().split('T')[0];
+
+          await BackendApiService.instance.updateMission(
+            missionId: challenge['id'].toString(),
+            title: titleController.text.trim(),
+            type: 'mcq',
+            techStack: stackController.text.trim(),
+            question: descriptionController.text.trim(),
+            options: trimmedOptions,
+            pointsReward: int.tryParse(pointsController.text.trim()) ?? 20,
+            publishDate: resolvedPublishDate,
+            isActive: isActive,
+            correctAnswer: correctAnswer!,
+          );
+          await _loadChallenges();
+          _showSnack('Mission updated.');
         } catch (e) {
           _showSnack(
             'Failed to update mission: ${BackendApiService.instance.cleanErrorText(e)}',
@@ -967,6 +1166,7 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
           .map((option) => option.toString())
           .toList(),
       'correct_answer': mission['correct_answer'],
+      'publish_date': mission['publish_date'],
     };
   }
 
@@ -1194,10 +1394,12 @@ class _LabeledField extends StatelessWidget {
 class _AdminSectionHeader extends StatelessWidget {
   final String title;
   final Future<void> Function() onRefresh;
+  final List<Widget>? actions;
 
   const _AdminSectionHeader({
     required this.title,
     required this.onRefresh,
+    this.actions,
   });
 
   @override
@@ -1214,6 +1416,7 @@ class _AdminSectionHeader extends StatelessWidget {
             ),
           ),
         ),
+        if (actions != null) ...actions!,
         IconButton(
           onPressed: onRefresh,
           icon: const Icon(Icons.refresh_rounded),

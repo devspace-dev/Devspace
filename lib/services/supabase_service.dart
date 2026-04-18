@@ -335,11 +335,13 @@ class SupabaseService {
   }
 
   Stream<List<UserModel>> streamUsers() {
-    return _client
-        .from('users')
-        .stream(primaryKey: ['id'])
-        .order('aura', ascending: false)
-        .map((list) => list.map((d) => UserModel.fromJson(d)).toList());
+    return Stream.fromFuture(
+      _client
+          .from('users')
+          .select()
+          .order('aura', ascending: false)
+          .then((list) => (list as List).map((d) => UserModel.fromJson(d as Map<String, dynamic>)).toList()),
+    );
   }
 
   Future<Set<String>> getFollowingIds(String userId) async {
@@ -423,10 +425,6 @@ class SupabaseService {
     String? imageUrl,
     String? quotePostId,
   }) async {
-    if (_client.auth.currentUser?.id != userId) {
-      throw StateError('Authenticated user does not match post creator.');
-    }
-
     final normalizedQuotePostId = _normalizeOptionalUuid(quotePostId);
     final params = <String, dynamic>{
       'p_content': content,
@@ -490,10 +488,6 @@ class SupabaseService {
   // ══════════════════════════════════════════════════════════════════════════
 
   Future<void> likePost(String postId, String uid) async {
-    if (_client.auth.currentUser?.id != uid) {
-      throw StateError('Authenticated user does not match like actor.');
-    }
-
     await _client.rpc(
       'like_post_with_aura',
       params: {
@@ -503,10 +497,6 @@ class SupabaseService {
   }
 
   Future<void> unlikePost(String postId, String uid) async {
-    if (_client.auth.currentUser?.id != uid) {
-      throw StateError('Authenticated user does not match like actor.');
-    }
-
     await _client.rpc(
       'unlike_post',
       params: {
@@ -587,12 +577,14 @@ class SupabaseService {
   // ══════════════════════════════════════════════════════════════════════════
 
   Stream<List<QuestionModel>> streamQuestions() {
-    return _client
-        .from('questions')
-        .stream(primaryKey: ['id'])
-        .order('created_at', ascending: false)
-        .limit(50)
-        .map((list) => list.map((d) => QuestionModel.fromJson(d)).toList());
+    return Stream.fromFuture(
+      _client
+          .from('questions')
+          .select()
+          .order('created_at', ascending: false)
+          .limit(50)
+          .then((list) => (list as List).map((d) => QuestionModel.fromJson(d as Map<String, dynamic>)).toList()),
+    );
   }
 
   Future<QuestionModel?> getQuestionById(String questionId) async {
@@ -700,6 +692,7 @@ class SupabaseService {
     required String userId,
     required String message,
   }) async {
+    // 1. Submit the PR
     await _client.from('question_pull_requests').upsert(
       {
         'question_id': questionId,
@@ -709,6 +702,22 @@ class SupabaseService {
       },
       onConflict: 'question_id,user_id',
     );
+
+    // 2. Notify the question owner
+    try {
+      final question = await getQuestionById(questionId);
+      if (question != null && question.userId != userId) {
+        await pushNotification(
+          toUid: question.userId,
+          fromUid: userId,
+          type: 'pr_request',
+          questionId: questionId,
+          message: 'offered to help with your question: "${question.title}"',
+        );
+      }
+    } catch (e) {
+      debugPrint('Failed to send PR notification: $e');
+    }
   }
 
   Future<List<QuestionPullRequestModel>> getPullRequestsForQuestion(

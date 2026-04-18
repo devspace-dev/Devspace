@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // Primary colors (Same for both usually, or slightly adjusted)
-  static const primary   = Color(0xFF0A84FF); // Apple SF Blue
+  // Primary colors (Electric Azure theme)
+  static const primary   = Color(0xFF00D1FF); // Electric Azure
   static const secondary = Color(0xFF8E8E93); // System Gray
-  static const blue      = Color(0xFF0A84FF);
+  static const blue      = Color(0xFF00D1FF);
   static const indigo    = Color(0xFF5E5CE6);
   static const purple    = Color(0xFFBF5AF2); // System Purple
   static const mint      = Color(0xFF63E6E2);
@@ -54,7 +54,7 @@ class AppColors {
   static const text3Light     = Color(0xFF8E8E93);
   static const text4Light     = Color(0xFFC7C7CC);
 
-  // Helper getters to use in widgets (though ThemeData is preferred)
+  // Helper getters
   static bool isDark(BuildContext context) => Theme.of(context).brightness == Brightness.dark;
 
   static Color bgFor(BuildContext context) => isDark(context) ? bgDark : bgLight;
@@ -69,7 +69,7 @@ class AppColors {
 
   // Gradients
   static const premiumGradient = LinearGradient(
-    colors: [Color(0xFF0A84FF), Color(0xFF5E5CE6)],
+    colors: [Color(0xFF00D1FF), Color(0xFF007AFF)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );

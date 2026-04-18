@@ -39,8 +39,39 @@ class _PostCardState extends State<PostCard> {
     final postsP = context.watch<PostsProvider>();
     final post = postsP.postById(widget.post.id) ?? widget.post;
     final usersP = context.read<UsersProvider>();
-    final me = context.read<AuthProvider>().currentUser;
-    final user = usersP.getUserById(post.userId) ?? me;
+    final authP = context.read<AuthProvider>();
+    final me = authP.currentUserOrNull;
+    
+    // Determine the author
+    UserModel? user;
+    if (me != null && post.userId == me.id) {
+      user = me;
+    } else {
+      user = usersP.getUserById(post.userId);
+    }
+    
+    // Fallback if user data not yet in provider
+    user ??= UserModel(
+      id: post.userId,
+      name: 'DevSpace Student',
+      handle: 'devspace_user',
+      email: '',
+      avatar: 'DS',
+      color: AppColors.primary,
+      aura: 0,
+      role: 'Student',
+      year: '',
+      branch: '',
+      building: '',
+      stack: const [],
+      followers: 0,
+      following: 0,
+      bio: '',
+      college: '',
+      githubHandle: '',
+      profileCompleted: false,
+    );
+
     final comments = postsP.commentsForPost(post.id);
     final commentsLoading = postsP.isCommentsLoading(post.id);
     final commentSubmitting = postsP.isCommentSubmitting(post.id);
@@ -51,7 +82,7 @@ class _PostCardState extends State<PostCard> {
     final quotedPost = hasQuote ? postsP.quotedPost(quotePostId) : null;
     final quotedPostLoading =
         hasQuote ? postsP.isQuotedPostLoading(quotePostId) : false;
-    final isMe = post.userId == me.id;
+    final isMe = me != null && post.userId == me.id;
 
     if (hasQuote && quotedPost == null && !quotedPostLoading) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -82,7 +113,7 @@ class _PostCardState extends State<PostCard> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 GestureDetector(
-                  onTap: () => _openProfile(context, user.id),
+                  onTap: () => _openProfile(context, user!.id),
                   child: UserAvatar(user: user, size: 36),
                 ),
                 const SizedBox(width: 12),
@@ -91,7 +122,7 @@ class _PostCardState extends State<PostCard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       GestureDetector(
-                        onTap: () => _openProfile(context, user.id),
+                        onTap: () => _openProfile(context, user!.id),
                         child: Text(
                           user.handle,
                           style: TextStyle(
@@ -117,6 +148,7 @@ class _PostCardState extends State<PostCard> {
                   IconButton(
                     visualDensity: VisualDensity.compact,
                     splashRadius: 18,
+                    tooltip: 'Post options',
                     icon: Icon(
                       Icons.more_horiz_rounded,
                       size: 18,
@@ -200,8 +232,10 @@ class _PostCardState extends State<PostCard> {
                     count: post.likes,
                     active: post.isLiked,
                     activeColor: AppColors.like,
-                    disabled: likeUpdating,
+                    label: 'Like',
+                    disabled: likeUpdating || me == null,
                     onTap: () {
+                      if (me == null) return;
                       HapticFeedback.mediumImpact();
                       _handleLikeTap(
                         context,
@@ -218,6 +252,7 @@ class _PostCardState extends State<PostCard> {
                     activeIcon: Icons.chat_bubble_rounded,
                     count: post.comments,
                     active: _showComments,
+                    label: 'Comment',
                     activeColor: AppColors.textFor(context),
                     onTap: () {
                       HapticFeedback.lightImpact();
@@ -235,13 +270,19 @@ class _PostCardState extends State<PostCard> {
                     activeIcon: Icons.repeat_rounded,
                     count: post.reposts,
                     active: false,
+                    label: 'Repost',
                     activeColor: AppColors.repost,
-                    onTap: () => _openQuoteSheet(
-                      context: context,
-                      originalPost: post,
-                      currentUserId: me.id,
-                      originalAuthor: user,
-                    ),
+                    disabled: me == null,
+                    onTap: () {
+                      if (me == null) return;
+                      HapticFeedback.lightImpact();
+                      _openQuoteSheet(
+                        context: context,
+                        originalPost: post,
+                        currentUserId: me.id,
+                        originalAuthor: user!,
+                      );
+                    },
                   ),
                 ),
                 Align(
@@ -251,9 +292,11 @@ class _PostCardState extends State<PostCard> {
                     activeIcon: Icons.bookmark_rounded,
                     count: null,
                     active: post.isBookmarked,
+                    label: 'Save',
                     activeColor: AppColors.textFor(context),
-                    disabled: bookmarkUpdating,
+                    disabled: bookmarkUpdating || me == null,
                     onTap: () {
+                      if (me == null) return;
                       HapticFeedback.lightImpact();
                       _handleBookmarkTap(
                         context,
@@ -292,64 +335,66 @@ class _PostCardState extends State<PostCard> {
                           user: _commentUser(usersP, me, comment),
                         ),
                       ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        UserAvatar(user: me, size: 28),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: TextField(
-                            controller: _commentCtrl,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: AppColors.textFor(context),
+                    if (me != null) ...[
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          UserAvatar(user: me, size: 28),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: TextField(
+                              controller: _commentCtrl,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: AppColors.textFor(context),
+                              ),
+                              decoration: InputDecoration(
+                                hintText: 'Add a reply...',
+                                hintStyle: TextStyle(
+                                  color: AppColors.text3For(context),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 10,
+                                ),
+                                fillColor:
+                                    Colors.white.withValues(alpha: 0.04),
+                                filled: true,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                  borderSide: BorderSide(
+                                    color: AppColors.borderFor(context),
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                  borderSide: BorderSide(
+                                    color: AppColors.borderFor(context),
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                  borderSide: const BorderSide(
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ),
+                              onSubmitted: (_) =>
+                                  _submitComment(postsP, post.id, me.id),
                             ),
-                            decoration: InputDecoration(
-                              hintText: 'Add a reply...',
-                              hintStyle: TextStyle(
-                                color: AppColors.text3For(context),
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 10,
-                              ),
-                              fillColor:
-                                  Colors.white.withValues(alpha: 0.04),
-                              filled: true,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(18),
-                                borderSide: BorderSide(
-                                  color: AppColors.borderFor(context),
-                                ),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(18),
-                                borderSide: BorderSide(
-                                  color: AppColors.borderFor(context),
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(18),
-                                borderSide: const BorderSide(
-                                  color: AppColors.primary,
-                                ),
-                              ),
+                          ),
+                          IconButton(
+                            onPressed: commentSubmitting
+                                ? null
+                                : () => _submitComment(postsP, post.id, me.id),
+                            icon: const Icon(
+                              Icons.arrow_upward_rounded,
+                              color: AppColors.primary,
                             ),
-                            onSubmitted: (_) =>
-                                _submitComment(postsP, post.id, me.id),
                           ),
-                        ),
-                        IconButton(
-                          onPressed: commentSubmitting
-                              ? null
-                              : () => _submitComment(postsP, post.id, me.id),
-                          icon: const Icon(
-                            Icons.arrow_upward_rounded,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ).animate().fadeIn(duration: 200.ms),
@@ -543,25 +588,25 @@ class _PostCardState extends State<PostCard> {
 
   UserModel _commentUser(
     UsersProvider usersProvider,
-    UserModel currentUser,
+    UserModel? currentUser,
     CommentModel comment,
   ) {
     final knownUser = usersProvider.getUserById(comment.userId);
     if (knownUser != null) return knownUser;
-    if (comment.userId == currentUser.id) return currentUser;
+    if (currentUser != null && comment.userId == currentUser.id) return currentUser;
 
     return UserModel(
       id: comment.userId,
-      name: 'Student',
-      handle: 'member',
+      name: 'DevSpace Student',
+      handle: 'devspace_user',
       email: '',
       avatar: 'DS',
       color: AppColors.primary,
       aura: 0,
-      role: '',
+      role: 'Student',
       year: '',
       branch: '',
-      building: 'Building on DevSpace',
+      building: '',
       stack: const [],
       followers: 0,
       following: 0,
@@ -574,25 +619,25 @@ class _PostCardState extends State<PostCard> {
 
   UserModel _quoteUser(
     UsersProvider usersProvider,
-    UserModel currentUser,
+    UserModel? currentUser,
     PostModel quotedPost,
   ) {
     final knownUser = usersProvider.getUserById(quotedPost.userId);
     if (knownUser != null) return knownUser;
-    if (quotedPost.userId == currentUser.id) return currentUser;
+    if (currentUser != null && quotedPost.userId == currentUser.id) return currentUser;
 
     return UserModel(
       id: quotedPost.userId,
-      name: 'Student',
-      handle: 'member',
+      name: 'DevSpace Student',
+      handle: 'devspace_user',
       email: '',
       avatar: 'DS',
       color: AppColors.primary,
       aura: 0,
-      role: '',
+      role: 'Student',
       year: '',
       branch: '',
-      building: 'Building on DevSpace',
+      building: '',
       stack: const [],
       followers: 0,
       following: 0,
@@ -901,6 +946,7 @@ class _ActionBtn extends StatelessWidget {
   final Color? activeColor;
   final VoidCallback onTap;
   final bool disabled;
+  final String label;
 
   const _ActionBtn({
     required this.icon,
@@ -908,6 +954,7 @@ class _ActionBtn extends StatelessWidget {
     required this.count,
     required this.active,
     required this.onTap,
+    required this.label,
     this.activeColor,
     this.disabled = false,
   });
@@ -918,27 +965,32 @@ class _ActionBtn extends StatelessWidget {
         active ? (activeColor ?? AppColors.primary) : AppColors.text3For(context);
     final displayIcon = active && activeIcon != null ? activeIcon! : icon;
 
-    return InkWell(
-      onTap: disabled ? null : onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(displayIcon, size: 19, color: color),
-            if (count != null) ...[
-              const SizedBox(width: 6),
-              Text(
-                '$count',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: color,
-                  fontWeight: FontWeight.w500,
+    return Semantics(
+      label: label,
+      button: true,
+      enabled: !disabled,
+      child: InkWell(
+        onTap: disabled ? null : onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(displayIcon, size: 19, color: color),
+              if (count != null) ...[
+                const SizedBox(width: 6),
+                Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: color,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

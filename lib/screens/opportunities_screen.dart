@@ -9,6 +9,7 @@ import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_state_widgets.dart';
 import '../widgets/app_ui_kit.dart';
+import 'opportunity_detail_screen.dart';
 
 class OpportunitiesScreen extends StatefulWidget {
   const OpportunitiesScreen({super.key});
@@ -87,15 +88,14 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen>
 
                     final allEvents = provider.events;
 
-                    // Opportunities: Items that are aura-locked or specifically for growing.
-                    // Ongoing opportunities that will be unlocked by aura points.
+                    // Opportunities: aura-locked items that are not hackathons.
                     final opportunities = allEvents
                         .where((e) =>
                             e.requiredAura > 0 &&
                             e.type.toLowerCase() != 'hackathon')
                         .toList();
 
-                    // Events: Special hackathons and general events.
+                    // Events: Exclusive hackathons and general events unlocked by aura points.
                     final events = allEvents
                         .where((e) =>
                             e.type.toLowerCase() == 'hackathon' ||
@@ -184,84 +184,98 @@ class _OpportunityCard extends StatelessWidget {
     final auraNeeded = opp.requiredAura - myAura;
     final progress = (myAura / opp.requiredAura).clamp(0.0, 1.0);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      child: AppGlassCard(
-        opacity: opp.unlocked ? 0.4 : 0.15,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  opp.unlocked ? Icons.lock_open_rounded : Icons.lock_rounded,
-                  size: 20,
-                  color:
-                      opp.unlocked ? Colors.green : AppColors.text3For(context),
-                ),
-                const SizedBox(width: 8),
-                AppBadge(
-                  label: opp.type.toUpperCase(),
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => OpportunityDetailScreen(opportunity: opp),
+          ),
+        );
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 20),
+        child: AppGlassCard(
+          opacity: opp.unlocked ? 0.4 : 0.15,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    opp.unlocked ? Icons.lock_open_rounded : Icons.lock_rounded,
+                    size: 20,
+                    color:
+                        opp.unlocked ? Colors.green : AppColors.text3For(context),
+                  ),
+                  const SizedBox(width: 8),
+                  AppBadge(
+                    label: opp.type.toUpperCase(),
+                    color: opp.unlocked
+                        ? AppColors.primary
+                        : AppColors.text3For(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                opp.title,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
                   color: opp.unlocked
-                      ? AppColors.primary
+                      ? AppColors.textFor(context)
                       : AppColors.text3For(context),
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              opp.title,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
-                color: opp.unlocked
-                    ? AppColors.textFor(context)
-                    : AppColors.text3For(context),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              opp.description,
-              style: TextStyle(
-                fontSize: 14,
-                height: 1.5,
-                color: opp.unlocked
-                    ? AppColors.text2For(context)
-                    : AppColors.text4For(context),
-              ),
-            ),
-            const SizedBox(height: 20),
-            if (!opp.unlocked) ...[
-              LinearProgressIndicator(
-                value: progress,
-                backgroundColor: AppColors.bg3For(context),
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(10),
-                minHeight: 6,
-              ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Text(
-                'Requires ${opp.requiredAura} Aura · You are $auraNeeded away',
+                opp.description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.text3For(context)),
+                  fontSize: 14,
+                  height: 1.5,
+                  color: opp.unlocked
+                      ? AppColors.text2For(context)
+                      : AppColors.text4For(context),
+                ),
               ),
-            ] else
-              AppButton(
-                height: 48,
-                onPressed: () async {
-                  await Clipboard.setData(ClipboardData(text: opp.link));
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Link copied to clipboard')),
-                    );
-                  }
-                },
-                child: const Text('Join Now',
-                    style: TextStyle(fontWeight: FontWeight.w900)),
-              ),
-          ],
+              const SizedBox(height: 20),
+              if (!opp.unlocked) ...[
+                LinearProgressIndicator(
+                  value: progress,
+                  backgroundColor: AppColors.bg3For(context),
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(10),
+                  minHeight: 6,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Requires ${opp.requiredAura} Aura · You are $auraNeeded away',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text3For(context)),
+                ),
+              ] else
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      'View Details',
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.primary),
+                  ],
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -314,108 +328,149 @@ class _EventCard extends StatelessWidget {
         : 1.0;
     final isLocked = event.requiredAura > myAura;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      child: AppGlassCard(
-        opacity: isLocked ? 0.15 : 0.4,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      isLocked
-                          ? Icons.lock_rounded
-                          : (isHackathon
-                              ? Icons.terminal_rounded
-                              : Icons.event_rounded),
-                      size: 20,
-                      color: isLocked
-                          ? AppColors.text3For(context)
-                          : (isHackathon
-                              ? Colors.purpleAccent
-                              : AppColors.primary),
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => OpportunityDetailScreen(opportunity: event),
+          ),
+        );
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 20),
+        child: AppGlassCard(
+          opacity: isLocked ? 0.15 : 0.4,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        isLocked
+                            ? Icons.lock_rounded
+                            : (isHackathon
+                                ? Icons.terminal_rounded
+                                : Icons.event_rounded),
+                        size: 20,
+                        color: isLocked
+                            ? AppColors.text3For(context)
+                            : (isHackathon
+                                ? Colors.purpleAccent
+                                : AppColors.primary),
+                      ),
+                      const SizedBox(width: 8),
+                      AppBadge(
+                        label: event.type.toUpperCase(),
+                        color: isLocked
+                            ? AppColors.text3For(context)
+                            : (isHackathon ? Colors.purple : AppColors.primary),
+                      ),
+                    ],
+                  ),
+                  if (!isLocked && isHackathon)
+                    const AppBadge(
+                      label: 'EXCLUSIVE',
+                      color: Colors.amber,
                     ),
-                    const SizedBox(width: 8),
-                    AppBadge(
-                      label: event.type.toUpperCase(),
-                      color: isLocked
-                          ? AppColors.text3For(context)
-                          : (isHackathon ? Colors.purple : AppColors.primary),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (isHackathon && event.bannerUrl != null && !isLocked)
+                Container(
+                  height: 120,
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    image: DecorationImage(
+                      image: NetworkImage(event.bannerUrl!),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+              Text(
+                event.title,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  color: isLocked
+                      ? AppColors.text3For(context)
+                      : AppColors.textFor(context),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                event.description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.5,
+                  color: isLocked
+                      ? AppColors.text4For(context)
+                      : AppColors.text2For(context),
+                ),
+              ),
+              const SizedBox(height: 20),
+              if (isLocked) ...[
+                LinearProgressIndicator(
+                  value: progress,
+                  backgroundColor: AppColors.bg3For(context),
+                  color: isHackathon ? Colors.purpleAccent : AppColors.primary,
+                  borderRadius: BorderRadius.circular(10),
+                  minHeight: 6,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Unlock at ${event.requiredAura} Aura · $auraNeeded more to go',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.text3For(context),
+                  ),
+                ),
+              ] else
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    if (event.date != null)
+                      Row(
+                        children: [
+                          Icon(Icons.calendar_today_rounded, size: 14, color: AppColors.text3For(context)),
+                          const SizedBox(width: 4),
+                          Text(
+                            event.date!,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.text3For(context),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    const Spacer(),
+                    Text(
+                      isHackathon ? 'Register Now' : 'View Details',
+                      style: TextStyle(
+                        color: isHackathon ? Colors.purpleAccent : AppColors.primary,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14,
+                      ),
+                    ),
+                    Icon(
+                      Icons.arrow_forward_ios_rounded, 
+                      size: 14, 
+                      color: isHackathon ? Colors.purpleAccent : AppColors.primary
                     ),
                   ],
                 ),
-                if (!isLocked && isHackathon)
-                  const AppBadge(
-                    label: 'EXCLUSIVE',
-                    color: Colors.amber,
-                  ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              event.title,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
-                color: isLocked
-                    ? AppColors.text3For(context)
-                    : AppColors.textFor(context),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              event.description,
-              style: TextStyle(
-                fontSize: 14,
-                height: 1.5,
-                color: isLocked
-                    ? AppColors.text4For(context)
-                    : AppColors.text2For(context),
-              ),
-            ),
-            const SizedBox(height: 20),
-            if (isLocked) ...[
-              LinearProgressIndicator(
-                value: progress,
-                backgroundColor: AppColors.bg3For(context),
-                color: isHackathon ? Colors.purpleAccent : AppColors.primary,
-                borderRadius: BorderRadius.circular(10),
-                minHeight: 6,
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Unlock at ${event.requiredAura} Aura · $auraNeeded more to go',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.text3For(context),
-                ),
-              ),
-            ] else
-              AppButton(
-                height: 48,
-                backgroundColor:
-                    isHackathon ? Colors.purple.withValues(alpha: 0.2) : null,
-                foregroundColor: isHackathon ? Colors.purpleAccent : null,
-                onPressed: () async {
-                  await Clipboard.setData(ClipboardData(text: event.link));
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Registration link copied!')),
-                    );
-                  }
-                },
-                child: Text(
-                  isHackathon ? 'Register for Hackathon' : 'Join Event',
-                  style: const TextStyle(fontWeight: FontWeight.w900),
-                ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );

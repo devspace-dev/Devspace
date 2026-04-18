@@ -123,3 +123,39 @@ class ProfileSkeleton extends StatelessWidget {
     );
   }
 }
+class QuestionCardSkeleton extends StatelessWidget {
+  const QuestionCardSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      decoration: BoxDecoration(
+        color: AppColors.bg2For(context).withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.borderFor(context), width: 0.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SkeletonLoader(width: 150, height: 18),
+          const SizedBox(height: 10),
+          const SkeletonLoader(width: double.infinity, height: 14),
+          const SizedBox(height: 6),
+          const SkeletonLoader(width: 200, height: 14),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              const SkeletonLoader(width: 24, height: 24, borderRadius: 12),
+              const SizedBox(width: 8),
+              const SkeletonLoader(width: 80, height: 12),
+              const Spacer(),
+              const SkeletonLoader(width: 40, height: 24, borderRadius: 8),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}

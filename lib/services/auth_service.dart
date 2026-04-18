@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -107,29 +108,72 @@ class AuthService {
   }
 
   Future<void> init() async {
-    // Check current session
-    final session = _supabase.auth.currentSession;
-    if (session != null) {
-      _currentUser = await _loadOrCreateProfile(session.user);
-      _authStateController.add(_currentUser);
+    final completer = Completer<void>();
+    bool firstEventFired = false;
+
+    // Initialize Google Sign In (v7+)
+    try {
+      const webClientId =
+          String.fromEnvironment('GOOGLE_WEB_CLIENT_ID', defaultValue: '');
+      if (webClientId.isNotEmpty) {
+        await GoogleSignIn.instance.initialize(serverClientId: webClientId);
+      } else {
+        await GoogleSignIn.instance.initialize();
+      }
+      _googleSignInInitialized = true;
+    } catch (e) {
+      debugPrint('Google Sign In initialization failed: $e');
     }
 
-    // Listen to auth changes
+    // 1. Listen to auth changes first so we catch the initial load
     _supabase.auth.onAuthStateChange.listen((data) async {
       final AuthChangeEvent event = data.event;
       final Session? session = data.session;
 
       if (event == AuthChangeEvent.signedIn ||
-          event == AuthChangeEvent.tokenRefreshed) {
+          event == AuthChangeEvent.tokenRefreshed ||
+          event == AuthChangeEvent.initialSession) {
         if (session != null) {
-          _currentUser = await _loadOrCreateProfile(session.user);
-          _authStateController.add(_currentUser);
+          try {
+            _currentUser = await _loadOrCreateProfile(session.user);
+          } catch (e) {
+            debugPrint('Failed to load profile on auth change: $e');
+          }
         }
       } else if (event == AuthChangeEvent.signedOut) {
         _currentUser = null;
-        _authStateController.add(null);
+      }
+
+      _authStateController.add(_currentUser);
+
+      // Signal that initialization is complete after the first event
+      if (!firstEventFired) {
+        firstEventFired = true;
+        if (!completer.isCompleted) completer.complete();
       }
     });
+
+    // 2. Synchronous check for immediate session if already available
+    final initialSession = _supabase.auth.currentSession;
+    if (initialSession != null) {
+      try {
+        _currentUser = await _loadOrCreateProfile(initialSession.user);
+        _authStateController.add(_currentUser);
+      } catch (e) {
+        debugPrint('Failed to load profile for initial session: $e');
+      }
+      if (!completer.isCompleted) {
+        firstEventFired = true;
+        completer.complete();
+      }
+    }
+
+    // 3. Safety timeout if no auth event fires (e.g., no session)
+    Future.delayed(const Duration(seconds: 2), () {
+      if (!completer.isCompleted) completer.complete();
+    });
+
+    return completer.future;
   }
 
   bool _isAllowedEmail(String email) {
@@ -333,25 +377,16 @@ class AuthService {
 
   Future<AuthResult> signInWithGoogle() async {
     try {
-      const webClientId =
-          String.fromEnvironment('GOOGLE_WEB_CLIENT_ID', defaultValue: '');
       final googleSignIn = GoogleSignIn.instance;
 
-      if (!_googleSignInInitialized) {
-        await googleSignIn.initialize(
-          serverClientId: webClientId.isEmpty ? null : webClientId,
-        );
-        _googleSignInInitialized = true;
-      }
-
-      // Clear the previously selected Google account so the chooser appears.
       try {
-        await googleSignIn.disconnect();
-      } catch (_) {
         await googleSignIn.signOut();
-      }
+      } catch (_) {}
 
       final googleUser = await googleSignIn.authenticate();
+      if (googleUser == null) {
+        return const AuthResult(error: 'Google sign-in was canceled.');
+      }
 
       if (!_isAllowedEmail(googleUser.email)) {
         await googleSignIn.signOut();
@@ -361,6 +396,18 @@ class AuthService {
 
       final googleAuth = googleUser.authentication;
       final idToken = googleAuth.idToken;
+
+      String? accessToken;
+      try {
+        final scopes = ['email', 'profile'];
+        final authorization =
+            await googleUser.authorizationClient.authorizationForScopes(scopes) ??
+                await googleUser.authorizationClient.authorizeScopes(scopes);
+        accessToken = authorization.accessToken;
+      } catch (e) {
+        debugPrint('Failed to get Google access token: $e');
+      }
+
       if (idToken == null || idToken.isEmpty) {
         return const AuthResult(error: 'Google authentication failed.');
       }
@@ -368,11 +415,13 @@ class AuthService {
       final AuthResponse res = await _supabase.auth.signInWithIdToken(
         provider: OAuthProvider.google,
         idToken: idToken,
+        accessToken: accessToken,
       );
 
       final user = res.user;
-      if (user == null)
+      if (user == null) {
         return const AuthResult(error: 'Google sign-in failed.');
+      }
 
       _currentUser = await _loadOrCreateProfile(user);
       _authStateController.add(_currentUser);
@@ -395,7 +444,25 @@ class AuthService {
     }
   }
 
+  Future<AuthResult> sendPasswordResetEmail(String email) async {
+    try {
+      await _supabase.auth.resetPasswordForEmail(email);
+      return const AuthResult(message: 'Password reset email sent.');
+    } on AuthException catch (e) {
+      return AuthResult(error: e.message);
+    } catch (e) {
+      return AuthResult(error: 'Failed to send reset email: $e');
+    }
+  }
+
   Future<void> signOut() async {
+    try {
+      if (_googleSignInInitialized) {
+        await GoogleSignIn.instance.signOut();
+      }
+    } catch (e) {
+      debugPrint('Google Sign Out failed: $e');
+    }
     await _supabase.auth.signOut();
     _currentUser = null;
     _authStateController.add(null);

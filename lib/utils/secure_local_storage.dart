@@ -1,9 +1,6 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-// SECURITY: Using flutter_secure_storage ensures that auth tokens are stored 
-// in a secure enclave (KeyChain on iOS, KeyStore on Android) rather than 
-// plaintext SharedPreferences.
 class SecureLocalStorage extends LocalStorage {
   const SecureLocalStorage();
 
@@ -16,12 +13,15 @@ class SecureLocalStorage extends LocalStorage {
 
   @override
   Future<String?> accessToken() async {
-    return null; // Not explicitly used for session storage in this way
+    // CRITICAL: Return the full session JSON string, not just the token.
+    // This allows Supabase to recover the refresh_token and maintain the session.
+    return await _storage.read(key: 'supabase_session');
   }
 
   @override
   Future<bool> hasAccessToken() async {
-    return false; // Not explicitly used for session storage in this way
+    final data = await _storage.read(key: 'supabase_session');
+    return data != null;
   }
 
   @override
@@ -30,17 +30,7 @@ class SecureLocalStorage extends LocalStorage {
   }
 
   @override
-  Future<void> removeSession() async {
-    await _storage.delete(key: 'supabase_session');
-  }
-
-  @override
   Future<void> removePersistedSession() async {
     await _storage.delete(key: 'supabase_session');
-  }
-
-  @override
-  Future<String?> session() async {
-    return _storage.read(key: 'supabase_session');
   }
 }

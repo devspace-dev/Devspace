@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-import '../theme/app_colors.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class DevSpaceLogo extends StatelessWidget {
   final double size;
@@ -14,33 +13,31 @@ class DevSpaceLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final outerRadius = BorderRadius.circular(size * 0.28);
-    final innerRadius = BorderRadius.circular(size * 0.2);
-
-    return Container(
+    return SizedBox(
       width: size,
       height: size,
-      padding: EdgeInsets.all(size * 0.1),
-      decoration: BoxDecoration(
-        borderRadius: outerRadius,
-        color: const Color(0xFF0F0F12),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.08),
-          width: 1,
-        ),
-        boxShadow: elevated
-            ? [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.5),
-                  blurRadius: size * 0.15,
-                  offset: Offset(0, size * 0.05),
-                ),
-              ]
-            : null,
-      ),
-      child: Image.asset(
-        'assets/images/app_icon.png',
-        fit: BoxFit.contain,
+      child: Center(
+        child: Image.asset(
+          'assets/images/app_icon.png',
+          width: size * 0.9,
+          height: size * 0.9,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) => Icon(
+            Icons.rocket_launch_rounded,
+            color: const Color(0xFF00D1FF),
+            size: size * 0.8,
+          ),
+        ).animate(onPlay: (controller) => controller.repeat(reverse: true))
+         .scale(
+           duration: 2000.ms,
+           begin: const Offset(1, 1),
+           end: const Offset(1.05, 1.05),
+           curve: Curves.easeInOutSine,
+         )
+         .shimmer(
+           duration: 3000.ms,
+           color: Colors.white.withValues(alpha: 0.1),
+         ),
       ),
     );
   }

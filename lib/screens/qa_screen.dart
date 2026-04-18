@@ -7,6 +7,7 @@ import '../providers/users_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_state_widgets.dart';
 import '../widgets/question_card.dart';
+import '../widgets/skeleton_loaders.dart';
 import 'question_detail_screen.dart';
 
 class QAScreen extends StatefulWidget {
@@ -134,17 +135,16 @@ class _QAScreenState extends State<QAScreen> {
             ),
             if (questionsP.error != null && questions.isNotEmpty)
               SliverToBoxAdapter(
-                child: _InlineWarningBanner(
+                child: AppInlineError(
                   message: questionsP.error!,
                   onRetry: questionsP.refreshQuestions,
                 ),
               ),
             if (questionsP.isLoading && questions.isEmpty)
-              const SliverFillRemaining(
-                hasScrollBody: false,
-                child: AppLoadingState(
-                  title: 'Loading questions',
-                  message: 'Pulling in the latest doubts and solutions from your community.',
+              SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) => QuestionCardSkeleton(),
+                  childCount: 5,
                 ),
               )
             else if (questionsP.error != null && questions.isEmpty)
@@ -434,51 +434,5 @@ class _SheetLabel extends StatelessWidget {
   }
 }
 
-class _InlineWarningBanner extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
 
-  const _InlineWarningBanner({
-    required this.message,
-    required this.onRetry,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.red.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: Colors.red.withValues(alpha: 0.2),
-        ),
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.info_outline_rounded,
-            size: 18,
-            color: Colors.redAccent,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(
-                color: AppColors.text2For(context),
-                fontSize: 12,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: onRetry,
-            child: const Text('Retry'),
-          ),
-        ],
-      ),
-    );
-  }
-}
 

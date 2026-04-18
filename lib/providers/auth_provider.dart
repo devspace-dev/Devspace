@@ -79,6 +79,9 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> signOut() => AuthService.instance.signOut();
 
+  Future<AuthResult> sendPasswordResetEmail(String email) =>
+      AuthService.instance.sendPasswordResetEmail(email);
+
   Future<void> deleteAccount() async {
     await SupabaseService.instance.deleteAccount();
     _currentUser = null;

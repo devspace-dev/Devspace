@@ -35,7 +35,7 @@ void main() async {
   // Initialize Firebase
   bool firebaseInitialized = false;
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp().timeout(const Duration(seconds: 5));
     firebaseInitialized = true;
 
     // Pass all uncaught "fatal" errors from the framework to Crashlytics
@@ -53,44 +53,60 @@ void main() async {
   // SECURITY: Check for compromised device (Root/Jailbreak)
   bool isCompromised = false;
   try {
-    isCompromised = await SafeDevice.isJailBroken ||
-        !await SafeDevice.isRealDevice;
+    isCompromised =
+        await SafeDevice.isJailBroken || !await SafeDevice.isRealDevice;
   } catch (_) {}
 
   String? bootstrapError;
+  String? supabaseUrl;
+  String? supabaseAnonKey;
 
-  final runtimeConfig = await RuntimeConfig.load();
-  final supabaseUrl = runtimeConfig.supabaseUrl;
-  final supabaseAnonKey = runtimeConfig.supabaseAnonKey;
+  try {
+    final runtimeConfig = await RuntimeConfig.load();
+    supabaseUrl = runtimeConfig.supabaseUrl;
+    supabaseAnonKey = runtimeConfig.supabaseAnonKey;
+  } catch (e) {
+    bootstrapError = 'Failed to load configuration: $e';
+  }
 
-  if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
-    bootstrapError =
-        'Missing Supabase runtime config. Run with SUPABASE_URL and SUPABASE_ANON_KEY using --dart-define, or add them to .env.local.json for local debug builds.';
-  } else if (!supabaseUrl.startsWith('https://')) {
-    bootstrapError =
-        'Invalid Supabase runtime config. SUPABASE_URL must use HTTPS in production-ready builds.';
-  } else {
-    try {
-      await Supabase.initialize(
-        url: supabaseUrl,
-        anonKey: supabaseAnonKey,
-        authOptions: const FlutterAuthClientOptions(
-          authFlowType: AuthFlowType.pkce,
-          localStorage: SecureLocalStorage(),
-        ),
-      );
-      await AuthService.instance.init();
-      if (firebaseInitialized) {
-        await AnalyticsService.instance.logAppOpen();
+  if (bootstrapError == null) {
+    if (supabaseUrl == null ||
+        supabaseUrl.isEmpty ||
+        supabaseAnonKey == null ||
+        supabaseAnonKey.isEmpty) {
+      bootstrapError =
+          'Missing Supabase runtime config. Run with SUPABASE_URL and SUPABASE_ANON_KEY using --dart-define, or add them to .env.local.json for local debug builds.';
+    } else if (!supabaseUrl.startsWith('https://')) {
+      bootstrapError =
+          'Invalid Supabase runtime config. SUPABASE_URL must use HTTPS in production-ready builds.';
+    } else {
+      try {
+        await Supabase.initialize(
+          url: supabaseUrl,
+          anonKey: supabaseAnonKey,
+          authOptions: const FlutterAuthClientOptions(
+            authFlowType: AuthFlowType.pkce,
+            localStorage: SecureLocalStorage(),
+          ),
+        ).timeout(const Duration(seconds: 5));
+
+        // Wait for auth to initialize and session to be restored
+        await AuthService.instance.init().timeout(const Duration(seconds: 5));
+
+        if (firebaseInitialized) {
+          await AnalyticsService.instance
+              .logAppOpen()
+              .timeout(const Duration(seconds: 3));
+        }
+        if (kDebugMode) {
+          debugPrint(
+            'Supabase initialized with RuntimeConfig.',
+          );
+        }
+      } catch (e) {
+        bootstrapError = 'Supabase initialization failed: $e';
+        debugPrint(bootstrapError);
       }
-      if (kDebugMode) {
-        debugPrint(
-          'Supabase initialized with RuntimeConfig.',
-        );
-      }
-    } catch (e) {
-      bootstrapError = 'Supabase initialization failed: $e';
-      debugPrint(bootstrapError);
     }
   }
 

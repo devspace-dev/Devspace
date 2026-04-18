@@ -63,19 +63,31 @@ class CallingService {
     required Map<String, dynamic> callerData,
   }) async {
     final channel = Supabase.instance.client.channel('calling:$toUserId');
-    await channel.subscribe((status, error) async {
+    
+    Completer<void> completer = Completer<void>();
+    
+    channel.subscribe((status, error) async {
       if (status == RealtimeSubscribeStatus.subscribed) {
-        await channel.sendBroadcastMessage(
-          event: 'call_offer',
-          payload: {
-            'from': fromUserId,
-            'channelId': channelId,
-            'isVideo': isVideo,
-            'callerData': callerData,
-          },
-        );
+        try {
+          await channel.sendBroadcastMessage(
+            event: 'call_offer',
+            payload: {
+              'from': fromUserId,
+              'channelId': channelId,
+              'isVideo': isVideo,
+              'callerData': callerData,
+            },
+          );
+          completer.complete();
+        } catch (e) {
+          completer.completeError(e);
+        }
+      } else if (error != null) {
+        completer.completeError(error);
       }
     });
+
+    return completer.future;
   }
 
   Future<void> sendCallAnswer({
@@ -83,17 +95,29 @@ class CallingService {
     required bool accepted,
   }) async {
     final channel = Supabase.instance.client.channel('calling:$toUserId');
-    await channel.subscribe((status, error) async {
+    
+    Completer<void> completer = Completer<void>();
+
+    channel.subscribe((status, error) async {
       if (status == RealtimeSubscribeStatus.subscribed) {
-        await channel.sendBroadcastMessage(
-          event: 'call_answer',
-          payload: {
-            'accepted': accepted,
-            'from': _currentUserId,
-          },
-        );
+        try {
+          await channel.sendBroadcastMessage(
+            event: 'call_answer',
+            payload: {
+              'accepted': accepted,
+              'from': _currentUserId,
+            },
+          );
+          completer.complete();
+        } catch (e) {
+          completer.completeError(e);
+        }
+      } else if (error != null) {
+        completer.completeError(error);
       }
     });
+
+    return completer.future;
   }
 
   Future<void> sendHangup(String toUserId) async {
