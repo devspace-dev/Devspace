@@ -37,7 +37,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   String? _error;
   String? _avatarPath;
 
-  late String _role;
+  late List<String> _roles;
   late String _year;
   late String _branch;
   late String _college;
@@ -54,7 +54,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     _buildingCtrl.text = user.building == 'Not set' ? '' : user.building;
     _bioCtrl.text = user.bio;
     _githubCtrl.text = user.githubHandle;
-    _role = user.role.isNotEmpty ? user.role : kProfileRoles.first;
+    _roles = user.roles.isNotEmpty ? List<String>.from(user.roles) : [];
     _year = user.year;
     _branch = user.branch;
     _college = user.college.isNotEmpty ? user.college : kCollegeOptions.first;
@@ -74,18 +74,28 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     super.dispose();
   }
 
+  int _getWordCount(String text) {
+    if (text.trim().isEmpty) return 0;
+    return text.trim().split(RegExp(r'\s+')).length;
+  }
+
   bool _validateStep() {
     if (_step == 0) {
       if (_nameCtrl.text.trim().isEmpty ||
           _handleCtrl.text.trim().isEmpty ||
           _year.isEmpty ||
-          _branch.isEmpty) {
-        setState(() => _error = 'Please fill in all identity fields.');
+          _branch.isEmpty ||
+          _roles.isEmpty) {
+        setState(() => _error = 'Please fill in all identity fields and select at least one role.');
         return false;
       }
     } else if (_step == 1) {
       if (_buildingCtrl.text.trim().isEmpty || _stack.isEmpty) {
         setState(() => _error = 'Please add what you are building and at least one skill.');
+        return false;
+      }
+      if (_getWordCount(_bioCtrl.text) > 50) {
+        setState(() => _error = 'Bio must be under 50 words.');
         return false;
       }
     }
@@ -121,6 +131,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   void _addStackTag() {
     final tag = _stackCtrl.text.trim();
     if (tag.isEmpty) return;
+    if (_stack.length >= 5) {
+      setState(() => _error = 'Maximum 5 skills allowed.');
+      return;
+    }
     if (_stack.any((existing) => existing.toLowerCase() == tag.toLowerCase())) {
       _stackCtrl.clear();
       return;
@@ -129,6 +143,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     setState(() {
       _stack = [..._stack, tag];
       _stackCtrl.clear();
+      _error = null;
     });
   }
 
@@ -140,6 +155,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   }
 
   Future<void> _submit() async {
+    if (!_validateStep()) return;
+
     setState(() {
       _saving = true;
       _error = null;
@@ -148,7 +165,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     final result = await context.read<AuthProvider>().updateProfile(
           name: _nameCtrl.text.trim(),
           handle: _handleCtrl.text.trim(),
-          role: _role,
+          roles: _roles,
           year: _year,
           branch: _branch,
           building: _buildingCtrl.text.trim(),
@@ -460,18 +477,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                         setState(() => _avatarPath = url);
                       },
                     ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: const BoxDecoration(
-                          color: AppColors.primary,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.camera_alt_rounded, size: 16, color: Colors.white),
-                      ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 14),
@@ -515,14 +520,31 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             validator: (v) => (v == null || v.isEmpty) ? 'Handle is required' : null,
           ),
           const SizedBox(height: 20),
-          _sectionLabel('ROLE'),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _sectionLabel('ROLES (MAX 3)'),
+              Text(
+                '${_roles.length}/3',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: _roles.length >= 3 ? AppColors.primary : AppColors.text3For(context),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 10),
           _ChoiceWrap(
             options: kProfileRoles,
-            value: _role,
-            onSelected: (value) {
+            selectedValues: _roles,
+            maxSelection: 3,
+            onChanged: (values) {
               HapticFeedback.selectionClick();
-              setState(() => _role = value);
+              setState(() {
+                _roles = values;
+                if (_roles.length <= 3) _error = null;
+              });
             },
           ),
           const SizedBox(height: 20),
@@ -530,10 +552,12 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           const SizedBox(height: 10),
           _ChoiceWrap(
             options: kAcademicYears,
-            value: _year,
-            onSelected: (value) {
-              HapticFeedback.selectionClick();
-              setState(() => _year = value);
+            selectedValues: [_year],
+            onChanged: (values) {
+              if (values.isNotEmpty) {
+                HapticFeedback.selectionClick();
+                setState(() => _year = values.first);
+              }
             },
           ),
           const SizedBox(height: 20),
@@ -541,10 +565,12 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           const SizedBox(height: 10),
           _ChoiceWrap(
             options: kBranches,
-            value: _branch,
-            onSelected: (value) {
-              HapticFeedback.selectionClick();
-              setState(() => _branch = value);
+            selectedValues: [_branch],
+            onChanged: (values) {
+              if (values.isNotEmpty) {
+                HapticFeedback.selectionClick();
+                setState(() => _branch = values.first);
+              }
             },
           ),
           const SizedBox(height: 20),
@@ -631,7 +657,20 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             validator: (v) => (v == null || v.isEmpty) ? 'Tell us what you are building' : null,
           ),
           const SizedBox(height: 24),
-          _sectionLabel('STACK & SKILLS'),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _sectionLabel('STACK & SKILLS (MAX 5)'),
+              Text(
+                '${_stack.length}/5',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: _stack.length >= 5 ? AppColors.primary : AppColors.text3For(context),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 10),
           TextFormField(
             controller: _stackCtrl,
@@ -682,12 +721,26 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   .toList(),
             ),
           const SizedBox(height: 28),
-          _sectionLabel('BIO'),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _sectionLabel('BIO (MAX 50 WORDS)'),
+              Text(
+                '${_getWordCount(_bioCtrl.text)}/50 words',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: _getWordCount(_bioCtrl.text) > 50 ? AppColors.primary : AppColors.text3For(context),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 10),
           TextFormField(
             controller: _bioCtrl,
             maxLines: 4,
             style: TextStyle(color: AppColors.textFor(context), height: 1.5),
+            onChanged: (v) => setState(() {}),
             decoration: const InputDecoration(
               hintText: 'What do you like building? What do you want people to know about you?',
             ),
@@ -779,7 +832,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   children: [
                     _ReviewChip(icon: '🎓', label: _college),
                     _ReviewChip(icon: '📍', label: '$_year · $_branch'),
-                    _ReviewChip(icon: '🧩', label: _role),
+                    _ReviewChip(icon: '🧩', label: _roles.isEmpty ? 'No role' : _roles.join(' · ')),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -842,13 +895,15 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
 class _ChoiceWrap extends StatelessWidget {
   final List<String> options;
-  final String value;
-  final ValueChanged<String> onSelected;
+  final List<String> selectedValues;
+  final ValueChanged<List<String>> onChanged;
+  final int maxSelection;
 
   const _ChoiceWrap({
     required this.options,
-    required this.value,
-    required this.onSelected,
+    required this.selectedValues,
+    required this.onChanged,
+    this.maxSelection = 1,
   });
 
   @override
@@ -857,9 +912,24 @@ class _ChoiceWrap extends StatelessWidget {
       spacing: 8,
       runSpacing: 8,
       children: options.map((option) {
-        final active = option == value;
+        final active = selectedValues.contains(option);
         return GestureDetector(
-          onTap: () => onSelected(option),
+          onTap: () {
+            final newValues = List<String>.from(selectedValues);
+            if (active) {
+              if (maxSelection > 1 || newValues.length > 1) {
+                 newValues.remove(option);
+              }
+            } else {
+              if (maxSelection == 1) {
+                newValues.clear();
+                newValues.add(option);
+              } else if (newValues.length < maxSelection) {
+                newValues.add(option);
+              }
+            }
+            onChanged(newValues);
+          },
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),

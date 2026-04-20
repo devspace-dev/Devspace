@@ -14,7 +14,7 @@ class AppCard extends StatelessWidget {
     super.key,
     required this.child,
     this.padding,
-    this.borderRadius = 24.0,
+    this.borderRadius = 20.0,
     this.color,
     this.border,
     this.boxShadow,
@@ -23,7 +23,7 @@ class AppCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: padding ?? const EdgeInsets.all(20),
+      padding: padding ?? const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: color ?? AppColors.bg2For(context),
         borderRadius: BorderRadius.circular(borderRadius),
@@ -83,7 +83,7 @@ class AppBadge extends StatelessWidget {
   }
 }
 
-class AppButton extends StatelessWidget {
+class AppButton extends StatefulWidget {
   final VoidCallback? onPressed;
   final Widget child;
   final Color? backgroundColor;
@@ -104,30 +104,78 @@ class AppButton extends StatelessWidget {
   });
 
   @override
+  State<AppButton> createState() => _AppButtonState();
+}
+
+class _AppButtonState extends State<AppButton> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 100),
+      lowerBound: 0.0,
+      upperBound: 0.05,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.94).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onTapDown(TapDownDetails details) {
+    if (widget.onPressed != null && !widget.isLoading) {
+      _controller.forward();
+    }
+  }
+
+  void _onTapUp(TapUpDetails details) {
+    if (widget.onPressed != null && !widget.isLoading) {
+      _controller.reverse();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: height,
-      child: ElevatedButton(
-        onPressed: isLoading ? null : onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: backgroundColor ?? AppColors.primary,
-          foregroundColor: foregroundColor ?? Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(borderRadius),
+    return GestureDetector(
+      onTapDown: _onTapDown,
+      onTapUp: _onTapUp,
+      onTapCancel: () => _controller.reverse(),
+      child: ScaleTransition(
+        scale: _scaleAnimation,
+        child: SizedBox(
+          width: double.infinity,
+          height: widget.height,
+          child: ElevatedButton(
+            onPressed: widget.isLoading ? null : widget.onPressed,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: widget.backgroundColor ?? AppColors.primary,
+              foregroundColor: widget.foregroundColor ?? Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(widget.borderRadius),
+              ),
+              elevation: 0,
+            ),
+            child: widget.isLoading
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : widget.child,
           ),
-          elevation: 0,
         ),
-        child: isLoading
-            ? const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 3,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              )
-            : child,
       ),
     );
   }
@@ -156,8 +204,8 @@ class AppGlassCard extends StatelessWidget {
       blur: blur,
       opacity: isDark ? 0.3 : 0.6,
       color: isDark ? Colors.black : Colors.white,
-      borderRadius: borderRadius ?? BorderRadius.circular(28),
-      padding: padding ?? const EdgeInsets.all(24),
+      borderRadius: borderRadius ?? BorderRadius.circular(20),
+      padding: padding ?? const EdgeInsets.all(16),
       border: Border.all(
         color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.1),
       ),

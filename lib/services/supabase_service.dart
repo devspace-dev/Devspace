@@ -276,7 +276,7 @@ class SupabaseService {
     required String handle,
     String avatar = '',
     String coverUrl = '',
-    String role = 'Student',
+    List<String> roles = const ['Student'],
     String year = '',
     String branch = '',
     String building = '',
@@ -302,7 +302,7 @@ class SupabaseService {
         'cover_url': coverUrl,
         'color': 0xFF7C3AED,
         'aura': 0,
-        'role': role,
+        'role': roles,
         'year': year,
         'branch': branch,
         'building': building,
@@ -327,7 +327,7 @@ class SupabaseService {
   Future<void> deleteAccount() async {
     final user = _client.auth.currentUser;
     if (user == null) return;
-    
+
     // Call the RPC to delete from public.users and potentially trigger auth deletion
     // Or just delete from public.users and let the user know they are unsubscribed
     await _client.from('users').delete().eq('id', user.id);

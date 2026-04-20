@@ -53,7 +53,7 @@ class QuestionCard extends StatelessWidget {
                   Text(
                     author!.name,
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: bodyColor,
                     ),
@@ -61,7 +61,7 @@ class QuestionCard extends StatelessWidget {
                   const SizedBox(width: 6),
                   Text(
                     '• ${timeago.format(question.createdAt, locale: 'en_short')}',
-                    style: TextStyle(fontSize: 13, color: metaColor),
+                    style: TextStyle(fontSize: 12, color: metaColor),
                   ),
                 ],
                 const Spacer(),
@@ -77,7 +77,7 @@ class QuestionCard extends StatelessWidget {
             Text(
               question.title,
               style: TextStyle(
-                fontSize: isDetail ? 24 : 18,
+                fontSize: isDetail ? 22 : 16,
                 fontWeight: FontWeight.w700,
                 color: titleColor,
                 letterSpacing: -0.4,
@@ -90,7 +90,7 @@ class QuestionCard extends StatelessWidget {
               overflow:
                   isDetail ? TextOverflow.visible : TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 15,
+                fontSize: 13,
                 color: isDetail ? titleColor : bodyColor,
                 height: 1.4,
               ),
@@ -164,7 +164,7 @@ class _StatItem extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
               color: color,
             ),

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
@@ -175,17 +176,17 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
                       }
 
                       return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _buildMissionHeader(context, me),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 16),
                             _buildMainCard(context, daily),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 16),
                             if (!daily.completed) _buildActionSection(context, provider),
                             if (daily.completed) _buildCompletionStatus(context, daily),
-                            const SizedBox(height: 40),
+                            const SizedBox(height: 32),
                           ],
                         ),
                       );
@@ -209,7 +210,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
 
   Widget _buildAppBar(BuildContext context) {
     return SliverAppBar(
-      expandedHeight: 120,
+      expandedHeight: 80, // Reduced from 120
       floating: false,
       pinned: true,
       elevation: 0,
@@ -221,9 +222,9 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
           'Daily Mission',
           style: TextStyle(
             fontWeight: FontWeight.w900,
-            fontSize: 24,
+            fontSize: 20, // Reduced from 24
             color: AppColors.textFor(context),
-            letterSpacing: -1,
+            letterSpacing: -0.5,
           ),
         ),
       ),
@@ -239,7 +240,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
           label: '${me?.currentStreak ?? 0} Day Streak',
           icon: Icons.local_fire_department_rounded,
           color: Colors.orange,
-        ).animate().fadeIn().slideX(begin: -0.2),
+        ).animate().fadeIn().slideX(begin: -0.1),
         const SizedBox(width: 12),
         const _HeaderBadge(
           label: '+20 solve / +5 try',
@@ -270,26 +271,26 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
           Text(
             challenge.title,
             style: TextStyle(
-              fontSize: 24,
+              fontSize: 20, // Reduced from 24
               fontWeight: FontWeight.w900,
               color: AppColors.textFor(context),
               letterSpacing: -0.5,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Text(
             challenge.description,
             style: TextStyle(
-              fontSize: 16,
-              height: 1.6,
+              fontSize: 14, // Reduced from 16
+              height: 1.5,
               color: AppColors.text2For(context),
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
           InfoBlock(
             title: 'Question',
             child: Text(
@@ -301,7 +302,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
               ),
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           InfoBlock(
             title: 'Rule',
             child: Text(
@@ -335,27 +336,15 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
         ).animate().fadeIn(delay: 300.ms),
         const SizedBox(height: 12),
         Wrap(
-          spacing: 10,
-          runSpacing: 10,
+          spacing: 12,
+          runSpacing: 12,
           children: challenge.options
               .map(
-                (option) => ChoiceChip(
-                  label: Text(option),
-                  selected: _selectedOption == option,
-                  labelStyle: TextStyle(
-                    color: _selectedOption == option
-                        ? Colors.white
-                        : AppColors.textFor(context),
-                    fontWeight: FontWeight.w700,
-                  ),
-                  backgroundColor: AppColors.bg2For(context),
-                  selectedColor: AppColors.primary,
-                  side: BorderSide(
-                    color: _selectedOption == option
-                        ? AppColors.primary
-                        : AppColors.borderFor(context),
-                  ),
-                  onSelected: (_) {
+                (option) => _PhysicalOption(
+                  label: option,
+                  isSelected: _selectedOption == option,
+                  onTap: () {
+                    HapticFeedback.lightImpact();
                     setState(() {
                       _selectedOption = option;
                     });
@@ -363,7 +352,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
                 ),
               )
               .toList(),
-        ).animate().fadeIn(delay: 420.ms),
+        ).animate().fadeIn(delay: 420.ms).slideY(begin: 0.1),
         if (provider.error != null) ...[
           const SizedBox(height: 14),
           Text(
@@ -506,37 +495,33 @@ class _MissionSolvedOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final curved = CurvedAnimation(
-      parent: controller,
-      curve: Curves.easeOutCubic,
-    );
-
     return IgnorePointer(
       ignoring: true,
       child: AnimatedBuilder(
         animation: controller,
         builder: (context, _) {
-          final fade = (1 - (controller.value - 0.82).clamp(0.0, 0.18) / 0.18)
+          final fade = (1 - (controller.value - 0.85).clamp(0.0, 0.15) / 0.15)
               .clamp(0.0, 1.0);
+
+          // Bouncy entrance logic inspired by Duolingo
+          double scale = 0.0;
+          if (controller.value < 0.3) {
+            scale = Curves.elasticOut.transform(controller.value / 0.3) * 1.1;
+          } else {
+            scale = 1.1 - (controller.value - 0.3) * 0.1;
+          }
+          if (scale < 1.0) scale = 1.0;
 
           return Opacity(
             opacity: fade,
             child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0xCC07111F),
-                    Color(0xF0142B46),
-                    Color(0xF0050A12),
-                  ],
-                ),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.85 * fade),
               ),
               child: Stack(
                 children: [
                   ...List.generate(
-                    18,
+                    24,
                     (index) => _CelebrationParticle(
                       controller: controller,
                       index: index,
@@ -544,74 +529,60 @@ class _MissionSolvedOverlay extends StatelessWidget {
                   ),
                   Center(
                     child: Transform.scale(
-                      scale: 0.82 + (curved.value * 0.18),
-                      child: Opacity(
-                        opacity: curved.value.clamp(0.0, 1.0),
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 28),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 28,
-                            vertical: 30,
-                          ),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(28),
-                            gradient: const LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                Color(0xFFF7B733),
-                                Color(0xFFFC4A1A),
-                              ],
+                      scale: scale,
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 32),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 36,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(32),
+                          color: AppColors.primary,
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primary.withValues(alpha: 0.4),
+                              blurRadius: 40,
+                              spreadRadius: 8,
                             ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFFF7B733).withValues(alpha: 0.32),
-                                blurRadius: 30,
-                                spreadRadius: 4,
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.emoji_events_rounded,
-                                size: 56,
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.emoji_events_rounded,
+                              size: 72,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(height: 20),
+                            const Text(
+                              'Mission Accomplished!',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w900,
                                 color: Colors.white,
+                                letterSpacing: -0.5,
                               ),
-                              const SizedBox(height: 16),
-                              const Text(
-                                'Correct Answer!',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 30,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.white,
-                                  letterSpacing: -0.8,
-                                ),
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(99),
                               ),
-                              const SizedBox(height: 10),
-                              Text(
-                                '+$awardedPoints Aura added',
-                                textAlign: TextAlign.center,
+                              child: Text(
+                                '+$awardedPoints Aura points',
                                 style: const TextStyle(
-                                  fontSize: 17,
+                                  fontSize: 16,
                                   fontWeight: FontWeight.w800,
                                   color: Colors.white,
                                 ),
                               ),
-                              const SizedBox(height: 8),
-                              const Text(
-                                'Mission completed for today',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  height: 1.4,
-                                  color: Color(0xFFFDF1E3),
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -621,6 +592,61 @@ class _MissionSolvedOverlay extends StatelessWidget {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _PhysicalOption extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _PhysicalOption({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = isSelected 
+        ? AppColors.primary 
+        : AppColors.borderFor(context);
+    
+    final shadowColor = isSelected
+        ? AppColors.primary.withValues(alpha: 0.3)
+        : Colors.black.withValues(alpha: 0.1);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOut,
+        transform: Matrix4.translationValues(0, isSelected ? 4 : 0, 0),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : AppColors.bg2For(context),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: borderColor, width: 2),
+          boxShadow: isSelected 
+            ? [] 
+            : [
+                BoxShadow(
+                  color: shadowColor,
+                  offset: const Offset(0, 4),
+                  blurRadius: 0,
+                ),
+              ],
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : AppColors.textFor(context),
+            fontWeight: FontWeight.w800,
+            fontSize: 14,
+          ),
+        ),
       ),
     );
   }

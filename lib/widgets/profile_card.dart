@@ -24,72 +24,82 @@ class ProfileCard extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
-              color: AppColors.borderFor(context),
+              color: AppColors.borderFor(context).withValues(alpha: 0.3),
               width: 0.5,
             ),
           ),
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            UserAvatar(user: liveUser, size: 48),
-            const SizedBox(width: 14),
+            UserAvatar(user: liveUser, size: 44),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              liveUser.name,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 16,
-                                color: AppColors.textFor(context),
-                              ),
-                            ),
-                            Text(
-                              '@${liveUser.handle} • ${liveUser.role}',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: AppColors.text3For(context),
-                              ),
-                            ),
-                          ],
+                      Flexible(
+                        child: Text(
+                          liveUser.name,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            color: AppColors.textFor(context),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      _MessageButton(user: liveUser),
-                      const SizedBox(width: 8),
-                      _FollowButton(user: liveUser),
+                      const SizedBox(width: 6),
+                      _AuraBadge(aura: liveUser.aura),
                     ],
                   ),
-                  if (liveUser.bio.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      liveUser.bio,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppColors.text2For(context),
-                        height: 1.3,
-                      ),
+                  Text(
+                    '@${liveUser.handle} • ${liveUser.role}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.text3For(context),
                     ),
-                  ],
-                  const SizedBox(height: 12),
-                  AuraBar(aura: liveUser.aura),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
             ),
+            const SizedBox(width: 8),
+            _MessageButton(user: liveUser),
+            const SizedBox(width: 4),
+            _FollowButton(user: liveUser),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AuraBadge extends StatelessWidget {
+  final int aura;
+  const _AuraBadge({required this.aura});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        '${aura}A',
+        style: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w900,
+          color: AppColors.primary,
         ),
       ),
     );
@@ -155,14 +165,14 @@ class _FollowButton extends StatelessWidget {
             isFollowing ? AppColors.bg2For(context) : AppColors.textFor(context),
         foregroundColor:
             isFollowing ? AppColors.textFor(context) : AppColors.bgFor(context),
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        minimumSize: const Size(0, 32),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        minimumSize: const Size(0, 28),
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
       child: Text(
         isFollowing ? 'Following' : 'Follow',
-        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
       ),
     );
   }

@@ -53,9 +53,18 @@ void main() async {
   // SECURITY: Check for compromised device (Root/Jailbreak)
   bool isCompromised = false;
   try {
-    isCompromised =
-        await SafeDevice.isJailBroken || !await SafeDevice.isRealDevice;
-  } catch (_) {}
+    // Only enforce real device check in release builds to allow emulator debugging
+    final isJailBroken = await SafeDevice.isJailBroken;
+    final isRealDevice = await SafeDevice.isRealDevice;
+
+    if (kReleaseMode) {
+      isCompromised = isJailBroken || !isRealDevice;
+    } else {
+      isCompromised = isJailBroken;
+    }
+  } catch (e) {
+    debugPrint('Security check failed to run: $e');
+  }
 
   String? bootstrapError;
   String? supabaseUrl;

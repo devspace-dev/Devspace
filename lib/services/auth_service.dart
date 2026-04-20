@@ -276,7 +276,7 @@ class AuthService {
       email: email,
       handle: handle,
       avatar: _buildAvatar(name, email),
-      role: 'Student',
+      roles: const ['Student'],
       year: '',
       branch: '',
       building: '',
@@ -482,7 +482,7 @@ class AuthService {
   Future<AuthResult> updateCurrentUserProfile({
     required String name,
     required String handle,
-    required String role,
+    required List<String> roles,
     required String year,
     required String branch,
     required String building,
@@ -518,7 +518,7 @@ class AuthService {
       await SupabaseService.instance.updateUser(user.id, {
         'name': trimmedName,
         'handle': normalizedHandle,
-        'role': role,
+        'role': roles,
         'year': year,
         'branch': branch,
         'building': trimmedBuilding,

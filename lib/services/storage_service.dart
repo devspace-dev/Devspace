@@ -1,7 +1,11 @@
 import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
+
+import '../theme/app_colors.dart';
 
 class StorageService {
   StorageService._();
@@ -12,14 +16,62 @@ class StorageService {
   final _supabase = Supabase.instance.client;
 
   // ── Pick from camera or gallery ──────────────────
-  Future<File?> pickImage({bool fromCamera = false}) async {
+  Future<File?> pickImage({
+    bool fromCamera = false,
+    bool crop = false,
+    bool isCircle = false,
+    int imageQuality = 70,
+    double maxWidth = 1024,
+    double maxHeight = 1024,
+  }) async {
     final picked = await _picker.pickImage(
       source: fromCamera ? ImageSource.camera : ImageSource.gallery,
-      maxWidth: 1024,
-      maxHeight: 1024,
-      imageQuality: 70,
+      maxWidth: maxWidth,
+      maxHeight: maxHeight,
+      imageQuality: imageQuality,
     );
-    return picked != null ? File(picked.path) : null;
+    if (picked == null) return null;
+
+    if (crop) {
+      final croppedFile = await ImageCropper().cropImage(
+        sourcePath: picked.path,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Crop Image',
+            toolbarColor: AppColors.primary,
+            toolbarWidgetColor: Colors.white,
+            initAspectRatio: isCircle ? CropAspectRatioPreset.square : CropAspectRatioPreset.original,
+            lockAspectRatio: isCircle,
+            aspectRatioPresets: isCircle
+                ? [CropAspectRatioPreset.square]
+                : [
+                    CropAspectRatioPreset.original,
+                    CropAspectRatioPreset.square,
+                    CropAspectRatioPreset.ratio3x2,
+                    CropAspectRatioPreset.ratio4x3,
+                    CropAspectRatioPreset.ratio16x9,
+                  ],
+          ),
+          IOSUiSettings(
+            title: 'Crop Image',
+            aspectRatioPresets: isCircle
+                ? [CropAspectRatioPreset.square]
+                : [
+                    CropAspectRatioPreset.original,
+                    CropAspectRatioPreset.square,
+                    CropAspectRatioPreset.ratio3x2,
+                    CropAspectRatioPreset.ratio4x3,
+                    CropAspectRatioPreset.ratio16x9,
+                  ],
+          ),
+        ],
+      );
+      if (croppedFile != null) {
+        return File(croppedFile.path);
+      }
+    }
+
+    return File(picked.path);
   }
 
   // ── Upload profile picture ───────────────────────

@@ -51,7 +51,7 @@ class _PostCardState extends State<PostCard> {
     }
     
     // Fallback if user data not yet in provider
-    user ??= UserModel(
+    final author = user ?? UserModel(
       id: post.userId,
       name: 'DevSpace Student',
       handle: 'devspace_user',
@@ -59,7 +59,7 @@ class _PostCardState extends State<PostCard> {
       avatar: 'DS',
       color: AppColors.primary,
       aura: 0,
-      role: 'Student',
+      roles: const ['Student'],
       year: '',
       branch: '',
       building: '',
@@ -95,63 +95,69 @@ class _PostCardState extends State<PostCard> {
         AppColors.isDark(context) ? AppColors.bg : AppColors.bg2For(context);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: surfaceColor,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: AppColors.borderFor(context).withValues(alpha: 0.5),
-            width: 0.8,
+            color: AppColors.borderFor(context).withValues(alpha: 0.3),
+            width: 0.5,
           ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 GestureDetector(
-                  onTap: () => _openProfile(context, user!.id),
-                  child: UserAvatar(user: user, size: 36),
+                  onTap: () => _openProfile(context, author.id),
+                  child: UserAvatar(user: author, size: 32),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      GestureDetector(
-                        onTap: () => _openProfile(context, user!.id),
-                        child: Text(
-                          user.handle,
+                  child: GestureDetector(
+                    onTap: () => _openProfile(context, author.id),
+                    child: Row(
+                      children: [
+                        Text(
+                          author.handle,
                           style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 15,
-                            letterSpacing: -0.3,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
                             color: AppColors.textFor(context),
                           ),
                         ),
-                      ),
-                      Text(
-                        timeago.format(post.createdAt, locale: 'en_short'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.text3For(context),
-                          fontWeight: FontWeight.w600,
+                        const SizedBox(width: 6),
+                        Text(
+                          '•',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: AppColors.text3For(context),
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 6),
+                        Text(
+                          timeago.format(post.createdAt, locale: 'en_short'),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.text3For(context),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 if (isMe)
                   IconButton(
                     visualDensity: VisualDensity.compact,
-                    splashRadius: 18,
-                    tooltip: 'Post options',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
                     icon: Icon(
                       Icons.more_horiz_rounded,
-                      size: 18,
+                      size: 16,
                       color: AppColors.text3For(context),
                     ),
                     onPressed: () => _showPostOptions(context, post),
@@ -162,9 +168,9 @@ class _PostCardState extends State<PostCard> {
             Text(
               post.content,
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 13,
                 color: AppColors.textFor(context),
-                height: 1.45,
+                height: 1.3,
               ),
             ),
             if (hasQuote) ...[
@@ -182,9 +188,9 @@ class _PostCardState extends State<PostCard> {
               _PostImageThumbnail(
                 imageUrl: post.imageUrl!,
                 heroTag: 'post-image-${post.id}',
-                maxHeight: 460,
+                maxHeight: 500,
                 fit: BoxFit.contain,
-                backgroundColor: Colors.black,
+                backgroundColor: Colors.black.withValues(alpha: 0.05),
               ),
             ],
             if (post.tags.isNotEmpty) ...[
@@ -222,90 +228,74 @@ class _PostCardState extends State<PostCard> {
                     .toList(),
               ),
             ],
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(
-                  child: _ActionBtn(
-                    icon: Icons.favorite_border_rounded,
-                    activeIcon: Icons.favorite_rounded,
-                    count: post.likes,
-                    active: post.isLiked,
-                    activeColor: AppColors.like,
-                    label: 'Like',
-                    disabled: likeUpdating || me == null,
-                    onTap: () {
-                      if (me == null) return;
-                      HapticFeedback.mediumImpact();
-                      _handleLikeTap(
-                        context,
-                        postsP,
-                        post.id,
-                        me.id,
-                      );
-                    },
-                  ),
+                _ActionBtn(
+                  icon: Icons.favorite_border_rounded,
+                  activeIcon: Icons.favorite_rounded,
+                  count: post.likes,
+                  active: post.isLiked,
+                  activeColor: AppColors.like,
+                  label: 'Like',
+                  disabled: likeUpdating || me == null,
+                  onTap: () {
+                    if (me == null) return;
+                    HapticFeedback.mediumImpact();
+                    _handleLikeTap(context, postsP, post.id, me.id);
+                  },
                 ),
-                Expanded(
-                  child: _ActionBtn(
-                    icon: Icons.chat_bubble_outline_rounded,
-                    activeIcon: Icons.chat_bubble_rounded,
-                    count: post.comments,
-                    active: _showComments,
-                    label: 'Comment',
-                    activeColor: AppColors.textFor(context),
-                    onTap: () {
-                      HapticFeedback.lightImpact();
-                      final nextShowComments = !_showComments;
-                      setState(() => _showComments = nextShowComments);
-                      if (nextShowComments) {
-                        context.read<PostsProvider>().fetchComments(post.id);
-                      }
-                    },
-                  ),
+                const SizedBox(width: 16),
+                _ActionBtn(
+                  icon: Icons.chat_bubble_outline_rounded,
+                  activeIcon: Icons.chat_bubble_rounded,
+                  count: post.comments,
+                  active: _showComments,
+                  label: 'Comment',
+                  activeColor: AppColors.textFor(context),
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    final nextShowComments = !_showComments;
+                    setState(() => _showComments = nextShowComments);
+                    if (nextShowComments) {
+                      context.read<PostsProvider>().fetchComments(post.id);
+                    }
+                  },
                 ),
-                Expanded(
-                  child: _ActionBtn(
-                    icon: Icons.repeat_rounded,
-                    activeIcon: Icons.repeat_rounded,
-                    count: post.reposts,
-                    active: false,
-                    label: 'Repost',
-                    activeColor: AppColors.repost,
-                    disabled: me == null,
-                    onTap: () {
-                      if (me == null) return;
-                      HapticFeedback.lightImpact();
-                      _openQuoteSheet(
-                        context: context,
-                        originalPost: post,
-                        currentUserId: me.id,
-                        originalAuthor: user!,
-                      );
-                    },
-                  ),
+                const SizedBox(width: 16),
+                _ActionBtn(
+                  icon: Icons.repeat_rounded,
+                  activeIcon: Icons.repeat_rounded,
+                  count: post.reposts,
+                  active: false,
+                  label: 'Repost',
+                  activeColor: AppColors.repost,
+                  disabled: me == null,
+                  onTap: () {
+                    if (me == null) return;
+                    HapticFeedback.lightImpact();
+                    _openQuoteSheet(
+                      context: context,
+                      originalPost: post,
+                      currentUserId: me.id,
+                      originalAuthor: author,
+                    );
+                  },
                 ),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: _ActionBtn(
-                    icon: Icons.bookmark_border_rounded,
-                    activeIcon: Icons.bookmark_rounded,
-                    count: null,
-                    active: post.isBookmarked,
-                    label: 'Save',
-                    activeColor: AppColors.textFor(context),
-                    disabled: bookmarkUpdating || me == null,
-                    onTap: () {
-                      if (me == null) return;
-                      HapticFeedback.lightImpact();
-                      _handleBookmarkTap(
-                        context,
-                        postsP,
-                        post.id,
-                        me.id,
-                      );
-                    },
-                  ),
+                const Spacer(),
+                _ActionBtn(
+                  icon: Icons.bookmark_border_rounded,
+                  activeIcon: Icons.bookmark_rounded,
+                  count: null,
+                  active: post.isBookmarked,
+                  label: 'Save',
+                  activeColor: AppColors.textFor(context),
+                  disabled: bookmarkUpdating || me == null,
+                  onTap: () {
+                    if (me == null) return;
+                    HapticFeedback.lightImpact();
+                    _handleBookmarkTap(context, postsP, post.id, me.id);
+                  },
                 ),
               ],
             ),
@@ -548,8 +538,23 @@ class _PostCardState extends State<PostCard> {
   ) async {
     final text = _commentCtrl.text.trim();
     if (text.isEmpty) return;
+    
     final success = await postsProvider.addComment(postId, userId, text);
-    if (success) _commentCtrl.clear();
+    
+    if (!mounted) return;
+    if (success) {
+      _commentCtrl.clear();
+      FocusScope.of(context).unfocus();
+    } else {
+      final error = postsProvider.commentError(postId);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error ?? 'Failed to post comment.'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.flame,
+        ),
+      );
+    }
   }
 
   Future<void> _handleLikeTap(
@@ -603,7 +608,7 @@ class _PostCardState extends State<PostCard> {
       avatar: 'DS',
       color: AppColors.primary,
       aura: 0,
-      role: 'Student',
+      roles: const ['Student'],
       year: '',
       branch: '',
       building: '',
@@ -634,7 +639,7 @@ class _PostCardState extends State<PostCard> {
       avatar: 'DS',
       color: AppColors.primary,
       aura: 0,
-      role: 'Student',
+      roles: const ['Student'],
       year: '',
       branch: '',
       building: '',
@@ -973,19 +978,19 @@ class _ActionBtn extends StatelessWidget {
         onTap: disabled ? null : onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(displayIcon, size: 19, color: color),
+              Icon(displayIcon, size: 18, color: color),
               if (count != null) ...[
-                const SizedBox(width: 6),
+                const SizedBox(width: 4),
                 Text(
                   '$count',
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 13,
                     color: color,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],

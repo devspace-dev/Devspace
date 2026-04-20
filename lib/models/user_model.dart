@@ -9,7 +9,7 @@ class UserModel {
   final String coverUrl;
   final Color color;
   int aura;
-  final String role;
+  final List<String> roles; // Changed from String role
   final String year;
   final String branch;
   final String building;
@@ -33,7 +33,7 @@ class UserModel {
     this.coverUrl = '',
     required this.color,
     required this.aura,
-    required this.role,
+    required this.roles,
     required this.year,
     required this.branch,
     required this.building,
@@ -54,6 +54,8 @@ class UserModel {
 
   bool get isFounder => email.toLowerCase() == 'businessrexxon@gmail.com';
 
+  String get role => roles.isNotEmpty ? roles.join(' · ') : '';
+
   String get academicLabel {
     if (year.isEmpty) return branch;
     if (branch.isEmpty) return year;
@@ -69,7 +71,7 @@ class UserModel {
     String? coverUrl,
     Color? color,
     int? aura,
-    String? role,
+    List<String>? roles,
     String? year,
     String? branch,
     String? building,
@@ -93,7 +95,7 @@ class UserModel {
       coverUrl: coverUrl ?? this.coverUrl,
       color: color ?? this.color,
       aura: aura ?? this.aura,
-      role: role ?? this.role,
+      roles: roles ?? this.roles,
       year: year ?? this.year,
       branch: branch ?? this.branch,
       building: building ?? this.building,
@@ -119,7 +121,7 @@ class UserModel {
         'cover_url': coverUrl,
         'color': color.toARGB32(),
         'aura': aura,
-        'role': role,
+        'role': roles, // Storing as list
         'year': year,
         'branch': branch,
         'building': building,
@@ -139,8 +141,20 @@ class UserModel {
     final rawBranch = json['branch']?.toString() ?? '';
     final parsedAcademic = _parseAcademicInfo(rawYear, rawBranch);
     final building = json['building']?.toString() ?? '';
-    final stack = List<String>.from(json['stack'] as List? ?? []);
-    
+    final roleData = json['role'];
+    List<String> roles = [];
+    if (roleData is List) {
+      roles = roleData.where((e) => e != null).map((e) => e.toString()).toList();
+    } else if (roleData is String && roleData.isNotEmpty) {
+      roles = [roleData];
+    }
+
+    final stackData = json['stack'];
+    List<String> stack = [];
+    if (stackData is List) {
+      stack = stackData.where((e) => e != null).map((e) => e.toString()).toList();
+    }
+
     final profileCompletedRaw = json['profile_completed'] ?? json['profileCompleted'];
     final explicitCompleted = profileCompletedRaw is bool ? profileCompletedRaw : null;
     
@@ -150,7 +164,7 @@ class UserModel {
             building.isNotEmpty &&
             building != 'Not set' &&
             stack.isNotEmpty &&
-            (json['role']?.toString() ?? '').isNotEmpty &&
+            roles.isNotEmpty &&
             (json['college']?.toString() ?? '').isNotEmpty);
 
     return UserModel(
@@ -162,7 +176,7 @@ class UserModel {
       coverUrl: (json['cover_url'] ?? json['coverUrl'] ?? '').toString(),
       color: Color((json['color'] as num? ?? 0xFF7C3AED).toInt()),
       aura: (json['aura'] as num? ?? 0).toInt(),
-      role: json['role']?.toString() ?? '',
+      roles: roles,
       year: parsedAcademic.year,
       branch: parsedAcademic.branch,
       building: building,

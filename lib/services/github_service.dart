@@ -123,4 +123,36 @@ class GitHubService {
       return null;
     }
   }
+
+  // ── Fetch Total Pull Requests ───────────────────
+  Future<int> getTotalPRs(String username) async {
+    if (username.isEmpty) return 0;
+    try {
+      final res = await http.get(
+        Uri.parse('$_base/search/issues?q=author:$username+type:pr'),
+        headers: _headers,
+      );
+      if (res.statusCode != 200) return 0;
+      final data = jsonDecode(res.body);
+      return data['total_count'] ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  // ── Fetch Total Commits (estimated) ─────────────
+  Future<int> getTotalCommits(String username) async {
+    if (username.isEmpty) return 0;
+    try {
+      final res = await http.get(
+        Uri.parse('$_base/search/commits?q=author:$username'),
+        headers: _headers,
+      );
+      if (res.statusCode != 200) return 0;
+      final data = jsonDecode(res.body);
+      return data['total_count'] ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
 }

@@ -52,7 +52,7 @@ class AuthProvider extends ChangeNotifier {
   Future<AuthResult> updateProfile({
     required String name,
     required String handle,
-    required String role,
+    required List<String> roles,
     required String year,
     required String branch,
     required String building,
@@ -65,7 +65,7 @@ class AuthProvider extends ChangeNotifier {
     return AuthService.instance.updateCurrentUserProfile(
       name: name,
       handle: handle,
-      role: role,
+      roles: roles,
       year: year,
       branch: branch,
       building: building,
@@ -75,6 +75,12 @@ class AuthProvider extends ChangeNotifier {
       githubHandle: githubHandle,
       avatar: avatar,
     );
+  }
+
+  Future<void> refreshUsers() async {
+    await SupabaseService.instance.streamUsers();
+    await SupabaseService.instance.getFollowingIds(currentUser.id);
+    await SupabaseService.instance.getUserById(currentUser.id);
   }
 
   Future<void> signOut() => AuthService.instance.signOut();

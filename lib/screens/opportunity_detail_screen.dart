@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/event_access_model.dart';
 import '../theme/app_colors.dart';
@@ -135,28 +136,34 @@ class OpportunityDetailScreen extends StatelessWidget {
               label: opportunity.type.toUpperCase(),
               color: primaryColor,
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 12),
             if (opportunity.organizer != null)
-              Text(
-                'by ${opportunity.organizer}',
-                style: TextStyle(
-                  color: AppColors.text3For(context),
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
+              Expanded(
+                child: Text(
+                  'by ${opportunity.organizer}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.plusJakartaSans(
+                    color: AppColors.text3For(context),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    letterSpacing: 0.2,
+                  ),
                 ),
               ),
           ],
-        ).animate().fadeIn().slideX(begin: -0.1),
-        const SizedBox(height: 16),
+        ).animate().fadeIn().slideX(begin: -0.05),
+        const SizedBox(height: 18),
         Text(
           opportunity.title,
-          style: TextStyle(
-            fontSize: 28,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 26,
             fontWeight: FontWeight.w900,
             color: AppColors.textFor(context),
-            letterSpacing: -1,
+            letterSpacing: -1.0,
+            height: 1.2,
           ),
-        ).animate().fadeIn(delay: 100.ms).slideX(begin: -0.1),
+        ).animate().fadeIn(delay: 100.ms).slideX(begin: -0.05),
       ],
     );
   }
@@ -197,7 +204,7 @@ class OpportunityDetailScreen extends StatelessWidget {
         Text(
           'About the ${opportunity.type}',
           style: TextStyle(
-            fontSize: 20,
+            fontSize: 18,
             fontWeight: FontWeight.w900,
             color: AppColors.textFor(context),
           ),
@@ -206,8 +213,8 @@ class OpportunityDetailScreen extends StatelessWidget {
         Text(
           opportunity.description,
           style: TextStyle(
-            fontSize: 16,
-            height: 1.6,
+            fontSize: 14,
+            height: 1.5,
             color: AppColors.text2For(context),
           ),
         ),
@@ -238,7 +245,7 @@ class OpportunityDetailScreen extends StatelessWidget {
                 ? 'Unlock with ${opportunity.requiredAura} Aura' 
                 : (opportunity.type.toLowerCase() == 'hackathon' ? 'Register Now' : 'Apply Now'),
             style: const TextStyle(
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.w900,
               color: Colors.white,
             ),
@@ -292,7 +299,7 @@ class _InfoRow extends StatelessWidget {
                 value,
                 style: TextStyle(
                   color: AppColors.textFor(context),
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: FontWeight.w800,
                 ),
               ),

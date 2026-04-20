@@ -5,7 +5,7 @@
   "packages": [
     {
       "name": "devspace",
-      "version": "1.0.0+2",
+      "version": "1.0.8+14",
       "dependencies": [
         "agora_rtc_engine",
         "cached_network_image",
@@ -23,6 +23,7 @@
         "google_sign_in",
         "http",
         "http_certificate_pinning",
+        "image_cropper",
         "image_picker",
         "intl",
         "permission_handler",
@@ -224,6 +225,15 @@
         "flutter",
         "flutter_cache_manager",
         "octo_image"
+      ]
+    },
+    {
+      "name": "image_cropper",
+      "version": "8.1.0",
+      "dependencies": [
+        "flutter",
+        "image_cropper_for_web",
+        "image_cropper_platform_interface"
       ]
     },
     {
@@ -810,6 +820,25 @@
       "dependencies": [
         "flutter",
         "flutter_cache_manager"
+      ]
+    },
+    {
+      "name": "image_cropper_for_web",
+      "version": "6.1.0",
+      "dependencies": [
+        "flutter",
+        "flutter_web_plugins",
+        "image_cropper_platform_interface",
+        "web"
+      ]
+    },
+    {
+      "name": "image_cropper_platform_interface",
+      "version": "7.2.0",
+      "dependencies": [
+        "flutter",
+        "http",
+        "plugin_platform_interface"
       ]
     },
     {

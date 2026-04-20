@@ -27,11 +27,15 @@ class _GitHubCardState extends State<GitHubCard> {
       svc.getRepos(widget.githubHandle),
       svc.getRecentCommits(widget.githubHandle),
       svc.getUserStats(widget.githubHandle),
+      svc.getTotalPRs(widget.githubHandle),
+      svc.getTotalCommits(widget.githubHandle),
     ]);
     return _GitHubData(
       repos:   results[0] as List<GitHubRepo>,
       commits: results[1] as List<GitHubCommit>,
       stats:   results[2] as Map<String, dynamic>?,
+      totalPrs: results[3] as int,
+      totalCommits: results[4] as int,
     );
   }
 
@@ -122,35 +126,34 @@ class _GitHubCardState extends State<GitHubCard> {
               const Divider(color: AppColors.border, height: 1),
 
               // Stats Grid
-              if (data.stats != null)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _StatItem(
-                        icon: Icons.library_books_rounded,
-                        label: 'Repos',
-                        value: '${data.stats!['public_repos'] ?? 0}',
-                      ),
-                      _StatItem(
-                        icon: Icons.star_rounded,
-                        label: 'Stars',
-                        value: '$totalStars',
-                      ),
-                      _StatItem(
-                        icon: Icons.people_alt_rounded,
-                        label: 'Followers',
-                        value: '${data.stats!['followers'] ?? 0}',
-                      ),
-                      _StatItem(
-                        icon: Icons.person_add_rounded,
-                        label: 'Following',
-                        value: '${data.stats!['following'] ?? 0}',
-                      ),
-                    ],
-                  ),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _StatItem(
+                      icon: Icons.library_books_rounded,
+                      label: 'Repos',
+                      value: '${data.stats?['public_repos'] ?? 0}',
+                    ),
+                    _StatItem(
+                      icon: Icons.star_rounded,
+                      label: 'Stars',
+                      value: '$totalStars',
+                    ),
+                    _StatItem(
+                      icon: Icons.merge_type_rounded,
+                      label: 'PRs',
+                      value: '${data.totalPrs}',
+                    ),
+                    _StatItem(
+                      icon: Icons.commit_rounded,
+                      label: 'Commits',
+                      value: '${data.totalCommits}',
+                    ),
+                  ],
                 ),
+              ),
 
               // Latest contribution
               if (data.commits.isNotEmpty) ...[
@@ -360,23 +363,6 @@ class _RepoRow extends StatelessWidget {
   }
 }
 
-class _StatChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  const _StatChip({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 14, color: AppColors.text3),
-        const SizedBox(width: 4),
-        Text(label, style: const TextStyle(fontSize: 12, color: AppColors.text3)),
-      ],
-    );
-  }
-}
-
 class _GitHubSkeleton extends StatelessWidget {
   const _GitHubSkeleton();
 
@@ -421,5 +407,13 @@ class _GitHubData {
   final List<GitHubRepo> repos;
   final List<GitHubCommit> commits;
   final Map<String, dynamic>? stats;
-  const _GitHubData({required this.repos, required this.commits, this.stats});
+  final int totalPrs;
+  final int totalCommits;
+  const _GitHubData({
+    required this.repos, 
+    required this.commits, 
+    this.stats,
+    required this.totalPrs,
+    required this.totalCommits,
+  });
 }

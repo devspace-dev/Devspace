@@ -162,6 +162,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
   }
 
   void _onTextChanged() {
+    if (!mounted) return;
     setState(() => _charCount = _textCtrl.text.length);
     _checkHashtagSuggestions();
   }
@@ -250,21 +251,29 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
   Widget build(BuildContext context) {
     final me = context.read<AuthProvider>().currentUser;
 
-    return GlassContainer(
-      color: AppColors.bgFor(context),
-      opacity: 0.98,
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      child: Container(
-        height: MediaQuery.of(context).size.height * 0.9,
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.9,
+      decoration: BoxDecoration(
+        color: AppColors.bgFor(context),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        children: [
+          // Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: AppColors.textFor(context), fontWeight: FontWeight.w600)),
+                  child: Text(
+                    'Cancel',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: AppColors.textFor(context),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
                 ElevatedButton(
                   onPressed: _posting ? null : _submit,
@@ -276,227 +285,251 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                   ),
                   child: _posting 
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    ? const SizedBox(
+                        width: 20, 
+                        height: 20, 
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
                     : Text('Post', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800)),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: Stack(
-                children: [
-                  SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            GestureDetector(
-                              onTap: () {
-                                HapticFeedback.lightImpact();
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => ProfileScreen(userId: me.id),
+          ),
+          
+          const Divider(height: 1, thickness: 0.5),
+
+          // Content
+          Expanded(
+            child: Stack(
+              children: [
+                SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              HapticFeedback.lightImpact();
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ProfileScreen(userId: me.id),
+                                ),
+                              );
+                            },
+                            child: UserAvatar(user: me, size: 40),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                TextField(
+                                  controller: _textCtrl,
+                                  maxLines: null,
+                                  autofocus: true,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 18, 
+                                    color: AppColors.textFor(context), 
+                                    height: 1.5,
                                   ),
-                                );
-                              },
-                              child: UserAvatar(user: me, size: 40),
+                                  decoration: const InputDecoration(
+                                    hintText: 'Share your build journey...',
+                                    filled: false,
+                                    contentPadding: EdgeInsets.zero,
+                                    border: InputBorder.none,
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  '$_charCount characters',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.text3For(context),
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  TextField(
-                                    controller: _textCtrl,
-                                    maxLines: null,
-                                    autofocus: true,
-                                    style: GoogleFonts.plusJakartaSans(fontSize: 18, color: AppColors.textFor(context), height: 1.5),
-                                    decoration: const InputDecoration(
-                                      hintText: 'Share your build journey...',
-                                      filled: false,
-                                      contentPadding: EdgeInsets.zero,
-                                      border: InputBorder.none,
-                                      enabledBorder: InputBorder.none,
-                                      focusedBorder: InputBorder.none,
-                                    ),
+                          ),
+                        ],
+                      ),
+                      if (_selectedImage != null) ...[
+                        const SizedBox(height: 20),
+                        Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(16),
+                              child: Image.file(_selectedImage!, fit: BoxFit.cover, width: double.infinity),
+                            ),
+                            Positioned(
+                              right: 12,
+                              top: 12,
+                              child: GestureDetector(
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  setState(() => _selectedImage = null);
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.black54,
+                                    shape: BoxShape.circle,
                                   ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    '$_charCount characters',
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.text3For(context),
-                                    ),
+                                  child: const Icon(
+                                    Icons.close_rounded,
+                                    size: 20,
+                                    color: Colors.white,
                                   ),
-                                ],
+                                ),
                               ),
                             ),
                           ],
                         ),
-                        if (_selectedImage != null) ...[
-                          const SizedBox(height: 20),
-                          Stack(
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(16),
-                                child: Image.file(_selectedImage!, fit: BoxFit.cover, width: double.infinity),
-                              ),
-                              Positioned(
-                                right: 12,
-                                top: 12,
-                                child: GestureDetector(
-                                  onTap: () {
-                                    HapticFeedback.selectionClick();
-                                    setState(() => _selectedImage = null);
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: const BoxDecoration(
-                                      color: Colors.black54,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.close_rounded,
-                                      size: 20,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                        if (_tags.isNotEmpty) ...[
-                          const SizedBox(height: 20),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: Wrap(
-                              spacing: 8,
-                              runSpacing: 10,
-                              children: _tags
-                                  .map(
-                                    (tag) => GestureDetector(
-                                      onTap: () {
-                                        HapticFeedback.selectionClick();
-                                        setState(() => _tags.remove(tag));
-                                      },
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 14,
-                                          vertical: 8,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.primary.withValues(alpha: 0.1),
-                                          borderRadius: BorderRadius.circular(99),
-                                          border: Border.all(
-                                            color: AppColors.primary.withValues(alpha: 0.3),
-                                          ),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              '#$tag',
-                                              style: GoogleFonts.plusJakartaSans(
-                                                color: AppColors.primary,
-                                                fontWeight: FontWeight.w800,
-                                                fontSize: 13,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 6),
-                                            const Icon(Icons.close_rounded, size: 14, color: AppColors.primary),
-                                          ],
+                      ],
+                      if (_tags.isNotEmpty) ...[
+                        const SizedBox(height: 20),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 10,
+                            children: _tags
+                                .map(
+                                  (tag) => GestureDetector(
+                                    onTap: () {
+                                      HapticFeedback.selectionClick();
+                                      setState(() => _tags.remove(tag));
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                        vertical: 8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(99),
+                                        border: Border.all(
+                                          color: AppColors.primary.withValues(alpha: 0.3),
                                         ),
                                       ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            '#$tag',
+                                            style: GoogleFonts.plusJakartaSans(
+                                              color: AppColors.primary,
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          const Icon(Icons.close_rounded, size: 14, color: AppColors.primary),
+                                        ],
+                                      ),
                                     ),
-                                  )
-                                  .toList(),
-                            ),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        ),
+                      ],
+                      // Extra space to ensure content is pushable above keyboard
+                      const SizedBox(height: 80), 
+                    ],
+                  ),
+                ),
+                if (_hashtagSuggestions.isNotEmpty)
+                  Positioned(
+                    left: 52,
+                    right: 16,
+                    top: 60, 
+                    child: Container(
+                      constraints: const BoxConstraints(maxHeight: 200),
+                      decoration: BoxDecoration(
+                        color: AppColors.bg2For(context),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.borderFor(context)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.3),
+                            blurRadius: 15,
+                            offset: const Offset(0, 8),
                           ),
                         ],
-                        const SizedBox(height: 100), // Space for keyboard
-                      ],
-                    ),
-                  ),
-                  if (_hashtagSuggestions.isNotEmpty)
-                    Positioned(
-                      left: 52,
-                      right: 0,
-                      top: 40, 
-                      child: Container(
-                        constraints: const BoxConstraints(maxHeight: 200),
-                        decoration: BoxDecoration(
-                          color: AppColors.bg2For(context),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.borderFor(context)),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.2),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: ListView.builder(
-                          shrinkWrap: true,
-                          padding: EdgeInsets.zero,
-                          itemCount: _hashtagSuggestions.length,
-                          itemBuilder: (context, index) {
-                            final tag = _hashtagSuggestions[index];
-                            return ListTile(
-                              dense: true,
-                              title: Text(
-                                '#$tag',
-                                style: GoogleFonts.plusJakartaSans(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w700,
-                                ),
+                      ),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        padding: EdgeInsets.zero,
+                        itemCount: _hashtagSuggestions.length,
+                        itemBuilder: (context, index) {
+                          final tag = _hashtagSuggestions[index];
+                          return ListTile(
+                            dense: true,
+                            title: Text(
+                              '#$tag',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
                               ),
-                              onTap: () => _addSuggestedTag(tag),
-                            );
-                          },
+                            ),
+                            onTap: () => _addSuggestedTag(tag),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+          // Toolbar (Fixed at bottom above keyboard)
+          Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.bgFor(context),
+                border: Border(top: BorderSide(color: AppColors.borderFor(context).withValues(alpha: 0.5), width: 0.5)),
+              ),
+              child: SafeArea(
+                top: false,
+                child: Row(
+                  children: [
+                    _ToolbarIcon(
+                      icon: Icons.photo_library_outlined,
+                      onTap: _pickImage,
+                    ),
+                    _ToolbarIcon(
+                      icon: Icons.tag_rounded,
+                      onTap: _editTags,
+                    ),
+                    const Spacer(),
+                    if (_posting)
+                       Text(
+                        'Uploading...',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              decoration: BoxDecoration(
-                border: Border(top: BorderSide(color: AppColors.borderFor(context).withValues(alpha: 0.5))),
-              ),
-              child: Row(
-                children: [
-                  _ToolbarIcon(
-                    icon: Icons.photo_library_outlined,
-                    onTap: _pickImage,
-                  ),
-                  _ToolbarIcon(
-                    icon: Icons.tag_rounded,
-                    onTap: _editTags,
-                  ),
-                  const Spacer(),
-                  if (_posting)
-                     Text(
-                      'Uploading...',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
+
   }
 
   Future<void> _submit() async {
@@ -540,7 +573,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
       backgroundColor: Colors.transparent,
       builder: (sheetContext) => SafeArea(
         child: GlassContainer(
-          color: AppColors.bg2For(context),
+          color: AppColors.bg2For(sheetContext),
           opacity: 0.98,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           child: Column(
@@ -551,7 +584,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                 width: 40,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: AppColors.border2For(context),
+                  color: AppColors.border2For(sheetContext),
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
@@ -560,7 +593,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                 leading: const Icon(Icons.camera_alt_rounded, color: AppColors.primary),
                 title: Text(
                   'Take a photo',
-                  style: GoogleFonts.plusJakartaSans(color: AppColors.textFor(context), fontWeight: FontWeight.w600),
+                  style: GoogleFonts.plusJakartaSans(color: AppColors.textFor(sheetContext), fontWeight: FontWeight.w600),
                 ),
                 onTap: () => Navigator.pop(sheetContext, true),
               ),
@@ -568,7 +601,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                 leading: const Icon(Icons.photo_library_rounded, color: AppColors.primary),
                 title: Text(
                   'Choose from gallery',
-                  style: GoogleFonts.plusJakartaSans(color: AppColors.textFor(context), fontWeight: FontWeight.w600),
+                  style: GoogleFonts.plusJakartaSans(color: AppColors.textFor(sheetContext), fontWeight: FontWeight.w600),
                 ),
                 onTap: () => Navigator.pop(sheetContext, false),
               ),
@@ -591,28 +624,28 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
     final result = await showDialog<List<String>>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.bg2For(context),
+        backgroundColor: AppColors.bg2For(dialogContext),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: Text(
           'Add hashtags',
-          style: GoogleFonts.plusJakartaSans(color: AppColors.textFor(context), fontWeight: FontWeight.w800),
+          style: GoogleFonts.plusJakartaSans(color: AppColors.textFor(dialogContext), fontWeight: FontWeight.w800),
         ),
         content: TextField(
           controller: controller,
           autofocus: true,
-          style: GoogleFonts.plusJakartaSans(color: AppColors.textFor(context)),
+          style: GoogleFonts.plusJakartaSans(color: AppColors.textFor(dialogContext)),
           decoration: InputDecoration(
             hintText: 'flutter, mnit, dev',
-            hintStyle: TextStyle(color: AppColors.text3For(context)),
+            hintStyle: TextStyle(color: AppColors.text3For(dialogContext)),
             filled: true,
-            fillColor: AppColors.bg3For(context),
+            fillColor: AppColors.bg3For(dialogContext),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: AppColors.text3For(context))),
+            child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: AppColors.text3For(dialogContext))),
           ),
           ElevatedButton(
             onPressed: () {

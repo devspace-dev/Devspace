@@ -86,7 +86,7 @@ class _QAScreenState extends State<QAScreen> {
                             'Questions & Answers',
                             style: TextStyle(
                               color: AppColors.textFor(context),
-                              fontSize: 18,
+                              fontSize: 16,
                               fontWeight: FontWeight.w900,
                             ),
                           ),
@@ -95,7 +95,7 @@ class _QAScreenState extends State<QAScreen> {
                             'Ask practical doubts, get real replies, and close loops with solved answers.',
                             style: TextStyle(
                               color: AppColors.text3For(context),
-                              fontSize: 12,
+                              fontSize: 11,
                               height: 1.4,
                             ),
                           ),
@@ -126,7 +126,7 @@ class _QAScreenState extends State<QAScreen> {
                   'Replies earn aura. Solved answers stay visible so the next student can learn faster.',
                   style: TextStyle(
                     color: AppColors.text2For(context),
-                    fontSize: 12,
+                    fontSize: 11,
                     height: 1.45,
                     fontWeight: FontWeight.w600,
                   ),
@@ -316,7 +316,7 @@ class _AskQuestionSheetState extends State<_AskQuestionSheet> {
                 'Post the exact bug, doubt, architecture tradeoff, or tool choice you need help with.',
                 style: TextStyle(
                   color: AppColors.text2For(context),
-                  fontSize: 14,
+                  fontSize: 13,
                   height: 1.5,
                 ),
               ),

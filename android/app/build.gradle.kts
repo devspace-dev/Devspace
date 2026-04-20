@@ -63,8 +63,7 @@ android {
 
     packaging {
         jniLibs {
-            // Bypass stripping failure
-            keepDebugSymbols.add("**/*.so")
+            useLegacyPackaging = true
         }
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -75,6 +74,7 @@ android {
 
 
 dependencies {
+    implementation("androidx.appcompat:appcompat:1.6.1")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 }
 

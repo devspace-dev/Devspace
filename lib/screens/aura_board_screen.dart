@@ -28,62 +28,77 @@ class _AuraBoardScreenState extends State<AuraBoardScreen> {
     
     final top3 = ranked.take(3).toList();
     final remaining = ranked.skip(3).toList();
+    
+    final canPop = Navigator.canPop(context);
 
-    return AppGradientBackground(
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(0, 0, 0, 100),
-        physics: const BouncingScrollPhysics(),
-        children: [
-          // Header
-          _buildHeader(context),
+    return Scaffold(
+      backgroundColor: AppColors.bgFor(context),
+      extendBodyBehindAppBar: true,
+      appBar: canPop ? AppBar(
+        leading: const BackButton(),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ) : null,
+      body: AppGradientBackground(
+        child: SafeArea(
+          bottom: false,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(0, 0, 0, 100),
+            physics: const BouncingScrollPhysics(),
+            children: [
+              // Header
+              _buildHeader(context, canPop),
 
-          if (ranked.isEmpty)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(40),
-                child: CircularProgressIndicator.adaptive(),
-              ),
-            )
-          else ...[
-            // Podium
-            _buildPodium(context, top3),
-            
-            const SizedBox(height: 24),
+              if (ranked.isEmpty)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(40),
+                    child: CircularProgressIndicator.adaptive(),
+                  ),
+                )
+              else ...[
+                // Podium
+                _buildPodium(context, top3),
+                
+                const SizedBox(height: 24),
 
-            // Ranked list
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                children: remaining.map((u) {
-                  final index = ranked.indexOf(u);
-                  final isMe = u.id == currentUser?.id;
-                  return _buildRankItem(context, u, index, isMe);
-                }).toList(),
-              ),
-            ),
+                // Ranked list
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    children: remaining.map((u) {
+                      final index = ranked.indexOf(u);
+                      final isMe = u.id == currentUser?.id;
+                      return _buildRankItem(context, u, index, isMe);
+                    }).toList(),
+                  ),
+                ),
 
-            // Badge tiers legend
-            _buildTiersLegend(context),
-          ],
-        ],
+                // Badge tiers legend
+                _buildTiersLegend(context),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, bool isPushed) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+      padding: EdgeInsets.fromLTRB(20, isPushed ? 10 : 20, 20, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Aura Leaderboard',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w900,
-                color: AppColors.textFor(context),
-                letterSpacing: -1,
-              )),
-          const SizedBox(height: 16),
+          if (isPushed)
+            Text('Aura Leaderboard',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.textFor(context),
+                  letterSpacing: -0.5,
+                )),
+          if (isPushed) const SizedBox(height: 16),
           _buildTimeframeToggle(),
         ],
       ),
@@ -188,7 +203,7 @@ class _AuraBoardScreenState extends State<AuraBoardScreen> {
                     '${user.aura}',
                     style: GoogleFonts.plusJakartaSans(
                       fontWeight: FontWeight.w900,
-                      fontSize: 20,
+                      fontSize: 18,
                       color: getBadge(user.aura).color,
                     ),
                   ),
@@ -208,15 +223,15 @@ class _AuraBoardScreenState extends State<AuraBoardScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: isMe ? AppColors.primary.withValues(alpha: 0.1) : AppColors.bg2For(context),
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: isMe 
               ? AppColors.primary.withValues(alpha: 0.3) 
-              : AppColors.borderFor(context).withValues(alpha: 0.5),
-            width: isMe ? 1.5 : 0.8,
+              : AppColors.borderFor(context).withValues(alpha: 0.4),
+            width: isMe ? 1.2 : 0.5,
           ),
         ),
         child: GestureDetector(
@@ -245,13 +260,13 @@ class _AuraBoardScreenState extends State<AuraBoardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(u.name,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 15,
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
                           color: AppColors.textFor(context))),
                     Text('@${u.handle}',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 12,
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
                           fontWeight: FontWeight.w500,
                           color: AppColors.text3For(context))),
                   ],
@@ -261,16 +276,16 @@ class _AuraBoardScreenState extends State<AuraBoardScreen> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(u.aura.toString(),
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
                         color: badge.color)),
                   Text(badge.name,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
+                      style: GoogleFonts.inter(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
                         color: AppColors.text3For(context),
-                        letterSpacing: 0.5,
+                        letterSpacing: 0.3,
                       )),
                 ],
               ),

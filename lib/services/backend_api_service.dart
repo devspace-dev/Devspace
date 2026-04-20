@@ -752,6 +752,7 @@ class BackendApiService {
   Future<Map<String, dynamic>> submitWeeklyFreeChallenge({
     required String submissionText,
     String submissionLink = '',
+    String? challengeId,
   }) async {
     try {
       final data = await _request(
@@ -760,17 +761,33 @@ class BackendApiService {
         body: {
           'submissionText': submissionText,
           'submissionLink': submissionLink,
+          if (challengeId != null) 'challengeId': challengeId,
         },
       ) as Map;
       return Map<String, dynamic>.from(data);
     } catch (error) {
       if (!_isRouteMissingError(error)) rethrow;
       
-      // Use the daily submission as a fallback
-      return completeDailyChallenge(
-        submissionText: submissionText,
-        submissionLink: submissionLink,
+      // Attempt RPC submisson directly if possible
+      try {
+        final data = await _client.rpc(
+          'submit_daily_mission',
+          params: {
+            'p_answer_submitted': submissionText,
+            'p_submission_link': submissionLink,
+          },
+        );
+        return Map<String, dynamic>.from(data as Map);
+      } catch (_) {}
+
+      final data = await _client.rpc(
+        'complete_daily_challenge',
+        params: {
+          'p_submission_text': submissionText,
+          'p_submission_link': submissionLink,
+        },
       );
+      return Map<String, dynamic>.from(data as Map);
     }
   }
 

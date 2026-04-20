@@ -80,17 +80,18 @@ class _WeeklyFreeChallengeScreenState extends State<WeeklyFreeChallengeScreen>
       final challenges = provider.weeklyFreeChallenges;
       if (_currentQuestionIndex < challenges.length) {
         final challenge = challenges[_currentQuestionIndex];
-        // Note: The mock submission currently doesn't update 'isCorrect' instantly 
-        // in some flows, so we'll treat it as solved for the UI feedback
         _playSuccessOverlay(challenge.pointsReward);
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Submission received! Moving to next challenge.'),
+          content: Text('Submission received!'),
           backgroundColor: Colors.green,
         ),
       );
+      
+      // Refresh to get updated status
+      await provider.fetchOverview(techStack: _activeTechStack);
       return;
     }
 
@@ -254,6 +255,7 @@ class _WeeklyFreeChallengeScreenState extends State<WeeklyFreeChallengeScreen>
   }
 
   Widget _buildProgressBar(int total) {
+    final isDark = AppColors.isDark(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -285,7 +287,7 @@ class _WeeklyFreeChallengeScreenState extends State<WeeklyFreeChallengeScreen>
           child: LinearProgressIndicator(
             value: (total > 0) ? (_currentQuestionIndex + 1) / total : 0,
             minHeight: 8,
-            backgroundColor: AppColors.bg2For(context),
+            backgroundColor: isDark ? AppColors.bg2For(context) : Colors.black12,
             valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
           ),
         ),
@@ -391,6 +393,7 @@ class _WeeklyFreeChallengeScreenState extends State<WeeklyFreeChallengeScreen>
   }
 
   Widget _buildChallengeCard(BuildContext context, DailyChallengeModel challenge) {
+    final isDark = AppColors.isDark(context);
     return GlassContainer(
       padding: const EdgeInsets.all(24),
       borderRadius: BorderRadius.circular(28),
@@ -442,7 +445,7 @@ class _WeeklyFreeChallengeScreenState extends State<WeeklyFreeChallengeScreen>
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.2),
+              color: isDark ? Colors.black.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(18),
               border: Border.all(color: AppColors.borderFor(context)),
             ),

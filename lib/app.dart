@@ -391,67 +391,78 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                               ),
                               if (n.type == 'pr_request' && !n.read)
                                 Padding(
-                                  padding: const EdgeInsets.only(top: 8),
+                                  padding: const EdgeInsets.only(top: 12, bottom: 4),
                                   child: Row(
                                     children: [
-                                      ElevatedButton(
-                                        onPressed: () async {
-                                          final qp = context
-                                              .read<QuestionsProvider>();
-                                          await qp.fetchPullRequests(
-                                              n.questionId!);
-                                          final pr = qp.getMyPullRequest(
-                                              n.questionId!, n.fromUid);
-                                          if (pr != null) {
-                                            await qp.updatePullRequestStatus(
-                                              questionId: n.questionId!,
-                                              prId: pr.id,
-                                              status: 'accepted',
-                                            );
-                                            provider.markAsRead(n.id);
-                                          }
-                                        },
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: AppColors.primary,
-                                          foregroundColor: Colors.white,
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 16, vertical: 8),
-                                          minimumSize: Size.zero,
-                                          tapTargetSize:
-                                              MaterialTapTargetSize.shrinkWrap,
+                                      Expanded(
+                                        child: ElevatedButton(
+                                          onPressed: () async {
+                                            HapticFeedback.mediumImpact();
+                                            final qp = context.read<QuestionsProvider>();
+                                            await qp.fetchPullRequests(n.questionId!);
+                                            final pr = qp.getMyPullRequest(n.questionId!, n.fromUid);
+                                            if (pr != null) {
+                                              await qp.updatePullRequestStatus(
+                                                questionId: n.questionId!,
+                                                prId: pr.id,
+                                                status: 'accepted',
+                                              );
+                                              provider.markAsRead(n.id);
+                                            }
+                                          },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: AppColors.primary,
+                                            foregroundColor: Colors.white,
+                                            elevation: 0,
+                                            padding: const EdgeInsets.symmetric(vertical: 10),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(10),
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            'Accept',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w800,
+                                              letterSpacing: 0.2,
+                                            ),
+                                          ),
                                         ),
-                                        child: const Text('Accept',
-                                            style: TextStyle(fontSize: 12)),
                                       ),
-                                      const SizedBox(width: 8),
-                                      TextButton(
-                                        onPressed: () async {
-                                          final qp = context
-                                              .read<QuestionsProvider>();
-                                          await qp.fetchPullRequests(
-                                              n.questionId!);
-                                          final pr = qp.getMyPullRequest(
-                                              n.questionId!, n.fromUid);
-                                          if (pr != null) {
-                                            await qp.updatePullRequestStatus(
-                                              questionId: n.questionId!,
-                                              prId: pr.id,
-                                              status: 'rejected',
-                                            );
-                                            provider.markAsRead(n.id);
-                                          }
-                                        },
-                                        style: TextButton.styleFrom(
-                                          foregroundColor:
-                                              AppColors.text3For(context),
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 12, vertical: 8),
-                                          minimumSize: Size.zero,
-                                          tapTargetSize:
-                                              MaterialTapTargetSize.shrinkWrap,
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: OutlinedButton(
+                                          onPressed: () async {
+                                            HapticFeedback.lightImpact();
+                                            final qp = context.read<QuestionsProvider>();
+                                            await qp.fetchPullRequests(n.questionId!);
+                                            final pr = qp.getMyPullRequest(n.questionId!, n.fromUid);
+                                            if (pr != null) {
+                                              await qp.updatePullRequestStatus(
+                                                questionId: n.questionId!,
+                                                prId: pr.id,
+                                                status: 'rejected',
+                                              );
+                                              provider.markAsRead(n.id);
+                                            }
+                                          },
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor: AppColors.text3For(context),
+                                            side: BorderSide(color: AppColors.borderFor(context)),
+                                            padding: const EdgeInsets.symmetric(vertical: 10),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(10),
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            'Decline',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w800,
+                                              letterSpacing: 0.2,
+                                            ),
+                                          ),
                                         ),
-                                        child: const Text('Decline',
-                                            style: TextStyle(fontSize: 12)),
                                       ),
                                     ],
                                   ),

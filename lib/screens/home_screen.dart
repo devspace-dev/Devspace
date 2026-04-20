@@ -172,7 +172,7 @@ class _WelcomeCard extends StatelessWidget {
                   Text(
                     'Welcome to DevSpace',
                     style: TextStyle(
-                      fontSize: 22,
+                      fontSize: 20,
                       fontWeight: FontWeight.w900,
                       color: AppColors.textFor(context),
                     ),
@@ -182,7 +182,7 @@ class _WelcomeCard extends StatelessWidget {
                     'The feed is quiet right now. Start the conversation by sharing what you are building or learning today.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 13,
                       height: 1.5,
                       color: AppColors.text2For(context),
                     ),
@@ -202,7 +202,7 @@ class _WelcomeCard extends StatelessWidget {
                           child: Text(
                             'Earn your first 10 Aura points by posting your first builder update.',
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: 12,
                               fontWeight: FontWeight.w600,
                               color: AppColors.text2For(context),
                             ),

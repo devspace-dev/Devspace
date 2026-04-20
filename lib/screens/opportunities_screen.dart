@@ -47,9 +47,9 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen>
           'Opportunities',
           style: TextStyle(
             fontWeight: FontWeight.w900,
-            fontSize: 24,
+            fontSize: 22,
             color: AppColors.textFor(context),
-            letterSpacing: -1,
+            letterSpacing: -0.5,
           ),
         ),
       ),
@@ -130,9 +130,9 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen>
         indicatorSize: TabBarIndicatorSize.label,
         labelColor: AppColors.textFor(context),
         unselectedLabelColor: AppColors.text3For(context),
-        labelStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+        labelStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
         unselectedLabelStyle:
-            const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+            const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
         tabs: const [
           Tab(text: 'Opportunities'),
           Tab(text: 'Events'),
@@ -222,7 +222,7 @@ class _OpportunityCard extends StatelessWidget {
               Text(
                 opp.title,
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: 18,
                   fontWeight: FontWeight.w900,
                   color: opp.unlocked
                       ? AppColors.textFor(context)
@@ -235,8 +235,8 @@ class _OpportunityCard extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 14,
-                  height: 1.5,
+                  fontSize: 13,
+                  height: 1.4,
                   color: opp.unlocked
                       ? AppColors.text2For(context)
                       : AppColors.text4For(context),
@@ -260,19 +260,32 @@ class _OpportunityCard extends StatelessWidget {
                       color: AppColors.text3For(context)),
                 ),
               ] else
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Text(
-                      'View Details',
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 14,
-                      ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.2),
+                      width: 1,
                     ),
-                    const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.primary),
-                  ],
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'DETAILS',
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 11,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      SizedBox(width: 6),
+                      Icon(Icons.arrow_forward_ios_rounded, size: 10, color: AppColors.primary),
+                    ],
+                  ),
                 ),
             ],
           ),
@@ -396,7 +409,7 @@ class _EventCard extends StatelessWidget {
               Text(
                 event.title,
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: 18,
                   fontWeight: FontWeight.w900,
                   color: isLocked
                       ? AppColors.text3For(context)
@@ -409,8 +422,8 @@ class _EventCard extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 14,
-                  height: 1.5,
+                  fontSize: 13,
+                  height: 1.4,
                   color: isLocked
                       ? AppColors.text4For(context)
                       : AppColors.text2For(context),
@@ -453,19 +466,36 @@ class _EventCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                    const Spacer(),
-                    Text(
-                      isHackathon ? 'Register Now' : 'View Details',
-                      style: TextStyle(
-                        color: isHackathon ? Colors.purpleAccent : AppColors.primary,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 14,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: (isHackathon ? Colors.purpleAccent : AppColors.primary).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: (isHackathon ? Colors.purpleAccent : AppColors.primary).withValues(alpha: 0.2),
+                          width: 1,
+                        ),
                       ),
-                    ),
-                    Icon(
-                      Icons.arrow_forward_ios_rounded, 
-                      size: 14, 
-                      color: isHackathon ? Colors.purpleAccent : AppColors.primary
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            isHackathon ? 'REGISTER NOW' : 'DETAILS',
+                            style: TextStyle(
+                              color: isHackathon ? Colors.purpleAccent : AppColors.primary,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 11,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Icon(
+                            Icons.arrow_forward_ios_rounded, 
+                            size: 10, 
+                            color: isHackathon ? Colors.purpleAccent : AppColors.primary
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),

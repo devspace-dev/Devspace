@@ -409,6 +409,35 @@ class ProfileScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 12),
+                            if (profileUser.roles.isNotEmpty)
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: profileUser.roles
+                                    .map((r) => Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primary
+                                                .withValues(alpha: 0.1),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                            border: Border.all(
+                                                color: AppColors.primary
+                                                    .withValues(alpha: 0.2)),
+                                          ),
+                                          child: Text(
+                                            r,
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              color: AppColors.primary,
+                                            ),
+                                          ),
+                                        ))
+                                    .toList(),
+                              ),
+                            const SizedBox(height: 12),
                             if (isMe)
                               _EditButton(onTap: () {
                                 _openProfileEditor(context);

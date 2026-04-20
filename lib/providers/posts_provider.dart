@@ -295,6 +295,9 @@ class PostsProvider extends ChangeNotifier {
         await SupabaseService.instance.unlikePost(postId, userId);
       }
       await _refreshPostLikeState(postId, userId);
+      
+      // Sync Aura after like
+      unawaited(AuthService.instance.refreshCurrentUser());
     } catch (e) {
       _posts[postIndex] = post;
       _likeErrors[postId] = 'Failed to update like: $e';
@@ -346,6 +349,9 @@ class PostsProvider extends ChangeNotifier {
         if (post.id != postId) return post;
         return post.copyWith(comments: comments.length);
       }).toList();
+
+      // Sync Aura after comment
+      unawaited(AuthService.instance.refreshCurrentUser());
       return true;
     } catch (e) {
       _commentErrors[postId] = 'Failed to post comment: $e';

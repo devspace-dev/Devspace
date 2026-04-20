@@ -153,20 +153,20 @@ class _DevelopersHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(24),
         gradient: LinearGradient(
           colors: [
-            AppColors.primary.withValues(alpha: 0.18),
-            AppColors.indigo.withValues(alpha: 0.1),
+            AppColors.primary.withValues(alpha: 0.12),
+            AppColors.indigo.withValues(alpha: 0.08),
             AppColors.bg2For(context),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.16),
+          color: AppColors.primary.withValues(alpha: 0.12),
         ),
       ),
       child: Stack(
@@ -223,12 +223,12 @@ class _DevelopersHero extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               Text(
-                'Find your next dev circle',
+                'Dev Circles',
                 style: TextStyle(
-                  fontSize: 28,
+                  fontSize: 22,
                   fontWeight: FontWeight.w900,
                   height: 1,
-                  letterSpacing: -1,
+                  letterSpacing: -0.5,
                   color: AppColors.textFor(context),
                 ),
               ),

@@ -5,6 +5,7 @@ import '../models/daily_challenge_model.dart';
 import '../providers/engagement_provider.dart';
 import '../screens/daily_challenge_screen.dart';
 import '../screens/opportunities_screen.dart';
+import '../screens/aura_board_screen.dart';
 import '../theme/app_colors.dart';
 
 class EngagementOverview extends StatelessWidget {
@@ -96,31 +97,40 @@ class EngagementOverview extends StatelessWidget {
             if (summary != null)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                child: _NeonStatsCard(
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _Metric(
-                          label: 'Aura',
-                          value: '${summary.auraPoints}',
-                          hint: summary.level,
-                        ),
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const AuraBoardScreen(),
                       ),
-                      Expanded(
-                        child: _Metric(
-                          label: 'Current Streak',
-                          value: '${summary.currentStreak}',
-                          hint: 'Longest ${summary.longestStreak}',
+                    );
+                  },
+                  child: _NeonStatsCard(
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _Metric(
+                            label: 'Aura',
+                            value: '${summary.auraPoints}',
+                            hint: summary.level,
+                          ),
                         ),
-                      ),
-                      Expanded(
-                        child: _Metric(
-                          label: 'Unlocked',
-                          value: '$unlockedCount',
-                          hint: '$lockedCount locked',
+                        Expanded(
+                          child: _Metric(
+                            label: 'Current Streak',
+                            value: '${summary.currentStreak}',
+                            hint: 'Longest ${summary.longestStreak}',
+                          ),
                         ),
-                      ),
-                    ],
+                        Expanded(
+                          child: _Metric(
+                            label: 'Unlocked',
+                            value: '$unlockedCount',
+                            hint: '$lockedCount locked',
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -210,82 +220,91 @@ class EngagementOverview extends StatelessWidget {
             if (provider.events.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                child: _SectionCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              'Opportunities',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.textFor(context),
-                              ),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const OpportunitiesScreen(),
-                                ),
-                              );
-                            },
-                            child: const Text('View all'),
-                          ),
-                        ],
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const OpportunitiesScreen(),
                       ),
-                      const SizedBox(height: 10),
-                      ...provider.events.take(4).map(
-                            (event) => Padding(
-                              padding: const EdgeInsets.only(bottom: 10),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Icon(
-                                    event.unlocked
-                                        ? Icons.lock_open_rounded
-                                        : Icons.lock_outline_rounded,
-                                    size: 18,
-                                    color: event.unlocked
-                                        ? Colors.green
-                                        : AppColors.text3For(context),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          event.title,
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w700,
-                                            color: AppColors.textFor(context),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          event.unlocked
-                                              ? '${event.type} - eligible now'
-                                              : '${event.type} - needs ${event.requiredAura} aura',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: AppColors.text3For(context),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
+                    );
+                  },
+                  child: _SectionCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Opportunities',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.textFor(context),
+                                ),
                               ),
                             ),
-                          ),
-                    ],
+                            TextButton(
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const OpportunitiesScreen(),
+                                  ),
+                                );
+                              },
+                              child: const Text('View all'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        ...provider.events.take(4).map(
+                              (event) => Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Icon(
+                                      event.unlocked
+                                          ? Icons.lock_open_rounded
+                                          : Icons.lock_outline_rounded,
+                                      size: 18,
+                                      color: event.unlocked
+                                          ? Colors.green
+                                          : AppColors.text3For(context),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            event.title,
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w700,
+                                              color: AppColors.textFor(context),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            event.unlocked
+                                                ? '${event.type} - eligible now'
+                                                : '${event.type} - needs ${event.requiredAura} aura',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: AppColors.text3For(context),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                      ],
+                    ),
                   ),
                 ),
               ),

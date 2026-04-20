@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../services/storage_service.dart';
 import '../theme/app_colors.dart';
@@ -31,8 +32,15 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
   double? _progress;
   bool _uploading = false;
 
-  Future<void> _pick({required bool fromCamera}) async {
-    final file = await StorageService.instance.pickImage(fromCamera: fromCamera);
+  Future<void> _pick({required bool fromCamera, bool highQuality = false}) async {
+    final file = await StorageService.instance.pickImage(
+      fromCamera: fromCamera,
+      crop: true,
+      isCircle: widget.isCircle,
+      imageQuality: highQuality ? 95 : 70,
+      maxWidth: highQuality ? 2048 : 1024,
+      maxHeight: highQuality ? 2048 : 1024,
+    );
     if (file == null || !mounted) return;
 
     setState(() {
@@ -70,46 +78,80 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
   void _showPicker() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.bg2For(context),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (_) => SafeArea(
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: AppColors.bgFor(ctx),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          border: Border(top: BorderSide(color: AppColors.borderFor(ctx), width: 0.5)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(height: 8),
             Container(
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.border2For(context),
-                borderRadius: BorderRadius.circular(2),
+                color: AppColors.border2For(ctx),
+                borderRadius: BorderRadius.circular(99),
               ),
             ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt_rounded, color: AppColors.primary),
-              title: Text(
-                'Take a photo',
-                style: TextStyle(color: AppColors.textFor(context)),
+            const SizedBox(height: 24),
+            Text(
+              'Profile Picture',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                color: AppColors.textFor(ctx),
               ),
-              onTap: () {
-                Navigator.pop(context);
-                _pick(fromCamera: true);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library_rounded, color: AppColors.primary),
-              title: Text(
-                'Choose from gallery',
-                style: TextStyle(color: AppColors.textFor(context)),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                _pick(fromCamera: false);
-              },
             ),
             const SizedBox(height: 8),
+            Text(
+              'Select an upload option for your avatar.',
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.text3For(ctx),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: _PickerOption(
+                    icon: Icons.camera_alt_outlined,
+                    label: 'Camera',
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _pick(fromCamera: true);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _PickerOption(
+                    icon: Icons.photo_library_outlined,
+                    label: 'Gallery',
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _pick(fromCamera: false);
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _PickerOption(
+              icon: Icons.high_quality_outlined,
+              label: 'Upload in High Quality',
+              subtitle: 'Maximum resolution and clarity',
+              isWide: true,
+              onTap: () {
+                Navigator.pop(ctx);
+                _pick(fromCamera: false, highQuality: true);
+              },
+            ),
           ],
         ),
       ),
@@ -240,7 +282,11 @@ class _PostImagePickerState extends State<PostImagePicker> {
   File? _preview;
 
   Future<void> _pick({required bool fromCamera}) async {
-    final file = await StorageService.instance.pickImage(fromCamera: fromCamera);
+    final file = await StorageService.instance.pickImage(
+      fromCamera: fromCamera,
+      crop: true,
+      isCircle: false,
+    );
     if (file == null || !mounted) return;
     setState(() => _preview = file);
     widget.onPicked(file);
@@ -284,52 +330,115 @@ class _PostImagePickerState extends State<PostImagePicker> {
 
     return Row(
       children: [
-        _PickerBtn(
-          icon: Icons.camera_alt_rounded,
-          label: 'Camera',
-          onTap: () => _pick(fromCamera: true),
+        Expanded(
+          child: _PickerOption(
+            icon: Icons.camera_alt_rounded,
+            label: 'Camera',
+            onTap: () => _pick(fromCamera: true),
+          ),
         ),
         const SizedBox(width: 8),
-        _PickerBtn(
-          icon: Icons.photo_library_rounded,
-          label: 'Gallery',
-          onTap: () => _pick(fromCamera: false),
+        Expanded(
+          child: _PickerOption(
+            icon: Icons.photo_library_rounded,
+            label: 'Gallery',
+            onTap: () => _pick(fromCamera: false),
+          ),
         ),
       ],
     );
   }
 }
 
-class _PickerBtn extends StatelessWidget {
+class _PickerOption extends StatelessWidget {
   final IconData icon;
   final String label;
+  final String? subtitle;
   final VoidCallback onTap;
+  final bool isWide;
 
-  const _PickerBtn({
+  const _PickerOption({
     required this.icon,
     required this.label,
+    this.subtitle,
     required this.onTap,
+    this.isWide = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        padding: EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: isWide ? 16 : 20,
+        ),
         decoration: BoxDecoration(
-          color: AppColors.bg3For(context),
-          borderRadius: BorderRadius.circular(99),
+          color: AppColors.bg2For(context),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(color: AppColors.borderFor(context)),
         ),
         child: Row(
+          mainAxisAlignment: isWide ? MainAxisAlignment.start : MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 15, color: AppColors.primary),
-            const SizedBox(width: 5),
-            Text(
-              label,
-              style: TextStyle(fontSize: 13, color: AppColors.text2For(context)),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: AppColors.primary, size: 22),
             ),
+            if (isWide) const SizedBox(width: 16),
+            if (!isWide) const SizedBox(height: 12),
+            if (!isWide)
+              Column(
+                children: [
+                  const SizedBox(height: 12),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textFor(context),
+                    ),
+                  ),
+                ],
+              )
+            else
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textFor(context),
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.text3For(context),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            if (isWide)
+              Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.text4For(context),
+              ),
           ],
         ),
       ),
