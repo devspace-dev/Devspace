@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../models/comment_model.dart';
 import '../models/post_model.dart';
 import '../models/user_model.dart';
@@ -11,7 +12,9 @@ import '../providers/posts_provider.dart';
 import '../providers/users_provider.dart';
 import '../providers/auth_provider.dart';
 import '../screens/people_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../screens/profile_screen.dart';
+import '../screens/post_detail_screen.dart';
 import '../theme/app_colors.dart';
 import 'user_avatar.dart';
 import 'glass_container.dart';
@@ -191,6 +194,13 @@ class _PostCardState extends State<PostCard> {
                 maxHeight: 500,
                 fit: BoxFit.contain,
                 backgroundColor: Colors.black.withValues(alpha: 0.05),
+              ),
+            ],
+            if (post.documentUrl != null && post.documentUrl!.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _PostDocumentPreview(
+                url: post.documentUrl!,
+                name: post.documentName ?? 'Document',
               ),
             ],
             if (post.tags.isNotEmpty) ...[
@@ -768,10 +778,11 @@ class _QuotePostSheetState extends State<_QuotePostSheet> {
     if (content.isEmpty) return;
     setState(() => _posting = true);
     final result = await context.read<PostsProvider>().addQuotePost(
-          userId: widget.currentUserId,
-          content: content,
-          originalPostId: widget.originalPost.id,
-        );
+      userId: widget.currentUserId,
+      content: content,
+      originalPostId: widget.originalPost.id,
+    );
+
     if (!mounted) return;
 
     if (result.success) {
@@ -793,7 +804,7 @@ class _QuotePostSheetState extends State<_QuotePostSheet> {
   }
 }
 
-class _QuotedPostPreview extends StatelessWidget {
+class _QuotedPostPreview extends StatefulWidget {
   final PostModel? post;
   final UserModel? user;
   final bool loading;
@@ -801,29 +812,83 @@ class _QuotedPostPreview extends StatelessWidget {
   const _QuotedPostPreview({required this.post, required this.user, required this.loading});
 
   @override
-  Widget build(BuildContext context) {
-    if (loading) return const Center(child: CircularProgressIndicator.adaptive());
-    if (post == null || user == null) return const SizedBox.shrink();
+  State<_QuotedPostPreview> createState() => _QuotedPostPreviewState();
+}
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borderFor(context), width: 0.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              UserAvatar(user: user!, size: 20),
-              const SizedBox(width: 8),
-              Text(user!.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-            ],
+class _QuotedPostPreviewState extends State<_QuotedPostPreview> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.loading) return const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator.adaptive()));
+    if (widget.post == null || widget.user == null) return const SizedBox.shrink();
+
+    final content = widget.post!.content;
+    final isLong = content.length > 150;
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => PostDetailScreen(
+              post: widget.post!,
+              author: widget.user,
+            ),
           ),
-          const SizedBox(height: 6),
-          Text(post!.content, maxLines: 3, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14)),
-        ],
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.bg3For(context).withOpacity(0.3),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.borderFor(context), width: 0.8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                UserAvatar(user: widget.user!, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  widget.user!.handle,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                    color: AppColors.text2For(context),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              content,
+              maxLines: _expanded ? null : 4,
+              overflow: _expanded ? null : TextOverflow.ellipsis,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 13,
+                height: 1.4,
+                color: AppColors.textFor(context),
+              ),
+            ),
+            if (isLong && !_expanded)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: GestureDetector(
+                  onTap: () => setState(() => _expanded = true),
+                  child: Text(
+                    'Read More',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -846,14 +911,18 @@ class _PostImageThumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget image = CachedNetworkImage(
-      imageUrl: imageUrl,
-      width: double.infinity,
-      height: maxHeight,
-      fit: fit,
-      placeholder: (_, __) => Container(
-        color: AppColors.bg2For(context),
-        height: maxHeight ?? 200,
+    Widget image = ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: maxHeight ?? 500,
+      ),
+      child: CachedNetworkImage(
+        imageUrl: imageUrl,
+        width: double.infinity,
+        fit: BoxFit.fitWidth,
+        placeholder: (_, __) => Container(
+          color: AppColors.bg2For(context),
+          height: 200,
+        ),
       ),
     );
 
@@ -996,6 +1065,56 @@ class _ActionBtn extends StatelessWidget {
               ],
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PostDocumentPreview extends StatelessWidget {
+  final String url;
+  final String name;
+
+  const _PostDocumentPreview({required this.url, required this.name});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () async {
+        final uri = Uri.parse(url);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.bg2For(context),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.borderFor(context).withOpacity(0.5)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.description_outlined, color: AppColors.primary, size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  color: AppColors.textFor(context),
+                ),
+              ),
+            ),
+            Icon(
+              Icons.open_in_new_rounded,
+              size: 18,
+              color: AppColors.text3For(context),
+            ),
+          ],
         ),
       ),
     );

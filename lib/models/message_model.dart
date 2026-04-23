@@ -30,7 +30,7 @@ class MessageModel {
       readAt: json['read_at'] != null
           ? DateTime.parse(json['read_at'] as String)
           : null,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
     );
   }
 

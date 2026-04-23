@@ -69,9 +69,11 @@ class _WeeklyFreeChallengeScreenState extends State<WeeklyFreeChallengeScreen>
     final answer = (_selectedOption ?? '').trim();
     if (answer.isEmpty) return;
 
+    final challenge = provider.weeklyFreeChallenges[_currentQuestionIndex];
     final success = await provider.submitWeeklyFreeChallenge(
       submissionText: answer,
       submissionLink: '',
+      challengeId: challenge.challengeId,
     );
 
     if (!mounted) return;
@@ -547,27 +549,24 @@ class _WeeklyFreeChallengeScreenState extends State<WeeklyFreeChallengeScreen>
             },
           )
         else
-          TextField(
-            onChanged: (v) => setState(() => _selectedOption = v),
-            maxLines: 5,
-            style: TextStyle(color: AppColors.textFor(context)),
-            decoration: InputDecoration(
-              hintText: 'Describe your implementation approach or provide the code snippet...',
-              hintStyle: TextStyle(color: AppColors.text3For(context), fontSize: 14),
-              fillColor: AppColors.bg2For(context),
-              filled: true,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(18),
-                borderSide: BorderSide(color: AppColors.borderFor(context)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(18),
-                borderSide: BorderSide(color: AppColors.borderFor(context)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(18),
-                borderSide: const BorderSide(color: AppColors.primary, width: 2),
-              ),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.red.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.error_outline_rounded, color: Colors.red),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'This challenge type is not supported yet. Please skip or check back later.',
+                    style: TextStyle(color: Colors.red.shade700, fontSize: 13),
+                  ),
+                ),
+              ],
             ),
           ),
         const SizedBox(height: 32),

@@ -104,7 +104,7 @@ UserModel _user() {
     avatar: 'TU',
     color: const Color(0xFF123456),
     aura: 0,
-    role: 'Student',
+    roles: const ['Student'],
     year: '3rd Year',
     branch: 'CSE',
     building: 'Lab 1',

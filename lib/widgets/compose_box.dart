@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'package:file_picker/file_picker.dart';
+import 'package:path/path.dart' as path;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -137,6 +139,8 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
   final List<String> _tags = [];
   bool _posting = false;
   File? _selectedImage;
+  File? _selectedDoc;
+  String? _selectedDocName;
   int _charCount = 0;
 
   List<String> _hashtagSuggestions = [];
@@ -391,6 +395,45 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                           ],
                         ),
                       ],
+                      if (_selectedDoc != null) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.bg2For(context),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.borderFor(context)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.description_outlined, color: AppColors.primary),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  _selectedDocName ?? 'Document',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                    color: AppColors.textFor(context),
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.close_rounded, size: 20),
+                                onPressed: () {
+                                  HapticFeedback.selectionClick();
+                                  setState(() {
+                                    _selectedDoc = null;
+                                    _selectedDocName = null;
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       if (_tags.isNotEmpty) ...[
                         const SizedBox(height: 20),
                         Align(
@@ -508,6 +551,10 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                       onTap: _pickImage,
                     ),
                     _ToolbarIcon(
+                      icon: Icons.description_outlined,
+                      onTap: _pickDocument,
+                    ),
+                    _ToolbarIcon(
                       icon: Icons.tag_rounded,
                       onTap: _editTags,
                     ),
@@ -545,6 +592,8 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
           text,
           _tags,
           imageFile: _selectedImage,
+          docFile: _selectedDoc,
+          docName: _selectedDocName,
         );
 
     if (!mounted) return;
@@ -616,6 +665,29 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
     final file = await StorageService.instance.pickImage(fromCamera: source);
     if (file == null || !mounted) return;
     setState(() => _selectedImage = file);
+  }
+
+  Future<void> _pickDocument() async {
+    HapticFeedback.lightImpact();
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'txt'],
+      );
+
+      if (result != null && result.files.single.path != null) {
+        setState(() {
+          _selectedDoc = File(result.files.single.path!);
+          _selectedDocName = result.files.single.name;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to pick document: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _editTags() async {

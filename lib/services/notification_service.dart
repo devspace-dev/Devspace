@@ -1,12 +1,24 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'supabase_service.dart';
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // If you're going to use other Firebase services in the background, such as Firestore,
+  // make sure you call `Firebase.initializeApp()` before using other Firebase services.
+  debugPrint("Handling a background message: ${message.messageId}");
+}
 
 class NotificationService {
   NotificationService._();
   static final instance = NotificationService._();
 
   final _local = FlutterLocalNotificationsPlugin();
+  final _notificationStreamController = StreamController<String?>.broadcast();
+  Stream<String?> get notificationResponseStream => _notificationStreamController.stream;
 
   static const _channel = AndroidNotificationChannel(
     'devspace_high',
@@ -17,12 +29,54 @@ class NotificationService {
 
   Future<void> init(String uid) async {
     try {
-      // Local notifications setup
+      // 1. Firebase Messaging Setup
+      final fcm = FirebaseMessaging.instance;
+      
+      // Request permissions (especially for iOS)
+      await fcm.requestPermission(
+        alert: true,
+        announcement: false,
+        badge: true,
+        carPlay: false,
+        criticalAlert: false,
+        provisional: false,
+        sound: true,
+      );
+
+      // Foreground notifications display
+      await fcm.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
+      // Background handler
+      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+      // Listen for foreground messages
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        RemoteNotification? notification = message.notification;
+        AndroidNotification? android = message.notification?.android;
+        if (notification != null && android != null) {
+          showLocalNotification(
+            id: message.messageId ?? DateTime.now().toString(),
+            title: notification.title ?? 'DevSpace',
+            body: notification.body ?? '',
+          );
+        }
+      });
+
+      // 2. Local notifications setup
       await _local.initialize(
         settings: const InitializationSettings(
           android: AndroidInitializationSettings('@mipmap/ic_launcher'),
           iOS: DarwinInitializationSettings(),
         ),
+        onDidReceiveNotificationResponse: (response) {
+          if (response.payload != null) {
+            _notificationStreamController.add(response.payload);
+          }
+        },
       );
 
       // Create the high-priority Android channel
@@ -32,6 +86,17 @@ class NotificationService {
           ?.createNotificationChannel(_channel);
 
       await _requestPermissions();
+
+      // 3. Save FCM Token to Supabase
+      final token = await fcm.getToken();
+      if (token != null) {
+        await SupabaseService.instance.updateFcmToken(uid, token);
+      }
+
+      // Listen for token refreshes
+      fcm.onTokenRefresh.listen((newToken) {
+        SupabaseService.instance.updateFcmToken(uid, newToken);
+      });
 
       if (kDebugMode) {
         debugPrint('Notification service initialized for $uid.');

@@ -8,6 +8,7 @@ class NotificationModel {
   final String message;
   final bool read;
   final DateTime createdAt;
+  final Map<String, dynamic>? payload;
 
   NotificationModel({
     required this.id,
@@ -19,6 +20,7 @@ class NotificationModel {
     required this.message,
     required this.read,
     required this.createdAt,
+    this.payload,
   });
 
   factory NotificationModel.fromJson(Map<String, dynamic> json) {
@@ -34,6 +36,7 @@ class NotificationModel {
       createdAt: DateTime.parse(
         json['created_at'] ?? DateTime.now().toIso8601String(),
       ).toLocal(),
+      payload: json['payload'] as Map<String, dynamic>?,
     );
   }
 
@@ -48,6 +51,7 @@ class NotificationModel {
       'message': message,
       'read': read,
       'created_at': createdAt.toUtc().toIso8601String(),
+      'payload': payload,
     };
   }
 
@@ -61,6 +65,7 @@ class NotificationModel {
     String? message,
     bool? read,
     DateTime? createdAt,
+    Map<String, dynamic>? payload,
   }) {
     return NotificationModel(
       id: id ?? this.id,
@@ -72,6 +77,7 @@ class NotificationModel {
       message: message ?? this.message,
       read: read ?? this.read,
       createdAt: createdAt ?? this.createdAt,
+      payload: payload ?? this.payload,
     );
   }
 }

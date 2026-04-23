@@ -179,7 +179,7 @@ class _AuraBoardScreenState extends State<AuraBoardScreen> {
                     alignment: Alignment.topCenter,
                     clipBehavior: Clip.none,
                     children: [
-                      UserAvatar(user: user, size: isFirst ? 86 : 70, showStory: true),
+                      UserAvatar(user: user, size: isFirst ? 86 : 70, showStory: false),
                       if (isFirst)
                         const Positioned(
                           top: -24,

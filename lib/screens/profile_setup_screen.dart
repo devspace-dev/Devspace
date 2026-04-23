@@ -264,10 +264,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                         _title,
                         key: ValueKey(_title),
                         style: TextStyle(
-                          fontSize: 24,
+                          fontSize: 16, // Smaller header
                           fontWeight: FontWeight.w900,
                           color: primaryTextColor,
-                          letterSpacing: -0.8,
+                          letterSpacing: -0.5,
                         ),
                       ),
                     ),
@@ -278,9 +278,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                         _subtitle,
                         key: ValueKey(_subtitle),
                         style: TextStyle(
-                          fontSize: 13,
+                          fontSize: 11,
                           color: secondaryTextColor,
-                          height: 1.4,
+                          height: 1.3,
                         ),
                       ),
                     ),
@@ -291,20 +291,11 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                         return Expanded(
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 400),
-                            height: 6,
-                            margin: EdgeInsets.only(right: index == 2 ? 0 : 8),
+                            height: 2, // Thinner step bar
+                            margin: EdgeInsets.only(right: index == 2 ? 0 : 4),
                             decoration: BoxDecoration(
                               color: active ? AppColors.primary : elevatedSurfaceColor,
                               borderRadius: BorderRadius.circular(99),
-                              boxShadow: active
-                                  ? [
-                                      BoxShadow(
-                                        color: AppColors.primary.withValues(alpha: 0.3),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 2),
-                                      )
-                                    ]
-                                  : null,
                             ),
                           ),
                         );
@@ -312,12 +303,12 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'Step ${_step + 1} of 3',
+                      '${_step + 1} of 3',
                       style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: tertiaryTextColor,
-                        letterSpacing: 0.5,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        color: tertiaryTextColor.withValues(alpha: 0.7),
+                        letterSpacing: 0.8,
                       ),
                     ),
                   ],
@@ -355,88 +346,67 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     ),
                   ),
                 ),
+              // Sleek Instagram-style bottom bar
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                 child: Container(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: surfaceColor,
-                    borderRadius: BorderRadius.circular(22),
-                    border: Border.all(color: borderColor),
+                    color: AppColors.bg2For(context),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: borderColor.withValues(alpha: 0.5)),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 18,
-                        offset: const Offset(0, 8),
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      Text(
-                        _step == 0
-                            ? 'Start with the basics'
-                            : _step == 1
-                                ? 'Show what you build'
-                                : 'Finish your public profile',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: primaryTextColor,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _step == 0
-                            ? 'This helps other students recognize you in the feed.'
-                            : _step == 1
-                                ? 'Add your stack so your profile feels useful, not empty.'
-                                : 'Optional details make your profile look complete and trustworthy.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          height: 1.4,
-                          color: tertiaryTextColor,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Row(
-                        children: [
-                          if (_step > 0)
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: _saving ? null : _back,
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
-                                ),
-                                child: const Text('Back'),
-                              ),
+                      if (_step > 0) ...[
+                        SizedBox(
+                          height: 48,
+                          width: 48,
+                          child: OutlinedButton(
+                            onPressed: _saving ? null : _back,
+                            style: OutlinedButton.styleFrom(
+                              shape: const CircleBorder(),
+                              padding: EdgeInsets.zero,
+                              side: BorderSide(color: borderColor),
                             ),
-                          if (_step > 0) const SizedBox(width: 12),
-                          Expanded(
-                            flex: 2,
-                            child: ElevatedButton(
-                              onPressed: _saving ? null : _next,
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                              ),
-                              child: _saving
-                                  ? const SizedBox(
-                                      height: 20,
-                                      width: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : Text(
-                                      _step == 2
-                                          ? (_isOnboarding ? 'Finish setup' : 'Save changes')
-                                          : 'Continue',
-                                    ),
-                            ),
+                            child: Icon(Icons.chevron_left_rounded, color: primaryTextColor),
                           ),
-                        ],
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      Expanded(
+                        child: SizedBox(
+                          height: 48,
+                          child: ElevatedButton(
+                            onPressed: _saving ? null : _next,
+                            style: ElevatedButton.styleFrom(
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              elevation: 0,
+                            ),
+                            child: _saving
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Text(
+                                    _step == 2
+                                        ? (_isOnboarding ? 'Finish' : 'Save Changes')
+                                        : 'Next Step',
+                                    style: const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.5),
+                                  ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -451,7 +421,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   Widget _buildStep0(String uid) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -470,7 +440,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     ImageUploadWidget(
                       existingUrl: _avatarPath,
                       uploadPath: 'profiles/$uid.jpg',
-                      size: 112,
+                      size: 96,
                       isCircle: true,
                       onUploaded: (url) {
                         HapticFeedback.mediumImpact();
@@ -535,6 +505,35 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             ],
           ),
           const SizedBox(height: 10),
+          Autocomplete<String>(
+            optionsBuilder: (TextEditingValue textEditingValue) {
+              if (textEditingValue.text.isEmpty) {
+                return const Iterable<String>.empty();
+              }
+              return kTechStackOptions.where((String option) {
+                return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
+              });
+            },
+            onSelected: (String selection) {
+              if (!_roles.contains(selection) && _roles.length < 3) {
+                HapticFeedback.mediumImpact();
+                setState(() => _roles.add(selection));
+              }
+            },
+            fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+              return TextFormField(
+                controller: controller,
+                focusNode: focusNode,
+                style: TextStyle(color: AppColors.textFor(context), fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: 'Search roles (e.g. Frontend, Backend)',
+                  hintStyle: TextStyle(color: AppColors.text3For(context), fontSize: 14),
+                  prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 12),
           _ChoiceWrap(
             options: kProfileRoles,
             selectedValues: _roles,
@@ -642,7 +641,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   Widget _buildStep1() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -672,17 +671,64 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             ],
           ),
           const SizedBox(height: 10),
-          TextFormField(
-            controller: _stackCtrl,
-            style: TextStyle(color: AppColors.textFor(context)),
-            onFieldSubmitted: (_) => _addStackTag(),
-            decoration: InputDecoration(
-              hintText: 'Add a skill, then tap +',
-              suffixIcon: IconButton(
-                icon: const Icon(Icons.add_circle_rounded, color: AppColors.primary),
-                onPressed: _addStackTag,
-              ),
-            ),
+          Autocomplete<String>(
+            optionsBuilder: (TextEditingValue textEditingValue) {
+              if (textEditingValue.text.isEmpty) {
+                return const Iterable<String>.empty();
+              }
+              return kTechStackOptions.where((String option) {
+                return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
+              });
+            },
+            onSelected: (String selection) {
+              _stackCtrl.text = selection;
+              _addStackTag();
+            },
+            fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+              return TextFormField(
+                controller: controller,
+                focusNode: focusNode,
+                style: TextStyle(color: AppColors.textFor(context), fontSize: 14),
+                onFieldSubmitted: (v) => _addStackTag(),
+                decoration: InputDecoration(
+                  hintText: 'Search or type skill...',
+                  hintStyle: const TextStyle(fontSize: 14),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.add_circle_rounded, color: AppColors.primary, size: 22),
+                    onPressed: _addStackTag,
+                  ),
+                ),
+              );
+            },
+            optionsViewBuilder: (context, onSelected, options) {
+              return Align(
+                alignment: Alignment.topLeft,
+                child: Material(
+                  elevation: 4.0,
+                  color: AppColors.bg2For(context),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    width: MediaQuery.of(context).size.width - 40,
+                    constraints: const BoxConstraints(maxHeight: 200),
+                    child: ListView.builder(
+                      padding: EdgeInsets.zero,
+                      shrinkWrap: true,
+                      itemCount: options.length,
+                      itemBuilder: (BuildContext context, int index) {
+                        final String option = options.elementAt(index);
+                        return ListTile(
+                          title: Text(
+                            option,
+                            style: TextStyle(color: AppColors.textFor(context), fontSize: 13),
+                          ),
+                          onTap: () => onSelected(option),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
           const SizedBox(height: 16),
           if (_stack.isNotEmpty)
@@ -752,7 +798,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   Widget _buildStep2() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -884,10 +930,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     return Text(
       text,
       style: TextStyle(
-        fontSize: 11,
+        fontSize: 10,
         fontWeight: FontWeight.w900,
         color: AppColors.text3For(context),
-        letterSpacing: 1.2,
+        letterSpacing: 1.0,
       ),
     );
   }

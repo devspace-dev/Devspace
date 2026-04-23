@@ -66,6 +66,19 @@ const List<String> kCollegeOptions = [
   'IIIT Allahabad',
 ];
 
+const List<String> kTechStackOptions = [
+  'Flutter', 'Dart', 'React', 'React Native', 'Node.js', 'Python', 'Django', 'Flask',
+  'Java', 'Spring Boot', 'Kotlin', 'Swift', 'C++', 'C#', 'Go', 'Rust',
+  'Firebase', 'Supabase', 'AWS', 'Google Cloud', 'Azure', 'Docker', 'Kubernetes',
+  'PostgreSQL', 'MongoDB', 'Redis', 'MySQL', 'SQLite',
+  'Machine Learning', 'Deep Learning', 'PyTorch', 'TensorFlow', 'NLP', 'Computer Vision',
+  'Unity', 'Unreal Engine', 'Blender',
+  'Figma', 'Adobe XD', 'UI/UX Design',
+  'HTML', 'CSS', 'JavaScript', 'TypeScript', 'Vue.js', 'Next.js', 'Tailwind CSS',
+  'GraphQL', 'REST API', 'Microservices', 'Blockchain', 'Solidity',
+  'Git', 'GitHub', 'CI/CD', 'Linux', 'Bash',
+];
+
 const List<String> kProfileRoles = [
   'Student',
   'Intern',

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -23,10 +24,12 @@ import 'screens/question_detail_screen.dart';
 import 'providers/auth_provider.dart';
 import 'providers/messages_provider.dart';
 import 'models/user_model.dart';
+import 'services/notification_service.dart';
+import 'models/conversation_model.dart';
+import 'screens/chat_detail_screen.dart';
 import 'theme/app_colors.dart';
 import 'widgets/bottom_nav.dart';
 import 'widgets/glass_container.dart';
-import 'widgets/user_avatar.dart';
 // Calling feature deferred to future update
 
 class DevSpaceApp extends StatefulWidget {
@@ -197,6 +200,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
   int _tab = 0;
   bool _isUIVisible = true;
   late final PageController _pageController;
+  StreamSubscription<String?>? _notificationSubscription;
 
   static const List<String> _titles = [
     'DevSpace',
@@ -212,6 +216,65 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
     super.initState();
     _pageController = PageController();
     _initProviders();
+    _setupNotificationTapListener();
+  }
+
+  void _setupNotificationTapListener() {
+    _notificationSubscription = NotificationService.instance.notificationResponseStream.listen((payload) {
+      if (payload == null || !mounted) return;
+      try {
+        final data = jsonDecode(payload);
+        final String type = data['type'] ?? '';
+        final String? postId = data['postId'];
+        final String? questionId = data['questionId'];
+        final String? fromUid = data['fromUid'];
+
+        if (type == 'message' && fromUid != null) {
+          final me = context.read<AuthProvider>().currentUserOrNull;
+          if (me == null) return;
+          
+          final msgP = context.read<MessagesProvider>();
+          final conv = msgP.conversations.firstWhere(
+            (c) => c.participants.contains(fromUid),
+            orElse: () => ConversationModel(
+              id: '', // Temporary ID, will be resolved by getOrCreate
+              participants: [me.id, fromUid],
+              createdAt: DateTime.now(),
+            ),
+          );
+          
+          final other = context.read<UsersProvider>().getUserById(fromUid);
+          if (other != null) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ChatDetailScreen(
+                  conversation: conv,
+                  otherUser: other,
+                ),
+              ),
+            );
+          }
+        } else if (type == 'like' || type == 'comment') {
+           // We navigate to profile for now since PostDetail is new
+           if (fromUid != null) {
+             Navigator.push(
+               context,
+               MaterialPageRoute(builder: (_) => ProfileScreen(userId: fromUid)),
+             );
+           }
+        } else if (type == 'pr_request' || type == 'solved') {
+          if (questionId != null) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => QuestionDetailScreen(questionId: questionId)),
+            );
+          }
+        }
+      } catch (e) {
+        debugPrint('Failed to handle notification tap: $e');
+      }
+    });
   }
 
   Future<void> _initProviders() async {
@@ -244,6 +307,13 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
         debugPrint('Provider initialization failed: $e');
       }
     }
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _notificationSubscription?.cancel();
+    super.dispose();
   }
 
 
@@ -337,6 +407,8 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                         return ListTile(
                           onTap: () async {
                             if (!n.read) provider.markAsRead(n.id);
+                            
+                            // Navigation logic for different types
                             if (n.questionId != null) {
                               Navigator.pop(context);
                               Navigator.push(
@@ -347,6 +419,47 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                                   ),
                                 ),
                               );
+                            } else if (n.postId != null) {
+                              Navigator.pop(context);
+                              // We don't have a PostDetailScreen yet, 
+                              // so we navigate to the user profile where the post is.
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ProfileScreen(userId: n.toUid),
+                                ),
+                              );
+                            } else if (n.type == 'follow') {
+                              Navigator.pop(context);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ProfileScreen(userId: n.fromUid),
+                                ),
+                              );
+                            } else if (n.type == 'message') {
+                              Navigator.pop(context);
+                              final msgP = context.read<MessagesProvider>();
+                              final conv = msgP.conversations.firstWhere(
+                                (c) => c.participants.contains(n.fromUid),
+                                orElse: () => ConversationModel(
+                                  id: n.payload?['conversation_id'] ?? '',
+                                  participants: [me.id, n.fromUid],
+                                  createdAt: DateTime.now(),
+                                ),
+                              );
+                              final other = context.read<UsersProvider>().getUserById(n.fromUid);
+                              if (other != null) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ChatDetailScreen(
+                                      conversation: conv,
+                                      otherUser: other,
+                                    ),
+                                  ),
+                                );
+                              }
                             }
                           },
                           leading: Container(
@@ -511,12 +624,6 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
     if (index == _tab) return;
     setState(() => _tab = index);
     _pageController.jumpToPage(index);
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
   }
 
   @override
@@ -716,7 +823,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
           },
           child: PageView(
             controller: _pageController,
-            physics: const NeverScrollableScrollPhysics(),
+            physics: const BouncingScrollPhysics(),
             onPageChanged: (index) {
               if (_tab != index && mounted) {
                 setState(() => _tab = index);

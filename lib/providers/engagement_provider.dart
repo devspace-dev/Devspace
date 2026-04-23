@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../models/aura_summary_model.dart';
 import '../models/daily_challenge_model.dart';
 import '../models/event_access_model.dart';
+import '../models/aura_ledger_model.dart';
 import '../services/auth_service.dart';
+import '../services/supabase_service.dart';
 import '../services/backend_api_service.dart';
 
 typedef AuraSummaryLoader = Future<AuraSummaryModel> Function();
@@ -17,6 +19,7 @@ typedef DailyChallengeSubmitter = Future<Map<String, dynamic>> Function({
 typedef WeeklyFreeChallengeSubmitter = Future<Map<String, dynamic>> Function({
   required String submissionText,
   required String submissionLink,
+  String? challengeId,
 });
 typedef UserRefreshCallback = Future<void> Function();
 
@@ -77,6 +80,8 @@ class EngagementProvider extends ChangeNotifier {
   bool _isLoading = false;
   bool _isSubmittingChallenge = false;
   bool _isEnrollingWeekly = false;
+  List<AuraLedgerModel> _auraHistory = [];
+  bool _isLoadingHistory = false;
   String? _error;
 
   AuraSummaryModel? get auraSummary => _auraSummary;
@@ -84,8 +89,10 @@ class EngagementProvider extends ChangeNotifier {
   List<DailyChallengeModel> get weeklyFreeChallenges => List.unmodifiable(_weeklyFreeChallenges);
   DailyChallengeModel? get weeklyFreeChallenge => _weeklyFreeChallenges.isNotEmpty ? _weeklyFreeChallenges.first : null;
   List<EventAccessModel> get events => List.unmodifiable(_events);
+  List<AuraLedgerModel> get auraHistory => List.unmodifiable(_auraHistory);
   bool get isWeeklyChallengeEnrolled => _isWeeklyChallengeEnrolled;
   bool get isLoading => _isLoading;
+  bool get isLoadingHistory => _isLoadingHistory;
   bool get isSubmittingChallenge => _isSubmittingChallenge;
   bool get isEnrollingWeekly => _isEnrollingWeekly;
   String? get error => _error;
@@ -123,15 +130,36 @@ class EngagementProvider extends ChangeNotifier {
   static Future<Map<String, dynamic>> _defaultWeeklyFreeChallengeSubmitter({
     required String submissionText,
     required String submissionLink,
+    String? challengeId,
   }) {
     return BackendApiService.instance.submitWeeklyFreeChallenge(
       submissionText: submissionText,
       submissionLink: submissionLink,
+      challengeId: challengeId,
     );
   }
 
   static Future<void> _defaultRefreshCurrentUser() {
     return AuthService.instance.refreshCurrentUser();
+  }
+
+  Future<void> fetchAuraHistory() async {
+    final user = _refreshCurrentUser != _defaultRefreshCurrentUser ? null : AuthService.instance.currentUser;
+    final uid = user?.id;
+    if (uid == null) return;
+
+    _isLoadingHistory = true;
+    notifyListeners();
+
+    try {
+      _auraHistory = await SupabaseService.instance.getAuraLedger(uid);
+      _error = null;
+    } catch (e) {
+      _error = 'Failed to load aura history: $e';
+    } finally {
+      _isLoadingHistory = false;
+      notifyListeners();
+    }
   }
 
   Future<void> fetchOverview({bool forceChallengeRefresh = false, String? techStack}) async {
@@ -237,6 +265,7 @@ class EngagementProvider extends ChangeNotifier {
   Future<bool> submitWeeklyFreeChallenge({
     required String submissionText,
     required String submissionLink,
+    String? challengeId,
   }) async {
     if (_isSubmittingChallenge) return false;
 
@@ -254,6 +283,7 @@ class EngagementProvider extends ChangeNotifier {
       await _weeklyFreeChallengeSubmitter(
         submissionText: submissionText,
         submissionLink: submissionLink,
+        challengeId: challengeId,
       );
 
       await fetchOverview(forceChallengeRefresh: true);

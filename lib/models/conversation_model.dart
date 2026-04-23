@@ -28,12 +28,12 @@ class ConversationModel {
       participantKey: json['participant_key']?.toString() ?? '',
       lastMessage: json['last_message'] as String?,
       lastMessageAt: json['last_message_at'] != null
-          ? DateTime.parse(json['last_message_at'] as String)
+          ? DateTime.parse(json['last_message_at'] as String).toLocal()
           : null,
       lastMessageSenderId: json['last_message_sender_id']?.toString(),
-      createdAt: DateTime.parse(json['created_at'] as String),
+      createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
       updatedAt: json['updated_at'] != null
-          ? DateTime.parse(json['updated_at'] as String)
+          ? DateTime.parse(json['updated_at'] as String).toLocal()
           : null,
       unreadCount: (json['unread_count'] as num? ?? 0).toInt(),
     );

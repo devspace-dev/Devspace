@@ -13,6 +13,7 @@ import '../screens/chat_detail_screen.dart';
 import '../screens/connections_screen.dart';
 import '../screens/founder_tools_screen.dart';
 import '../screens/profile_setup_screen.dart';
+import '../screens/aura_history_screen.dart';
 import '../screens/settings_screen.dart';
 import '../services/storage_service.dart';
 import '../theme/app_colors.dart';
@@ -372,8 +373,8 @@ class ProfileScreen extends StatelessWidget {
                         child: UserAvatar(
                           user: profileUser,
                           size: 86,
-                          showRing: true,
-                          showStory: true,
+                          showRing: false, // Cleaner look
+                          showStory: false,
                         ),
                       ),
                       const SizedBox(width: 20),
@@ -520,16 +521,36 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
-                  if (profileUser.stack.isNotEmpty) ...[
-                    Text(
-                      'Tech Stack',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textFor(context),
-                        letterSpacing: 0.5,
+                  const SizedBox(height: 28),
+                  if (profileUser.building.isNotEmpty && profileUser.building != 'Not set') ...[
+                    _SectionLabel(
+                      label: 'CURRENTLY BUILDING',
+                      icon: Icons.auto_awesome_outlined,
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.bg2For(context),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.borderFor(context)),
                       ),
+                      child: Text(
+                        profileUser.building,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textFor(context),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                  ],
+                  if (profileUser.stack.isNotEmpty) ...[
+                    _SectionLabel(
+                      label: 'TECH STACK',
+                      icon: Icons.layers_outlined,
                     ),
                     const SizedBox(height: 12),
                     Wrap(
@@ -539,18 +560,24 @@ class ProfileScreen extends StatelessWidget {
                           .map((s) => _SkillChip(label: s))
                           .toList(),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 28),
                   ],
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.bg2For(context),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                          color: AppColors.borderFor(context)
-                              .withValues(alpha: 0.5)),
+                  GestureDetector(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AuraHistoryScreen()),
                     ),
-                    child: AuraBar(aura: profileUser.aura),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.bg2For(context),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                            color: AppColors.borderFor(context)
+                                .withValues(alpha: 0.5)),
+                      ),
+                      child: AuraBar(aura: profileUser.aura),
+                    ),
                   ),
                   const SizedBox(height: 16),
                   GitHubCard(githubHandle: profileUser.githubHandle),
@@ -697,6 +724,32 @@ class _AvatarPreviewFallback extends StatelessWidget {
           color: user.color,
         ),
       ),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  final String label;
+  final IconData icon;
+
+  const _SectionLabel({required this.label, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: AppColors.text3For(context)),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 10,
+            fontWeight: FontWeight.w900,
+            color: AppColors.text3For(context),
+            letterSpacing: 1.0,
+          ),
+        ),
+      ],
     );
   }
 }

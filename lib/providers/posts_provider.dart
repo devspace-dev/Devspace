@@ -177,6 +177,8 @@ class PostsProvider extends ChangeNotifier {
     String content,
     List<String> tags, {
     File? imageFile,
+    File? docFile,
+    String? docName,
     String? quotePostId,
   }) async {
     final trimmedContent = content.trim();
@@ -186,10 +188,10 @@ class PostsProvider extends ChangeNotifier {
         .toSet()
         .toList();
 
-    if (!canCreatePost(trimmedContent, imageFile: imageFile)) {
+    if (!canCreatePost(trimmedContent, imageFile: imageFile) && docFile == null) {
       return const PostCreateResult(
         success: false,
-        error: 'Add some text or attach an image to post.',
+        error: 'Add some text, attach an image, or upload a document to post.',
       );
     }
 
@@ -207,18 +209,34 @@ class PostsProvider extends ChangeNotifier {
         }
       }
 
+      var uploadedDocUrl = '';
+      if (docFile != null) {
+        try {
+          uploadedDocUrl = await StorageService.instance
+              .uploadPostDocument(docFile, docName ?? 'document');
+        } catch (e) {
+          return PostCreateResult(
+            success: false,
+            error: 'Failed to upload document: $e',
+          );
+        }
+      }
+
       await SupabaseService.instance.createPost(
         userId: userId,
         content: trimmedContent,
         tags: normalizedTags,
         imageUrl: uploadedImageUrl,
+        documentUrl: uploadedDocUrl,
+        documentName: docName,
         quotePostId: quotePostId,
       );
       await refreshFeed();
       return PostCreateResult(
         success: true,
-        warning: imageFile != null && uploadedImageUrl.isEmpty
-            ? 'Post published without image.'
+        warning: (imageFile != null && uploadedImageUrl.isEmpty) ||
+                (docFile != null && uploadedDocUrl.isEmpty)
+            ? 'Post published with missing attachments.'
             : null,
       );
     } catch (e) {

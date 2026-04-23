@@ -117,6 +117,17 @@ class StorageService {
     return _supabase.storage.from('images').getPublicUrl(path);
   }
 
+  Future<String> uploadPostDocument(File file, String originalName) async {
+    final extension = originalName.split('.').last;
+    final path = 'documents/${_uuid.v4()}.$extension';
+    await _supabase.storage.from('documents').upload(
+          path,
+          file,
+          fileOptions: const FileOptions(upsert: true),
+        );
+    return _supabase.storage.from('documents').getPublicUrl(path);
+  }
+
   /// Upload with progress callback.
   Future<String> uploadWithProgress(
     String path,

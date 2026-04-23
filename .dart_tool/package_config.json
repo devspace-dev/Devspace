@@ -3,7 +3,7 @@
   "packages": [
     {
       "name": "_flutterfire_internals",
-      "rootUri": "file:///C:/Users/Rexxon/AppData/Local/Pub/Cache/hosted/pub.dev/_flutterfire_internals-1.3.68",
+      "rootUri": "file:///C:/Users/Rexxon/AppData/Local/Pub/Cache/hosted/pub.dev/_flutterfire_internals-1.3.69",
       "packageUri": "lib/",
       "languageVersion": "3.2"
     },
@@ -194,6 +194,12 @@
       "languageVersion": "3.0"
     },
     {
+      "name": "file_picker",
+      "rootUri": "file:///C:/Users/Rexxon/AppData/Local/Pub/Cache/hosted/pub.dev/file_picker-11.0.2",
+      "packageUri": "lib/",
+      "languageVersion": "3.4"
+    },
+    {
       "name": "file_selector_linux",
       "rootUri": "file:///C:/Users/Rexxon/AppData/Local/Pub/Cache/hosted/pub.dev/file_selector_linux-0.9.4",
       "packageUri": "lib/",
@@ -237,7 +243,7 @@
     },
     {
       "name": "firebase_core",
-      "rootUri": "file:///C:/Users/Rexxon/AppData/Local/Pub/Cache/hosted/pub.dev/firebase_core-4.6.0",
+      "rootUri": "file:///C:/Users/Rexxon/AppData/Local/Pub/Cache/hosted/pub.dev/firebase_core-4.7.0",
       "packageUri": "lib/",
       "languageVersion": "3.2"
     },
@@ -249,7 +255,7 @@
     },
     {
       "name": "firebase_core_web",
-      "rootUri": "file:///C:/Users/Rexxon/AppData/Local/Pub/Cache/hosted/pub.dev/firebase_core_web-3.5.1",
+      "rootUri": "file:///C:/Users/Rexxon/AppData/Local/Pub/Cache/hosted/pub.dev/firebase_core_web-3.6.0",
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
@@ -264,6 +270,24 @@
       "rootUri": "file:///C:/Users/Rexxon/AppData/Local/Pub/Cache/hosted/pub.dev/firebase_crashlytics_platform_interface-3.8.19",
       "packageUri": "lib/",
       "languageVersion": "3.2"
+    },
+    {
+      "name": "firebase_messaging",
+      "rootUri": "file:///C:/Users/Rexxon/AppData/Local/Pub/Cache/hosted/pub.dev/firebase_messaging-16.2.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.2"
+    },
+    {
+      "name": "firebase_messaging_platform_interface",
+      "rootUri": "file:///C:/Users/Rexxon/AppData/Local/Pub/Cache/hosted/pub.dev/firebase_messaging_platform_interface-4.7.9",
+      "packageUri": "lib/",
+      "languageVersion": "3.2"
+    },
+    {
+      "name": "firebase_messaging_web",
+      "rootUri": "file:///C:/Users/Rexxon/AppData/Local/Pub/Cache/hosted/pub.dev/firebase_messaging_web-4.1.5",
+      "packageUri": "lib/",
+      "languageVersion": "3.4"
     },
     {
       "name": "fixnum",

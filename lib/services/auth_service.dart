@@ -34,6 +34,7 @@ class AuthService {
   final bool _enforceCollegeDomain = false;
   bool _googleSignInInitialized = false;
   UserModel? _currentUser;
+  StreamSubscription? _profileSub;
   final _authStateController = StreamController<UserModel?>.broadcast();
 
   UserModel? get currentUser => _currentUser;
@@ -142,8 +143,12 @@ class AuthService {
         }
       } else if (event == AuthChangeEvent.signedOut) {
         _currentUser = null;
+        _unsubscribeFromProfileChanges();
       }
 
+      if (_currentUser != null) {
+        _subscribeToProfileChanges(_currentUser!.id);
+      }
       _authStateController.add(_currentUser);
 
       // Signal that initialization is complete after the first event
@@ -543,7 +548,28 @@ class AuthService {
     }
   }
 
+  void _subscribeToProfileChanges(String uid) {
+    if (_profileSub != null) return;
+
+    _profileSub = _supabase
+        .from('users')
+        .stream(primaryKey: ['id'])
+        .eq('id', uid)
+        .listen((data) {
+          if (data.isNotEmpty) {
+            _currentUser = UserModel.fromJson(data.first);
+            _authStateController.add(_currentUser);
+          }
+        });
+  }
+
+  void _unsubscribeFromProfileChanges() {
+    _profileSub?.cancel();
+    _profileSub = null;
+  }
+
   void dispose() {
+    _unsubscribeFromProfileChanges();
     _authStateController.close();
   }
 }

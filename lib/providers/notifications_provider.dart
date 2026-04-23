@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../models/notification_model.dart';
 import '../services/supabase_service.dart';
@@ -56,10 +57,19 @@ class NotificationsProvider extends ChangeNotifier {
     if (n.type == 'solved') title = 'Solution Accepted ✅';
     if (n.type == 'pr_request') title = 'Collaboration Request 🤝';
 
+    final payload = jsonEncode({
+      'type': n.type,
+      'postId': n.postId,
+      'questionId': n.questionId,
+      'fromUid': n.fromUid,
+      'id': n.id,
+    });
+
     NotificationService.instance.showLocalNotification(
       id: n.id,
       title: title,
       body: n.message,
+      payload: payload,
     );
   }
 
@@ -84,8 +94,9 @@ class NotificationsProvider extends ChangeNotifier {
 
   Future<void> markAllAsRead(String uid) async {
     // Optimistic UI update
-    _notifications =
-        _notifications.map<NotificationModel>((n) => n.copyWith(read: true)).toList();
+    _notifications = _notifications
+        .map<NotificationModel>((n) => n.copyWith(read: true))
+        .toList();
     notifyListeners();
 
     try {

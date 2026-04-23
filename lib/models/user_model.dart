@@ -22,6 +22,7 @@ class UserModel {
   final String githubHandle;
   final bool profileCompleted;
   final bool isAdmin;
+  final String fcmToken;
   bool isFollowing;
 
   UserModel({
@@ -46,6 +47,7 @@ class UserModel {
     required this.githubHandle,
     required this.profileCompleted,
     this.isAdmin = false,
+    this.fcmToken = '',
     this.isFollowing = false,
   });
 
@@ -84,6 +86,7 @@ class UserModel {
     String? githubHandle,
     bool? profileCompleted,
     bool? isAdmin,
+    String? fcmToken,
     bool? isFollowing,
   }) {
     return UserModel(
@@ -108,6 +111,7 @@ class UserModel {
       githubHandle: githubHandle ?? this.githubHandle,
       profileCompleted: profileCompleted ?? this.profileCompleted,
       isAdmin: isAdmin ?? this.isAdmin,
+      fcmToken: fcmToken ?? this.fcmToken,
       isFollowing: isFollowing ?? this.isFollowing,
     );
   }
@@ -134,6 +138,7 @@ class UserModel {
         'github_handle': githubHandle,
         'profile_completed': profileCompleted,
         'is_admin': isAdmin,
+        'fcm_token': fcmToken,
       };
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -192,6 +197,7 @@ class UserModel {
           (json['github_handle'] ?? json['githubHandle'] ?? '').toString(),
       profileCompleted: inferredCompleted,
       isAdmin: (json['is_admin'] ?? json['isAdmin']) == true,
+      fcmToken: (json['fcm_token'] ?? json['fcmToken'] ?? '').toString(),
     );
   }
 

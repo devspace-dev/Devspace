@@ -17,7 +17,7 @@ import '../widgets/user_avatar.dart';
 import '../services/storage_service.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-// Calling feature deferred to future update
+import 'profile_screen.dart';
 
 class ChatDetailScreen extends StatefulWidget {
   final ConversationModel conversation;
@@ -309,39 +309,55 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         ),
         title: Row(
           children: [
-            UserAvatar(user: widget.otherUser, size: 38),
+            GestureDetector(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ProfileScreen(userId: widget.otherUser.id),
+                ),
+              ),
+              child: UserAvatar(user: widget.otherUser, size: 38),
+            ),
             const SizedBox(width: 12),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.otherUser.name,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textFor(context),
-                    ),
+              child: GestureDetector(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ProfileScreen(userId: widget.otherUser.id),
                   ),
-                  if (_isOtherUserTyping)
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      'typing...',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    )
-                  else
-                    Text(
-                      'Active now',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: AppColors.text3For(context),
-                        fontWeight: FontWeight.w500,
+                      widget.otherUser.name,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textFor(context),
                       ),
                     ),
-                ],
+                    if (_isOtherUserTyping)
+                      Text(
+                        'typing...',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      )
+                    else
+                      Text(
+                        'Active now',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.text3For(context),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -375,6 +391,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
                 return ListView.builder(
                   controller: _scrollController,
+                  reverse: true, // Latest messages at the bottom
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
                   itemCount: messages.length,
@@ -451,11 +468,45 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   Widget _buildError(BuildContext context, String error) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Text(
-          'Failed to load messages: $error',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: AppColors.text2For(context)),
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.wifi_off_rounded, size: 48, color: AppColors.text3For(context)),
+            const SizedBox(height: 16),
+            Text(
+              'Failed to load messages',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textFor(context),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              error,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.text3For(context),
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                setState(() {}); // Trigger rebuild to retry stream
+              },
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Try Again'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -492,21 +543,25 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
     return Container(
       padding: EdgeInsets.fromLTRB(
-          12, 8, 12, MediaQuery.of(context).padding.bottom + 12),
+          8, 8, 8, MediaQuery.of(context).padding.bottom + 8),
       decoration: BoxDecoration(
         color: AppColors.bgFor(context),
         border: Border(
             top: BorderSide(
-                color: AppColors.borderFor(context).withOpacity(0.5),
+                color: AppColors.borderFor(context).withValues(alpha: 0.5),
                 width: 0.5)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          IconButton(
-            onPressed: _showOptions,
-            icon: Icon(Icons.add_circle_outline_rounded,
-                color: AppColors.primary, size: 28),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: IconButton(
+              onPressed: _showOptions,
+              icon: Icon(Icons.add_circle_outline_rounded,
+                  color: AppColors.primary, size: 28),
+              splashRadius: 24,
+            ),
           ),
           Expanded(
             child: Container(
@@ -516,7 +571,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 color: AppColors.bg2For(context),
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(
-                    color: AppColors.borderFor(context).withOpacity(0.5)),
+                    color: AppColors.borderFor(context).withValues(alpha: 0.5)),
               ),
               child: TextField(
                 controller: _controller,
@@ -528,45 +583,48 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 minLines: 1,
                 decoration: InputDecoration(
                   hintText: 'Message...',
-                  hintStyle: TextStyle(color: AppColors.text3For(context)),
+                  hintStyle: TextStyle(color: AppColors.text3For(context), fontSize: 15),
                   border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: isSending
-                ? null
-                : () {
-                    HapticFeedback.mediumImpact();
-                    _sendMessage();
-                  },
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 4),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                gradient: AppColors.premiumGradient,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  )
-                ],
+          const SizedBox(width: 4),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: GestureDetector(
+              onTap: isSending
+                  ? null
+                  : () {
+                      HapticFeedback.mediumImpact();
+                      _sendMessage();
+                    },
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: AppColors.premiumGradient,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    )
+                  ],
+                ),
+                child: isSending
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.send_rounded,
+                        color: Colors.white, size: 18),
               ),
-              child: isSending
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
-                  : const Icon(Icons.send_rounded,
-                      color: Colors.white, size: 18),
             ),
           ),
+          const SizedBox(width: 4),
         ],
       ),
     );
@@ -628,7 +686,15 @@ class _MessageBubble extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isMe) ...[
-            UserAvatar(user: otherUser, size: 28),
+            GestureDetector(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ProfileScreen(userId: otherUser.id),
+                ),
+              ),
+              child: UserAvatar(user: otherUser, size: 28),
+            ),
             const SizedBox(width: 8),
           ],
           Flexible(

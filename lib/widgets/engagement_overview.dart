@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../models/daily_challenge_model.dart';
 import '../providers/engagement_provider.dart';
 import '../screens/daily_challenge_screen.dart';
 import '../screens/opportunities_screen.dart';
 import '../screens/aura_board_screen.dart';
+import '../screens/aura_history_screen.dart';
 import '../theme/app_colors.dart';
 
 class EngagementOverview extends StatelessWidget {
@@ -99,9 +101,39 @@ class EngagementOverview extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                 child: GestureDetector(
                   onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const AuraBoardScreen(),
+                    showModalBottomSheet(
+                      context: context,
+                      backgroundColor: Colors.transparent,
+                      builder: (context) => Container(
+                        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+                        decoration: BoxDecoration(
+                          color: AppColors.bg2For(context),
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _DashboardAction(
+                              icon: Icons.history_rounded,
+                              title: 'Aura History',
+                              subtitle: 'See how you earned your points.',
+                              onTap: () {
+                                Navigator.pop(context);
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const AuraHistoryScreen()));
+                              },
+                            ),
+                            const SizedBox(height: 12),
+                            _DashboardAction(
+                              icon: Icons.leaderboard_rounded,
+                              title: 'Global Leaderboard',
+                              subtitle: 'See how you rank against other builders.',
+                              onTap: () {
+                                Navigator.pop(context);
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const AuraBoardScreen()));
+                              },
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -455,6 +487,72 @@ class _Metric extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _DashboardAction extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _DashboardAction({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.bg3For(context),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.borderFor(context)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: AppColors.primary, size: 22),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                      color: AppColors.textFor(context),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.text3For(context),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios_rounded, color: AppColors.text4For(context), size: 14),
+          ],
+        ),
       ),
     );
   }

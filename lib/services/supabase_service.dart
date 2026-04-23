@@ -9,6 +9,8 @@ import '../models/question_reply_model.dart';
 import '../models/question_pull_request_model.dart';
 import '../models/conversation_model.dart';
 import '../models/message_model.dart';
+import '../models/aura_ledger_model.dart';
+import '../models/aura_summary_model.dart';
 import 'calling_service.dart';
 
 /// SQL Schema for Supabase (Run this in Supabase SQL Editor):
@@ -324,6 +326,10 @@ class SupabaseService {
     await _client.from('users').update(data).eq('id', uid);
   }
 
+  Future<void> updateFcmToken(String uid, String token) async {
+    await _client.from('users').update({'fcm_token': token}).eq('id', uid);
+  }
+
   Future<void> deleteAccount() async {
     final user = _client.auth.currentUser;
     if (user == null) return;
@@ -423,6 +429,8 @@ class SupabaseService {
     required String content,
     required List<String> tags,
     String? imageUrl,
+    String? documentUrl,
+    String? documentName,
     String? quotePostId,
   }) async {
     final normalizedQuotePostId = _normalizeOptionalUuid(quotePostId);
@@ -430,6 +438,8 @@ class SupabaseService {
       'p_content': content,
       'p_tags': tags,
       'p_image_url': imageUrl ?? '',
+      'p_document_url': documentUrl ?? '',
+      'p_document_name': documentName ?? '',
     };
     if (normalizedQuotePostId != null) {
       params['p_quote_post_id'] = normalizedQuotePostId;
@@ -628,7 +638,7 @@ class SupabaseService {
     return (data as List).map((d) => QuestionReplyModel.fromJson(d)).toList();
   }
 
-  Future<void> addQuestionReply({
+  Future<String> addQuestionReply({
     required String questionId,
     required String userId,
     required String content,
@@ -674,13 +684,15 @@ class SupabaseService {
       normalizedParentReplyId = parentReply['id'].toString();
     }
 
-    await _client.from('question_replies').insert({
+    final data = await _client.from('question_replies').insert({
       'question_id': questionId,
       'user_id': userId,
       'content': trimmed,
       'parent_reply_id': normalizedParentReplyId,
       'replying_to_user_id': replyingToUserId,
-    });
+    }).select('id').single();
+
+    return data['id'].toString();
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -739,6 +751,50 @@ class SupabaseService {
     await _client
         .from('question_pull_requests')
         .update({'status': status}).eq('id', prId);
+  }
+
+  Future<void> acceptPullRequestAsSolution({
+    required String questionId,
+    required String prId,
+  }) async {
+    // 1. Get PR info
+    final pr = await _client.from('question_pull_requests').select().eq('id', prId).single();
+    final prUserId = pr['user_id'].toString();
+    final prMessage = pr['message'].toString();
+
+    // 2. Accept the PR
+    await _client.from('question_pull_requests').update({'status': 'accepted'}).eq('id', prId);
+
+    // 3. Check if user already has access (just in case, but rpc usually handles it)
+    // We'll skip it and just use the insert directly if rpc blocks it.
+    
+    // 4. Create a reply with the PR message
+    // Note: We bypass 'can_user_reply' check by inserting directly if needed,
+    // but here we just use the service method and assume it works since it's an acceptance flow.
+    final replyId = await _client.from('question_replies').insert({
+      'question_id': questionId,
+      'user_id': prUserId,
+      'content': 'Accepted Solution: $prMessage',
+    }).select('id').single();
+
+    // 5. Mark as solved
+    await markSolvedReply(questionId: questionId, replyId: replyId['id'].toString());
+
+    // 6. Notify the PR owner
+    try {
+      final question = await getQuestionById(questionId);
+      if (question != null) {
+        await pushNotification(
+          toUid: prUserId,
+          fromUid: question.userId,
+          type: 'pr_accepted',
+          questionId: questionId,
+          message: 'Your solution for "${question.title}" was accepted!',
+        );
+      }
+    } catch (e) {
+      debugPrint('Failed to send PR acceptance notification: $e');
+    }
   }
 
   Future<QuestionPullRequestModel?> getPullRequestStatus(
@@ -885,7 +941,7 @@ class SupabaseService {
         .from('messages')
         .stream(primaryKey: ['id'])
         .eq('conversation_id', conversationId)
-        .order('created_at', ascending: true)
+        .order('created_at', ascending: false)
         .map((list) => list.map((d) => MessageModel.fromJson(d)).toList());
   }
 
@@ -965,5 +1021,14 @@ class SupabaseService {
     );
 
     return ConversationModel.fromJson(Map<String, dynamic>.from(data as Map));
+  }
+
+  Future<List<AuraLedgerModel>> getAuraLedger(String userId) async {
+    final data = await _client
+        .from('aura_ledger')
+        .select()
+        .eq('user_id', userId)
+        .order('created_at', ascending: false);
+    return (data as List).map((d) => AuraLedgerModel.fromJson(d)).toList();
   }
 }

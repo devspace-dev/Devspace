@@ -120,18 +120,6 @@ class QuestionsProvider extends ChangeNotifier {
         message: trimmedMessage,
       );
 
-      // Send notification to question owner
-      final question = getQuestionById(questionId);
-      if (question != null) {
-        await SupabaseService.instance.pushNotification(
-          toUid: question.userId,
-          fromUid: userId,
-          type: 'pr_request',
-          questionId: questionId,
-          message: 'Someone wants to answer your question: "${question.title}"',
-        );
-      }
-
       await fetchPullRequests(questionId);
       return const QuestionActionResult(success: true);
     } catch (e) {
@@ -152,27 +140,22 @@ class QuestionsProvider extends ChangeNotifier {
     required String status,
   }) async {
     try {
-      await SupabaseService.instance.updatePullRequestStatus(
-        prId: prId,
-        status: status,
-      );
-
-      // Send notification if accepted
       if (status == 'accepted') {
-        final prs = _pullRequestsByQuestion[questionId] ?? [];
-        final pr = prs.firstWhere((p) => p.id == prId);
-        final question = getQuestionById(questionId);
-        if (question != null) {
-          await SupabaseService.instance.pushNotification(
-            toUid: pr.userId,
-            fromUid: question.userId,
-            type: 'pr_accepted',
-            message: 'Your request to answer "${question.title}" was accepted!',
-          );
-        }
+        await SupabaseService.instance.acceptPullRequestAsSolution(
+          questionId: questionId,
+          prId: prId,
+        );
+      } else {
+        await SupabaseService.instance.updatePullRequestStatus(
+          prId: prId,
+          status: status,
+        );
       }
 
       await fetchPullRequests(questionId);
+      await fetchReplies(questionId, force: true);
+      await refreshQuestions(); // To update solved status
+
       return const QuestionActionResult(success: true);
     } catch (e) {
       return QuestionActionResult(

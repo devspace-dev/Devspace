@@ -4,6 +4,8 @@ class PostModel {
   final String content;
   final List<String> tags;
   final String? imageUrl;
+  final String? documentUrl;
+  final String? documentName;
   final String? quotePostId;
   final DateTime createdAt;
   int likes;
@@ -19,6 +21,8 @@ class PostModel {
     required this.content,
     required this.tags,
     this.imageUrl,
+    this.documentUrl,
+    this.documentName,
     this.quotePostId,
     required this.createdAt,
     this.likes = 0,
@@ -32,6 +36,8 @@ class PostModel {
   PostModel copyWith({
     String? content,
     String? imageUrl,
+    String? documentUrl,
+    String? documentName,
     String? quotePostId,
     int? likes,
     int? comments,
@@ -46,6 +52,8 @@ class PostModel {
       content: content ?? this.content,
       tags: tags,
       imageUrl: imageUrl ?? this.imageUrl,
+      documentUrl: documentUrl ?? this.documentUrl,
+      documentName: documentName ?? this.documentName,
       quotePostId: quotePostId ?? this.quotePostId,
       createdAt: createdAt,
       likes: likes ?? this.likes,
@@ -63,6 +71,8 @@ class PostModel {
         'content': content,
         'tags': tags,
         'imageUrl': imageUrl,
+        'documentUrl': documentUrl,
+        'documentName': documentName,
         'quotePostId': quotePostId,
         'likes': likes,
         'comments': comments,
@@ -78,6 +88,8 @@ class PostModel {
       content: json['content']?.toString() ?? '',
       tags: List<String>.from(json['tags'] as List? ?? []),
       imageUrl: (json['image_url'] ?? json['imageUrl'])?.toString(),
+      documentUrl: (json['document_url'] ?? json['documentUrl'])?.toString(),
+      documentName: (json['document_name'] ?? json['documentName'])?.toString(),
       quotePostId: (json['quote_post_id'] ?? json['quotePostId'])?.toString(),
       createdAt: _parseDateTime(createdAtValue),
       likes: (json['likes_count'] ?? json['likes'] ?? 0) is num 

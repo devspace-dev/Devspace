@@ -532,8 +532,10 @@ class BackendApiService {
 
       return Map<String, dynamic>.from(data);
     } catch (error) {
+      debugPrint('updateEvent error for event $eventId: $error');
       if (!_isRouteMissingError(error)) rethrow;
 
+      debugPrint('updateEvent falling back to direct DB update for event $eventId');
       final data = await _client
           .from('events')
           .update({
@@ -721,21 +723,39 @@ class BackendApiService {
       // If missions empty, try challenges table (the one populated by SEED_WEEKLY_CHALLENGES.sql)
       if (results.isEmpty) {
         try {
+          final uid = _client.auth.currentUser?.id;
           final query = _client.from('challenges').select().eq('is_active', true);
           
-          if (techStack != null && techStack.trim().isNotEmpty) {
+          if (techStack != null && techStack.trim().isNotEmpty && techStack.toLowerCase() != 'general') {
             query.ilike('tech_stack', '%${techStack.trim()}%');
           }
           
-          final challengeRows = await query.order('publish_date', ascending: false).limit(10);
+          final challengeRows = await query.order('publish_date', ascending: false).limit(15);
           
           if (challengeRows is List && challengeRows.isNotEmpty) {
+            List<dynamic> userStatus = [];
+            if (uid != null) {
+              userStatus = await _client
+                  .from('user_challenges')
+                  .select('challenge_id, completed, completed_at, is_correct')
+                  .eq('user_id', uid);
+            }
+
+            final statusMap = {
+              for (final s in userStatus) s['challenge_id'].toString(): s
+            };
+
             for (final row in challengeRows) {
+              final id = row['id'].toString();
+              final status = statusMap[id];
+
               results.add(DailyChallengeModel.fromJson({
-                'id': 'weekly_${row['id']}',
-                'challenge_id': row['id'],
+                'id': status?['id'] ?? 'weekly_$id',
+                'challenge_id': id,
                 'assigned_date': row['publish_date'],
-                'completed': false,
+                'completed': status?['completed'] == true,
+                'completed_at': status?['completed_at'],
+                'is_correct': status?['is_correct'] == true,
                 'challenge': row,
               }));
             }
@@ -768,7 +788,47 @@ class BackendApiService {
     } catch (error) {
       if (!_isRouteMissingError(error)) rethrow;
       
-      // Attempt RPC submisson directly if possible
+      final uid = _client.auth.currentUser?.id;
+      if (uid == null) throw StateError('No authenticated session.');
+
+      // Fallback 1: If it's a specific challenge from the 'challenges' table
+      if (challengeId != null && challengeId.startsWith('weekly_')) {
+        try {
+          final realId = challengeId.replaceFirst('weekly_', '');
+          final challenge = await _client
+              .from('challenges')
+              .select('correct_answer, points_reward')
+              .eq('id', realId)
+              .single();
+          
+          final isCorrect = (challenge['correct_answer']?.toString() ?? '').trim() == submissionText.trim();
+          final points = isCorrect ? ((challenge['points_reward'] as num?)?.toInt() ?? 20) : 5;
+
+          await _client.from('user_challenges').upsert({
+            'user_id': uid,
+            'challenge_id': realId,
+            'completed': true,
+            'completed_at': DateTime.now().toUtc().toIso8601String(),
+            'is_correct': isCorrect,
+            'points_awarded': points,
+          }, onConflict: 'user_id, challenge_id');
+
+          // Award Aura
+          await _client.rpc('award_aura', params: {
+            'p_user_id': uid,
+            'p_action': isCorrect ? 'challenge_solved' : 'challenge_attempted',
+            'p_points': points,
+            'p_reference_type': 'challenge',
+            'p_reference_id': realId,
+          });
+
+          return {'success': true, 'is_correct': isCorrect, 'points': points};
+        } catch (e) {
+          debugPrint('Weekly challenges fallback failed: $e');
+        }
+      }
+
+      // Fallback 2: Try legacy RPCs
       try {
         final data = await _client.rpc(
           'submit_daily_mission',
