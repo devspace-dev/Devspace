@@ -24,15 +24,25 @@ class NotificationsProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
+    bool isFirstEvent = true;
+
     _subscription = SupabaseService.instance.streamNotifications(uid).listen(
       (data) {
-        // If we have new notifications that are unread, show a local notification
-        for (final n in data) {
-          if (!n.read &&
-              !_seenNotificationIds.contains(n.id) &&
-              DateTime.now().difference(n.createdAt).inMinutes < 5) {
+        if (isFirstEvent) {
+          isFirstEvent = false;
+          // On first load, just record everything as seen to prevent popups
+          for (final n in data) {
             _seenNotificationIds.add(n.id);
-            _showLocal(n);
+          }
+        } else {
+          // If we have new notifications that are unread, show a local notification
+          for (final n in data) {
+            if (!n.read &&
+                !_seenNotificationIds.contains(n.id) &&
+                DateTime.now().difference(n.createdAt).inMinutes < 5) {
+              _seenNotificationIds.add(n.id);
+              _showLocal(n);
+            }
           }
         }
 

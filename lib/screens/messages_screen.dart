@@ -152,16 +152,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
           ),
         ),
       ),
-      actions: [
-        Padding(
-          padding: const EdgeInsets.only(right: 8),
-          child: IconButton(
-            onPressed: () => _showTopOptions(context),
-            icon: Icon(Icons.more_horiz_rounded,
-                color: AppColors.textFor(context)),
-          ),
-        ),
-      ],
     );
   }
 
@@ -476,15 +466,20 @@ class _ConversationCard extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          otherUser.name,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontWeight:
-                                hasUnread ? FontWeight.w800 : FontWeight.w700,
-                            fontSize: 17,
-                            color: AppColors.textFor(context),
+                        Expanded(
+                          child: Text(
+                            otherUser.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontWeight:
+                                  hasUnread ? FontWeight.w800 : FontWeight.w700,
+                              fontSize: 17,
+                              color: AppColors.textFor(context),
+                            ),
                           ),
                         ),
+                        const SizedBox(width: 8),
                         if (conversation.lastMessageAt != null)
                           Text(
                             _formatTime(conversation.lastMessageAt!),

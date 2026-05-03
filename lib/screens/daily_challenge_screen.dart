@@ -141,59 +141,63 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
       body: Stack(
         children: [
           AppGradientBackground(
-            child: CustomScrollView(
-              physics: const BouncingScrollPhysics(),
-              slivers: [
-                _buildAppBar(context),
-                SliverToBoxAdapter(
-                  child: Consumer<EngagementProvider>(
-                    builder: (context, provider, _) {
-                      if (provider.isLoading && provider.dailyChallenge == null) {
-                        return const Center(
+            child: Consumer<EngagementProvider>(
+              builder: (context, provider, _) {
+                return CustomScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  slivers: [
+                    _buildAppBar(context),
+                    if (provider.isLoading && provider.dailyChallenge == null)
+                      const SliverFillRemaining(
+                        child: Center(
                           child: CircularProgressIndicator.adaptive(),
-                        );
-                      }
-
-                      final daily = provider.dailyChallenge;
-                      if (daily == null) {
-                        return const AppEmptyState(
+                        ),
+                      )
+                    else if (provider.dailyChallenge == null)
+                      const SliverFillRemaining(
+                        child: AppEmptyState(
                           icon: Icons.auto_awesome_rounded,
                           title: 'No mission today',
                           message: 'Check back later for a new mission.',
-                        );
-                      }
-
-                      if (!daily.completed &&
-                          _selectedOption != null &&
-                          !daily.options.contains(_selectedOption)) {
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (mounted) {
-                            setState(() {
-                              _selectedOption = null;
-                            });
-                          }
-                        });
-                      }
-
-                      return Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildMissionHeader(context, me),
-                            const SizedBox(height: 16),
-                            _buildMainCard(context, daily),
-                            const SizedBox(height: 16),
-                            if (!daily.completed) _buildActionSection(context, provider),
-                            if (daily.completed) _buildCompletionStatus(context, daily),
-                            const SizedBox(height: 32),
-                          ],
                         ),
-                      );
-                    },
-                  ),
-                ),
-              ],
+                      )
+                    else
+                      SliverToBoxAdapter(
+                        child: Builder(
+                          builder: (context) {
+                            final daily = provider.dailyChallenge!;
+                            if (!daily.completed &&
+                                _selectedOption != null &&
+                                !daily.options.contains(_selectedOption)) {
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                if (mounted) {
+                                  setState(() {
+                                    _selectedOption = null;
+                                  });
+                                }
+                              });
+                            }
+
+                            return Padding(
+                              padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildMissionHeader(context, me),
+                                  const SizedBox(height: 20),
+                                  _buildMainCard(context, daily),
+                                  const SizedBox(height: 24),
+                                  if (!daily.completed) _buildActionSection(context, provider),
+                                  if (daily.completed) _buildCompletionStatus(context, daily),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
           ),
           if (_showSuccessOverlay)

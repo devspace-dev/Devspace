@@ -151,7 +151,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scrollController.hasClients) return;
       _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
+        0.0,
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeOutCubic,
       );
@@ -400,10 +400,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     final msg = messages[index];
                     final isMe = msg.senderId == me.id;
 
-                    // Grouping logic
-                    final bool showDateHeader = index == 0 ||
+                    // Grouping logic (messages sorted desc, so index+1 is older)
+                    final bool showDateHeader = index == messages.length - 1 ||
                         messages[index].createdAt.day !=
-                            messages[index - 1].createdAt.day;
+                            messages[index + 1].createdAt.day ||
+                        messages[index].createdAt.month !=
+                            messages[index + 1].createdAt.month ||
+                        messages[index].createdAt.year !=
+                            messages[index + 1].createdAt.year;
 
                     return Column(
                       children: [

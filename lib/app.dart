@@ -714,21 +714,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                   );
                 },
               )
-            : (showFab
-                ? FloatingActionButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const DailyChallengeScreen(),
-                        ),
-                      );
-                    },
-                    backgroundColor: AppColors.primary,
-                    child: const Icon(Icons.emoji_events_rounded,
-                        color: Colors.white),
-                  )
-                : null),
+            : const SizedBox.shrink(),
       ),
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(kToolbarHeight),

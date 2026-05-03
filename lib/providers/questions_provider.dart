@@ -193,37 +193,51 @@ class QuestionsProvider extends ChangeNotifier {
       }
     }
 
-    subscription = SupabaseService.instance.streamQuestions(filter: _currentFilter).listen(
-      (newList) async {
-        try {
-          final currentUser = AuthService.instance.currentUser;
-          if (currentUser == null) {
-            _questions = newList;
-          } else {
-            final upvotedIds = await SupabaseService.instance
-                .getUpvotedQuestionIds(currentUser.id);
-            _questions = newList
-                .map((question) => _mergeHydratedQuestion(question, upvotedIds))
-                .toList();
+    try {
+      subscription = SupabaseService.instance.streamQuestions(filter: _currentFilter).listen(
+        (newList) async {
+          try {
+            final currentUser = AuthService.instance.currentUser;
+            if (currentUser == null) {
+              _questions = newList;
+            } else {
+              final upvotedIds = await SupabaseService.instance
+                  .getUpvotedQuestionIds(currentUser.id);
+              _questions = newList
+                  .map((question) => _mergeHydratedQuestion(question, upvotedIds))
+                  .toList();
+            }
+            _error = null;
+          } catch (e) {
+            _error = 'Failed to load questions: $e';
+          } finally {
+            _isLoading = false;
+            notifyListeners();
+            completeOnce();
           }
-          _error = null;
-        } catch (e) {
-          _error = 'Failed to load questions: $e';
-        } finally {
+        },
+        onError: (Object error, StackTrace stackTrace) {
+          _error = 'Failed to load questions: $error';
           _isLoading = false;
           notifyListeners();
           completeOnce();
-        }
-      },
-      onError: (Object error, StackTrace stackTrace) {
-        _error = 'Failed to load questions: $error';
-        _isLoading = false;
-        notifyListeners();
-        completeOnce();
-      },
-    );
+        },
+        onDone: () {
+          if (_isLoading) {
+            _isLoading = false;
+            notifyListeners();
+          }
+          completeOnce();
+        },
+      );
+      _questionsSub = subscription;
+    } catch (e) {
+      _error = 'Failed to initialize questions: $e';
+      _isLoading = false;
+      notifyListeners();
+      completeOnce();
+    }
 
-    _questionsSub = subscription;
     await completer.future;
   }
 

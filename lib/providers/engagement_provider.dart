@@ -167,66 +167,71 @@ class EngagementProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
-    final results = await Future.wait([
-      _OverviewLoadResult.guard(_auraSummaryLoader),
-      _OverviewLoadResult.guard(_eligibleEventsLoader),
-      _OverviewLoadResult.guard(_dailyChallengeLoader),
-      _OverviewLoadResult.guard(
-        () => _weeklyFreeChallengeLoader(techStack: techStack),
-      ),
-    ]);
+    try {
+      final results = await Future.wait([
+        _OverviewLoadResult.guard(_auraSummaryLoader),
+        _OverviewLoadResult.guard(_eligibleEventsLoader),
+        _OverviewLoadResult.guard(_dailyChallengeLoader),
+        _OverviewLoadResult.guard(
+          () => _weeklyFreeChallengeLoader(techStack: techStack),
+        ),
+      ]).timeout(const Duration(seconds: 25));
 
-    final auraResult = results[0] as _OverviewLoadResult<AuraSummaryModel>;
-    final eventsResult =
-        results[1] as _OverviewLoadResult<List<EventAccessModel>>;
-    final challengeResult =
-        results[2] as _OverviewLoadResult<DailyChallengeModel?>;
-    final weeklyResult =
-        results[3] as _OverviewLoadResult<List<DailyChallengeModel>>;
+      final auraResult = results[0] as _OverviewLoadResult<AuraSummaryModel>;
+      final eventsResult =
+          results[1] as _OverviewLoadResult<List<EventAccessModel>>;
+      final challengeResult =
+          results[2] as _OverviewLoadResult<DailyChallengeModel?>;
+      final weeklyResult =
+          results[3] as _OverviewLoadResult<List<DailyChallengeModel>>;
 
-    final failures = <Object>[];
+      final failures = <Object>[];
 
-    if (auraResult.data != null) {
-      _auraSummary = auraResult.data;
-    } else if (auraResult.hasError) {
-      failures.add(auraResult.error!);
+      if (auraResult.data != null) {
+        _auraSummary = auraResult.data;
+      } else if (auraResult.hasError) {
+        failures.add(auraResult.error!);
+      }
+
+      if (eventsResult.data != null) {
+        _events = eventsResult.data!;
+      } else if (eventsResult.hasError) {
+        failures.add(eventsResult.error!);
+      }
+
+      if (!challengeResult.hasError) {
+        _dailyChallenge = challengeResult.data;
+      } else {
+        failures.add(challengeResult.error!);
+      }
+
+      if (weeklyResult.data != null) {
+        _weeklyFreeChallenges = weeklyResult.data!;
+      } else if (weeklyResult.hasError) {
+        failures.add(weeklyResult.error!);
+      }
+
+      for (final failure in failures) {
+        debugPrint('Error loading engagement data: $failure');
+      }
+
+      final hasAnyOverviewData = _auraSummary != null ||
+          _dailyChallenge != null ||
+          _events.isNotEmpty ||
+          _weeklyFreeChallenges.isNotEmpty;
+
+      _error = failures.isEmpty
+          ? null
+          : hasAnyOverviewData
+              ? 'Some engagement sections could not refresh. Pull to retry.'
+              : 'Failed to refresh engagement data. Please try again.';
+    } catch (e, st) {
+      debugPrint('CRITICAL ERROR in fetchOverview: $e\n$st');
+      _error = 'An unexpected error occurred while loading. Please try again.';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
-
-    if (eventsResult.data != null) {
-      _events = eventsResult.data!;
-    } else if (eventsResult.hasError) {
-      failures.add(eventsResult.error!);
-    }
-
-    if (!challengeResult.hasError) {
-      _dailyChallenge = challengeResult.data;
-    } else {
-      failures.add(challengeResult.error!);
-    }
-
-    if (weeklyResult.data != null) {
-      _weeklyFreeChallenges = weeklyResult.data!;
-    } else if (weeklyResult.hasError) {
-      failures.add(weeklyResult.error!);
-    }
-
-    for (final failure in failures) {
-      debugPrint('Error loading engagement data: $failure');
-    }
-
-    final hasAnyOverviewData = _auraSummary != null ||
-        _dailyChallenge != null ||
-        _events.isNotEmpty ||
-        _weeklyFreeChallenges.isNotEmpty;
-
-    _error = failures.isEmpty
-        ? null
-        : hasAnyOverviewData
-            ? 'Some engagement sections could not refresh. Pull to retry.'
-            : 'Failed to refresh engagement data. Please try again.';
-
-    _isLoading = false;
-    notifyListeners();
   }
 
   Future<bool> submitDailyChallenge({

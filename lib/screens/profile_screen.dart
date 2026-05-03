@@ -21,6 +21,7 @@ import '../widgets/app_state_widgets.dart';
 import '../widgets/post_card.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/skeleton_loaders.dart';
+import '../widgets/github_stats_card.dart';
 
 class ProfileScreen extends StatelessWidget {
   final String? userId;
@@ -360,26 +361,32 @@ class ProfileScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(22),
+                    padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
                         colors: [
-                          AppColors.primary.withValues(alpha: 0.24),
-                          AppColors.bg2For(context),
+                          AppColors.primary.withValues(alpha: 0.15),
+                          AppColors.bg2For(context).withValues(alpha: 0.8),
                           AppColors.bg3For(context),
                         ],
                       ),
-                      borderRadius: BorderRadius.circular(30),
+                      borderRadius: BorderRadius.circular(32),
                       border: Border.all(
-                        color: AppColors.borderFor(context).withValues(alpha: 0.85),
+                        color: Colors.white.withValues(alpha: 0.08),
+                        width: 1.5,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.12),
-                          blurRadius: 34,
-                          offset: const Offset(0, 16),
+                          color: Colors.black.withValues(alpha: 0.4),
+                          blurRadius: 40,
+                          offset: const Offset(0, 20),
+                        ),
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.05),
+                          blurRadius: 20,
+                          spreadRadius: -5,
                         ),
                       ],
                     ),
@@ -401,7 +408,7 @@ class ProfileScreen extends StatelessWidget {
                           ),
                         ),
                         child: Text(
-                          isMe ? 'Builder portfolio' : 'Portfolio preview',
+                          isMe ? 'My Developer Profile' : 'Developer Profile',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 11,
                             fontWeight: FontWeight.w800,
@@ -595,12 +602,13 @@ class ProfileScreen extends StatelessWidget {
                         MaterialPageRoute(builder: (_) => const AuraHistoryScreen()),
                       ),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         decoration: BoxDecoration(
-                          color: Colors.amber.withValues(alpha: 0.12),
+                          color: Colors.amber.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(999),
                           border: Border.all(
-                            color: Colors.amber.withValues(alpha: 0.22),
+                            color: Colors.amber.withValues(alpha: 0.3),
+                            width: 1.2,
                           ),
                         ),
                         child: Row(
@@ -636,14 +644,14 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ),
                   
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 28),
                   Container(
-                    padding: const EdgeInsets.only(top: 18),
+                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
                     decoration: BoxDecoration(
-                      border: Border.symmetric(
-                        horizontal: BorderSide(
-                          color: AppColors.borderFor(context).withValues(alpha: 0.5),
-                        ),
+                      color: AppColors.bg2For(context).withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.05),
                       ),
                     ),
                     child: Row(
@@ -711,13 +719,28 @@ class ProfileScreen extends StatelessWidget {
                     children: [
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.all(18),
+                        padding: const EdgeInsets.all(22),
                         decoration: BoxDecoration(
-                          color: AppColors.bg2For(context),
+                          gradient: LinearGradient(
+                            colors: [
+                              AppColors.primary.withValues(alpha: 0.1),
+                              AppColors.bg2For(context),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
                           borderRadius: BorderRadius.circular(24),
                           border: Border.all(
-                            color: AppColors.borderFor(context).withValues(alpha: 0.75),
+                            color: AppColors.primary.withValues(alpha: 0.3),
+                            width: 1.2,
                           ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primary.withValues(alpha: 0.05),
+                              blurRadius: 16,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -815,6 +838,10 @@ class ProfileScreen extends StatelessWidget {
                           ),
                         ),
                       ],
+                      if (profileUser.githubHandle.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        GitHubStatsCard(githubHandle: profileUser.githubHandle),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 28),
@@ -823,16 +850,16 @@ class ProfileScreen extends StatelessWidget {
                     child: Row(
                       children: [
                         Container(
-                          width: 4,
-                          height: 16,
+                          padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(99),
+                            color: AppColors.primary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
                           ),
+                          child: Icon(Icons.dynamic_feed_rounded, color: AppColors.primary, size: 20),
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 12),
                         Text(
-                          'Recent Builds',
+                          'Recent Posts',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 18,
                             fontWeight: FontWeight.w900,
@@ -868,7 +895,7 @@ class ProfileScreen extends StatelessWidget {
                         color: AppColors.text4For(context), size: 40),
                     const SizedBox(height: 16),
                     Text(
-                      'No builds shared yet.',
+                      'No posts shared yet.',
                       style: GoogleFonts.plusJakartaSans(
                         color: AppColors.text3For(context),
                         fontWeight: FontWeight.w600,

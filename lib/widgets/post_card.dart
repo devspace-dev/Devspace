@@ -122,40 +122,51 @@ class _PostCardState extends State<PostCard> {
                 Expanded(
                   child: GestureDetector(
                     onTap: () => _openProfile(context, author.id),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          author.name,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                            color: AppColors.textFor(context),
-                          ),
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                author.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                  color: AppColors.textFor(context),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              '•',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: AppColors.text3For(context),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              timeago.format(post.createdAt, locale: 'en_short'),
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 12,
+                                color: AppColors.text3For(context),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(height: 2),
                         Text(
                           '@${author.handle}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.plusJakartaSans(
                             fontWeight: FontWeight.w500,
                             fontSize: 12,
                             color: AppColors.text3For(context),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '•',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: AppColors.text3For(context),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          timeago.format(post.createdAt, locale: 'en_short'),
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 12,
-                            color: AppColors.text3For(context),
-                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],

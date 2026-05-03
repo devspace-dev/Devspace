@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/aura_summary_model.dart';
 import '../models/daily_challenge_model.dart';
@@ -109,14 +110,41 @@ class BackendApiService {
           orElse: () => Map<String, dynamic>.from(missionRows.first as Map),
         );
 
+    bool completed = false;
+    String? completedAt;
+    bool isCorrect = false;
+
+    try {
+      final existingFallback = await _client.from('user_challenges')
+          .select('completed, completed_at, is_correct')
+          .eq('user_id', user.id)
+          .eq('challenge_id', matchedMission['id'])
+          .maybeSingle();
+
+      if (existingFallback != null) {
+        completed = existingFallback['completed'] == true;
+        completedAt = existingFallback['completed_at']?.toString();
+        isCorrect = existingFallback['is_correct'] == true;
+      }
+    } catch (_) {}
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final localKey = 'mission_completed_${user.id}_$today';
+      if (prefs.getBool(localKey) == true) {
+        completed = true;
+        isCorrect = prefs.getBool('${localKey}_correct') ?? false;
+      }
+    } catch (_) {}
+
     return {
       'id': '',
       'mission_id': matchedMission['id'],
       'assigned_date': today,
       'selected_tech_stack': requestedCandidates.first,
-      'completed': false,
-      'completed_at': null,
-      'is_correct': false,
+      'completed': completed,
+      'completed_at': completedAt,
+      'is_correct': isCorrect,
       'mission': matchedMission,
     };
   }
@@ -387,31 +415,33 @@ class BackendApiService {
 
         final rows = await _client
             .from('events')
-            .select('id, title, description, required_aura, link, type, banner_url, date, end_date, location, organizer')
-            .or('end_date.is.null,end_date.gte.${DateTime.now().toUtc().toIso8601String()}')
+            .select('id, title, description, required_aura, link, type, banner_url, date, location, organizer')
             .order('required_aura', ascending: true);
 
-        return (rows as List)
-            .map((row) {
-              final event = Map<String, dynamic>.from(row as Map);
-              final requiredAura = (event['required_aura'] as num? ?? 0).toInt();
-              return EventAccessModel(
-                id: event['id'].toString(),
-                title: event['title']?.toString() ?? '',
-                description: event['description']?.toString() ?? '',
-                requiredAura: requiredAura,
-                link: event['link']?.toString() ?? '',
-                type: event['type']?.toString() ?? 'event',
-                unlocked: auraPoints >= requiredAura,
-                locked: auraPoints < requiredAura,
-                bannerUrl: event['banner_url']?.toString(),
-                date: event['date']?.toString(),
-                location: event['location']?.toString(),
-                organizer: event['organizer']?.toString(),
-              );
-            })
-            .toList();
-      } catch (_) {
+        final results = <EventAccessModel>[];
+        if (rows is List) {
+          for (final row in rows) {
+            final event = Map<String, dynamic>.from(row as Map);
+            final requiredAura = (event['required_aura'] as num? ?? 0).toInt();
+            results.add(EventAccessModel(
+              id: event['id'].toString(),
+              title: event['title']?.toString() ?? '',
+              description: event['description']?.toString() ?? '',
+              requiredAura: requiredAura,
+              link: event['link']?.toString() ?? '',
+              type: event['type']?.toString() ?? 'event',
+              unlocked: auraPoints >= requiredAura,
+              locked: auraPoints < requiredAura,
+              bannerUrl: event['banner_url']?.toString(),
+              date: event['date']?.toString(),
+              location: event['location']?.toString(),
+              organizer: event['organizer']?.toString(),
+            ));
+          }
+        }
+        return results;
+      } catch (e) {
+        debugPrint('Events fallback failed: $e');
         return const [];
       }
     }
@@ -660,6 +690,16 @@ class BackendApiService {
         }
       }
 
+      // Fallback 3.5: If RPC assignment failed or we still don't have a mission, resolve it locally
+      try {
+        final fallbackMission = await _resolveTodayMissionFallback(techStack: techStack);
+        if (fallbackMission != null) {
+          return DailyChallengeModel.fromJson(fallbackMission);
+        }
+      } catch (e) {
+        debugPrint('Fallback to _resolveTodayMissionFallback failed: $e');
+      }
+
       // 4. If missions table didn't work, try legacy challenges table
       try {
         final userChallengeRow = await _client
@@ -868,10 +908,15 @@ class BackendApiService {
 
       return Map<String, dynamic>.from(data);
     } catch (error) {
-      if (!_isRouteMissingError(error)) {
+      final errorString = error.toString();
+      final isMissingRoute = _isRouteMissingError(error);
+      final isUnassigned = errorString.contains('No daily challenge assigned') || errorString.contains('P0001');
+      
+      if (!isMissingRoute && !isUnassigned) {
         rethrow;
       }
 
+      // Try legacy RPCs first
       try {
         final data = await _client.rpc(
           'submit_daily_mission',
@@ -881,16 +926,80 @@ class BackendApiService {
           },
         );
         return Map<String, dynamic>.from(data as Map);
-      } catch (_) {}
+      } catch (rpcError) {
+        final rpcErrorStr = rpcError.toString();
+        if (!rpcErrorStr.contains('No daily challenge assigned') && !rpcErrorStr.contains('P0001')) {
+          try {
+            final data2 = await _client.rpc(
+              'complete_daily_challenge',
+              params: {
+                'p_submission_text': submissionText,
+                'p_submission_link': submissionLink,
+              },
+            );
+            return Map<String, dynamic>.from(data2 as Map);
+          } catch (_) {}
+        }
+      }
 
-      final data = await _client.rpc(
-        'complete_daily_challenge',
-        params: {
-          'p_submission_text': submissionText,
-          'p_submission_link': submissionLink,
-        },
-      );
-      return Map<String, dynamic>.from(data as Map);
+      // Local Grading Fallback
+      debugPrint('Running local grading fallback for daily mission...');
+      final uid = _client.auth.currentUser?.id;
+      if (uid == null) throw StateError('Not authenticated');
+
+      final todayMission = await _resolveTodayMissionFallback();
+      if (todayMission == null) {
+        throw StateError('No active mission found for today.');
+      }
+
+      final missionData = todayMission['mission'] as Map<String, dynamic>;
+      final missionId = missionData['id'];
+      final correctAnswer = (missionData['correct_answer']?.toString() ?? '').trim();
+      final pointsReward = (missionData['points_reward'] as num?)?.toInt() ?? 20;
+
+      final isCorrect = correctAnswer.isEmpty || 
+          correctAnswer.toLowerCase() == submissionText.trim().toLowerCase();
+      final points = isCorrect ? pointsReward : 5;
+      
+      final today = DateTime.now().toIso8601String().split('T').first;
+
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final localKey = 'mission_completed_${uid}_$today';
+        await prefs.setBool(localKey, true);
+        await prefs.setBool('${localKey}_correct', isCorrect);
+      } catch (e) {
+        debugPrint('Failed to save mission completion locally: $e');
+      }
+
+      try {
+        await _client.from('user_challenges').upsert({
+          'user_id': uid,
+          'challenge_id': missionId,
+          'assigned_date': today,
+          'completed': true,
+          'completed_at': DateTime.now().toUtc().toIso8601String(),
+          'is_correct': isCorrect,
+          'points_awarded': points,
+        }, onConflict: 'user_id, challenge_id');
+      } catch (upsertError) {
+        debugPrint('Failed to save to user_challenges: $upsertError');
+        // Let it pass so aura is still awarded and local tracking works
+      }
+
+      try {
+        await _client.rpc('award_aura', params: {
+          'p_user_id': uid,
+          'p_action': isCorrect ? 'mission_solved' : 'mission_attempted',
+          'p_points': points,
+          'p_reference_type': 'mission',
+          'p_reference_id': missionId,
+        });
+      } catch (auraError) {
+        debugPrint('Failed to award aura in fallback: $auraError');
+      }
+
+      return {'success': true, 'is_correct': isCorrect, 'points': points};
     }
   }
 

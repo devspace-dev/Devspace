@@ -607,7 +607,7 @@ class SupabaseService {
   // QUESTIONS & REPLIES
   // ══════════════════════════════════════════════════════════════════════════
 
-  Stream<List<QuestionModel>> streamQuestions({String filter = 'latest'}) {
+  Stream<List<QuestionModel>> streamQuestions({String filter = 'latest'}) async* {
     final baseQuery = _client.from('questions').select();
     late final dynamic query;
 
@@ -636,11 +636,8 @@ class SupabaseService {
         break;
     }
 
-    return Stream.fromFuture(
-      query
-          .limit(50)
-          .then((list) => (list as List).map((d) => QuestionModel.fromJson(d as Map<String, dynamic>)).toList()),
-    );
+    final data = await query.limit(50);
+    yield (data as List).map((d) => QuestionModel.fromJson(d as Map<String, dynamic>)).toList();
   }
 
   Future<QuestionModel?> getQuestionById(String questionId) async {
@@ -1032,13 +1029,42 @@ class SupabaseService {
       throw StateError('Authenticated user does not match message sender.');
     }
 
-    await _client.rpc(
-      'send_direct_message',
-      params: {
-        'p_conversation_id': conversationId,
-        'p_content': trimmed,
-      },
-    );
+    try {
+      final convData = await _client
+          .from('conversations')
+          .select('participants')
+          .eq('id', conversationId)
+          .single();
+
+      final participants = List<String>.from(convData['participants'] ?? []);
+      final otherUserId = participants.firstWhere((id) => id != senderId, orElse: () => senderId);
+
+      // Workaround: Bypass RPC to avoid payload column error in notifications
+      await _client.from('messages').insert({
+        'conversation_id': conversationId,
+        'sender_id': senderId,
+        'recipient_id': otherUserId,
+        'content': trimmed,
+      });
+
+      final now = DateTime.now().toUtc().toIso8601String();
+      await _client.from('conversations').update({
+        'updated_at': now,
+        'last_message': trimmed,
+        'last_message_at': now,
+        'last_message_sender_id': senderId,
+      }).eq('id', conversationId);
+
+      await pushNotification(
+        toUid: otherUserId,
+        fromUid: senderId,
+        type: 'message',
+        message: trimmed.length > 50 ? trimmed.substring(0, 47) + '...' : trimmed,
+      );
+    } catch (e) {
+      debugPrint('Failed to send message: $e');
+      rethrow;
+    }
   }
 
   Future<void> markConversationMessagesRead(
