@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:file_picker/file_picker.dart';
+import 'package:file_picker/file_picker.dart' as fp;
 import 'package:path/path.dart' as path;
 
 import 'package:flutter/material.dart';
@@ -670,8 +670,8 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
   Future<void> _pickDocument() async {
     HapticFeedback.lightImpact();
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
+      final result = await fp.FilePicker.pickFiles(
+        type: fp.FileType.custom,
         allowedExtensions: ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'txt'],
       );
 
