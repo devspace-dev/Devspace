@@ -19,6 +19,7 @@ import 'providers/notifications_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/engagement_provider.dart';
 import 'providers/messages_provider.dart';
+import 'providers/premium_provider.dart';
 import 'screens/profile_setup_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/auth_intro_screen.dart';
@@ -29,95 +30,10 @@ import 'utils/runtime_config.dart';
 import 'utils/secure_local_storage.dart';
 import 'package:safe_device/safe_device.dart';
 
-void main() async {
+final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Initialize Firebase
-  bool firebaseInitialized = false;
-  try {
-    await Firebase.initializeApp().timeout(const Duration(seconds: 5));
-    firebaseInitialized = true;
-
-    // Pass all uncaught "fatal" errors from the framework to Crashlytics
-    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
-
-    // Pass all uncaught asynchronous errors that aren't handled by the Flutter framework to Crashlytics
-    PlatformDispatcher.instance.onError = (error, stack) {
-      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-      return true;
-    };
-  } catch (e) {
-    if (kDebugMode) debugPrint('Firebase initialization failed: $e');
-  }
-
-  // SECURITY: Check for compromised device (Root/Jailbreak)
-  bool isCompromised = false;
-  try {
-    // Only enforce real device check in release builds to allow emulator debugging
-    final isJailBroken = await SafeDevice.isJailBroken;
-    final isRealDevice = await SafeDevice.isRealDevice;
-
-    if (kReleaseMode) {
-      isCompromised = isJailBroken || !isRealDevice;
-    } else {
-      isCompromised = isJailBroken;
-    }
-  } catch (e) {
-    debugPrint('Security check failed to run: $e');
-  }
-
-  String? bootstrapError;
-  String? supabaseUrl;
-  String? supabaseAnonKey;
-
-  try {
-    final runtimeConfig = await RuntimeConfig.load();
-    supabaseUrl = runtimeConfig.supabaseUrl;
-    supabaseAnonKey = runtimeConfig.supabaseAnonKey;
-  } catch (e) {
-    bootstrapError = 'Failed to load configuration: $e';
-  }
-
-  if (bootstrapError == null) {
-    if (supabaseUrl == null ||
-        supabaseUrl.isEmpty ||
-        supabaseAnonKey == null ||
-        supabaseAnonKey.isEmpty) {
-      bootstrapError =
-          'Missing Supabase runtime config. Run with SUPABASE_URL and SUPABASE_ANON_KEY using --dart-define, or add them to .env.local.json for local debug builds.';
-    } else if (!supabaseUrl.startsWith('https://')) {
-      bootstrapError =
-          'Invalid Supabase runtime config. SUPABASE_URL must use HTTPS in production-ready builds.';
-    } else {
-      try {
-        await Supabase.initialize(
-          url: supabaseUrl,
-          anonKey: supabaseAnonKey,
-          authOptions: const FlutterAuthClientOptions(
-            authFlowType: AuthFlowType.pkce,
-            localStorage: SecureLocalStorage(),
-          ),
-        ).timeout(const Duration(seconds: 5));
-
-        // Wait for auth to initialize and session to be restored
-        await AuthService.instance.init().timeout(const Duration(seconds: 5));
-
-        if (firebaseInitialized) {
-          await AnalyticsService.instance
-              .logAppOpen()
-              .timeout(const Duration(seconds: 3));
-        }
-        if (kDebugMode) {
-          debugPrint(
-            'Supabase initialized with RuntimeConfig.',
-          );
-        }
-      } catch (e) {
-        bootstrapError = 'Supabase initialization failed: $e';
-        debugPrint(bootstrapError);
-      }
-    }
-  }
 
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -131,11 +47,138 @@ void main() async {
     systemNavigationBarIconBrightness: Brightness.light,
   ));
 
-  runApp(
-    bootstrapError == null
-        ? DevSpaceRoot(isCompromised: isCompromised)
-        : DevSpaceSetupApp(error: bootstrapError),
-  );
+  runApp(const AppBootstrapper());
+}
+
+class AppBootstrapper extends StatefulWidget {
+  const AppBootstrapper({super.key});
+
+  @override
+  State<AppBootstrapper> createState() => _AppBootstrapperState();
+}
+
+class _AppBootstrapperState extends State<AppBootstrapper> {
+  bool _initialized = false;
+  String? _error;
+  bool _isCompromised = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initApp();
+  }
+
+  Future<void> _initApp() async {
+    bool firebaseInitialized = false;
+    bool isCompromisedLocal = false;
+    String? bootstrapErrorLocal;
+
+    try {
+      await Future.wait([
+        // Task A: Firebase Initialization
+        Firebase.initializeApp()
+            .timeout(const Duration(seconds: 5))
+            .then((_) {
+          firebaseInitialized = true;
+          FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+          PlatformDispatcher.instance.onError = (error, stack) {
+            FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+            return true;
+          };
+        }).catchError((e) {
+          if (kDebugMode) debugPrint('Firebase initialization failed: $e');
+        }),
+
+        // Task B: Security check for compromised device
+        Future(() async {
+          try {
+            final isJailBroken = await SafeDevice.isJailBroken;
+            final isRealDevice = await SafeDevice.isRealDevice;
+            if (kReleaseMode) {
+              isCompromisedLocal = isJailBroken || !isRealDevice;
+            } else {
+              isCompromisedLocal = isJailBroken;
+            }
+          } catch (e) {
+            debugPrint('Security check failed to run: $e');
+          }
+        }),
+
+        // Task C: Runtime config & Supabase Initialization
+        Future(() async {
+          try {
+            final runtimeConfig = await RuntimeConfig.load();
+            final supabaseUrl = runtimeConfig.supabaseUrl;
+            final supabaseAnonKey = runtimeConfig.supabaseAnonKey;
+
+            if (supabaseUrl == null ||
+                supabaseUrl.isEmpty ||
+                supabaseAnonKey == null ||
+                supabaseAnonKey.isEmpty) {
+              bootstrapErrorLocal =
+                  'Missing Supabase runtime config. Run with SUPABASE_URL and SUPABASE_ANON_KEY using --dart-define.';
+            } else if (!supabaseUrl.startsWith('https://')) {
+              bootstrapErrorLocal =
+                  'Invalid Supabase runtime config. SUPABASE_URL must use HTTPS in production-ready builds.';
+            } else {
+              await Supabase.initialize(
+                url: supabaseUrl,
+                anonKey: supabaseAnonKey,
+                authOptions: const FlutterAuthClientOptions(
+                  authFlowType: AuthFlowType.pkce,
+                  localStorage: SecureLocalStorage(),
+                ),
+              ).timeout(const Duration(seconds: 5));
+
+              await AuthService.instance.init().timeout(const Duration(seconds: 5));
+            }
+          } catch (e) {
+            bootstrapErrorLocal = 'Supabase initialization failed: $e';
+          }
+        }),
+      ]);
+
+      if (firebaseInitialized && bootstrapErrorLocal == null) {
+        AnalyticsService.instance
+            .logAppOpen()
+            .timeout(const Duration(seconds: 3))
+            .catchError((_) {});
+      }
+    } catch (e) {
+      bootstrapErrorLocal ??= 'Initialization failed: $e';
+    }
+
+    if (mounted) {
+      setState(() {
+        _isCompromised = isCompromisedLocal;
+        _error = bootstrapErrorLocal;
+        _initialized = true;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 600),
+      child: !_initialized
+          ? MaterialApp(
+              key: const ValueKey('splash'),
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.dark,
+              home: const SplashScreen(),
+            )
+          : (_error == null
+              ? DevSpaceRoot(
+                  key: const ValueKey('app'),
+                  isCompromised: _isCompromised,
+                )
+              : DevSpaceSetupApp(
+                  key: const ValueKey('setup'),
+                  error: _error!,
+                )),
+    );
+  }
 }
 
 class DevSpaceRoot extends StatelessWidget {
@@ -155,12 +198,14 @@ class DevSpaceRoot extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => NotificationsProvider()),
         ChangeNotifierProvider(create: (_) => EngagementProvider()),
         ChangeNotifierProvider(create: (_) => MessagesProvider()),
+        ChangeNotifierProvider(create: (_) => PremiumProvider()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {
           return MaterialApp(
             title: 'DevSpace',
             debugShowCheckedModeBanner: false,
+            scaffoldMessengerKey: rootScaffoldMessengerKey,
             theme: AppTheme.light,
             darkTheme: AppTheme.dark,
             themeMode: themeProvider.themeMode,
@@ -201,49 +246,14 @@ class _Root extends StatefulWidget {
 }
 
 class _RootState extends State<_Root> {
-  bool _showSplash = true;
   String? _notificationsInitializedForUid;
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 1000),
-      reverseDuration: const Duration(milliseconds: 800),
-      switchInCurve: Curves.easeInOutQuart,
-      switchOutCurve: Curves.easeInOutQuart,
-      transitionBuilder: (child, animation) {
-        final isApp = child is DevSpaceApp;
-
-        // Premium zoom-in effect for the main app entry
-        final scale = Tween<double>(
-          begin: isApp ? 1.05 : 0.96,
-          end: 1.0,
-        ).animate(CurvedAnimation(
-          parent: animation,
-          curve: Curves.easeOutQuart,
-        ));
-
-        return FadeTransition(
-          opacity: animation,
-          child: ScaleTransition(
-            scale: scale,
-            child: child,
-          ),
-        );
-      },
-      child: _buildCurrentScreen(),
-    );
+    return _buildCurrentScreen();
   }
 
   Widget _buildCurrentScreen() {
-    if (_showSplash) {
-      return SplashScreen(
-        key: const ValueKey('splash'),
-        onDone: () {
-          if (mounted) setState(() => _showSplash = false);
-        },
-      );
-    }
 
     return StreamBuilder<UserModel?>(
       key: const ValueKey('auth-gate'),

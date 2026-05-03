@@ -387,7 +387,8 @@ class BackendApiService {
 
         final rows = await _client
             .from('events')
-            .select('id, title, description, required_aura, link, type, banner_url, date, location, organizer')
+            .select('id, title, description, required_aura, link, type, banner_url, date, end_date, location, organizer')
+            .or('end_date.is.null,end_date.gte.${DateTime.now().toUtc().toIso8601String()}')
             .order('required_aura', ascending: true);
 
         return (rows as List)

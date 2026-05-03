@@ -19,7 +19,9 @@ import 'screens/profile_screen.dart';
 import 'screens/daily_challenge_screen.dart';
 import 'screens/opportunities_screen.dart';
 import 'screens/messages_screen.dart';
+import 'screens/weekly_challenge_pricing_screen.dart';
 import 'screens/weekly_challenge_screen.dart';
+import 'screens/weekly_free_challenge_screen.dart';
 import 'screens/question_detail_screen.dart';
 import 'providers/auth_provider.dart';
 import 'providers/messages_provider.dart';
@@ -30,7 +32,14 @@ import 'screens/chat_detail_screen.dart';
 import 'theme/app_colors.dart';
 import 'widgets/bottom_nav.dart';
 import 'widgets/glass_container.dart';
+import 'providers/premium_provider.dart';
+import 'models/notification_model.dart';
+import 'widgets/tier_up_dialog.dart';
+import 'utils/devspace_ui_helper.dart';
+import 'screens/tier_up_celebration_screen.dart';
 // Calling feature deferred to future update
+
+final GlobalKey<HomeScreenState> homeScreenKey = GlobalKey<HomeScreenState>();
 
 class DevSpaceApp extends StatefulWidget {
   const DevSpaceApp({super.key});
@@ -300,9 +309,39 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
 
     if (user != null) {
       try {
-        context.read<NotificationsProvider>().init(user.id);
+        NotificationService.instance.init(user.id);
+        
+        final notificationsProvider = context.read<NotificationsProvider>();
+        notificationsProvider.init(user.id);
+        
+        // Listen for tier_up notifications to show the full-screen dialog
+        notificationsProvider.addListener(() {
+          final tierUp = notificationsProvider.notifications.firstWhere(
+            (n) => !n.read && n.type == 'tier_up',
+            orElse: () => NotificationModel(id: '', toUid: '', fromUid: '', type: '', message: '', createdAt: DateTime.now(), read: false),
+          );
+          
+          if (tierUp.id.isNotEmpty) {
+            // Mark as read immediately so we don't show it twice
+            notificationsProvider.markAsRead(tierUp.id);
+            
+            // Show the full-screen animation
+            final tier = TierHelper.getTier(user.aura);
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => TierUpCelebrationScreen(
+                  user: user,
+                  tierName: tier.name,
+                ),
+              ),
+            );
+          }
+        });
+
         context.read<MessagesProvider>().init(user.id);
         context.read<EngagementProvider>().fetchOverview();
+        context.read<PremiumProvider>().loadUserPremiumStatus();
       } catch (e) {
         debugPrint('Provider initialization failed: $e');
       }
@@ -335,12 +374,12 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
         minChildSize: 0.5,
         maxChildSize: 0.95,
         builder: (context, scrollController) => GlassContainer(
-          color: AppColors.bgFor(context),
-          opacity: 0.8,
-          blur: 25,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          border: Border(
-              top: BorderSide(color: AppColors.borderFor(context), width: 0.5)),
+              color: AppColors.bgFor(context),
+              opacity: 0.8,
+              blur: 25,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              border: Border(
+                  top: BorderSide(color: AppColors.borderFor(context), width: 0.5)),
           child: Column(
             children: [
               const SizedBox(height: 12),
@@ -621,7 +660,12 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
   }
 
   void _onTabSelected(int index) {
-    if (index == _tab) return;
+    if (index == _tab) {
+      if (index == 0) {
+        homeScreenKey.currentState?.scrollToTopAndRefresh();
+      }
+      return;
+    }
     setState(() => _tab = index);
     _pageController.jumpToPage(index);
   }
@@ -633,7 +677,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
     final unreadMessages = context.watch<MessagesProvider>().totalUnreadCount;
 
     final List<Widget> screens = [
-      const HomeScreen(),
+      HomeScreen(key: homeScreenKey),
       const PeopleScreen(),
       const QAScreen(),
       const OpportunitiesScreen(),
@@ -665,7 +709,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const WeeklyChallengeScreen(),
+                      builder: (_) => const WeeklyChallengePricingScreen(),
                     ),
                   );
                 },

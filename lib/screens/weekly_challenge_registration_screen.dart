@@ -2,8 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../providers/engagement_provider.dart';
+import '../providers/premium_provider.dart';
 import '../providers/auth_provider.dart';
+import 'career_goal_onboarding_screen.dart';
+import 'explore_premium_screen.dart';
 import '../services/razorpay_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_ui_kit.dart';
@@ -43,8 +45,8 @@ class _WeeklyChallengeRegistrationScreenState
   void _handlePaymentSuccess(dynamic response) async {
     if (!mounted) return;
 
-    final engagement = context.read<EngagementProvider>();
-    final success = await engagement.enrollInWeeklyChallenge();
+    final premium = context.read<PremiumProvider>();
+    final success = await premium.activatePremium();
 
     if (success) {
       setState(() {
@@ -56,7 +58,7 @@ class _WeeklyChallengeRegistrationScreenState
       setState(() => _isProcessingPayment = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(engagement.error ?? 'Enrollment failed')),
+          const SnackBar(content: Text('Enrollment failed')),
         );
       }
     }
@@ -102,7 +104,7 @@ class _WeeklyChallengeRegistrationScreenState
     setState(() => _isProcessingPayment = true);
 
     _razorpayService.openCheckout(
-      amountInPaise: 2900,
+      amountInPaise: 4900,
       name: 'DevSpace',
       description: 'Weekly Coding Challenge',
       email: user.email ?? 'dev@devspace.com',
@@ -189,37 +191,10 @@ class _WeeklyChallengeRegistrationScreenState
           ),
         ),
         const SizedBox(height: 40),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 20),
-          decoration: BoxDecoration(
-            color: AppColors.bg2For(context),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.borderFor(context)),
-          ),
-          child: Column(
-            children: [
-              Icon(Icons.lock_clock_rounded, color: AppColors.text3For(context), size: 32),
-              const SizedBox(height: 12),
-              Text(
-                'PAYMENT COMING SOON',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.5,
-                  color: AppColors.textFor(context),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'We are finalizing the curriculum for you.',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppColors.text3For(context),
-                ),
-              ),
-            ],
-          ),
+        AppButton(
+          onPressed: _isProcessingPayment ? null : _handlePayment,
+          isLoading: _isProcessingPayment,
+          child: const Text('Pay to Register - Rs 49'),
         ),
       ],
     );
@@ -302,8 +277,21 @@ class _WeeklyChallengeRegistrationScreenState
         ),
         const SizedBox(height: 48),
         AppButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Back to Dashboard'),
+          onPressed: () {
+            final premium = context.read<PremiumProvider>();
+            if (!premium.careerGoalSelected) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const CareerGoalOnboardingScreen(isChanging: false)),
+              );
+            } else {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const ExplorePremiumScreen()),
+              );
+            }
+          },
+          child: const Text('Continue to Premium'),
         ),
       ],
     );

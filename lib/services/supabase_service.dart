@@ -12,6 +12,7 @@ import '../models/message_model.dart';
 import '../models/aura_ledger_model.dart';
 import '../models/aura_summary_model.dart';
 import 'calling_service.dart';
+import 'github_service.dart';
 
 /// SQL Schema for Supabase (Run this in Supabase SQL Editor):
 ///
@@ -445,12 +446,32 @@ class SupabaseService {
       params['p_quote_post_id'] = normalizedQuotePostId;
     }
 
-    final data = await _client.rpc(
-      'create_post_with_aura',
-      params: params,
-    );
+    try {
+      final data = await _client.rpc(
+        'create_post_with_aura',
+        params: params,
+      );
+      return data.toString();
+    } catch (e) {
+      if (e is PostgrestException && e.code == 'PGRST202') {
+        // Fallback for older schema without document support
+        final fallbackParams = <String, dynamic>{
+          'p_content': content,
+          'p_tags': tags,
+          'p_image_url': imageUrl ?? '',
+        };
+        if (normalizedQuotePostId != null) {
+          fallbackParams['p_quote_post_id'] = normalizedQuotePostId;
+        }
 
-    return data.toString();
+        final data = await _client.rpc(
+          'create_post_with_aura',
+          params: fallbackParams,
+        );
+        return data.toString();
+      }
+      rethrow;
+    }
   }
 
   Future<void> updatePostImage(String postId, String imageUrl) async {
@@ -586,12 +607,37 @@ class SupabaseService {
   // QUESTIONS & REPLIES
   // ══════════════════════════════════════════════════════════════════════════
 
-  Stream<List<QuestionModel>> streamQuestions() {
+  Stream<List<QuestionModel>> streamQuestions({String filter = 'latest'}) {
+    final baseQuery = _client.from('questions').select();
+    late final dynamic query;
+
+    switch (filter) {
+      case 'oldest':
+        query = baseQuery.order('created_at', ascending: true);
+        break;
+      case 'popularity':
+        query = baseQuery
+            .order('upvotes_count', ascending: false)
+            .order('created_at', ascending: false);
+        break;
+      case 'most replies':
+        query = baseQuery
+            .order('replies_count', ascending: false)
+            .order('created_at', ascending: false);
+        break;
+      case 'relevance':
+        query = baseQuery
+            .order('upvotes_count', ascending: false)
+            .order('replies_count', ascending: false);
+        break;
+      case 'latest':
+      default:
+        query = baseQuery.order('created_at', ascending: false);
+        break;
+    }
+
     return Stream.fromFuture(
-      _client
-          .from('questions')
-          .select()
-          .order('created_at', ascending: false)
+      query
           .limit(50)
           .then((list) => (list as List).map((d) => QuestionModel.fromJson(d as Map<String, dynamic>)).toList()),
     );
@@ -769,12 +815,18 @@ class SupabaseService {
     // We'll skip it and just use the insert directly if rpc blocks it.
     
     // 4. Create a reply with the PR message
-    // Note: We bypass 'can_user_reply' check by inserting directly if needed,
-    // but here we just use the service method and assume it works since it's an acceptance flow.
+    // Note: We use the question owner's ID (the current user) to insert the reply
+    // to avoid RLS errors, and attribute it to the PR author in the content.
+    final currentUser = _client.auth.currentUser;
+    if (currentUser == null) throw Exception('Not authenticated');
+
+    final prUser = await _client.from('users').select('handle').eq('id', prUserId).maybeSingle();
+    final prUserHandle = prUser != null ? prUser['handle'] : 'a builder';
+
     final replyId = await _client.from('question_replies').insert({
       'question_id': questionId,
-      'user_id': prUserId,
-      'content': 'Accepted Solution: $prMessage',
+      'user_id': currentUser.id,
+      'content': 'Accepted PR Solution from @$prUserHandle:\n\n$prMessage',
     }).select('id').single();
 
     // 5. Mark as solved
@@ -1030,5 +1082,61 @@ class SupabaseService {
         .eq('user_id', userId)
         .order('created_at', ascending: false);
     return (data as List).map((d) => AuraLedgerModel.fromJson(d)).toList();
+  }
+
+  Future<Map<String, int>> getAuraTotalsSince(DateTime since) async {
+    final data = await _client
+        .from('aura_ledger')
+        .select('user_id, points')
+        .gte('created_at', since.toUtc().toIso8601String());
+
+    final totals = <String, int>{};
+    for (final row in data as List) {
+      final userId = row['user_id']?.toString() ?? '';
+      if (userId.isEmpty) continue;
+      final points = (row['points'] as num?)?.toInt() ?? 0;
+      totals.update(userId, (value) => value + points, ifAbsent: () => points);
+    }
+    return totals;
+  }
+
+  Future<void> syncGitHubAura(String userId, String githubHandle) async {
+    if (githubHandle.isEmpty) return;
+
+    try {
+      final stats = await GitHubService.instance.getUserStats(githubHandle);
+      if (stats == null) return;
+
+      final prCount = await GitHubService.instance.getTotalPRs(githubHandle);
+      final commitCount = await GitHubService.instance.getTotalCommits(githubHandle);
+
+      // Calculate aura: 10 per PR, 1 per commit, 5 per repo
+      final calculatedAura = (prCount * 10) + (commitCount * 1) + (stats['public_repos'] as int? ?? 0) * 5;
+      
+      // Limit to 500 max aura from GitHub for now to prevent gaming
+      final awardAmount = calculatedAura > 500 ? 500 : calculatedAura;
+
+      await _client.rpc('award_aura', params: {
+        'p_user_id': userId,
+        'p_action': 'github_sync',
+        'p_points': awardAmount,
+        'p_reference_type': 'github',
+        'p_reference_id': githubHandle,
+        'p_metadata': {
+          'pr_count': prCount,
+          'commit_count': commitCount,
+          'repos': stats['public_repos'],
+        },
+      });
+    } catch (e) {
+      debugPrint('Failed to sync GitHub aura: $e');
+    }
+  }
+
+  Future<void> upvoteReply(String replyId, String userId) async {
+    await _client.from('reply_votes').insert({
+      'reply_id': replyId,
+      'user_id': userId,
+    });
   }
 }

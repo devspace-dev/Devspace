@@ -18,8 +18,6 @@ import '../screens/settings_screen.dart';
 import '../services/storage_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_state_widgets.dart';
-import '../widgets/aura_bar.dart';
-import '../widgets/github_card.dart';
 import '../widgets/post_card.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/skeleton_loaders.dart';
@@ -361,236 +359,500 @@ class ProfileScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      GestureDetector(
-                        onTap: () => _showAvatarActions(
-                          context,
-                          user: profileUser,
-                          isMe: isMe,
-                        ),
-                        child: UserAvatar(
-                          user: profileUser,
-                          size: 86,
-                          showRing: false, // Cleaner look
-                          showStory: false,
-                        ),
+                  Container(
+                    padding: const EdgeInsets.all(22),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          AppColors.primary.withValues(alpha: 0.24),
+                          AppColors.bg2For(context),
+                          AppColors.bg3For(context),
+                        ],
                       ),
-                      const SizedBox(width: 20),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                Text(
-                                  profileUser.name,
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w900,
-                                    color: AppColors.textFor(context),
-                                    letterSpacing: -0.5,
-                                  ),
-                                ),
-                                if (profileUser.isFounder) ...[
-                                  const SizedBox(width: 6),
-                                  const Icon(Icons.verified_rounded,
-                                      color: Colors.amber, size: 20),
-                                ],
-                              ],
-                            ),
-                            Text(
-                              '@${profileUser.handle}',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.text3For(context),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            if (profileUser.roles.isNotEmpty)
-                              Wrap(
-                                spacing: 6,
-                                runSpacing: 6,
-                                children: profileUser.roles
-                                    .map((r) => Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 10, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.primary
-                                                .withValues(alpha: 0.1),
-                                            borderRadius:
-                                                BorderRadius.circular(8),
-                                            border: Border.all(
-                                                color: AppColors.primary
-                                                    .withValues(alpha: 0.2)),
-                                          ),
-                                          child: Text(
-                                            r,
-                                            style: GoogleFonts.plusJakartaSans(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w700,
-                                              color: AppColors.primary,
-                                            ),
-                                          ),
-                                        ))
-                                    .toList(),
-                              ),
-                            const SizedBox(height: 12),
-                            if (isMe)
-                              _EditButton(onTap: () {
-                                _openProfileEditor(context);
-                              })
-                            else
-                              _FollowButton(
-                                isFollowing: profileUser.isFollowing,
-                                isUpdating:
-                                    usersP.isFollowUpdating(profileUser.id),
-                                onTap: () async {
-                                  HapticFeedback.mediumImpact();
-                                  await usersP.toggleFollow(
-                                      me.id, profileUser.id);
-                                  if (!context.mounted) return;
-                                  final error =
-                                      usersP.followError(profileUser.id);
-                                  if (error != null) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                          content: Text(error),
-                                          behavior: SnackBarBehavior.floating),
-                                    );
-                                  }
-                                },
-                              ),
-                          ],
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(
+                        color: AppColors.borderFor(context).withValues(alpha: 0.85),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.12),
+                          blurRadius: 34,
+                          offset: const Offset(0, 16),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.bgFor(context).withValues(alpha: 0.55),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: AppColors.borderFor(context).withValues(alpha: 0.7),
+                          ),
+                        ),
+                        child: Text(
+                          isMe ? 'Builder portfolio' : 'Portfolio preview',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.text2For(context),
+                            letterSpacing: 0.2,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
-                  Text(
-                    profileUser.bio.isEmpty
-                        ? 'Student builder on DevSpace.'
-                        : profileUser.bio,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 15,
-                      color: AppColors.text2For(context),
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
+                  const SizedBox(height: 16),
+                  Column(
                     children: [
-                      Expanded(
-                        child: _StatBox(
-                          count: profileUser.followers,
-                          label: 'Followers',
-                          onTap: () => Navigator.of(context).push(
+                      // Centered Avatar
+                      Center(
+                        child: GestureDetector(
+                          onTap: () => _showAvatarActions(
+                            context,
+                            user: profileUser,
+                            isMe: isMe,
+                          ),
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: AppColors.primary.withValues(alpha: 0.35),
+                                width: 1.5,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primary.withValues(alpha: 0.18),
+                                  blurRadius: 24,
+                                  offset: const Offset(0, 12),
+                                ),
+                              ],
+                            ),
+                            child: UserAvatar(
+                              user: profileUser,
+                              size: 110, // Slightly larger for centering
+                              showRing: false,
+                              showStory: false,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      
+                      // Name and Verified Icon
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              profileUser.name,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.textFor(context),
+                                letterSpacing: -0.5,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                          if (profileUser.isFounder) ...[
+                            const SizedBox(width: 6),
+                            const Icon(Icons.verified_rounded, color: Colors.amber, size: 20),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      
+                      // Handle and Followers
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.of(context).push(
                             MaterialPageRoute(
                               builder: (_) => ConnectionsScreen(
                                 user: profileUser,
                                 type: ConnectionListType.followers,
                               ),
                             ),
+                          );
+                        },
+                        child: Text(
+                          'u/${profileUser.handle} • ${profileUser.followers} followers',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.text3For(context),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      // Mini Chips (Roles, College)
+                      Center(
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          alignment: WrapAlignment.center,
+                          children: [
+                            if (profileUser.roles.isNotEmpty)
+                              _ProfileMiniChip(
+                                icon: Icons.draw_rounded,
+                                label: profileUser.roles.first,
+                              ),
+                            if (profileUser.academicLabel.isNotEmpty)
+                              _ProfileMiniChip(
+                                icon: Icons.school_rounded,
+                                label: profileUser.academicLabel,
+                              ),
+                            if (profileUser.college.isNotEmpty)
+                              _ProfileMiniChip(
+                                icon: Icons.apartment_rounded,
+                                label: profileUser.college,
+                              ),
+                          ],
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 20),
+                      
+                      // Action Button (Edit or Follow)
+                      if (isMe)
+                        GestureDetector(
+                          onTap: () => _openProfileEditor(context),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(99),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primary.withValues(alpha: 0.3),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Text(
+                              'Edit Profile',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        _FollowButton(
+                          isFollowing: profileUser.isFollowing,
+                          isUpdating: usersP.isFollowUpdating(profileUser.id),
+                          onTap: () async {
+                            HapticFeedback.mediumImpact();
+                            await usersP.toggleFollow(me.id, profileUser.id);
+                            if (!context.mounted) return;
+                            final error = usersP.followError(profileUser.id);
+                            if (error != null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                    content: Text(error),
+                                    behavior: SnackBarBehavior.floating),
+                              );
+                            }
+                          },
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    profileUser.bio.isEmpty
+                        ? 'Student builder turning class projects into a real portfolio.'
+                        : profileUser.bio,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 14,
+                      color: AppColors.text2For(context),
+                      height: 1.6,
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 20),
+                  Center(
+                    child: GestureDetector(
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const AuraHistoryScreen()),
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: Colors.amber.withValues(alpha: 0.22),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _StatBox(
-                          count: posts.length,
-                          label: 'Posts',
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.auto_awesome_rounded,
+                              color: Colors.amber,
+                              size: 15,
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                '${profileUser.aura} aura reputation',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.textFor(context),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              size: 16,
+                              color: AppColors.text3For(context),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _StatBox(
-                          count: profileUser.following,
-                          label: 'Following',
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => ConnectionsScreen(
-                                user: profileUser,
-                                type: ConnectionListType.following,
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.only(top: 18),
+                    decoration: BoxDecoration(
+                      border: Border.symmetric(
+                        horizontal: BorderSide(
+                          color: AppColors.borderFor(context).withValues(alpha: 0.5),
+                        ),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _ProfileHeroStat(
+                            value: '${profileUser.currentStreak}',
+                            label: 'Momentum',
+                            icon: Icons.local_fire_department_rounded,
+                            accentColor: Colors.orange,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _ProfileHeroStat(
+                            value: '${posts.length}',
+                            label: 'Showcase',
+                            icon: Icons.grid_view_rounded,
+                            accentColor: AppColors.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _ProfileHeroStat(
+                            value: '${profileUser.following}',
+                            label: 'Network',
+                            icon: Icons.hub_rounded,
+                            accentColor: Colors.teal,
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => ConnectionsScreen(
+                                  user: profileUser,
+                                  type: ConnectionListType.following,
+                                ),
                               ),
                             ),
                           ),
                         ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _ProfileHeroStat(
+                            value: '${profileUser.followers}',
+                            label: 'Reach',
+                            icon: Icons.trending_up_rounded,
+                            accentColor: Colors.pinkAccent,
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => ConnectionsScreen(
+                                  user: profileUser,
+                                  type: ConnectionListType.followers,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Column(
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          color: AppColors.bg2For(context),
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: AppColors.borderFor(context).withValues(alpha: 0.75),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.rocket_launch_rounded, 
+                                  size: 16, color: AppColors.primary.withValues(alpha: 0.8)),
+                                const SizedBox(width: 8),
+                                Text(
+                                  profileUser.building.isNotEmpty &&
+                                          profileUser.building != 'Not set'
+                                      ? 'CURRENTLY BUILDING'
+                                      : 'PORTFOLIO FOCUS',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.text3For(context),
+                                    letterSpacing: 1.2,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              profileUser.building.isNotEmpty &&
+                                      profileUser.building != 'Not set'
+                                  ? profileUser.building
+                                  : 'Shipping projects, learning in public, and building a stronger student developer identity.',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textFor(context),
+                                height: 1.5,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
+                      if (profileUser.stack.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                            color: AppColors.bg2For(context),
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(
+                              color: AppColors.borderFor(context).withValues(alpha: 0.75),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.layers_rounded, 
+                                    size: 16, color: Colors.teal.withValues(alpha: 0.8)),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'TECH STACK',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.text3For(context),
+                                      letterSpacing: 1.2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 10,
+                                children: profileUser.stack.map((s) => Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.bg3For(context),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: AppColors.borderFor(context),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    s,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.text2For(context),
+                                    ),
+                                  ),
+                                )).toList(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 28),
-                  if (profileUser.building.isNotEmpty && profileUser.building != 'Not set') ...[
-                    _SectionLabel(
-                      label: 'CURRENTLY BUILDING',
-                      icon: Icons.auto_awesome_outlined,
-                    ),
-                    const SizedBox(height: 10),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.bg2For(context),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.borderFor(context)),
-                      ),
-                      child: Text(
-                        profileUser.building,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textFor(context),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 4,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(99),
+                          ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-                  ],
-                  if (profileUser.stack.isNotEmpty) ...[
-                    _SectionLabel(
-                      label: 'TECH STACK',
-                      icon: Icons.layers_outlined,
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 10,
-                      children: profileUser.stack
-                          .map((s) => _SkillChip(label: s))
-                          .toList(),
-                    ),
-                    const SizedBox(height: 28),
-                  ],
-                  GestureDetector(
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const AuraHistoryScreen()),
-                    ),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.bg2For(context),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                            color: AppColors.borderFor(context)
-                                .withValues(alpha: 0.5)),
-                      ),
-                      child: AuraBar(aura: profileUser.aura),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Recent Builds',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.textFor(context),
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          '${posts.length}',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.text3For(context),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 16),
-                  GitHubCard(githubHandle: profileUser.githubHandle),
-                  const SizedBox(height: 32),
-                  Text(
-                    'Recent Builds',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.textFor(context),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
                 ],
               ),
             ),
@@ -728,103 +990,123 @@ class _AvatarPreviewFallback extends StatelessWidget {
   }
 }
 
-class _SectionLabel extends StatelessWidget {
-  final String label;
+class _ProfileMiniChip extends StatelessWidget {
   final IconData icon;
-
-  const _SectionLabel({required this.label, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: AppColors.text3For(context)),
-        const SizedBox(width: 8),
-        Text(
-          label,
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 10,
-            fontWeight: FontWeight.w900,
-            color: AppColors.text3For(context),
-            letterSpacing: 1.0,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _StatBox extends StatelessWidget {
-  final int count;
   final String label;
-  final VoidCallback? onTap;
 
-  const _StatBox({required this.count, required this.label, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        if (onTap != null) {
-          HapticFeedback.selectionClick();
-          onTap!();
-        }
-      },
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: AppColors.bg2For(context),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-              color: AppColors.borderFor(context).withValues(alpha: 0.5)),
-        ),
-        child: Column(
-          children: [
-            Text(
-              '$count',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
-                color: AppColors.textFor(context),
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: AppColors.text3For(context),
-                letterSpacing: 0.5,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SkillChip extends StatelessWidget {
-  final String label;
-  const _SkillChip({required this.label});
+  const _ProfileMiniChip({
+    required this.icon,
+    required this.label,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+        color: AppColors.bgFor(context).withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: AppColors.borderFor(context).withValues(alpha: 0.8),
+        ),
       ),
-      child: Text(
-        label,
-        style: GoogleFonts.plusJakartaSans(
-          fontSize: 12,
-          fontWeight: FontWeight.w800,
-          color: AppColors.primary,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: AppColors.text3For(context)),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              label,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppColors.text2For(context),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileHeroStat extends StatelessWidget {
+  final String value;
+  final String label;
+  final VoidCallback? onTap;
+  final IconData? icon;
+  final Color? accentColor;
+
+  const _ProfileHeroStat({
+    required this.value,
+    required this.label,
+    this.onTap,
+    this.icon,
+    this.accentColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+        decoration: BoxDecoration(
+          color: AppColors.bgFor(context).withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: AppColors.borderFor(context).withValues(alpha: 0.7),
+          ),
+        ),
+        child: Column(
+          children: [
+            if (icon != null) ...[
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: (accentColor ?? AppColors.primary).withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  icon,
+                  size: 15,
+                  color: accentColor ?? AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                value,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.textFor(context),
+                ),
+              ),
+            ),
+            const SizedBox(height: 2),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.text3For(context),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -847,7 +1129,7 @@ class _FollowButton extends StatelessWidget {
       onTap: isUpdating ? null : onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         decoration: BoxDecoration(
           color: isFollowing ? Colors.transparent : AppColors.primary,
           borderRadius: BorderRadius.circular(99),
@@ -860,35 +1142,10 @@ class _FollowButton extends StatelessWidget {
         child: Text(
           isUpdating ? '...' : (isFollowing ? 'Following' : 'Follow'),
           style: GoogleFonts.plusJakartaSans(
-            fontSize: 14,
+            fontSize: 12,
             fontWeight: FontWeight.w800,
             color: isFollowing ? AppColors.textFor(context) : Colors.white,
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _EditButton extends StatelessWidget {
-  final VoidCallback onTap;
-  const _EditButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return OutlinedButton(
-      onPressed: onTap,
-      style: OutlinedButton.styleFrom(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
-        side: BorderSide(color: AppColors.borderFor(context), width: 1.2),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      ),
-      child: Text(
-        'Edit Profile',
-        style: GoogleFonts.plusJakartaSans(
-          fontWeight: FontWeight.w800,
-          fontSize: 13,
-          color: AppColors.textFor(context),
         ),
       ),
     );

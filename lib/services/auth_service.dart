@@ -535,6 +535,11 @@ class AuthService {
         'avatar': nextAvatar,
       });
 
+      // Sync GitHub aura if handle changed or is new
+      if (trimmedGithub.isNotEmpty && (user.githubHandle != trimmedGithub)) {
+        unawaited(SupabaseService.instance.syncGitHubAura(user.id, trimmedGithub));
+      }
+
       final refreshedUser = await SupabaseService.instance.getUserById(user.id);
       if (refreshedUser == null) {
         return const AuthResult(error: 'Failed to refresh updated profile.');

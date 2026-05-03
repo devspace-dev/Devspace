@@ -166,7 +166,7 @@ class EngagementOverview extends StatelessWidget {
                   ),
                 ),
               ),
-            if (challenge != null)
+            if (challenge != null && !challenge.wasSolved)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                 child: _SectionCard(

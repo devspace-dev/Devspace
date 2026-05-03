@@ -121,6 +121,8 @@ create table if not exists public.posts (
   likes_count bigint default 0,
   comments_count bigint default 0,
   reposts_count bigint default 0,
+  document_url text default '',
+  document_name text default '',
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
 
@@ -132,6 +134,8 @@ alter table public.posts add column if not exists quote_post_id uuid references 
 alter table public.posts add column if not exists likes_count bigint default 0;
 alter table public.posts add column if not exists comments_count bigint default 0;
 alter table public.posts add column if not exists reposts_count bigint default 0;
+alter table public.posts add column if not exists document_url text default '';
+alter table public.posts add column if not exists document_name text default '';
 alter table public.posts add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
 
 create table if not exists public.follows (
@@ -1139,7 +1143,8 @@ begin
 
   if found then
     update public.users
-    set aura_points = coalesce(aura_points, 0) + p_points
+    set aura_points = coalesce(aura_points, 0) + p_points,
+        aura = aura + p_points
     where id = p_user_id;
     return true;
   end if;
@@ -1189,7 +1194,9 @@ create or replace function public.create_post_with_aura(
   p_content text,
   p_tags text[] default '{}'::text[],
   p_image_url text default '',
-  p_quote_post_id text default null
+  p_quote_post_id text default null,
+  p_document_url text default '',
+  p_document_name text default ''
 )
 returns uuid
 language plpgsql
@@ -1206,8 +1213,8 @@ begin
     raise exception 'Authentication required';
   end if;
 
-  if coalesce(trim(p_content), '') = '' and coalesce(trim(p_image_url), '') = '' then
-    raise exception 'Post content or image is required';
+  if coalesce(trim(p_content), '') = '' and coalesce(trim(p_image_url), '') = '' and coalesce(trim(p_document_url), '') = '' then
+    raise exception 'Post content, image, or document is required';
   end if;
 
   if nullif(trim(coalesce(p_quote_post_id, '')), '') is not null then
@@ -1220,13 +1227,15 @@ begin
 
   perform public.register_rate_limited_action('create_post', 20, 3600, null);
 
-  insert into public.posts(user_id, content, tags, image_url, quote_post_id)
+  insert into public.posts(user_id, content, tags, image_url, quote_post_id, document_url, document_name)
   values (
     actor_id,
     coalesce(trim(p_content), ''),
     coalesce(p_tags, '{}'::text[]),
     coalesce(trim(p_image_url), ''),
-    normalized_quote_post_id
+    normalized_quote_post_id,
+    coalesce(trim(p_document_url), ''),
+    coalesce(trim(p_document_name), '')
   )
   returning id into new_post_id;
 
@@ -1242,7 +1251,7 @@ begin
 end;
 $$;
 
-grant execute on function public.create_post_with_aura(text, text[], text, text) to authenticated;
+grant execute on function public.create_post_with_aura(text, text[], text, text, text, text) to authenticated;
 
 create or replace function public.like_post_with_aura(p_post_id uuid)
 returns jsonb
@@ -1306,18 +1315,47 @@ security definer
 set search_path = public
 as $$
 declare
-  actor_id uuid;
+  v_actor_id uuid;
+  v_post_owner_id uuid;
+  v_points integer := 2; -- Points awarded for 'receive_like'
 begin
-  actor_id := auth.uid();
-  if actor_id is null then
+  v_actor_id := auth.uid();
+  if v_actor_id is null then
     raise exception 'Authentication required';
   end if;
 
+  -- Get post owner to know whose aura to subtract from
+  select user_id into v_post_owner_id
+  from public.posts
+  where id = p_post_id;
+
+  -- Delete the like
   delete from public.likes
   where post_id = p_post_id
-    and user_id = actor_id;
+    and user_id = v_actor_id;
 
-  perform public.sync_post_like_count(p_post_id);
+  -- If a like was actually removed
+  if found then
+    -- Update post like count
+    perform public.sync_post_like_count(p_post_id);
+
+    -- Reverse aura if the liker is not the owner
+    if v_post_owner_id is not null and v_post_owner_id != v_actor_id then
+      -- Subtract points from owner
+      update public.users
+      set aura = greatest(0, aura - v_points),
+          aura_points = greatest(0, coalesce(aura_points, 0) - v_points)
+      where id = v_post_owner_id;
+
+      -- Remove the ledger entry so it can be re-awarded if they like again
+      delete from public.aura_ledger
+      where user_id = v_post_owner_id
+        and action = 'receive_like'
+        AND reference_type = 'post_like'
+        and reference_id = p_post_id::text
+        and (source_user_id = v_actor_id or actor_id = v_actor_id);
+    end if;
+  end if;
 
   return jsonb_build_object('liked', false);
 end;

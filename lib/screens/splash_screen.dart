@@ -4,21 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../widgets/devspace_logo.dart';
 
-class SplashScreen extends StatefulWidget {
-  final VoidCallback onDone;
-
-  const SplashScreen({super.key, required this.onDone});
-
-  @override
-  State<SplashScreen> createState() => _SplashScreenState();
-}
-
-class _SplashScreenState extends State<SplashScreen> {
-  @override
-  void initState() {
-    super.initState();
-    Future.delayed(const Duration(milliseconds: 2200), widget.onDone);
-  }
+class SplashScreen extends StatelessWidget {
+  const SplashScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

@@ -48,21 +48,32 @@ class _QAScreenState extends State<QAScreen> {
     final usersP = context.watch<UsersProvider>();
     final currentUser = context.read<AuthProvider>().currentUser;
     final questions = questionsP.questions;
+    final canPop = Navigator.canPop(context);
 
     return Scaffold(
       backgroundColor: AppColors.bgFor(context),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Text(
-          'Q&A',
-          style: TextStyle(
-            color: AppColors.textFor(context),
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        centerTitle: true,
-      ),
+      appBar: canPop
+          ? AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              title: Text(
+                'Q&A',
+                style: TextStyle(
+                  color: AppColors.textFor(context),
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              actions: [
+                IconButton(
+                  onPressed: _showAskSheet,
+                  icon: const Icon(Icons.add_rounded),
+                  color: AppColors.textFor(context),
+                  tooltip: 'Ask a question',
+                ),
+                const SizedBox(width: 8),
+              ],
+            )
+          : null,
       body: RefreshIndicator(
         color: AppColors.primary,
         backgroundColor: AppColors.bg2For(context),
@@ -70,47 +81,6 @@ class _QAScreenState extends State<QAScreen> {
         edgeOffset: 0,
         child: CustomScrollView(
           slivers: [
-            SliverToBoxAdapter(
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-                decoration: BoxDecoration(
-                  border: Border(bottom: BorderSide(color: AppColors.borderFor(context), width: 0.5)),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Questions & Answers',
-                            style: TextStyle(
-                              color: AppColors.textFor(context),
-                              fontSize: 16,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Ask practical doubts, get real replies, and close loops with solved answers.',
-                            style: TextStyle(
-                              color: AppColors.text3For(context),
-                              fontSize: 11,
-                              height: 1.4,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: _showAskSheet,
-                      icon: const Icon(Icons.add_rounded, size: 16),
-                      label: const Text('Ask'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
             SliverToBoxAdapter(
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -130,6 +100,94 @@ class _QAScreenState extends State<QAScreen> {
                     height: 1.45,
                     fontWeight: FontWeight.w600,
                   ),
+                ),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Ask, solve, and leave answers that help the next builder.',
+                        style: TextStyle(
+                          color: AppColors.textFor(context),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    if (!canPop)
+                      IconButton(
+                        onPressed: _showAskSheet,
+                        icon: const Icon(Icons.add_circle_rounded),
+                        color: AppColors.primary,
+                        tooltip: 'Ask a question',
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 0, 8),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.filter_list_rounded,
+                      size: 20,
+                      color: AppColors.text3For(context),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            'latest',
+                            'relevance',
+                            'popularity',
+                            'most replies',
+                            'oldest'
+                          ].map((filter) {
+                            final isSelected = questionsP.currentFilter == filter;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8.0),
+                              child: ChoiceChip(
+                                label: Text(
+                                  filter == 'latest' ? 'Latest' :
+                                  filter == 'relevance' ? 'Relevance' :
+                                  filter == 'popularity' ? 'Popularity' :
+                                  filter == 'most replies' ? 'Most Replies' : 'Oldest',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                                    color: isSelected ? Colors.white : AppColors.text2For(context),
+                                  ),
+                                ),
+                                selected: isSelected,
+                                selectedColor: AppColors.primary,
+                                backgroundColor: AppColors.bg2For(context),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                  side: BorderSide(
+                                    color: isSelected ? AppColors.primary : AppColors.borderFor(context),
+                                  ),
+                                ),
+                                showCheckmark: false,
+                                onSelected: (selected) {
+                                  if (selected) {
+                                    context.read<QuestionsProvider>().setFilter(filter);
+                                  }
+                                },
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

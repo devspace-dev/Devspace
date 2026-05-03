@@ -257,6 +257,46 @@ class _DevelopersHero extends StatelessWidget {
                         ),
                 ),
               ),
+              const SizedBox(height: 16),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    'Flutter',
+                    'React',
+                    'Node.js',
+                    'AI',
+                    'Python',
+                    'UI/UX',
+                    'Next.js',
+                    'Java',
+                  ].map((stack) {
+                    final isSelected = activeQuery.toLowerCase() == stack.toLowerCase();
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ActionChip(
+                        label: Text(
+                          stack,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                            color: isSelected ? Colors.white : AppColors.text2For(context),
+                          ),
+                        ),
+                        backgroundColor: isSelected ? AppColors.primary : AppColors.bg3For(context),
+                        side: BorderSide.none,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        onPressed: () {
+                          // Toggle logic: clear if already selected
+                          final newQuery = isSelected ? '' : stack;
+                          searchController.text = newQuery;
+                          onChanged(newQuery);
+                        },
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
             ],
           ),
         ],

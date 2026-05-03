@@ -17,6 +17,7 @@ class UserModel {
   int followers;
   int following;
   final int currentStreak;
+  final DateTime? lastChallengeCompletedOn;
   final String bio;
   final String college;
   final String githubHandle;
@@ -42,6 +43,7 @@ class UserModel {
     required this.followers,
     required this.following,
     this.currentStreak = 0,
+    this.lastChallengeCompletedOn,
     required this.bio,
     required this.college,
     required this.githubHandle,
@@ -81,6 +83,7 @@ class UserModel {
     int? followers,
     int? following,
     int? currentStreak,
+    DateTime? lastChallengeCompletedOn,
     String? bio,
     String? college,
     String? githubHandle,
@@ -106,6 +109,7 @@ class UserModel {
       followers: followers ?? this.followers,
       following: following ?? this.following,
       currentStreak: currentStreak ?? this.currentStreak,
+      lastChallengeCompletedOn: lastChallengeCompletedOn ?? this.lastChallengeCompletedOn,
       bio: bio ?? this.bio,
       college: college ?? this.college,
       githubHandle: githubHandle ?? this.githubHandle,
@@ -133,6 +137,7 @@ class UserModel {
         'followers': followers,
         'following': following,
         'current_streak': currentStreak,
+        'last_challenge_completed_on': lastChallengeCompletedOn?.toIso8601String(),
         'bio': bio,
         'college': college,
         'github_handle': githubHandle,
@@ -172,6 +177,26 @@ class UserModel {
             roles.isNotEmpty &&
             (json['college']?.toString() ?? '').isNotEmpty);
 
+    int storedStreak = ((json['current_streak'] ?? json['currentStreak']) as num? ?? 0).toInt();
+    String? lastCompletedStr = json['last_challenge_completed_on']?.toString() ?? json['lastChallengeCompletedOn']?.toString();
+    int effectiveStreak = storedStreak;
+
+    if (storedStreak > 0 && lastCompletedStr != null && lastCompletedStr.isNotEmpty) {
+      try {
+        final lastCompleted = DateTime.parse(lastCompletedStr);
+        final today = DateTime.now();
+        final lastDate = DateTime(lastCompleted.year, lastCompleted.month, lastCompleted.day);
+        final todayDate = DateTime(today.year, today.month, today.day);
+        
+        final difference = todayDate.difference(lastDate).inDays;
+        if (difference > 1) {
+          effectiveStreak = 0;
+        }
+      } catch (_) {
+        // Fallback to stored streak if parsing fails
+      }
+    }
+
     return UserModel(
       id: (json['id'] ?? '0').toString(),
       name: json['name']?.toString() ?? 'Unknown',
@@ -188,9 +213,8 @@ class UserModel {
       stack: stack,
       followers: (json['followers'] as num? ?? 0).toInt(),
       following: (json['following'] as num? ?? 0).toInt(),
-      currentStreak:
-          ((json['current_streak'] ?? json['currentStreak']) as num? ?? 0)
-              .toInt(),
+      currentStreak: effectiveStreak,
+      lastChallengeCompletedOn: lastCompletedStr != null ? DateTime.tryParse(lastCompletedStr) : null,
       bio: json['bio']?.toString() ?? '',
       college: json['college']?.toString() ?? '',
       githubHandle:

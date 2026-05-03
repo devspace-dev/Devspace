@@ -74,7 +74,7 @@ class _GitHubCardState extends State<GitHubCard> {
             children: [
               // Header
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                 child: Row(
                   children: [
                     Container(
@@ -127,7 +127,7 @@ class _GitHubCardState extends State<GitHubCard> {
 
               // Stats Grid
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
+                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
@@ -246,7 +246,7 @@ class _StatItem extends StatelessWidget {
         Text(
           value,
           style: const TextStyle(
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: FontWeight.w900,
             color: AppColors.text,
           ),

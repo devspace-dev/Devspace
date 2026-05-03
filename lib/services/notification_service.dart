@@ -87,15 +87,27 @@ class NotificationService {
 
       await _requestPermissions();
 
-      // 3. Save FCM Token to Supabase
-      final token = await fcm.getToken();
-      if (token != null) {
-        await SupabaseService.instance.updateFcmToken(uid, token);
+      // Subscribe every signed-in device to one common topic so founders
+      // can send simple broadcast notifications from Firebase Console.
+      await fcm.subscribeToTopic('all_users');
+
+      // 3. Save FCM Token to Supabase when the column exists.
+      try {
+        final token = await fcm.getToken();
+        if (token != null) {
+          await SupabaseService.instance.updateFcmToken(uid, token);
+        }
+      } catch (e) {
+        debugPrint('Failed to save FCM token: $e');
       }
 
       // Listen for token refreshes
       fcm.onTokenRefresh.listen((newToken) {
-        SupabaseService.instance.updateFcmToken(uid, newToken);
+        SupabaseService.instance.updateFcmToken(uid, newToken).catchError((
+          Object error,
+        ) {
+          debugPrint('Failed to refresh FCM token: $error');
+        });
       });
 
       if (kDebugMode) {

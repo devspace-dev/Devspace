@@ -180,7 +180,7 @@ class ChallengeTierCard extends StatelessWidget {
                         const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
                         const SizedBox(width: 8),
                         Text(
-                          isPremium ? 'Premium Active' : 'Active',
+                          buttonText,
                           style: const TextStyle(fontWeight: FontWeight.w900),
                         ),
                       ],

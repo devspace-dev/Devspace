@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../models/notification_model.dart';
 import '../services/supabase_service.dart';
 import '../services/notification_service.dart';
+import '../main.dart' as import_main;
 
 class NotificationsProvider extends ChangeNotifier {
   List<NotificationModel> _notifications = [];
@@ -70,6 +71,34 @@ class NotificationsProvider extends ChangeNotifier {
       title: title,
       body: n.message,
       payload: payload,
+    );
+
+    // Show in-app popup
+    import_main.rootScaffoldMessengerKey.currentState?.showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.notifications_active_rounded, color: Colors.white, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                  Text(n.message, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                ],
+              ),
+            ),
+          ],
+        ),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: const Color(0xFF1E1E1E), // AppColors.bg2 (approx)
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 4),
+        elevation: 6,
+        margin: const EdgeInsets.only(bottom: 20, left: 16, right: 16),
+      ),
     );
   }
 

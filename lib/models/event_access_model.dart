@@ -9,6 +9,7 @@ class EventAccessModel {
   final bool locked;
   final String? bannerUrl;
   final String? date;
+  final String? endDate;
   final String? location;
   final String? organizer;
 
@@ -23,6 +24,7 @@ class EventAccessModel {
     required this.locked,
     this.bannerUrl,
     this.date,
+    this.endDate,
     this.location,
     this.organizer,
   });
@@ -40,6 +42,7 @@ class EventAccessModel {
       locked: json['locked'] as bool? ?? true,
       bannerUrl: json['banner_url']?.toString(),
       date: json['date']?.toString(),
+      endDate: json['end_date']?.toString(),
       location: json['location']?.toString(),
       organizer: json['organizer']?.toString(),
     );

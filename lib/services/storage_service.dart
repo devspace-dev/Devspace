@@ -20,9 +20,9 @@ class StorageService {
     bool fromCamera = false,
     bool crop = false,
     bool isCircle = false,
-    int imageQuality = 70,
-    double maxWidth = 1024,
-    double maxHeight = 1024,
+    int imageQuality = 100,
+    double? maxWidth,
+    double? maxHeight,
   }) async {
     final picked = await _picker.pickImage(
       source: fromCamera ? ImageSource.camera : ImageSource.gallery,

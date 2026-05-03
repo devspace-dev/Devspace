@@ -163,6 +163,13 @@ class UsersProvider extends ChangeNotifier {
     return sorted;
   }
 
+  List<UserModel> collegeLeaderboard(String college) {
+    if (college.isEmpty) return leaderboard;
+    final filtered = _users.where((u) => u.college == college).toList();
+    filtered.sort((a, b) => b.aura.compareTo(a.aura));
+    return filtered;
+  }
+
   UserModel _mergeHydratedUser(UserModel hydratedUser, Set<String> followingIds) {
     final existingUser = _findUser(hydratedUser.id);
     if (existingUser == null) {

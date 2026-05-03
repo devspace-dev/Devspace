@@ -31,6 +31,7 @@ class QuestionsProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   StreamSubscription<List<QuestionModel>>? _questionsSub;
+  String _currentFilter = 'latest';
 
   final Map<String, List<QuestionPullRequestModel>> _pullRequestsByQuestion = {};
   final Map<String, bool> _prLoading = {};
@@ -40,6 +41,14 @@ class QuestionsProvider extends ChangeNotifier {
   List<QuestionModel> get questions => List.unmodifiable(_questions);
   bool get isLoading => _isLoading;
   String? get error => _error;
+  String get currentFilter => _currentFilter;
+
+  void setFilter(String filter) {
+    if (_currentFilter == filter) return;
+    _currentFilter = filter;
+    fetchQuestions();
+  }
+
   bool isReplyLoading(String questionId) => _replyLoading[questionId] ?? false;
   bool isReplySubmitting(String questionId) =>
       _replySubmitting[questionId] ?? false;
@@ -184,7 +193,7 @@ class QuestionsProvider extends ChangeNotifier {
       }
     }
 
-    subscription = SupabaseService.instance.streamQuestions().listen(
+    subscription = SupabaseService.instance.streamQuestions(filter: _currentFilter).listen(
       (newList) async {
         try {
           final currentUser = AuthService.instance.currentUser;

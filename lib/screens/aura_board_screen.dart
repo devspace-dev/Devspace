@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import '../providers/users_provider.dart';
-import '../providers/auth_provider.dart';
-import '../models/badge_model.dart';
+
 import '../models/user_model.dart';
+import '../models/badge_model.dart';
+import '../providers/auth_provider.dart';
+import '../providers/users_provider.dart';
+import '../services/supabase_service.dart';
 import '../theme/app_colors.dart';
-import '../widgets/user_avatar.dart';
 import '../widgets/app_ui_kit.dart';
+import '../widgets/user_avatar.dart';
 import 'profile_screen.dart';
 
 class AuraBoardScreen extends StatefulWidget {
@@ -20,15 +22,23 @@ class AuraBoardScreen extends StatefulWidget {
 
 class _AuraBoardScreenState extends State<AuraBoardScreen> {
   String _timeframe = 'Monthly'; // 'Weekly' or 'Monthly'
+  bool _isGlobal = true;
+  Future<List<UserModel>>? _rankingFuture;
+  int _lastUsersCount = -1;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final usersCount = context.watch<UsersProvider>().users.length;
+    if (_rankingFuture == null || usersCount != _lastUsersCount) {
+      _lastUsersCount = usersCount;
+      _rankingFuture = _loadRankedUsers();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final ranked = context.watch<UsersProvider>().leaderboard;
     final currentUser = context.watch<AuthProvider>().currentUserOrNull;
-    
-    final top3 = ranked.take(3).toList();
-    final remaining = ranked.skip(3).toList();
-    
     final canPop = Navigator.canPop(context);
 
     return Scaffold(
@@ -48,35 +58,54 @@ class _AuraBoardScreenState extends State<AuraBoardScreen> {
             children: [
               // Header
               _buildHeader(context, canPop),
+              FutureBuilder<List<UserModel>>(
+                future: _rankingFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState != ConnectionState.done) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(40),
+                        child: CircularProgressIndicator.adaptive(),
+                      ),
+                    );
+                  }
 
-              if (ranked.isEmpty)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(40),
-                    child: CircularProgressIndicator.adaptive(),
-                  ),
-                )
-              else ...[
-                // Podium
-                _buildPodium(context, top3),
-                
-                const SizedBox(height: 24),
+                  final ranked = snapshot.data ?? const <UserModel>[];
+                  final top3 = ranked.take(3).toList();
+                  final remaining = ranked.skip(3).toList();
 
-                // Ranked list
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    children: remaining.map((u) {
-                      final index = ranked.indexOf(u);
-                      final isMe = u.id == currentUser?.id;
-                      return _buildRankItem(context, u, index, isMe);
-                    }).toList(),
-                  ),
-                ),
+                  if (ranked.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        'No aura activity found for this timeframe yet.',
+                        style: TextStyle(
+                          color: AppColors.text3For(context),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    );
+                  }
 
-                // Badge tiers legend
-                _buildTiersLegend(context),
-              ],
+                  return Column(
+                    children: [
+                      _buildPodium(context, top3),
+                      const SizedBox(height: 24),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Column(
+                          children: remaining.map((u) {
+                            final index = ranked.indexOf(u);
+                            final isMe = u.id == currentUser?.id;
+                            return _buildRankItem(context, u, index, isMe);
+                          }).toList(),
+                        ),
+                      ),
+                      _buildTiersLegend(context),
+                    ],
+                  );
+                },
+              ),
             ],
           ),
         ),
@@ -85,21 +114,59 @@ class _AuraBoardScreenState extends State<AuraBoardScreen> {
   }
 
   Widget _buildHeader(BuildContext context, bool isPushed) {
+    final currentUser = context.watch<AuthProvider>().currentUserOrNull;
     return Padding(
       padding: EdgeInsets.fromLTRB(20, isPushed ? 10 : 20, 20, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (isPushed)
-            Text('Aura Leaderboard',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.textFor(context),
-                  letterSpacing: -0.5,
-                )),
-          if (isPushed) const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: Text(_isGlobal ? 'Global Leaderboard' : '${currentUser?.college ?? "My College"} Rank',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.textFor(context),
+                      letterSpacing: -0.5,
+                    )),
+              ),
+              _buildScopeToggle(),
+            ],
+          ),
+          const SizedBox(height: 16),
           _buildTimeframeToggle(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScopeToggle() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.bg3For(context),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _ScopeIcon(
+            icon: Icons.public,
+            isSelected: _isGlobal,
+            onTap: () => setState(() {
+              _isGlobal = true;
+              _rankingFuture = _loadRankedUsers();
+            }),
+          ),
+          _ScopeIcon(
+            icon: Icons.school,
+            isSelected: !_isGlobal,
+            onTap: () => setState(() {
+              _isGlobal = false;
+              _rankingFuture = _loadRankedUsers();
+            }),
+          ),
         ],
       ),
     );
@@ -117,7 +184,10 @@ class _AuraBoardScreenState extends State<AuraBoardScreen> {
         children: ['Weekly', 'Monthly'].map((t) {
           final isSelected = _timeframe == t;
           return GestureDetector(
-            onTap: () => setState(() => _timeframe = t),
+            onTap: () => setState(() {
+              _timeframe = t;
+              _rankingFuture = _loadRankedUsers();
+            }),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               decoration: BoxDecoration(
@@ -144,6 +214,26 @@ class _AuraBoardScreenState extends State<AuraBoardScreen> {
         }).toList(),
       ),
     );
+  }
+
+  Future<List<UserModel>> _loadRankedUsers() async {
+    final usersProvider = context.read<UsersProvider>();
+    final currentUser = context.read<AuthProvider>().currentUserOrNull;
+    final cutoff = _timeframe == 'Weekly'
+        ? DateTime.now().subtract(const Duration(days: 7))
+        : DateTime.now().subtract(const Duration(days: 30));
+
+    final totals = await SupabaseService.instance.getAuraTotalsSince(cutoff);
+    final source = _isGlobal
+        ? usersProvider.users
+        : usersProvider.collegeLeaderboard(currentUser?.college ?? '');
+
+    final ranked = source
+        .map((user) => user.copyWith(aura: totals[user.id] ?? 0))
+        .toList()
+      ..sort((a, b) => b.aura.compareTo(a.aura));
+
+    return ranked;
   }
 
   Widget _buildPodium(BuildContext context, List<UserModel> top3) {
@@ -259,11 +349,38 @@ class _AuraBoardScreenState extends State<AuraBoardScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(u.name,
-                        style: GoogleFonts.inter(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                          color: AppColors.textFor(context))),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(u.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                                color: AppColors.textFor(context))),
+                        ),
+                        if (u.roles.isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              u.roles.first.toUpperCase(),
+                              style: const TextStyle(
+                                fontSize: 7,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.primary,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                     Text('@${u.handle}',
                         style: GoogleFonts.inter(
                           fontSize: 11,
@@ -410,6 +527,37 @@ class _TierCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ScopeIcon extends StatelessWidget {
+  final IconData icon;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _ScopeIcon({
+    required this.icon,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          icon,
+          size: 18,
+          color: isSelected ? Colors.white : AppColors.text3For(context),
+        ),
       ),
     );
   }

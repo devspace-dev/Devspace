@@ -36,24 +36,24 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen>
 
   @override
   Widget build(BuildContext context) {
+    final canPop = Navigator.canPop(context);
     return Scaffold(
       backgroundColor: AppColors.bgFor(context),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        iconTheme: IconThemeData(color: AppColors.textFor(context)),
-        title: Text(
-          'Opportunities',
-          style: TextStyle(
-            fontWeight: FontWeight.w900,
-            fontSize: 22,
-            color: AppColors.textFor(context),
-            letterSpacing: -0.5,
-          ),
-        ),
-      ),
-      extendBodyBehindAppBar: true,
+      appBar: canPop
+          ? AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              iconTheme: IconThemeData(color: AppColors.textFor(context)),
+              title: Text(
+                'Opportunities',
+                style: TextStyle(
+                  color: AppColors.textFor(context),
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            )
+          : null,
       body: AppGradientBackground(
         child: SafeArea(
           child: Column(
@@ -122,7 +122,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen>
 
   Widget _buildTabBar(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
+      padding: const EdgeInsets.fromLTRB(20, 6, 20, 10),
       child: TabBar(
         controller: _tabController,
         dividerColor: Colors.transparent,

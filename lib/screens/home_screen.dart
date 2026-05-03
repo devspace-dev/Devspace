@@ -10,16 +10,18 @@ import '../widgets/compose_box.dart';
 import '../widgets/engagement_overview.dart';
 import '../widgets/post_card.dart';
 import '../widgets/post_shimmer.dart';
+import '../widgets/college_leaderboard.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<HomeScreen> createState() => HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class HomeScreenState extends State<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
+  final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey = GlobalKey<RefreshIndicatorState>();
 
   @override
   void initState() {
@@ -33,6 +35,20 @@ class _HomeScreenState extends State<HomeScreen> {
       ..removeListener(_handleScroll)
       ..dispose();
     super.dispose();
+  }
+
+  void scrollToTopAndRefresh() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      ).then((_) {
+        _refreshIndicatorKey.currentState?.show();
+      });
+    } else {
+      _refreshIndicatorKey.currentState?.show();
+    }
   }
 
   void _handleScroll() {
@@ -50,6 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final posts = postsP.posts;
 
     return RefreshIndicator.adaptive(
+      key: _refreshIndicatorKey,
       color: AppColors.primary,
       onRefresh: () async {
         await Future.wait([
@@ -63,6 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
         slivers: [
           const SliverToBoxAdapter(child: ComposeBox()),
           const SliverToBoxAdapter(child: EngagementOverview()),
+
           if (postsP.feedError != null && posts.isNotEmpty)
             SliverToBoxAdapter(
               child: AppInlineError(

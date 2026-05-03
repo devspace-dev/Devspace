@@ -125,11 +125,20 @@ class _PostCardState extends State<PostCard> {
                     child: Row(
                       children: [
                         Text(
-                          author.handle,
-                          style: TextStyle(
+                          author.name,
+                          style: GoogleFonts.plusJakartaSans(
                             fontWeight: FontWeight.w700,
-                            fontSize: 13,
+                            fontSize: 14,
                             color: AppColors.textFor(context),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '@${author.handle}',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontWeight: FontWeight.w500,
+                            fontSize: 12,
+                            color: AppColors.text3For(context),
                           ),
                         ),
                         const SizedBox(width: 6),
@@ -143,7 +152,7 @@ class _PostCardState extends State<PostCard> {
                         const SizedBox(width: 6),
                         Text(
                           timeago.format(post.createdAt, locale: 'en_short'),
-                          style: TextStyle(
+                          style: GoogleFonts.plusJakartaSans(
                             fontSize: 12,
                             color: AppColors.text3For(context),
                             fontWeight: FontWeight.w500,

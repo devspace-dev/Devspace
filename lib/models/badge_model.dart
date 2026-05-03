@@ -20,7 +20,8 @@ class BadgeModel {
 }
 
 const List<BadgeModel> kBadges = [
-  BadgeModel(name: 'Sprout',  icon: '🌱', color: AppColors.sprout,  min: 0,    max: 999,      description: 'Just getting started'),
+  BadgeModel(name: 'Seed',    icon: '🥚', color: Colors.grey,       min: 0,    max: 149,      description: 'Getting ready to sprout'),
+  BadgeModel(name: 'Sprout',  icon: '🌱', color: AppColors.sprout,  min: 150,  max: 999,      description: 'Just getting started'),
   BadgeModel(name: 'Spark',   icon: '✨', color: AppColors.spark,   min: 1000, max: 1999,     description: 'Picking up momentum'),
   BadgeModel(name: 'Flame',   icon: '🔥', color: AppColors.flame,   min: 2000, max: 2999,     description: 'On fire — consistently active'),
   BadgeModel(name: 'Voltage', icon: '⚡', color: AppColors.voltage, min: 3000, max: 4999,     description: 'Top contributor in college'),
