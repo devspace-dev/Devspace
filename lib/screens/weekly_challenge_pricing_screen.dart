@@ -120,6 +120,7 @@ class _WeeklyChallengePricingScreenState extends State<WeeklyChallengePricingScr
     return Column(
       children: [
         ChallengeTierCard(
+          isComingSoon: true,
           title: 'Tech Stack Questions',
           description: 'Sharpen your coding skills with weekly questions tailored to your tech stack.',
           icon: Icons.code_rounded,
@@ -130,7 +131,7 @@ class _WeeklyChallengePricingScreenState extends State<WeeklyChallengePricingScr
             'Community Leaderboard Access',
             'Peer Comparison'
           ],
-          buttonText: 'Start Free Challenge',
+          buttonText: 'Coming Soon',
           onPressed: () {
             Navigator.push(
               context,
@@ -169,6 +170,7 @@ class _WeeklyChallengePricingScreenState extends State<WeeklyChallengePricingScr
       children: [
         ChallengeTierCard(
           isPremium: true,
+          isComingSoon: true,
           title: 'Career & Skill Growth',
           price: 'Rs 49 / MONTH',
           description: 'The ultimate package for builders who are serious about their career and skill development.',
@@ -184,7 +186,7 @@ class _WeeklyChallengePricingScreenState extends State<WeeklyChallengePricingScr
             'Premium Learning Resources',
             'Priority Placement Support'
           ],
-          buttonText: buttonText,
+          buttonText: 'Coming Soon',
           onPressed: onPressed ?? () {},
         ),
         const SizedBox(height: 24),

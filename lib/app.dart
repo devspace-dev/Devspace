@@ -37,6 +37,7 @@ import 'models/notification_model.dart';
 import 'widgets/tier_up_dialog.dart';
 import 'utils/devspace_ui_helper.dart';
 import 'screens/tier_up_celebration_screen.dart';
+import 'services/app_review_service.dart';
 // Calling feature deferred to future update
 
 final GlobalKey<HomeScreenState> homeScreenKey = GlobalKey<HomeScreenState>();
@@ -226,6 +227,16 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
     _pageController = PageController();
     _initProviders();
     _setupNotificationTapListener();
+    _checkAppReview();
+  }
+
+  void _checkAppReview() async {
+    await AppReviewService.instance.logSession();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        AppReviewService.instance.checkAndShowPrompt(context);
+      }
+    });
   }
 
   void _setupNotificationTapListener() {

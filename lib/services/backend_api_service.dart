@@ -416,6 +416,7 @@ class BackendApiService {
         final rows = await _client
             .from('events')
             .select('id, title, description, required_aura, link, type, banner_url, date, location, organizer')
+            .eq('is_active', true)
             .order('required_aura', ascending: true);
 
         final results = <EventAccessModel>[];

@@ -40,8 +40,12 @@ class StorageService {
             toolbarTitle: 'Crop Image',
             toolbarColor: AppColors.primary,
             toolbarWidgetColor: Colors.white,
-            initAspectRatio: isCircle ? CropAspectRatioPreset.square : CropAspectRatioPreset.original,
+            activeControlsWidgetColor: AppColors.primary,
+            hideBottomControls: false,
             lockAspectRatio: isCircle,
+            initAspectRatio: isCircle
+                ? CropAspectRatioPreset.square
+                : CropAspectRatioPreset.original,
             aspectRatioPresets: isCircle
                 ? [CropAspectRatioPreset.square]
                 : [
@@ -80,7 +84,8 @@ class StorageService {
     await _supabase.storage.from('images').upload(
           path,
           file,
-          fileOptions: const FileOptions(upsert: true, contentType: 'image/jpeg'),
+          fileOptions:
+              const FileOptions(upsert: true, contentType: 'image/jpeg'),
         );
     return _supabase.storage.from('images').getPublicUrl(path);
   }
@@ -91,7 +96,8 @@ class StorageService {
     await _supabase.storage.from('images').upload(
           path,
           file,
-          fileOptions: const FileOptions(upsert: true, contentType: 'image/jpeg'),
+          fileOptions:
+              const FileOptions(upsert: true, contentType: 'image/jpeg'),
         );
     return _supabase.storage.from('images').getPublicUrl(path);
   }
@@ -102,7 +108,8 @@ class StorageService {
     await _supabase.storage.from('images').upload(
           path,
           file,
-          fileOptions: const FileOptions(upsert: true, contentType: 'image/jpeg'),
+          fileOptions:
+              const FileOptions(upsert: true, contentType: 'image/jpeg'),
         );
     return _supabase.storage.from('images').getPublicUrl(path);
   }
@@ -112,7 +119,8 @@ class StorageService {
     await _supabase.storage.from('images').upload(
           path,
           file,
-          fileOptions: const FileOptions(upsert: true, contentType: 'image/jpeg'),
+          fileOptions:
+              const FileOptions(upsert: true, contentType: 'image/jpeg'),
         );
     return _supabase.storage.from('images').getPublicUrl(path);
   }
@@ -138,7 +146,8 @@ class StorageService {
     await _supabase.storage.from('images').upload(
           path,
           file,
-          fileOptions: const FileOptions(upsert: true, contentType: 'image/jpeg'),
+          fileOptions:
+              const FileOptions(upsert: true, contentType: 'image/jpeg'),
         );
     if (onProgress != null) onProgress(1.0);
     return _supabase.storage.from('images').getPublicUrl(path);
@@ -159,7 +168,8 @@ class StorageService {
     await _supabase.storage.from('images').upload(
           path,
           file,
-          fileOptions: const FileOptions(upsert: true, contentType: 'image/jpeg'),
+          fileOptions:
+              const FileOptions(upsert: true, contentType: 'image/jpeg'),
         );
     return _supabase.storage.from('images').getPublicUrl(path);
   }

@@ -192,9 +192,9 @@ class _WeeklyChallengeRegistrationScreenState
         ),
         const SizedBox(height: 40),
         AppButton(
-          onPressed: _isProcessingPayment ? null : _handlePayment,
+          onPressed: null,
           isLoading: _isProcessingPayment,
-          child: const Text('Pay to Register - Rs 49'),
+          child: const Text('Coming Soon'),
         ),
       ],
     );

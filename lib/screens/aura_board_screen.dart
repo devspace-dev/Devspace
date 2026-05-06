@@ -21,7 +21,7 @@ class AuraBoardScreen extends StatefulWidget {
 }
 
 class _AuraBoardScreenState extends State<AuraBoardScreen> {
-  String _timeframe = 'Monthly'; // 'Weekly' or 'Monthly'
+  String _timeframe = 'All Time'; // 'Weekly', 'Monthly' or 'All Time'
   bool _isGlobal = true;
   Future<List<UserModel>>? _rankingFuture;
   int _lastUsersCount = -1;
@@ -181,7 +181,7 @@ class _AuraBoardScreenState extends State<AuraBoardScreen> {
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        children: ['Weekly', 'Monthly'].map((t) {
+        children: ['Weekly', 'Monthly', 'All Time'].map((t) {
           final isSelected = _timeframe == t;
           return GestureDetector(
             onTap: () => setState(() {
@@ -219,6 +219,17 @@ class _AuraBoardScreenState extends State<AuraBoardScreen> {
   Future<List<UserModel>> _loadRankedUsers() async {
     final usersProvider = context.read<UsersProvider>();
     final currentUser = context.read<AuthProvider>().currentUserOrNull;
+    
+    if (_timeframe == 'All Time') {
+      final source = _isGlobal
+          ? usersProvider.users
+          : usersProvider.collegeLeaderboard(currentUser?.college ?? '');
+      
+      final ranked = List<UserModel>.from(source)
+        ..sort((a, b) => b.aura.compareTo(a.aura));
+      return ranked;
+    }
+
     final cutoff = _timeframe == 'Weekly'
         ? DateTime.now().subtract(const Duration(days: 7))
         : DateTime.now().subtract(const Duration(days: 30));

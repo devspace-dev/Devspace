@@ -120,6 +120,7 @@ class _WeeklyChallengeScreenState extends State<WeeklyChallengeScreen> {
       children: [
         ChallengeTierCard(
           key: const ValueKey('free_tier'),
+          isComingSoon: true,
           title: 'Tech Stack Questions',
           description: 'Sharpen your coding skills with weekly questions tailored to your tech stack.',
           icon: Icons.code_rounded,
@@ -130,7 +131,7 @@ class _WeeklyChallengeScreenState extends State<WeeklyChallengeScreen> {
             'Community Leaderboard Access',
             'Peer Comparison'
           ],
-          buttonText: 'Start Free Challenge',
+          buttonText: 'Coming Soon',
           onPressed: () {
             Navigator.push(
               context,
@@ -149,6 +150,7 @@ class _WeeklyChallengeScreenState extends State<WeeklyChallengeScreen> {
         ChallengeTierCard(
           key: const ValueKey('paid_tier'),
           isPremium: true,
+          isComingSoon: true,
           title: 'Career & Skill Growth',
           price: 'Rs 29 / WEEK',
           description: 'The ultimate package for builders who are serious about their career and skill development.',
@@ -164,7 +166,7 @@ class _WeeklyChallengeScreenState extends State<WeeklyChallengeScreen> {
             'Premium Learning Resources',
             'Priority Placement Support'
           ],
-          buttonText: 'Unlock Premium Access',
+          buttonText: 'Coming Soon',
           onPressed: () {
             if (engagement.isWeeklyChallengeEnrolled) {
                ScaffoldMessenger.of(context).showSnackBar(

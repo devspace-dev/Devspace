@@ -10,6 +10,8 @@ import '../screens/aura_board_screen.dart';
 import '../screens/aura_history_screen.dart';
 import '../theme/app_colors.dart';
 
+import '../providers/auth_provider.dart';
+
 class EngagementOverview extends StatelessWidget {
   const EngagementOverview({super.key});
 
@@ -233,6 +235,12 @@ class EngagementOverview extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
+                          if (context.read<AuthProvider>().currentUserOrNull?.isFounder == true)
+                            IconButton(
+                              onPressed: () => _confirmDeleteChallenge(context, provider, challenge.challengeId),
+                              icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
+                            ),
+                          const SizedBox(width: 8),
                           OutlinedButton(
                             onPressed: () {
                               Navigator.of(context).push(
@@ -289,20 +297,16 @@ class EngagementOverview extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 10),
-                        ...provider.events.take(4).map(
+                        ...provider.unlockedEvents.take(4).map(
                               (event) => Padding(
                                 padding: const EdgeInsets.only(bottom: 10),
                                 child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Icon(
-                                      event.unlocked
-                                          ? Icons.lock_open_rounded
-                                          : Icons.lock_outline_rounded,
+                                      Icons.lock_open_rounded,
                                       size: 18,
-                                      color: event.unlocked
-                                          ? Colors.green
-                                          : AppColors.text3For(context),
+                                      color: Colors.green,
                                     ),
                                     const SizedBox(width: 10),
                                     Expanded(
@@ -320,9 +324,7 @@ class EngagementOverview extends StatelessWidget {
                                           ),
                                           const SizedBox(height: 2),
                                           Text(
-                                            event.unlocked
-                                                ? '${event.type} - eligible now'
-                                                : '${event.type} - needs ${event.requiredAura} aura',
+                                            '${event.type} - eligible now',
                                             style: TextStyle(
                                               fontSize: 12,
                                               color: AppColors.text3For(context),
@@ -331,6 +333,13 @@ class EngagementOverview extends StatelessWidget {
                                         ],
                                       ),
                                     ),
+                                    if (context.read<AuthProvider>().currentUserOrNull?.isFounder == true)
+                                      IconButton(
+                                        onPressed: () => _confirmDeleteEvent(context, provider, event.id),
+                                        icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 18),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                      ),
                                   ],
                                 ),
                               ),
@@ -343,6 +352,46 @@ class EngagementOverview extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+
+  void _confirmDeleteChallenge(BuildContext context, EngagementProvider provider, String id) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Challenge?'),
+        content: const Text('This will remove the challenge for everyone. This cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await provider.deleteDailyChallenge(id);
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteEvent(BuildContext context, EngagementProvider provider, String id) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Event?'),
+        content: const Text('This will remove the event/opportunity for everyone. This cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await provider.deleteEvent(id);
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
     );
   }
 

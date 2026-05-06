@@ -14,6 +14,7 @@ class ChallengeTierCard extends StatelessWidget {
   final Color accentColor;
   final bool isEnrolled;
   final bool isLoading;
+  final bool isComingSoon;
 
   const ChallengeTierCard({
     super.key,
@@ -28,6 +29,7 @@ class ChallengeTierCard extends StatelessWidget {
     required this.accentColor,
     this.isEnrolled = false,
     this.isLoading = false,
+    this.isComingSoon = false,
   });
 
   @override
@@ -101,6 +103,13 @@ class ChallengeTierCard extends StatelessWidget {
                               label: 'PRO',
                               color: accentColor,
                               icon: Icons.auto_awesome,
+                            ),
+                          ],
+                          if (isComingSoon) ...[
+                            const SizedBox(width: 8),
+                            AppBadge(
+                              label: 'COMING SOON',
+                              color: Colors.orange,
                             ),
                           ],
                         ],
@@ -188,7 +197,7 @@ class ChallengeTierCard extends StatelessWidget {
                   )
                 else
                   AppButton(
-                    onPressed: isLoading ? null : onPressed,
+                    onPressed: (isLoading || isComingSoon) ? null : onPressed,
                     backgroundColor: isPremium ? accentColor : AppColors.textFor(context),
                     foregroundColor: isPremium ? Colors.white : AppColors.bgFor(context),
                     isLoading: isLoading,

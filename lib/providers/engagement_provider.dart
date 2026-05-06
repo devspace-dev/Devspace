@@ -323,4 +323,32 @@ class EngagementProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // FOUNDER TOOLS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  Future<void> deleteEvent(String eventId) async {
+    try {
+      await SupabaseService.instance.deleteEvent(eventId);
+      _events.removeWhere((e) => e.id == eventId);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Failed to delete event: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteDailyChallenge(String challengeId) async {
+    try {
+      await SupabaseService.instance.deleteDailyChallenge(challengeId);
+      if (_dailyChallenge?.challengeId == challengeId) {
+        _dailyChallenge = null;
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Failed to delete challenge: $e');
+      rethrow;
+    }
+  }
 }

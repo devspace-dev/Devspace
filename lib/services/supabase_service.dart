@@ -342,13 +342,11 @@ class SupabaseService {
   }
 
   Stream<List<UserModel>> streamUsers() {
-    return Stream.fromFuture(
-      _client
-          .from('users')
-          .select()
-          .order('aura', ascending: false)
-          .then((list) => (list as List).map((d) => UserModel.fromJson(d as Map<String, dynamic>)).toList()),
-    );
+    return _client
+        .from('users')
+        .stream(primaryKey: ['id'])
+        .order('aura', ascending: false)
+        .map((list) => list.map((d) => UserModel.fromJson(d)).toList());
   }
 
   Future<Set<String>> getFollowingIds(String userId) async {
@@ -1164,5 +1162,17 @@ class SupabaseService {
       'reply_id': replyId,
       'user_id': userId,
     });
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // FOUNDER TOOLS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  Future<void> deleteEvent(String eventId) async {
+    await _client.from('events').delete().eq('id', eventId);
+  }
+
+  Future<void> deleteDailyChallenge(String challengeId) async {
+    await _client.from('challenges').delete().eq('id', challengeId);
   }
 }
