@@ -10,8 +10,10 @@ import '../services/backend_api_service.dart';
 
 typedef AuraSummaryLoader = Future<AuraSummaryModel> Function();
 typedef EligibleEventsLoader = Future<List<EventAccessModel>> Function();
-typedef DailyChallengeLoader = Future<DailyChallengeModel?> Function({String? techStack});
-typedef WeeklyFreeChallengeLoader = Future<List<DailyChallengeModel>> Function({String? techStack});
+typedef DailyChallengeLoader = Future<DailyChallengeModel?> Function(
+    {String? techStack});
+typedef WeeklyFreeChallengeLoader = Future<List<DailyChallengeModel>> Function(
+    {String? techStack});
 typedef DailyChallengeSubmitter = Future<Map<String, dynamic>> Function({
   required String submissionText,
   required String submissionLink,
@@ -60,10 +62,9 @@ class EngagementProvider extends ChangeNotifier {
             weeklyFreeChallengeLoader ?? _defaultWeeklyFreeChallengeLoader,
         _dailyChallengeSubmitter =
             dailyChallengeSubmitter ?? _defaultDailyChallengeSubmitter,
-        _weeklyFreeChallengeSubmitter =
-            weeklyFreeChallengeSubmitter ?? _defaultWeeklyFreeChallengeSubmitter,
-        _refreshCurrentUser =
-            refreshCurrentUser ?? _defaultRefreshCurrentUser;
+        _weeklyFreeChallengeSubmitter = weeklyFreeChallengeSubmitter ??
+            _defaultWeeklyFreeChallengeSubmitter,
+        _refreshCurrentUser = refreshCurrentUser ?? _defaultRefreshCurrentUser;
 
   final AuraSummaryLoader _auraSummaryLoader;
   final EligibleEventsLoader _eligibleEventsLoader;
@@ -87,8 +88,10 @@ class EngagementProvider extends ChangeNotifier {
 
   AuraSummaryModel? get auraSummary => _auraSummary;
   DailyChallengeModel? get dailyChallenge => _dailyChallenge;
-  List<DailyChallengeModel> get weeklyFreeChallenges => List.unmodifiable(_weeklyFreeChallenges);
-  DailyChallengeModel? get weeklyFreeChallenge => _weeklyFreeChallenges.isNotEmpty ? _weeklyFreeChallenges.first : null;
+  List<DailyChallengeModel> get weeklyFreeChallenges =>
+      List.unmodifiable(_weeklyFreeChallenges);
+  DailyChallengeModel? get weeklyFreeChallenge =>
+      _weeklyFreeChallenges.isNotEmpty ? _weeklyFreeChallenges.first : null;
   List<EventAccessModel> get events => List.unmodifiable(_events);
   List<AuraLedgerModel> get auraHistory => List.unmodifiable(_auraHistory);
   bool get isWeeklyChallengeEnrolled => _isWeeklyChallengeEnrolled;
@@ -111,12 +114,15 @@ class EngagementProvider extends ChangeNotifier {
     return BackendApiService.instance.getEligibleEvents();
   }
 
-  static Future<DailyChallengeModel?> _defaultDailyChallengeLoader({String? techStack}) {
+  static Future<DailyChallengeModel?> _defaultDailyChallengeLoader(
+      {String? techStack}) {
     return BackendApiService.instance.getDailyChallenge(techStack: techStack);
   }
 
-  static Future<List<DailyChallengeModel>> _defaultWeeklyFreeChallengeLoader({String? techStack}) {
-    return BackendApiService.instance.getWeeklyFreeChallenge(techStack: techStack);
+  static Future<List<DailyChallengeModel>> _defaultWeeklyFreeChallengeLoader(
+      {String? techStack}) {
+    return BackendApiService.instance
+        .getWeeklyFreeChallenge(techStack: techStack);
   }
 
   static Future<Map<String, dynamic>> _defaultDailyChallengeSubmitter({
@@ -146,7 +152,9 @@ class EngagementProvider extends ChangeNotifier {
   }
 
   Future<void> fetchAuraHistory() async {
-    final user = _refreshCurrentUser != _defaultRefreshCurrentUser ? null : AuthService.instance.currentUser;
+    final user = _refreshCurrentUser != _defaultRefreshCurrentUser
+        ? null
+        : AuthService.instance.currentUser;
     final uid = user?.id;
     if (uid == null) return;
 
@@ -164,7 +172,8 @@ class EngagementProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> fetchOverview({bool forceChallengeRefresh = false, String? techStack}) async {
+  Future<void> fetchOverview(
+      {bool forceChallengeRefresh = false, String? techStack}) async {
     _isLoading = true;
     _error = null;
 
@@ -183,10 +192,12 @@ class EngagementProvider extends ChangeNotifier {
         _OverviewLoadResult.guard(_auraSummaryLoader),
         _OverviewLoadResult.guard(_eligibleEventsLoader),
         _OverviewLoadResult.guard(
-          () => _dailyChallengeLoader(techStack: techStack ?? _selectedDailyTechStack),
+          () => _dailyChallengeLoader(
+              techStack: techStack ?? _selectedDailyTechStack),
         ),
         _OverviewLoadResult.guard(
-          () => _weeklyFreeChallengeLoader(techStack: techStack ?? _selectedDailyTechStack),
+          () => _weeklyFreeChallengeLoader(
+              techStack: techStack ?? _selectedDailyTechStack),
         ),
       ]).timeout(const Duration(seconds: 12));
 
@@ -272,13 +283,14 @@ class EngagementProvider extends ChangeNotifier {
       // Optimistic update for real-time feel
       if (_auraSummary != null) {
         final currentStreak = _auraSummary!.currentStreak + 1;
-        final longestStreak = currentStreak > _auraSummary!.longestStreak 
-            ? currentStreak 
+        final longestStreak = currentStreak > _auraSummary!.longestStreak
+            ? currentStreak
             : _auraSummary!.longestStreak;
-            
+
         _auraSummary = AuraSummaryModel(
           userId: _auraSummary!.userId,
-          auraPoints: _auraSummary!.auraPoints + (_dailyChallenge?.pointsReward ?? 0),
+          auraPoints:
+              _auraSummary!.auraPoints + (_dailyChallenge?.pointsReward ?? 0),
           level: _auraSummary!.level,
           currentStreak: currentStreak,
           longestStreak: longestStreak,
