@@ -41,16 +41,31 @@ class AuraSummaryModel {
 
   factory AuraSummaryModel.fromJson(Map<String, dynamic> json) {
     final rawBadges = json['badges'] as List? ?? const [];
+    final lastCompletedStr = json['lastChallengeCompletedOn']?.toString();
+    final lastCompleted = lastCompletedStr != null ? DateTime.tryParse(lastCompletedStr) : null;
+    
+    int currentStreak = (json['currentStreak'] as num? ?? 0).toInt();
+    int longestStreak = (json['longestStreak'] as num? ?? 0).toInt();
+
+    // Reset streak if more than 1 day has passed
+    if (currentStreak > 0 && lastCompleted != null) {
+      final today = DateTime.now();
+      final lastDate = DateTime(lastCompleted.year, lastCompleted.month, lastCompleted.day);
+      final todayDate = DateTime(today.year, today.month, today.day);
+      
+      final difference = todayDate.difference(lastDate).inDays;
+      if (difference > 1) {
+        currentStreak = 0;
+      }
+    }
 
     return AuraSummaryModel(
       userId: (json['userId'] ?? '').toString(),
       auraPoints: (json['auraPoints'] as num? ?? 0).toInt(),
       level: (json['level'] ?? 'Beginner').toString(),
-      currentStreak: (json['currentStreak'] as num? ?? 0).toInt(),
-      longestStreak: (json['longestStreak'] as num? ?? 0).toInt(),
-      lastChallengeCompletedOn: json['lastChallengeCompletedOn'] == null
-          ? null
-          : DateTime.tryParse(json['lastChallengeCompletedOn'].toString()),
+      currentStreak: currentStreak,
+      longestStreak: longestStreak,
+      lastChallengeCompletedOn: lastCompleted,
       badges: rawBadges
           .map((badge) => AuraBadgeModel.fromJson(
                 Map<String, dynamic>.from(badge as Map),

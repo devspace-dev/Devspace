@@ -29,9 +29,11 @@ class QuestionsProvider extends ChangeNotifier {
   final Map<String, bool> _solveUpdating = {};
   final Map<String, String?> _solveErrors = {};
   bool _isLoading = false;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
   String? _error;
-  StreamSubscription<List<QuestionModel>>? _questionsSub;
   String _currentFilter = 'latest';
+  static const int _pageSize = 20;
 
   final Map<String, List<QuestionPullRequestModel>> _pullRequestsByQuestion = {};
   final Map<String, bool> _prLoading = {};
@@ -40,6 +42,8 @@ class QuestionsProvider extends ChangeNotifier {
 
   List<QuestionModel> get questions => List.unmodifiable(_questions);
   bool get isLoading => _isLoading;
+  bool get isLoadingMore => _isLoadingMore;
+  bool get hasMore => _hasMore;
   String? get error => _error;
   String get currentFilter => _currentFilter;
 
@@ -177,71 +181,82 @@ class QuestionsProvider extends ChangeNotifier {
 
 
   Future<void> fetchQuestions() async {
-    if (_questionsSub != null) {
-      await _questionsSub!.cancel();
-    }
     _isLoading = true;
     _error = null;
+    _hasMore = true;
     notifyListeners();
 
-    final completer = Completer<void>();
-    late final StreamSubscription<List<QuestionModel>> subscription;
-
-    void completeOnce() {
-      if (!completer.isCompleted) {
-        completer.complete();
-      }
-    }
-
     try {
-      subscription = SupabaseService.instance.streamQuestions(filter: _currentFilter).listen(
-        (newList) async {
-          try {
-            final currentUser = AuthService.instance.currentUser;
-            if (currentUser == null) {
-              _questions = newList;
-            } else {
-              final upvotedIds = await SupabaseService.instance
-                  .getUpvotedQuestionIds(currentUser.id);
-              _questions = newList
-                  .map((question) => _mergeHydratedQuestion(question, upvotedIds))
-                  .toList();
-            }
-            _error = null;
-          } catch (e) {
-            _error = 'Failed to load questions: $e';
-          } finally {
-            _isLoading = false;
-            notifyListeners();
-            completeOnce();
-          }
-        },
-        onError: (Object error, StackTrace stackTrace) {
-          _error = 'Failed to load questions: $error';
-          _isLoading = false;
-          notifyListeners();
-          completeOnce();
-        },
-        onDone: () {
-          if (_isLoading) {
-            _isLoading = false;
-            notifyListeners();
-          }
-          completeOnce();
-        },
+      final page = await SupabaseService.instance.getQuestions(
+        filter: _currentFilter,
+        limit: _pageSize,
+        offset: 0,
       );
-      _questionsSub = subscription;
+      
+      _questions = await _hydrateQuestions(page);
+      _hasMore = page.length >= _pageSize;
+      _error = null;
     } catch (e) {
-      _error = 'Failed to initialize questions: $e';
+      _error = 'Failed to load questions: $e';
+    } finally {
       _isLoading = false;
       notifyListeners();
-      completeOnce();
     }
-
-    await completer.future;
   }
 
   Future<void> refreshQuestions() => fetchQuestions();
+
+  Future<void> loadMoreQuestions() async {
+    if (_isLoading || _isLoadingMore || !_hasMore) return;
+
+    _isLoadingMore = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final page = await SupabaseService.instance.getQuestions(
+        filter: _currentFilter,
+        limit: _pageSize,
+        offset: _questions.length,
+      );
+
+      if (page.isEmpty) {
+        _hasMore = false;
+        return;
+      }
+
+      final hydratedPage = await _hydrateQuestions(page);
+      final existingIds = _questions.map((q) => q.id).toSet();
+      _questions = [
+        ..._questions,
+        ...hydratedPage.where((q) => !existingIds.contains(q.id)),
+      ];
+      _hasMore = page.length >= _pageSize;
+      _error = null;
+    } catch (e) {
+      _error = 'Failed to load more questions: $e';
+    } finally {
+      _isLoadingMore = false;
+      notifyListeners();
+    }
+  }
+
+  Future<List<QuestionModel>> _hydrateQuestions(List<QuestionModel> questions) async {
+    final currentUser = AuthService.instance.currentUser;
+    if (currentUser == null) {
+      return questions;
+    }
+
+    try {
+      final upvotedIds = await SupabaseService.instance
+          .getUpvotedQuestionIds(currentUser.id);
+      return questions
+          .map((question) => _mergeHydratedQuestion(question, upvotedIds))
+          .toList();
+    } catch (_) {
+      return questions;
+    }
+  }
 
   Future<QuestionActionResult> addQuestion({
     required String userId,
@@ -277,6 +292,7 @@ class QuestionsProvider extends ChangeNotifier {
         body: trimmedBody,
         tags: normalizedTags,
       );
+      await refreshQuestions();
       return const QuestionActionResult(success: true);
     } catch (e) {
       return QuestionActionResult(
@@ -506,7 +522,6 @@ class QuestionsProvider extends ChangeNotifier {
 
   @override
   void dispose() {
-    _questionsSub?.cancel();
     super.dispose();
   }
 }

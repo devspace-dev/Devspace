@@ -341,12 +341,22 @@ class SupabaseService {
     await _client.auth.signOut();
   }
 
-  Stream<List<UserModel>> streamUsers() {
-    return _client
-        .from('users')
-        .stream(primaryKey: ['id'])
-        .order('aura', ascending: false)
-        .map((list) => list.map((d) => UserModel.fromJson(d)).toList());
+  Future<List<UserModel>> getUsers({
+    int limit = 20,
+    int offset = 0,
+    String? query,
+  }) async {
+    var request = _client.from('users').select();
+
+    if (query != null && query.isNotEmpty) {
+      request = request.or('name.ilike.%$query%,handle.ilike.%$query%,branch.ilike.%$query%,building.ilike.%$query%');
+    }
+
+    final from = offset;
+    final to = offset + limit - 1;
+    final data = await request.order('aura', ascending: false).range(from, to);
+
+    return (data as List).map((d) => UserModel.fromJson(d)).toList();
   }
 
   Future<Set<String>> getFollowingIds(String userId) async {
@@ -478,22 +488,34 @@ class SupabaseService {
         .update({'image_url': imageUrl}).eq('id', postId);
   }
 
-  Stream<List<PostModel>> streamFeed() {
-    return _client
+  Future<List<PostModel>> getPosts({
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    final from = offset;
+    final to = offset + limit - 1;
+    final data = await _client
         .from('posts')
-        .stream(primaryKey: ['id'])
+        .select()
         .order('created_at', ascending: false)
-        .limit(50)
-        .map((list) => list.map((d) => PostModel.fromJson(d)).toList());
+        .range(from, to);
+    return (data as List).map((d) => PostModel.fromJson(d)).toList();
   }
 
-  Stream<List<PostModel>> streamUserPosts(String userId) {
-    return _client
+  Future<List<PostModel>> getUserPosts(
+    String userId, {
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    final from = offset;
+    final to = offset + limit - 1;
+    final data = await _client
         .from('posts')
-        .stream(primaryKey: ['id'])
+        .select()
         .eq('user_id', userId)
         .order('created_at', ascending: false)
-        .map((list) => list.map((d) => PostModel.fromJson(d)).toList());
+        .range(from, to);
+    return (data as List).map((d) => PostModel.fromJson(d)).toList();
   }
 
   Future<PostModel?> getPostById(String postId) async {
@@ -605,7 +627,11 @@ class SupabaseService {
   // QUESTIONS & REPLIES
   // ══════════════════════════════════════════════════════════════════════════
 
-  Stream<List<QuestionModel>> streamQuestions({String filter = 'latest'}) async* {
+  Future<List<QuestionModel>> getQuestions({
+    String filter = 'latest',
+    int limit = 20,
+    int offset = 0,
+  }) async {
     final baseQuery = _client.from('questions').select();
     late final dynamic query;
 
@@ -634,8 +660,13 @@ class SupabaseService {
         break;
     }
 
-    final data = await query.limit(50);
-    yield (data as List).map((d) => QuestionModel.fromJson(d as Map<String, dynamic>)).toList();
+    final from = offset;
+    final to = offset + limit - 1;
+    final data = await query.range(from, to);
+
+    return (data as List)
+        .map((d) => QuestionModel.fromJson(d as Map<String, dynamic>))
+        .toList();
   }
 
   Future<QuestionModel?> getQuestionById(String questionId) async {
@@ -902,6 +933,7 @@ class SupabaseService {
     String? postId,
     String? questionId,
     String? message,
+    String? title,
   }) async {
     await _client.from('notifications').insert({
       'to_uid': toUid,
@@ -910,7 +942,23 @@ class SupabaseService {
       'post_id': postId,
       'question_id': questionId,
       'message': message ?? '',
+      'title': title,
     });
+  }
+
+  Future<void> sendBroadcastNotification({
+    required String title,
+    required String body,
+    String type = 'system',
+  }) async {
+    // Inserting with to_uid 'all_users' to trigger backend broadcast logic
+    await pushNotification(
+      toUid: 'all_users',
+      fromUid: 'system',
+      type: type,
+      title: title,
+      message: body,
+    );
   }
 
   Stream<List<NotificationModel>> streamNotifications(String uid) {

@@ -62,9 +62,27 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen>
               Expanded(
                 child: Consumer<EngagementProvider>(
                   builder: (context, provider, _) {
+                    // If we have no events, show empty state (even if loading, to avoid stuck screen)
+                    if (provider.events.isEmpty && !provider.isLoading) {
+                      return const AppEmptyState(
+                        icon: Icons.auto_awesome_rounded,
+                        title: 'No events or opportunities',
+                        message: 'We could not find any active opportunities at this time. Check back later!',
+                      );
+                    }
+
                     if (provider.isLoading && provider.events.isEmpty) {
                       return const Center(
-                          child: CircularProgressIndicator.adaptive());
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator.adaptive(),
+                            SizedBox(height: 16),
+                            Text('Checking for new opportunities...', 
+                              style: TextStyle(color: Colors.grey, fontSize: 14)),
+                          ],
+                        ),
+                      );
                     }
 
                     if (provider.error != null && provider.events.isEmpty) {
@@ -76,13 +94,11 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen>
                       );
                     }
 
-                    // Add a fallback for unexpected empty states when not loading or in error
                     if (provider.events.isEmpty) {
-                      return AppEmptyState(
-                        icon: Icons.auto_awesome_rounded,
-                        title: 'No opportunities found',
-                        message:
-                            'We could not find any opportunities or events at this time.',
+                      return const AppEmptyState(
+                        icon: Icons.event_busy_rounded,
+                        title: 'Nothing available',
+                        message: 'No events or opportunities are currently available.',
                       );
                     }
 

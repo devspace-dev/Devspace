@@ -10,7 +10,7 @@ void main() {
     final provider = EngagementProvider(
       auraSummaryLoader: () async => _summary(),
       eligibleEventsLoader: () async => [_event(unlocked: true)],
-      dailyChallengeLoader: () async => _challenge(),
+      dailyChallengeLoader: ({techStack}) async => _challenge(),
       refreshCurrentUser: () async {
         refreshCalls += 1;
       },
@@ -58,7 +58,7 @@ void main() {
     final provider = EngagementProvider(
       auraSummaryLoader: () async => _summary(),
       eligibleEventsLoader: () async => [_event(unlocked: true)],
-      dailyChallengeLoader: () async {
+      dailyChallengeLoader: ({techStack}) async {
         challengeLoads += 1;
         return _challenge(completed: challengeLoads > 0);
       },

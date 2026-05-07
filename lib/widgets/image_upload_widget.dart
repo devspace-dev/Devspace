@@ -34,6 +34,7 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
 
   Future<void> _pick({required bool fromCamera, bool highQuality = false}) async {
     final file = await StorageService.instance.pickImage(
+      context,
       fromCamera: fromCamera,
       crop: true,
       isCircle: widget.isCircle,
@@ -151,6 +152,17 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
                 Navigator.pop(ctx);
                 _pick(fromCamera: false, highQuality: true);
               },
+            ),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: AppColors.text3For(ctx),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ],
         ),
@@ -283,6 +295,7 @@ class _PostImagePickerState extends State<PostImagePicker> {
 
   Future<void> _pick({required bool fromCamera}) async {
     final file = await StorageService.instance.pickImage(
+      context,
       fromCamera: fromCamera,
       crop: true,
       isCircle: false,

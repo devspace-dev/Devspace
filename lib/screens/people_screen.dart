@@ -26,6 +26,7 @@ class PeopleScreen extends StatefulWidget {
 
 class _PeopleScreenState extends State<PeopleScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   String _query = '';
 
   @override
@@ -33,42 +34,69 @@ class _PeopleScreenState extends State<PeopleScreen> {
     super.initState();
     _query = widget.initialQuery;
     _searchController.text = widget.initialQuery;
+    _scrollController.addListener(_handleScroll);
+    
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final usersP = context.read<UsersProvider>();
+      if (usersP.users.isEmpty && !usersP.isLoading) {
+        usersP.fetchUsers(query: _query);
+      }
+    });
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.removeListener(_handleScroll);
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _handleScroll() {
+    if (!_scrollController.hasClients) return;
+    final threshold = _scrollController.position.maxScrollExtent - 300;
+    if (_scrollController.position.pixels >= threshold) {
+      context.read<UsersProvider>().loadMoreUsers(query: _query);
+    }
+  }
+
+  void _onSearch(String value) {
+    setState(() {
+      _query = value.trim();
+    });
+    context.read<UsersProvider>().fetchUsers(query: _query);
   }
 
   @override
   Widget build(BuildContext context) {
     final usersP = context.watch<UsersProvider>();
-    final users = usersP.search(_query);
+    final users = usersP.users;
 
     return Scaffold(
       backgroundColor: AppColors.bgFor(context),
       body: RefreshIndicator.adaptive(
         color: AppColors.primary,
-        onRefresh: usersP.refreshUsers,
+        onRefresh: () => usersP.refreshUsers(),
         child: CustomScrollView(
+          controller: _scrollController,
           slivers: [
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
                 child: _DevelopersHero(
-                  totalDevelopers: usersP.users.length,
+                  totalDevelopers: users.length,
                   activeQuery: _query,
                   searchController: _searchController,
-                  onChanged: (value) => setState(() => _query = value.trim()),
+                  onChanged: _onSearch,
                   onClear: () {
                     _searchController.clear();
-                    setState(() => _query = '');
+                    _onSearch('');
                   },
                 ),
               ),
             ),
-            if (usersP.isLoading && usersP.users.isEmpty)
+            if (usersP.isLoading && users.isEmpty)
               const SliverFillRemaining(
                 child: AppLoadingState(
                   title: 'Searching',
@@ -82,14 +110,14 @@ class _PeopleScreenState extends State<PeopleScreen> {
                   title: 'Developers unavailable',
                   message: usersP.error!,
                   actionLabel: 'Retry',
-                  onAction: usersP.refreshUsers,
+                  onAction: () => usersP.fetchUsers(query: _query),
                 ),
               )
             else if (usersP.error != null && users.isNotEmpty)
               SliverToBoxAdapter(
                 child: _InlineWarningBanner(
                   message: usersP.error!,
-                  onRetry: usersP.refreshUsers,
+                  onRetry: () => usersP.fetchUsers(query: _query),
                 ),
               )
             else if (users.isEmpty)
@@ -119,12 +147,44 @@ class _PeopleScreenState extends State<PeopleScreen> {
                     )
                         .animate()
                         .fadeIn(
-                          delay: (i * 30).ms,
+                          delay: (i % 10 * 30).ms,
                           duration: 300.ms,
                         )
                         .slideX(begin: 0.03, end: 0);
                   },
                   childCount: users.length,
+                ),
+              ),
+            if (usersP.isLoadingMore)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  child: Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            else if (!usersP.hasMore && users.isNotEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 32),
+                  child: Center(
+                    child: Text(
+                      'End of directory.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.text3For(context),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             const SliverToBoxAdapter(child: SizedBox(height: 100)),

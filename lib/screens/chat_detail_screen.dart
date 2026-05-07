@@ -206,7 +206,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               onTap: () async {
                 Navigator.pop(context);
                 final file =
-                    await StorageService.instance.pickImage(fromCamera: false);
+                    await StorageService.instance.pickImage(context, fromCamera: false);
                 if (!mounted) return;
                 if (file != null) {
                   final me = context.read<AuthProvider>().currentUser;
@@ -238,8 +238,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               color: Colors.red,
               onTap: () async {
                 Navigator.pop(context);
-                final file =
-                    await StorageService.instance.pickImage(fromCamera: true);
+                final file = await StorageService.instance.pickImage(context, fromCamera: true);
                 if (!mounted) return;
                 if (file != null) {
                   final me = context.read<AuthProvider>().currentUser;

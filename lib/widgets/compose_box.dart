@@ -662,7 +662,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
     );
 
     if (source == null) return;
-    final file = await StorageService.instance.pickImage(fromCamera: source);
+    final file = await StorageService.instance.pickImage(context, fromCamera: source);
     if (file == null || !mounted) return;
     setState(() => _selectedImage = file);
   }

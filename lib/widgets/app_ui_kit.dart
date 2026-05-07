@@ -90,6 +90,7 @@ class AppButton extends StatefulWidget {
   final Color? foregroundColor;
   final double borderRadius;
   final double height;
+  final double? width;
   final bool isLoading;
 
   const AppButton({
@@ -100,6 +101,7 @@ class AppButton extends StatefulWidget {
     this.foregroundColor,
     this.borderRadius = 20.0,
     this.height = 56.0,
+    this.width,
     this.isLoading = false,
   });
 
@@ -152,7 +154,7 @@ class _AppButtonState extends State<AppButton> with SingleTickerProviderStateMix
       child: ScaleTransition(
         scale: _scaleAnimation,
         child: SizedBox(
-          width: double.infinity,
+          width: widget.width ?? double.infinity,
           height: widget.height,
           child: ElevatedButton(
             onPressed: widget.isLoading ? null : widget.onPressed,

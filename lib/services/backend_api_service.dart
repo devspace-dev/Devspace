@@ -87,28 +87,45 @@ class BackendApiService {
     }
 
     Map<String, dynamic>? matchedMission;
-    for (final row in missionRows) {
-      final mission = Map<String, dynamic>.from(row as Map);
-      final missionStack = mission['tech_stack']?.toString().trim() ?? '';
-      final missionCandidates = <String>{
-        missionStack.toLowerCase(),
-        ..._stackCandidates(missionStack),
-      }..remove('');
-
-      if (missionCandidates.any(requestedCandidates.contains)) {
-        matchedMission = mission;
-        break;
+    
+    // Priority 1: Exact match on requested stack
+    if (techStack != null) {
+      final target = techStack.trim().toLowerCase();
+      for (final row in missionRows) {
+        final mission = Map<String, dynamic>.from(row as Map);
+        if ((mission['tech_stack']?.toString().trim().toLowerCase() ?? '') == target) {
+          matchedMission = mission;
+          break;
+        }
       }
     }
 
+    // Priority 2: Match any candidate from requestedCandidates
+    if (matchedMission == null) {
+      for (final row in missionRows) {
+        final mission = Map<String, dynamic>.from(row as Map);
+        final missionStack = mission['tech_stack']?.toString().trim() ?? '';
+        final missionCandidates = <String>{
+          missionStack.toLowerCase(),
+          ..._stackCandidates(missionStack),
+        }..remove('');
+
+        if (missionCandidates.any(requestedCandidates.contains)) {
+          matchedMission = mission;
+          break;
+        }
+      }
+    }
+
+    // Priority 3: Default to 'General' if available
     matchedMission ??= missionRows
         .map((row) => Map<String, dynamic>.from(row as Map))
-        .firstWhere(
-          (mission) =>
-              (mission['tech_stack']?.toString().trim().toLowerCase() ?? '') ==
-              'general',
-          orElse: () => Map<String, dynamic>.from(missionRows.first as Map),
-        );
+        .where((mission) =>
+            (mission['tech_stack']?.toString().trim().toLowerCase() ?? '') ==
+            'general')
+        .firstOrNull;
+
+    if (matchedMission == null) return null;
 
     bool completed = false;
     String? completedAt;
@@ -250,6 +267,7 @@ class BackendApiService {
   }) async {
     final headers = await _headers(includeFounderDevice: includeFounderDevice);
     final uri = _uri(path, queryParameters);
+    debugPrint('Backend Request: $method $uri');
 
     try {
       late final http.Response response;
@@ -625,7 +643,10 @@ class BackendApiService {
       final data = await _request(
         'GET',
         '/missions/daily',
-        queryParameters: techStack == null ? null : {'techStack': techStack},
+        queryParameters: {
+          if (techStack != null) 'tech_stack': techStack,
+          't': DateTime.now().millisecondsSinceEpoch,
+        },
       );
       
       if (data == null) return null; // No daily mission found
@@ -739,7 +760,10 @@ class BackendApiService {
       final data = await _request(
         'GET',
         '/missions/weekly-free',
-        queryParameters: techStack == null ? null : {'techStack': techStack},
+        queryParameters: {
+          if (techStack != null) 'tech_stack': techStack,
+          't': DateTime.now().millisecondsSinceEpoch,
+        },
       );
       
       if (data is List) {

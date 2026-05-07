@@ -8,69 +8,96 @@ import '../services/supabase_service.dart';
 class UsersProvider extends ChangeNotifier {
   List<UserModel> _users = [];
   bool _isLoading = false;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
   String? _error;
   final Map<String, bool> _followUpdating = {};
   final Map<String, String?> _followErrors = {};
-  StreamSubscription<List<UserModel>>? _usersSub;
+  static const int _pageSize = 20;
 
   List<UserModel> get users => List.unmodifiable(_users);
   bool get isLoading => _isLoading;
+  bool get isLoadingMore => _isLoadingMore;
+  bool get hasMore => _hasMore;
   String? get error => _error;
   bool isFollowUpdating(String userId) => _followUpdating[userId] ?? false;
   String? followError(String userId) => _followErrors[userId];
 
-  Future<void> fetchUsers() async {
-    if (_usersSub != null) {
-      await _usersSub!.cancel();
-    }
+  Future<void> fetchUsers({String? query}) async {
     _isLoading = true;
     _error = null;
+    _hasMore = true;
     notifyListeners();
 
-    final completer = Completer<void>();
-    late final StreamSubscription<List<UserModel>> subscription;
+    try {
+      final page = await SupabaseService.instance.getUsers(
+        limit: _pageSize,
+        offset: 0,
+        query: query,
+      );
 
-    void completeOnce() {
-      if (!completer.isCompleted) {
-        completer.complete();
-      }
+      _users = await _hydrateUsers(page);
+      _hasMore = page.length >= _pageSize;
+      _error = null;
+    } catch (e) {
+      _error = 'Failed to load developers: $e';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
-
-    subscription = SupabaseService.instance.streamUsers().listen(
-      (newList) async {
-        try {
-          final currentUser = AuthService.instance.currentUser;
-          if (currentUser == null) {
-            _users = newList;
-          } else {
-            final followingIds =
-                await SupabaseService.instance.getFollowingIds(currentUser.id);
-            _users = newList
-                .map((user) => _mergeHydratedUser(user, followingIds))
-                .toList();
-          }
-          _error = null;
-        } catch (e) {
-          _error = 'Failed to load developers: $e';
-        } finally {
-          _isLoading = false;
-          notifyListeners();
-          completeOnce();
-        }
-      },
-      onError: (Object error, StackTrace stackTrace) {
-        _error = 'Failed to load developers: $error';
-        _isLoading = false;
-        notifyListeners();
-        completeOnce();
-      },
-    );
-
-    _usersSub = subscription;
-    await completer.future;
   }
 
   Future<void> refreshUsers() => fetchUsers();
+
+  Future<void> loadMoreUsers({String? query}) async {
+    if (_isLoading || _isLoadingMore || !_hasMore) return;
+
+    _isLoadingMore = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final page = await SupabaseService.instance.getUsers(
+        limit: _pageSize,
+        offset: _users.length,
+        query: query,
+      );
+
+      if (page.isEmpty) {
+        _hasMore = false;
+        return;
+      }
+
+      final hydratedPage = await _hydrateUsers(page);
+      final existingIds = _users.map((u) => u.id).toSet();
+      _users = [
+        ..._users,
+        ...hydratedPage.where((u) => !existingIds.contains(u.id)),
+      ];
+      _hasMore = page.length >= _pageSize;
+      _error = null;
+    } catch (e) {
+      _error = 'Failed to load more developers: $e';
+    } finally {
+      _isLoadingMore = false;
+      notifyListeners();
+    }
+  }
+
+  Future<List<UserModel>> _hydrateUsers(List<UserModel> users) async {
+    final currentUser = AuthService.instance.currentUser;
+    if (currentUser == null) return users;
+
+    try {
+      final followingIds =
+          await SupabaseService.instance.getFollowingIds(currentUser.id);
+      return users
+          .map((user) => _mergeHydratedUser(user, followingIds))
+          .toList();
+    } catch (_) {
+      return users;
+    }
+  }
 
   UserModel? getUserById(String id) {
     try {
@@ -279,7 +306,6 @@ class UsersProvider extends ChangeNotifier {
 
   @override
   void dispose() {
-    _usersSub?.cancel();
     super.dispose();
   }
 }

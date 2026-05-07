@@ -18,9 +18,12 @@ class QAScreen extends StatefulWidget {
 }
 
 class _QAScreenState extends State<QAScreen> {
+  final ScrollController _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_handleScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final questionsP = context.read<QuestionsProvider>();
@@ -28,6 +31,21 @@ class _QAScreenState extends State<QAScreen> {
         questionsP.fetchQuestions();
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_handleScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _handleScroll() {
+    if (!_scrollController.hasClients) return;
+    final threshold = _scrollController.position.maxScrollExtent - 300;
+    if (_scrollController.position.pixels >= threshold) {
+      context.read<QuestionsProvider>().loadMoreQuestions();
+    }
   }
 
   Future<void> _showAskSheet() async {
@@ -80,6 +98,7 @@ class _QAScreenState extends State<QAScreen> {
         onRefresh: questionsP.refreshQuestions,
         edgeOffset: 0,
         child: CustomScrollView(
+          controller: _scrollController,
           slivers: [
             SliverToBoxAdapter(
               child: Container(
@@ -244,7 +263,7 @@ class _QAScreenState extends State<QAScreen> {
                         final result = await questionsProvider.toggleUpvote(
                           questionId: question.id,
                           userId: currentUser.id,
-                        );
+                          );
                         if (!mounted || result.success || result.error == null) {
                           return;
                         }
@@ -264,6 +283,38 @@ class _QAScreenState extends State<QAScreen> {
                     );
                   },
                   childCount: questions.length,
+                ),
+              ),
+            if (questionsP.isLoadingMore)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  child: Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            else if (!questionsP.hasMore && questions.isNotEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 32),
+                  child: Center(
+                    child: Text(
+                      'No more questions.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.text3For(context),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             const SliverToBoxAdapter(
@@ -491,6 +542,3 @@ class _SheetLabel extends StatelessWidget {
     );
   }
 }
-
-
-

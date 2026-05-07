@@ -47,5 +47,11 @@
 		<true/>
 		<key>UIStatusBarHidden</key>
 		<false/>
+		<key>NSCameraUsageDescription</key>
+		<string>Devspace needs access to your camera to take a profile picture.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>Devspace needs access to your photo library to choose a profile picture.</string>
+		<key>NSMicrophoneUsageDescription</key>
+		<string>Devspace needs access to your microphone for video uploads.</string>
 	</dict>
 </plist>

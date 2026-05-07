@@ -234,17 +234,34 @@ class _AuraBoardScreenState extends State<AuraBoardScreen> {
         ? DateTime.now().subtract(const Duration(days: 7))
         : DateTime.now().subtract(const Duration(days: 30));
 
-    final totals = await SupabaseService.instance.getAuraTotalsSince(cutoff);
-    final source = _isGlobal
-        ? usersProvider.users
-        : usersProvider.collegeLeaderboard(currentUser?.college ?? '');
+    try {
+      // 1. Get totals from the ledger for this timeframe
+      final totals = await SupabaseService.instance.getAuraTotalsSince(cutoff);
+      
+      // 2. We use UsersProvider.users as the pool to avoid unnecessary individual fetches
+      final allUsers = usersProvider.users;
+      
+      // 3. Map users to their timeframe points and sort
+      final ranked = allUsers
+          .map((user) => user.copyWith(aura: totals[user.id] ?? 0))
+          .where((user) {
+            // Show users with points, or the current user always (to see their rank)
+            return (user.aura > 0) || (user.id == currentUser?.id);
+          })
+          .toList()
+        ..sort((a, b) => b.aura.compareTo(a.aura));
 
-    final ranked = source
-        .map((user) => user.copyWith(aura: totals[user.id] ?? 0))
-        .toList()
-      ..sort((a, b) => b.aura.compareTo(a.aura));
+      // 4. If we have filtered by college, do it now
+      if (!_isGlobal) {
+        return ranked.where((u) => u.college == (currentUser?.college ?? '')).toList();
+      }
 
-    return ranked;
+      return ranked;
+    } catch (e) {
+      debugPrint('Leaderboard fetch failed: $e');
+      // Fallback to empty or just current user if fetch failed
+      return currentUser != null ? [currentUser.copyWith(aura: 0)] : [];
+    }
   }
 
   Widget _buildPodium(BuildContext context, List<UserModel> top3) {

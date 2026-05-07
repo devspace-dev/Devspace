@@ -22,6 +22,7 @@ import '../widgets/post_card.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/skeleton_loaders.dart';
 import '../widgets/github_stats_card.dart';
+import '../widgets/app_ui_kit.dart';
 
 class ProfileScreen extends StatelessWidget {
   final String? userId;
@@ -61,17 +62,6 @@ class ProfileScreen extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Align(
-                      alignment: Alignment.topRight,
-                      child: IconButton(
-                        onPressed: () => Navigator.pop(dialogContext),
-                        icon: Icon(
-                          Icons.close_rounded,
-                          color: AppColors.textFor(dialogContext),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
                     ClipOval(
                       child: user.isImageAvatar
                           ? Image.network(
@@ -99,6 +89,16 @@ class ProfileScreen extends StatelessWidget {
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: AppColors.text3For(dialogContext),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    AppButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      width: 120,
+                      height: 44,
+                      child: const Text(
+                        'Close',
+                        style: TextStyle(fontWeight: FontWeight.w800),
                       ),
                     ),
                   ],

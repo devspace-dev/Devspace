@@ -11,6 +11,7 @@ import '../screens/aura_history_screen.dart';
 import '../theme/app_colors.dart';
 
 import '../providers/auth_provider.dart';
+import 'app_ui_kit.dart';
 
 class EngagementOverview extends StatelessWidget {
   const EngagementOverview({super.key});
@@ -171,87 +172,38 @@ class EngagementOverview extends StatelessWidget {
             if (challenge != null && !challenge.wasSolved)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: _PremiumMissionCard(
+                  challenge: challenge,
+                  provider: provider,
+                ),
+              ),
+            if (challenge == null && !provider.isLoading)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                 child: _SectionCard(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              'Daily Mission',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.textFor(context),
-                              ),
-                            ),
-                          ),
-                          Text(
-                            challenge.wasSolved
-                                ? 'Solved'
-                                : challenge.wasAttempted
-                                    ? 'Attempted'
-                                    : '+${challenge.pointsReward} / +${DailyChallengeModel.attemptReward} aura',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: challenge.wasSolved
-                                  ? Colors.green
-                                  : challenge.wasAttempted
-                                      ? Colors.orange
-                                      : AppColors.primary,
-                            ),
-                          ),
-                        ],
+                      const Center(
+                        child: Icon(Icons.auto_awesome_rounded, color: AppColors.primary, size: 32),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 12),
                       Text(
-                        challenge.title,
+                        'No mission today',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: 15,
+                          fontSize: 14,
                           fontWeight: FontWeight.w700,
                           color: AppColors.textFor(context),
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        challenge.question,
-                        style: TextStyle(
-                          fontSize: 13,
-                          height: 1.45,
-                          color: AppColors.text2For(context),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        '${challenge.techStack} - ${challenge.missionType}',
+                        'Check back later for a new mission.',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 12,
                           color: AppColors.text3For(context),
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          if (context.read<AuthProvider>().currentUserOrNull?.isFounder == true)
-                            IconButton(
-                              onPressed: () => _confirmDeleteChallenge(context, provider, challenge.challengeId),
-                              icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
-                            ),
-                          const SizedBox(width: 8),
-                          OutlinedButton(
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const DailyChallengeScreen(),
-                                ),
-                              );
-                            },
-                            child: const Text('Open'),
-                          ),
-                        ],
                       ),
                     ],
                   ),
@@ -303,7 +255,7 @@ class EngagementOverview extends StatelessWidget {
                                 child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Icon(
+                                    const Icon(
                                       Icons.lock_open_rounded,
                                       size: 18,
                                       color: Colors.green,
@@ -394,7 +346,174 @@ class EngagementOverview extends StatelessWidget {
       ),
     );
   }
+}
 
+class _PremiumMissionCard extends StatelessWidget {
+  final DailyChallengeModel challenge;
+  final EngagementProvider provider;
+
+  const _PremiumMissionCard({
+    required this.challenge,
+    required this.provider,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isFounder = context.read<AuthProvider>().currentUserOrNull?.isFounder == true;
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.2),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.05),
+            blurRadius: 20,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Container(
+              color: AppColors.bg2For(context),
+            ),
+          ),
+          Positioned(
+            right: -20,
+            top: -20,
+            child: Icon(
+              Icons.auto_awesome_rounded,
+              size: 120,
+              color: AppColors.primary.withValues(alpha: 0.03),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'DAILY MISSION',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.primary,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      challenge.wasAttempted ? 'ATTEMPTED' : '+${challenge.pointsReward} AURA',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                        color: challenge.wasAttempted ? Colors.orange : AppColors.primary,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  challenge.question,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    height: 1.35,
+                    color: AppColors.textFor(context),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            challenge.techStack.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.text3For(context),
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            challenge.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.text2For(context),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    if (isFounder)
+                      IconButton(
+                        onPressed: () => const EngagementOverview()._confirmDeleteChallenge(context, provider, challenge.challengeId),
+                        icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    const SizedBox(width: 8),
+                    AppButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const DailyChallengeScreen(),
+                          ),
+                        );
+                      },
+                      width: 90,
+                      height: 40,
+                      borderRadius: 14,
+                      child: const Text(
+                        'SOLVE',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _NeonStatsCard extends StatefulWidget {
@@ -570,7 +689,7 @@ class _DashboardAction extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
+                color: AppColors.primary.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: AppColors.primary, size: 22),

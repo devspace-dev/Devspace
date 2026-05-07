@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../models/daily_challenge_model.dart';
 import '../providers/auth_provider.dart';
@@ -11,7 +12,6 @@ import '../providers/engagement_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_state_widgets.dart';
 import '../widgets/app_ui_kit.dart';
-import '../widgets/info_block.dart';
 
 class DailyChallengeScreen extends StatefulWidget {
   const DailyChallengeScreen({super.key});
@@ -158,7 +158,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
                         child: AppEmptyState(
                           icon: Icons.auto_awesome_rounded,
                           title: 'No mission today',
-                          message: 'Check back later for a new mission.',
+                          message: 'Check back tomorrow for a new mission.',
                         ),
                       )
                     else
@@ -184,9 +184,9 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   _buildMissionHeader(context, me),
-                                  const SizedBox(height: 20),
-                                  _buildMainCard(context, daily),
                                   const SizedBox(height: 24),
+                                  _buildMainCard(context, daily),
+                                  const SizedBox(height: 32),
                                   if (!daily.completed) _buildActionSection(context, provider),
                                   if (daily.completed) _buildCompletionStatus(context, daily),
                                 ],
@@ -214,22 +214,19 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
 
   Widget _buildAppBar(BuildContext context) {
     return SliverAppBar(
-      expandedHeight: 80, // Reduced from 120
       floating: false,
       pinned: true,
       elevation: 0,
       backgroundColor: Colors.transparent,
-      flexibleSpace: FlexibleSpaceBar(
-        centerTitle: false,
-        titlePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        title: Text(
-          'Daily Mission',
-          style: TextStyle(
-            fontWeight: FontWeight.w900,
-            fontSize: 20, // Reduced from 24
-            color: AppColors.textFor(context),
-            letterSpacing: -0.5,
-          ),
+      surfaceTintColor: Colors.transparent,
+      centerTitle: false,
+      title: Text(
+        'Daily Mission',
+        style: GoogleFonts.plusJakartaSans(
+          fontWeight: FontWeight.w900,
+          fontSize: 24,
+          color: AppColors.textFor(context),
+          letterSpacing: -0.5,
         ),
       ),
     );
@@ -241,13 +238,12 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
       runSpacing: 12,
       children: [
         _HeaderBadge(
-          label: '${me?.currentStreak ?? 0} Day Streak',
+          label: '${me?.currentStreak ?? 0} DAY STREAK',
           icon: Icons.local_fire_department_rounded,
           color: Colors.orange,
         ).animate().fadeIn().slideX(begin: -0.1),
-        const SizedBox(width: 12),
         const _HeaderBadge(
-          label: '+20 solve / +5 try',
+          label: '+20 SOLVE / +5 TRY',
           icon: Icons.bolt_rounded,
           color: AppColors.primary,
         ).animate().fadeIn(delay: 100.ms).slideX(begin: -0.2),
@@ -257,66 +253,102 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
 
 
   Widget _buildMainCard(BuildContext context, DailyChallengeModel challenge) {
+    final showDescription = challenge.description.trim() != challenge.question.trim();
+
     return AppGlassCard(
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                ),
+                child: Text(
+                  challenge.techStack.toUpperCase(),
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.primary,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+              ),
               AppBadge(
                 label: challenge.difficulty.toUpperCase(),
                 color: _getDifficultyColor(challenge.difficulty),
               ),
-              AppBadge(
-                label: challenge.techStack,
-                color: AppColors.primary,
-              ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 24),
           Text(
             challenge.title,
-            style: TextStyle(
-              fontSize: 20, // Reduced from 24
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 24,
               fontWeight: FontWeight.w900,
               color: AppColors.textFor(context),
-              letterSpacing: -0.5,
+              letterSpacing: -0.8,
+              height: 1.2,
             ),
           ),
-          const SizedBox(height: 10),
-          Text(
-            challenge.description,
-            style: TextStyle(
-              fontSize: 14, // Reduced from 16
-              height: 1.5,
-              color: AppColors.text2For(context),
-            ),
-          ),
-          const SizedBox(height: 14),
-          InfoBlock(
-            title: 'Question',
-            child: Text(
-              challenge.question,
+          if (showDescription) ...[
+            const SizedBox(height: 14),
+            Text(
+              challenge.description,
               style: TextStyle(
-                fontSize: 14,
-                height: 1.55,
+                fontSize: 15,
+                height: 1.6,
                 color: AppColors.text2For(context),
               ),
             ),
-          ),
-          const SizedBox(height: 10),
-          InfoBlock(
-            title: 'Rule',
-            child: Text(
-              'You get one answer per day. Correct answers give +${challenge.pointsReward} aura. Wrong answers still give +${DailyChallengeModel.attemptReward} aura, but the mission locks until tomorrow.',
-              style: TextStyle(
-                fontSize: 13,
-                height: 1.5,
-                color: AppColors.text2For(context),
-              ),
+          ],
+          const SizedBox(height: 28),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.bg3For(context).withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.borderFor(context)),
             ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  challenge.question,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    height: 1.5,
+                    color: AppColors.textFor(context),
+                    fontFamily: 'monospace',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              const Icon(Icons.info_outline_rounded, size: 16, color: AppColors.text3),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Solve this to boost your aura and maintain your streak.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.text3For(context),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -331,31 +363,33 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Choose one answer',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textFor(context),
+          'SELECT YOUR ANSWER',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 12,
+            fontWeight: FontWeight.w900,
+            color: AppColors.text3For(context),
+            letterSpacing: 1.5,
           ),
         ).animate().fadeIn(delay: 300.ms),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: challenge.options
-              .map(
-                (option) => _PhysicalOption(
-                  label: option,
-                  isSelected: _selectedOption == option,
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    setState(() {
-                      _selectedOption = option;
-                    });
-                  },
-                ),
-              )
-              .toList(),
+        const SizedBox(height: 16),
+        ListView.separated(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: challenge.options.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            final option = challenge.options[index];
+            return _PhysicalOption(
+              label: option,
+              isSelected: _selectedOption == option,
+              onTap: () {
+                HapticFeedback.lightImpact();
+                setState(() {
+                  _selectedOption = option;
+                });
+              },
+            );
+          },
         ).animate().fadeIn(delay: 420.ms).slideY(begin: 0.1),
         if (provider.error != null) ...[
           const SizedBox(height: 14),
@@ -368,13 +402,13 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
             ),
           ),
         ],
-        const SizedBox(height: 24),
+        const SizedBox(height: 32),
         AppButton(
           onPressed: _selectedOption == null ? null : () => _submit(provider),
           isLoading: provider.isSubmittingChallenge,
           child: const Text(
-            'Lock Answer',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+            'Confirm Submission',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 0.5),
           ),
         ).animate().fadeIn(delay: 560.ms).moveY(begin: 20),
       ],
@@ -393,33 +427,34 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
     return AppCard(
       color: accent.withValues(alpha: 0.1),
       border: Border.all(color: accent.withValues(alpha: 0.2)),
+      padding: const EdgeInsets.all(24),
       child: Row(
         children: [
           Icon(
-            solved ? Icons.check_circle_rounded : Icons.lock_clock_rounded,
+            solved ? Icons.verified_rounded : Icons.lock_clock_rounded,
             color: accent,
-            size: 40,
+            size: 48,
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 20),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  solved ? 'Mission solved' : 'Mission attempted',
-                  style: TextStyle(
+                  solved ? 'Module Solved' : 'Module Attempted',
+                  style: GoogleFonts.plusJakartaSans(
                     fontWeight: FontWeight.w900,
-                    fontSize: 18,
+                    fontSize: 20,
                     color: accent,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(
                   solved
                       ? 'You earned +$points Aura points. Your streak stays active.'
                       : 'You earned +$points Aura for trying. This mission is locked until tomorrow.',
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 15,
                     color: accent.withValues(alpha: 0.85),
                     height: 1.45,
                   ),
@@ -463,23 +498,24 @@ class _HeaderBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 8),
+          Icon(icon, size: 18, color: color),
+          const SizedBox(width: 10),
           Text(
             label,
-            style: TextStyle(
+            style: GoogleFonts.plusJakartaSans(
               color: color,
               fontWeight: FontWeight.w900,
-              fontSize: 14,
+              fontSize: 12,
+              letterSpacing: 0.5,
             ),
           ),
         ],
@@ -507,7 +543,6 @@ class _MissionSolvedOverlay extends StatelessWidget {
           final fade = (1 - (controller.value - 0.85).clamp(0.0, 0.15) / 0.15)
               .clamp(0.0, 1.0);
 
-          // Bouncy entrance logic inspired by Duolingo
           double scale = 0.0;
           if (controller.value < 0.3) {
             scale = Curves.elasticOut.transform(controller.value / 0.3) * 1.1;
@@ -525,7 +560,7 @@ class _MissionSolvedOverlay extends StatelessWidget {
               child: Stack(
                 children: [
                   ...List.generate(
-                    24,
+                    32,
                     (index) => _CelebrationParticle(
                       controller: controller,
                       index: index,
@@ -537,17 +572,21 @@ class _MissionSolvedOverlay extends StatelessWidget {
                       child: Container(
                         margin: const EdgeInsets.symmetric(horizontal: 32),
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 36,
+                          horizontal: 32,
+                          vertical: 48,
                         ),
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(32),
-                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(40),
+                          gradient: const LinearGradient(
+                            colors: [AppColors.primary, Color(0xFF4F46E5)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
                           boxShadow: [
                             BoxShadow(
                               color: AppColors.primary.withValues(alpha: 0.4),
-                              blurRadius: 40,
-                              spreadRadius: 8,
+                              blurRadius: 60,
+                              spreadRadius: 10,
                             ),
                           ],
                         ),
@@ -555,34 +594,35 @@ class _MissionSolvedOverlay extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             const Icon(
-                              Icons.emoji_events_rounded,
-                              size: 72,
+                              Icons.auto_awesome_rounded,
+                              size: 80,
                               color: Colors.white,
                             ),
-                            const SizedBox(height: 20),
-                            const Text(
-                              'Mission Accomplished!',
+                            const SizedBox(height: 24),
+                            Text(
+                              'EXCELLENT!',
                               textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 28,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 32,
                                 fontWeight: FontWeight.w900,
                                 color: Colors.white,
-                                letterSpacing: -0.5,
+                                letterSpacing: 2.0,
                               ),
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 16),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                               decoration: BoxDecoration(
                                 color: Colors.white.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(99),
                               ),
                               child: Text(
-                                '+$awardedPoints Aura points',
+                                '+$awardedPoints AURA POINTS',
                                 style: const TextStyle(
-                                  fontSize: 16,
+                                  fontSize: 18,
                                   fontWeight: FontWeight.w800,
                                   color: Colors.white,
+                                  letterSpacing: 1.0,
                                 ),
                               ),
                             ),
@@ -614,10 +654,6 @@ class _PhysicalOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final borderColor = isSelected 
-        ? AppColors.primary 
-        : AppColors.borderFor(context);
-    
     final shadowColor = isSelected
         ? AppColors.primary.withValues(alpha: 0.3)
         : Colors.black.withValues(alpha: 0.1);
@@ -628,13 +664,22 @@ class _PhysicalOption extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         curve: Curves.easeOut,
         transform: Matrix4.translationValues(0, isSelected ? 4 : 0, 0),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : AppColors.bg2For(context),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: borderColor, width: 2),
+          color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : AppColors.bg2For(context),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : AppColors.borderFor(context),
+            width: isSelected ? 2.5 : 1.5,
+          ),
           boxShadow: isSelected 
-            ? [] 
+            ? [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.15),
+                  blurRadius: 15,
+                  spreadRadius: 2,
+                )
+              ] 
             : [
                 BoxShadow(
                   color: shadowColor,
@@ -643,13 +688,25 @@ class _PhysicalOption extends StatelessWidget {
                 ),
               ],
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : AppColors.textFor(context),
-            fontWeight: FontWeight.w800,
-            fontSize: 14,
-          ),
+        child: Row(
+          children: [
+            Icon(
+              isSelected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
+              color: isSelected ? AppColors.primary : AppColors.text3For(context),
+              size: 24,
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? AppColors.primary : AppColors.textFor(context),
+                  fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -668,17 +725,18 @@ class _CelebrationParticle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final left = ((index * 37) % 100) / 100;
-    final size = 10.0 + (index % 5) * 6.0;
-    final startY = -0.12 - ((index % 4) * 0.08);
-    final endY = 1.05 + ((index % 3) * 0.08);
-    final drift = ((index % 6) - 2.5) * 0.03;
-    final turns = ((index % 5) + 1) * 0.22;
+    final size = 8.0 + (index % 5) * 6.0;
+    final startY = -0.15 - ((index % 4) * 0.1);
+    final endY = 1.1 + ((index % 3) * 0.1);
+    final drift = ((index % 6) - 2.5) * 0.04;
+    final turns = ((index % 5) + 1) * 0.25;
     final colors = <Color>[
       const Color(0xFFFFD54F),
       const Color(0xFFFF7043),
       const Color(0xFF4DD0E1),
       const Color(0xFF81C784),
       const Color(0xFFBA68C8),
+      AppColors.primary,
     ];
     final color = colors[index % colors.length];
 
@@ -686,17 +744,17 @@ class _CelebrationParticle extends StatelessWidget {
       alignment: Alignment(left * 2 - 1, 0),
       child: FractionalTranslation(
         translation: Offset(
-          drift * controller.value * 10,
+          drift * controller.value * 12,
           startY + ((endY - startY) * controller.value),
         ),
         child: Transform.rotate(
           angle: controller.value * turns * 6.28318,
           child: Container(
             width: size,
-            height: size * (index.isEven ? 1.6 : 1),
+            height: size * (index.isEven ? 1.8 : 1.2),
             decoration: BoxDecoration(
               color: color,
-              borderRadius: BorderRadius.circular(index.isEven ? 3 : size),
+              borderRadius: BorderRadius.circular(index.isEven ? 4 : size),
             ),
           ),
         ),

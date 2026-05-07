@@ -78,7 +78,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> refreshUsers() async {
-    await SupabaseService.instance.streamUsers();
+    await AuthService.instance.refreshCurrentUser();
     await SupabaseService.instance.getFollowingIds(currentUser.id);
     await SupabaseService.instance.getUserById(currentUser.id);
   }

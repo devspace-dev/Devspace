@@ -439,7 +439,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   children: [
                     ImageUploadWidget(
                       existingUrl: _avatarPath,
-                      uploadPath: 'profiles/$uid.jpg',
+                      uploadPath: 'profiles/${uid}_${DateTime.now().millisecondsSinceEpoch}.jpg',
                       size: 96,
                       isCircle: true,
                       onUploaded: (url) {

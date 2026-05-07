@@ -209,4 +209,15 @@ class NotificationService {
       message: '$fromName started following you',
     );
   }
+
+  Future<void> notifyNewMission({
+    required String title,
+    required String techStack,
+  }) async {
+    await SupabaseService.instance.sendBroadcastNotification(
+      title: 'New Daily Mission! 🚀',
+      body: 'Today\'s challenge: $title ($techStack). Solve it to earn Aura points!',
+      type: 'mission',
+    );
+  }
 }

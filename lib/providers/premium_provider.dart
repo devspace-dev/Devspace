@@ -28,13 +28,15 @@ class PremiumProvider extends ChangeNotifier {
     try {
       final response = await _supabase
           .from('users')
-          .select('is_premium, career_goal, career_goal_selected')
+          .select('career_goal, career_goal_selected')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
 
-      _isPremium = response['is_premium'] ?? false;
-      _careerGoal = response['career_goal'];
-      _careerGoalSelected = response['career_goal_selected'] ?? false;
+      if (response != null) {
+        _isPremium = false; // Default to false if column missing or logic changed
+        _careerGoal = response['career_goal'];
+        _careerGoalSelected = response['career_goal_selected'] ?? false;
+      }
     } catch (e) {
       debugPrint('Error loading premium status: $e');
     } finally {
@@ -53,9 +55,6 @@ class PremiumProvider extends ChangeNotifier {
     try {
       await _supabase.from('users').upsert({
         'id': user.id,
-        'is_premium': true,
-        'premium_since': DateTime.now().toIso8601String(),
-        'premium_plan': 'monthly_49',
         'career_goal_selected': false,
       });
 

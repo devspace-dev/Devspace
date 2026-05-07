@@ -10,7 +10,7 @@ import '../services/backend_api_service.dart';
 
 typedef AuraSummaryLoader = Future<AuraSummaryModel> Function();
 typedef EligibleEventsLoader = Future<List<EventAccessModel>> Function();
-typedef DailyChallengeLoader = Future<DailyChallengeModel?> Function();
+typedef DailyChallengeLoader = Future<DailyChallengeModel?> Function({String? techStack});
 typedef WeeklyFreeChallengeLoader = Future<List<DailyChallengeModel>> Function({String? techStack});
 typedef DailyChallengeSubmitter = Future<Map<String, dynamic>> Function({
   required String submissionText,
@@ -82,6 +82,7 @@ class EngagementProvider extends ChangeNotifier {
   bool _isEnrollingWeekly = false;
   List<AuraLedgerModel> _auraHistory = [];
   bool _isLoadingHistory = false;
+  String? _selectedDailyTechStack;
   String? _error;
 
   AuraSummaryModel? get auraSummary => _auraSummary;
@@ -95,6 +96,7 @@ class EngagementProvider extends ChangeNotifier {
   bool get isLoadingHistory => _isLoadingHistory;
   bool get isSubmittingChallenge => _isSubmittingChallenge;
   bool get isEnrollingWeekly => _isEnrollingWeekly;
+  String? get selectedDailyTechStack => _selectedDailyTechStack;
   String? get error => _error;
   List<EventAccessModel> get unlockedEvents =>
       _events.where((event) => event.unlocked).toList();
@@ -109,8 +111,8 @@ class EngagementProvider extends ChangeNotifier {
     return BackendApiService.instance.getEligibleEvents();
   }
 
-  static Future<DailyChallengeModel?> _defaultDailyChallengeLoader() {
-    return BackendApiService.instance.getDailyChallenge();
+  static Future<DailyChallengeModel?> _defaultDailyChallengeLoader({String? techStack}) {
+    return BackendApiService.instance.getDailyChallenge(techStack: techStack);
   }
 
   static Future<List<DailyChallengeModel>> _defaultWeeklyFreeChallengeLoader({String? techStack}) {
@@ -165,17 +167,28 @@ class EngagementProvider extends ChangeNotifier {
   Future<void> fetchOverview({bool forceChallengeRefresh = false, String? techStack}) async {
     _isLoading = true;
     _error = null;
+
+    // Initialize default tech stack from user profile if not already set
+    if (_selectedDailyTechStack == null) {
+      final user = AuthService.instance.currentUser;
+      if (user != null && user.stack.isNotEmpty) {
+        _selectedDailyTechStack = user.stack.first;
+      }
+    }
+
     notifyListeners();
 
     try {
       final results = await Future.wait([
         _OverviewLoadResult.guard(_auraSummaryLoader),
         _OverviewLoadResult.guard(_eligibleEventsLoader),
-        _OverviewLoadResult.guard(_dailyChallengeLoader),
         _OverviewLoadResult.guard(
-          () => _weeklyFreeChallengeLoader(techStack: techStack),
+          () => _dailyChallengeLoader(techStack: techStack ?? _selectedDailyTechStack),
         ),
-      ]).timeout(const Duration(seconds: 25));
+        _OverviewLoadResult.guard(
+          () => _weeklyFreeChallengeLoader(techStack: techStack ?? _selectedDailyTechStack),
+        ),
+      ]).timeout(const Duration(seconds: 12));
 
       final auraResult = results[0] as _OverviewLoadResult<AuraSummaryModel>;
       final eventsResult =
@@ -255,6 +268,25 @@ class EngagementProvider extends ChangeNotifier {
         submissionText: submissionText,
         submissionLink: submissionLink,
       );
+
+      // Optimistic update for real-time feel
+      if (_auraSummary != null) {
+        final currentStreak = _auraSummary!.currentStreak + 1;
+        final longestStreak = currentStreak > _auraSummary!.longestStreak 
+            ? currentStreak 
+            : _auraSummary!.longestStreak;
+            
+        _auraSummary = AuraSummaryModel(
+          userId: _auraSummary!.userId,
+          auraPoints: _auraSummary!.auraPoints + (_dailyChallenge?.pointsReward ?? 0),
+          level: _auraSummary!.level,
+          currentStreak: currentStreak,
+          longestStreak: longestStreak,
+          lastChallengeCompletedOn: DateTime.now(),
+          badges: _auraSummary!.badges,
+        );
+        notifyListeners();
+      }
 
       await fetchOverview(forceChallengeRefresh: true);
       return true;
@@ -350,5 +382,13 @@ class EngagementProvider extends ChangeNotifier {
       debugPrint('Failed to delete challenge: $e');
       rethrow;
     }
+  }
+
+  void setSelectedDailyTechStack(String stack) {
+    if (_selectedDailyTechStack == stack) return;
+    _selectedDailyTechStack = stack;
+    _dailyChallenge = null; // Clear old challenge to show loading state
+    notifyListeners();
+    fetchOverview(techStack: stack);
   }
 }

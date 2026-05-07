@@ -7,6 +7,8 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/backend_api_service.dart';
 import '../services/founder_device_service.dart';
+import '../services/notification_service.dart';
+import '../services/supabase_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/founder_access_denied_view.dart';
 
@@ -679,6 +681,9 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
         correctAnswer: correctAnswer,
       );
 
+      final title = _challengeTitleController.text.trim();
+      final techStack = _challengeTechStackController.text.trim();
+      
       _challengeTitleController.clear();
       _challengeDescriptionController.clear();
       _challengeTechStackController.clear();
@@ -691,6 +696,16 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
       _challengeCorrectAnswer = null;
       await _loadChallenges();
       _showSnack('Mission created.');
+
+      // Notify users about the new mission
+      try {
+        await NotificationService.instance.notifyNewMission(
+          title: title,
+          techStack: techStack,
+        );
+      } catch (e) {
+        debugPrint('Failed to send mission notification: $e');
+      }
     } catch (e) {
       _showSnack(
         'Failed to create mission: ${BackendApiService.instance.cleanErrorText(e)}',

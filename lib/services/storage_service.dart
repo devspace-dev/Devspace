@@ -16,7 +16,8 @@ class StorageService {
   final _supabase = Supabase.instance.client;
 
   // ── Pick from camera or gallery ──────────────────
-  Future<File?> pickImage({
+  Future<File?> pickImage(
+    BuildContext context, {
     bool fromCamera = false,
     bool crop = false,
     bool isCircle = false,
@@ -35,6 +36,9 @@ class StorageService {
     if (crop) {
       final croppedFile = await ImageCropper().cropImage(
         sourcePath: picked.path,
+        maxWidth: maxWidth?.toInt(),
+        maxHeight: maxHeight?.toInt(),
+        compressQuality: imageQuality,
         uiSettings: [
           AndroidUiSettings(
             toolbarTitle: 'Crop Image',
@@ -46,6 +50,7 @@ class StorageService {
             initAspectRatio: isCircle
                 ? CropAspectRatioPreset.square
                 : CropAspectRatioPreset.original,
+            cropStyle: isCircle ? CropStyle.circle : CropStyle.rectangle,
             aspectRatioPresets: isCircle
                 ? [CropAspectRatioPreset.square]
                 : [
@@ -58,6 +63,7 @@ class StorageService {
           ),
           IOSUiSettings(
             title: 'Crop Image',
+            cropStyle: isCircle ? CropStyle.circle : CropStyle.rectangle,
             aspectRatioPresets: isCircle
                 ? [CropAspectRatioPreset.square]
                 : [
@@ -68,10 +74,23 @@ class StorageService {
                     CropAspectRatioPreset.ratio16x9,
                   ],
           ),
+          WebUiSettings(
+            context: context,
+            presentStyle: WebPresentStyle.dialog,
+            size: const CropperSize(
+              width: 520,
+              height: 520,
+            ),
+          ),
         ],
       );
+      
       if (croppedFile != null) {
         return File(croppedFile.path);
+      } else {
+        // If cropping was requested but cancelled/failed, we return null 
+        // to prevent uploading the uncropped original.
+        return null;
       }
     }
 

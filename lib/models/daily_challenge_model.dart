@@ -52,8 +52,8 @@ class DailyChallengeModel {
             ?.map((item) => item.toString())
             .toList() ??
         const <String>[];
-    final question = (mission['question'] ?? mission['description'] ?? '')
-        .toString();
+    final question = (mission['question'] ?? mission['description'] ?? '').toString();
+    final description = (mission['description'] ?? mission['question'] ?? '').toString();
 
     return DailyChallengeModel(
       assignmentId: (json['id'] ?? '').toString(),
@@ -68,7 +68,7 @@ class DailyChallengeModel {
           ? null
           : DateTime.tryParse(json['completed_at'].toString()),
       title: (mission['title'] ?? '').toString(),
-      description: question,
+      description: description,
       difficulty: _difficultyForMissionType(missionType),
       techStack: (mission['tech_stack'] ?? 'General').toString(),
       pointsReward: (mission['points_reward'] as num? ?? 20).toInt(),
