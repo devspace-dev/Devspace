@@ -30,6 +30,7 @@ class PostCard extends StatefulWidget {
 class _PostCardState extends State<PostCard> {
   bool _showComments = false;
   final _commentCtrl = TextEditingController();
+  CommentModel? _replyingTo;
 
   @override
   void dispose() {
@@ -98,15 +99,15 @@ class _PostCardState extends State<PostCard> {
         AppColors.isDark(context) ? AppColors.bg : AppColors.bg2For(context);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: surfaceColor,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: AppColors.borderFor(context).withValues(alpha: 0.3),
-            width: 0.5,
+            color: AppColors.borderFor(context).withValues(alpha: 0.65),
+            width: 0.8,
           ),
         ),
         child: Column(
@@ -191,9 +192,9 @@ class _PostCardState extends State<PostCard> {
             Text(
               post.content,
               style: TextStyle(
-                fontSize: 13,
+                fontSize: 14,
                 color: AppColors.textFor(context),
-                height: 1.3,
+                height: 1.45,
               ),
             ),
             if (hasQuote) ...[
@@ -238,10 +239,11 @@ class _PostCardState extends State<PostCard> {
                             vertical: 5,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.04),
+                            color: AppColors.bg3For(context),
                             borderRadius: BorderRadius.circular(999),
                             border: Border.all(
-                              color: AppColors.borderFor(context),
+                              color: AppColors.borderFor(context)
+                                  .withValues(alpha: 0.9),
                             ),
                           ),
                           child: Text(
@@ -259,75 +261,86 @@ class _PostCardState extends State<PostCard> {
               ),
             ],
             const SizedBox(height: 12),
-            Row(
-              children: [
-                _ActionBtn(
-                  icon: Icons.favorite_border_rounded,
-                  activeIcon: Icons.favorite_rounded,
-                  count: post.likes,
-                  active: post.isLiked,
-                  activeColor: AppColors.like,
-                  label: 'Like',
-                  disabled: likeUpdating || me == null,
-                  onTap: () {
-                    if (me == null) return;
-                    HapticFeedback.mediumImpact();
-                    _handleLikeTap(context, postsP, post.id, me.id);
-                  },
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(
+                    color:
+                        AppColors.borderFor(context).withValues(alpha: 0.65),
+                  ),
                 ),
-                const SizedBox(width: 16),
-                _ActionBtn(
-                  icon: Icons.chat_bubble_outline_rounded,
-                  activeIcon: Icons.chat_bubble_rounded,
-                  count: post.comments,
-                  active: _showComments,
-                  label: 'Comment',
-                  activeColor: AppColors.textFor(context),
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    final nextShowComments = !_showComments;
-                    setState(() => _showComments = nextShowComments);
-                    if (nextShowComments) {
-                      context.read<PostsProvider>().fetchComments(post.id);
-                    }
-                  },
-                ),
-                const SizedBox(width: 16),
-                _ActionBtn(
-                  icon: Icons.repeat_rounded,
-                  activeIcon: Icons.repeat_rounded,
-                  count: post.reposts,
-                  active: false,
-                  label: 'Repost',
-                  activeColor: AppColors.repost,
-                  disabled: me == null,
-                  onTap: () {
-                    if (me == null) return;
-                    HapticFeedback.lightImpact();
-                    _openQuoteSheet(
-                      context: context,
-                      originalPost: post,
-                      currentUserId: me.id,
-                      originalAuthor: author,
-                    );
-                  },
-                ),
-                const Spacer(),
-                _ActionBtn(
-                  icon: Icons.bookmark_border_rounded,
-                  activeIcon: Icons.bookmark_rounded,
-                  count: null,
-                  active: post.isBookmarked,
-                  label: 'Save',
-                  activeColor: AppColors.textFor(context),
-                  disabled: bookmarkUpdating || me == null,
-                  onTap: () {
-                    if (me == null) return;
-                    HapticFeedback.lightImpact();
-                    _handleBookmarkTap(context, postsP, post.id, me.id);
-                  },
-                ),
-              ],
+              ),
+              child: Row(
+                children: [
+                  _ActionBtn(
+                    icon: Icons.favorite_border_rounded,
+                    activeIcon: Icons.favorite_rounded,
+                    count: post.likes,
+                    active: post.isLiked,
+                    activeColor: AppColors.like,
+                    label: 'Like',
+                    disabled: likeUpdating || me == null,
+                    onTap: () {
+                      if (me == null) return;
+                      HapticFeedback.mediumImpact();
+                      _handleLikeTap(context, postsP, post.id, me.id);
+                    },
+                  ),
+                  const SizedBox(width: 12),
+                  _ActionBtn(
+                    icon: Icons.chat_bubble_outline_rounded,
+                    activeIcon: Icons.chat_bubble_rounded,
+                    count: post.comments,
+                    active: _showComments,
+                    label: 'Comment',
+                    activeColor: AppColors.textFor(context),
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      final nextShowComments = !_showComments;
+                      setState(() => _showComments = nextShowComments);
+                      if (nextShowComments) {
+                        context.read<PostsProvider>().fetchComments(post.id);
+                      }
+                    },
+                  ),
+                  const SizedBox(width: 12),
+                  _ActionBtn(
+                    icon: Icons.repeat_rounded,
+                    activeIcon: Icons.repeat_rounded,
+                    count: post.reposts,
+                    active: false,
+                    label: 'Repost',
+                    activeColor: AppColors.repost,
+                    disabled: me == null,
+                    onTap: () {
+                      if (me == null) return;
+                      HapticFeedback.lightImpact();
+                      _openQuoteSheet(
+                        context: context,
+                        originalPost: post,
+                        currentUserId: me.id,
+                        originalAuthor: author,
+                      );
+                    },
+                  ),
+                  const Spacer(),
+                  _ActionBtn(
+                    icon: Icons.bookmark_border_rounded,
+                    activeIcon: Icons.bookmark_rounded,
+                    count: null,
+                    active: post.isBookmarked,
+                    label: 'Save',
+                    activeColor: AppColors.textFor(context),
+                    disabled: bookmarkUpdating || me == null,
+                    onTap: () {
+                      if (me == null) return;
+                      HapticFeedback.lightImpact();
+                      _handleBookmarkTap(context, postsP, post.id, me.id);
+                    },
+                  ),
+                ],
+              ),
             ),
             if (_showComments) ...[
               Container(
@@ -336,7 +349,8 @@ class _PostCardState extends State<PostCard> {
                 decoration: BoxDecoration(
                   border: Border(
                     top: BorderSide(
-                      color: AppColors.borderFor(context),
+                      color: AppColors.borderFor(context)
+                          .withValues(alpha: 0.65),
                     ),
                   ),
                 ),
@@ -353,10 +367,48 @@ class _PostCardState extends State<PostCard> {
                         (comment) => _CommentRow(
                           comment: comment,
                           user: _commentUser(usersP, me, comment),
+                          onReply: me == null ? null : () {
+                            setState(() {
+                              _replyingTo = comment;
+                            });
+                            FocusScope.of(context).requestFocus(FocusNode()); // Optional: force focus if needed
+                          },
                         ),
                       ),
                     if (me != null) ...[
                       const SizedBox(height: 12),
+                      if (_replyingTo != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8, left: 38),
+                          child: Row(
+                            children: [
+                              Text(
+                                'Replying to ',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.text3For(context),
+                                ),
+                              ),
+                              Text(
+                                '@${_commentUser(usersP, me, _replyingTo!).handle}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const Spacer(),
+                              GestureDetector(
+                                onTap: () => setState(() => _replyingTo = null),
+                                child: Icon(
+                                  Icons.close_rounded,
+                                  size: 14,
+                                  color: AppColors.text3For(context),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       Row(
                         children: [
                           UserAvatar(user: me, size: 28),
@@ -364,6 +416,7 @@ class _PostCardState extends State<PostCard> {
                           Expanded(
                             child: TextField(
                               controller: _commentCtrl,
+                              autofocus: _replyingTo != null,
                               style: TextStyle(
                                 fontSize: 14,
                                 color: AppColors.textFor(context),
@@ -569,11 +622,18 @@ class _PostCardState extends State<PostCard> {
     final text = _commentCtrl.text.trim();
     if (text.isEmpty) return;
     
-    final success = await postsProvider.addComment(postId, userId, text);
+    final success = await postsProvider.addComment(
+      postId,
+      userId,
+      text,
+      parentCommentId: _replyingTo?.id,
+      replyingToUserId: _replyingTo?.userId,
+    );
     
     if (!mounted) return;
     if (success) {
       _commentCtrl.clear();
+      setState(() => _replyingTo = null);
       FocusScope.of(context).unfocus();
     } else {
       final error = postsProvider.commentError(postId);
@@ -687,8 +747,13 @@ class _PostCardState extends State<PostCard> {
 class _CommentRow extends StatelessWidget {
   final CommentModel comment;
   final UserModel user;
+  final VoidCallback? onReply;
 
-  const _CommentRow({required this.comment, required this.user});
+  const _CommentRow({
+    required this.comment,
+    required this.user,
+    this.onReply,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -713,6 +778,21 @@ class _CommentRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(comment.text, style: const TextStyle(fontSize: 14, height: 1.3)),
+                if (onReply != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: GestureDetector(
+                      onTap: onReply,
+                      child: Text(
+                        'Reply',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.text3For(context),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),

@@ -6,8 +6,9 @@ Upgrade the app backend for launch-ready gamification and gated engagement witho
 ## Done
 - [x] Auth-gated app entry
 - [x] Email/password sign up and sign in
+- [x] Phone OTP sign in/sign up through Supabase
 - [x] Supabase-backed auth/session model
-- [x] Onboarding and editable profile flow
+- [x] Lightweight onboarding and editable profile flow
 - [x] Searchable People directory
 - [x] Profile view for self and other users
 - [x] Sign-out from profile
@@ -29,6 +30,7 @@ Upgrade the app backend for launch-ready gamification and gated engagement witho
 - [x] Integrated new brand identity (Logo 1) and premium "Cyber-Premium" theme
 - [x] Resolved Google Play Console Foreground Service declaration error (Android 14+)
 - [x] Incremented app version to 1.0.5+11 for new release
+- [x] Redesigned Opportunities screen and updated navigation bar labels/icons/colors to match the Explore mock layout
 
 
 ## In Progress

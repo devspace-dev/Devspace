@@ -192,4 +192,20 @@ class StorageService {
         );
     return _supabase.storage.from('images').getPublicUrl(path);
   }
+
+  // ── Upload event banner ──────────────────────────
+  Future<String> uploadEventBanner(File file) async {
+    final extension = file.path.split('.').last.toLowerCase();
+    final isPng = extension == 'png';
+    final path = 'events/${_uuid.v4()}.$extension';
+    await _supabase.storage.from('images').upload(
+          path,
+          file,
+          fileOptions: FileOptions(
+            upsert: true,
+            contentType: isPng ? 'image/png' : 'image/jpeg',
+          ),
+        );
+    return _supabase.storage.from('images').getPublicUrl(path);
+  }
 }

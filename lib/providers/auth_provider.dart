@@ -62,7 +62,7 @@ class AuthProvider extends ChangeNotifier {
     String githubHandle = '',
     String? avatar,
   }) async {
-    return AuthService.instance.updateCurrentUserProfile(
+    final result = await AuthService.instance.updateCurrentUserProfile(
       name: name,
       handle: handle,
       roles: roles,
@@ -75,6 +75,11 @@ class AuthProvider extends ChangeNotifier {
       githubHandle: githubHandle,
       avatar: avatar,
     );
+    if (result.user != null) {
+      _currentUser = result.user;
+      notifyListeners();
+    }
+    return result;
   }
 
   Future<void> refreshUsers() async {

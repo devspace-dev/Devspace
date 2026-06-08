@@ -16,7 +16,8 @@ typedef PostsPageLoader =
       required int offset,
     });
 typedef CurrentUserResolver = UserModel? Function();
-typedef PostIdSetLoader = Future<Set<String>> Function(String userId);
+typedef PostIdSetLoader =
+    Future<Set<String>> Function(String userId, {List<String>? postIds});
 
 class PostCreateResult {
   final bool success;
@@ -107,11 +108,17 @@ class PostsProvider extends ChangeNotifier {
     return AuthService.instance.currentUser;
   }
 
-  static Future<Set<String>> _defaultLikedPostIdsLoader(String userId) {
+  static Future<Set<String>> _defaultLikedPostIdsLoader(String userId, {List<String>? postIds}) {
+    if (postIds != null && postIds.isNotEmpty) {
+      return SupabaseService.instance.getLikedStatusForPosts(userId, postIds);
+    }
     return SupabaseService.instance.getLikedPostIds(userId);
   }
 
-  static Future<Set<String>> _defaultBookmarkedPostIdsLoader(String userId) {
+  static Future<Set<String>> _defaultBookmarkedPostIdsLoader(String userId, {List<String>? postIds}) {
+    if (postIds != null && postIds.isNotEmpty) {
+      return SupabaseService.instance.getBookmarkedStatusForPosts(userId, postIds);
+    }
     return SupabaseService.instance.getBookmarkedPostIds(userId);
   }
 
@@ -131,7 +138,11 @@ class PostsProvider extends ChangeNotifier {
       _hasMore = page.length >= _pageSize;
       _feedError = null;
     } catch (e) {
-      _feedError = 'Failed to load feed: $e';
+      if (e.toString().contains('No authenticated session')) {
+        _feedError = null;
+      } else {
+        _feedError = 'Failed to load feed: $e';
+      }
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -345,7 +356,13 @@ class PostsProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> addComment(String postId, String userId, String text) async {
+  Future<bool> addComment(
+    String postId,
+    String userId,
+    String text, {
+    String? parentCommentId,
+    String? replyingToUserId,
+  }) async {
     final trimmedText = text.trim();
     if (trimmedText.isEmpty) {
       _commentErrors[postId] = 'Comment cannot be empty.';
@@ -358,7 +375,13 @@ class PostsProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await SupabaseService.instance.addComment(postId, userId, trimmedText);
+      await SupabaseService.instance.addComment(
+        postId,
+        userId,
+        trimmedText,
+        parentCommentId: parentCommentId,
+        replyingToUserId: replyingToUserId,
+      );
       final comments =
           await SupabaseService.instance.getCommentsForPost(postId);
       _commentsByPost[postId] = comments;
@@ -597,9 +620,10 @@ class PostsProvider extends ChangeNotifier {
       return posts;
     }
 
+    final postIds = posts.map((p) => p.id).toList();
     final results = await Future.wait<dynamic>([
-      _likedPostIdsLoader(currentUser.id),
-      _bookmarkedPostIdsLoader(currentUser.id),
+      _likedPostIdsLoader(currentUser.id, postIds: postIds),
+      _bookmarkedPostIdsLoader(currentUser.id, postIds: postIds),
     ]);
     final likedPostIds = results[0] as Set<String>;
     final bookmarkedPostIds = results[1] as Set<String>;

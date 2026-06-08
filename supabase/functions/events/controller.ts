@@ -6,6 +6,7 @@ import {
   methodNotAllowed,
   parseJsonBody,
 } from "../_shared/http.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import type { SupabaseClient, User } from "https://esm.sh/@supabase/supabase-js@2";
 
 type CreateEventBody = {
@@ -24,7 +25,9 @@ export async function handleEventsRequest(
 ): Promise<Response> {
   const url = new URL(request.url);
   const service = new EventService(client);
-  const route = url.pathname.replace(/^.*\/functions\/v1\/events/, "") || "/";
+  const route = url.pathname
+    .replace(/^\/functions\/v1\/events/, "")
+    .replace(/^\/events/, "") || "/";
   const pathParts = route.split("/").filter(Boolean);
 
   try {
@@ -60,6 +63,19 @@ export async function handleEventsRequest(
       pathParts.length === 2 &&
       pathParts[1] === "deactivate") {
       const data = await service.updateEvent(pathParts[0], { isActive: false });
+      return jsonResponse({ data });
+    }
+
+    if (request.method === "POST" &&
+      pathParts.length === 1 &&
+      pathParts[0] === "sync-devpost") {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+      const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+      const serviceClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
+        auth: { persistSession: false },
+      });
+      const adminService = new EventService(serviceClient);
+      const data = await adminService.syncHackathons();
       return jsonResponse({ data });
     }
 

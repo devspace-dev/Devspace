@@ -10,45 +10,31 @@ class SplashScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF07090D),
+      backgroundColor: const Color(0xFF000000),
       body: Stack(
         children: [
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: const BoxDecoration(
-                gradient: RadialGradient(
-                  center: Alignment(0, -0.22),
-                  radius: 1.05,
-                  colors: [
-                    Color(0xFF111723),
-                    Color(0xFF090C12),
-                    Color(0xFF05070B),
-                  ],
-                  stops: [0.0, 0.48, 1.0],
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            top: -120,
-            right: -40,
+          // Background ambient glow
+          Align(
+            alignment: const Alignment(0, -0.15),
             child: Container(
-              width: 280,
-              height: 280,
+              width: 380,
+              height: 380,
               decoration: const BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    Color(0x223DE1FF),
-                    Colors.transparent,
+                    Color(0x1AFF7A00),
+                    Color(0x00FF7A00),
                   ],
+                  stops: [0.0, 1.0],
                 ),
               ),
             ).animate(onPlay: (controller) => controller.repeat(reverse: true))
               .scale(
-                duration: 3200.ms,
-                begin: const Offset(1, 1),
-                end: const Offset(1.08, 1.08),
+                duration: 3000.ms,
+                begin: const Offset(0.85, 0.85),
+                end: const Offset(1.15, 1.15),
+                curve: Curves.easeInOutSine,
               ),
           ),
           SafeArea(
@@ -58,68 +44,38 @@ class SplashScreen extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const DevSpaceLogo(size: 118).animate()
-                      .fadeIn(duration: 420.ms)
+                    const DevSpaceLogo(size: 110).animate()
+                      .fadeIn(duration: 600.ms, curve: Curves.easeOut)
                       .scale(
-                        duration: 760.ms,
-                        begin: const Offset(0.92, 0.92),
+                        duration: 800.ms,
+                        begin: const Offset(0.8, 0.8),
                         end: const Offset(1, 1),
-                        curve: Curves.easeOutCubic,
-                      ),
-                    const SizedBox(height: 28),
+                        curve: Curves.easeOutBack,
+                      )
+                      .shimmer(delay: 1200.ms, duration: 1500.ms, color: Colors.white.withValues(alpha: 0.1)),
+                    const SizedBox(height: 24),
                     Text(
                       'DevSpace',
                       style: GoogleFonts.spaceGrotesk(
-                        fontSize: 38,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -1.3,
-                        color: const Color(0xFFF6F8FC),
+                        fontSize: 40,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -1.2,
+                        color: Colors.white,
                       ),
                     ).animate()
-                      .fadeIn(delay: 180.ms, duration: 500.ms)
-                      .slideY(begin: 0.18, end: 0),
-                    const SizedBox(height: 10),
+                      .fadeIn(delay: 300.ms, duration: 600.ms)
+                      .slideY(begin: 0.15, end: 0, curve: Curves.easeOutCubic),
+                    const SizedBox(height: 12),
                     Text(
                       'Student builders, one shared space.',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.inter(
                         fontSize: 15,
                         fontWeight: FontWeight.w500,
-                        color: const Color(0xFF9AA3B2),
-                        letterSpacing: 0.1,
+                        color: const Color(0xFF8B95A5),
+                        letterSpacing: 0.2,
                       ),
-                    ).animate().fadeIn(delay: 340.ms, duration: 520.ms),
-                    const SizedBox(height: 34),
-                    Container(
-                      width: 124,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      alignment: Alignment.centerLeft,
-                      child: FractionallySizedBox(
-                        widthFactor: 1,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(999),
-                            gradient: const LinearGradient(
-                              colors: [
-                                Color(0xFF3DE1FF),
-                                Color(0xFF9EF3FF),
-                              ],
-                            ),
-                          ),
-                        ).animate()
-                          .scaleX(
-                            duration: 1600.ms,
-                            begin: 0,
-                            end: 1,
-                            alignment: Alignment.centerLeft,
-                            curve: Curves.easeInOutCubic,
-                          ),
-                      ),
-                    ).animate().fadeIn(delay: 500.ms, duration: 400.ms),
+                    ).animate().fadeIn(delay: 500.ms, duration: 600.ms),
                   ],
                 ),
               ),
@@ -128,17 +84,17 @@ class SplashScreen extends StatelessWidget {
           Positioned(
             left: 0,
             right: 0,
-            bottom: 28,
+            bottom: 32,
             child: Text(
-              'student developer community',
+              'STUDENT DEVELOPER COMMUNITY',
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
                 fontSize: 11,
-                color: const Color(0xFF6C7482),
-                letterSpacing: 1.4,
+                color: const Color(0xFF4B5563),
+                letterSpacing: 2.5,
                 fontWeight: FontWeight.w600,
               ),
-            ).animate().fadeIn(delay: 700.ms, duration: 520.ms),
+            ).animate().fadeIn(delay: 900.ms, duration: 800.ms),
           ),
         ],
       ),

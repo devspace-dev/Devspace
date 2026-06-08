@@ -24,7 +24,7 @@ class DevSpaceLogo extends StatelessWidget {
           fit: BoxFit.contain,
           errorBuilder: (context, error, stackTrace) => Icon(
             Icons.rocket_launch_rounded,
-            color: const Color(0xFF00D1FF),
+            color: const Color(0xFFFF7A00),
             size: size * 0.8,
           ),
         ).animate(onPlay: (controller) => controller.repeat(reverse: true))

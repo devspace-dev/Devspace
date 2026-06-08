@@ -2,8 +2,9 @@
 
 ## Implemented
 - Email/password auth with Supabase
+- Phone OTP auth with Supabase
 - Explicit runtime bootstrap for Supabase URL and anon key
-- First-login onboarding and editable profiles
+- Lightweight first-login onboarding and editable profiles
 - People discovery with search and branch filtering
 - Feed loading / empty / error states
 - Text-only, image-only, and text + image posting

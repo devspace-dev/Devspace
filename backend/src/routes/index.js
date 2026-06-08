@@ -15,5 +15,6 @@ router.post('/admin/challenges/auto-generate', protect, isAdmin, adminCtrl.autoG
 router.get('/admin/challenges', protect, isAdmin, adminCtrl.getAllChallenges);
 router.put('/admin/challenges/:id', protect, isAdmin, adminCtrl.updateChallenge);
 router.delete('/admin/challenges/:id', protect, isAdmin, adminCtrl.deleteChallenge);
+router.post('/admin/events/sync-devpost', protect, isAdmin, adminCtrl.syncDevpostHackathons);
 
 export default router;

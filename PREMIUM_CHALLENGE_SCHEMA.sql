@@ -1,6 +1,11 @@
 -- Premium and Free Weekly Challenge Questions Table
 -- This schema supports the ChallengeService and WeeklyPremiumChallengeScreen
 
+-- 0. Ensure public.users table columns exist
+alter table public.users add column if not exists is_premium boolean default false;
+alter table public.users add column if not exists career_goal text;
+alter table public.users add column if not exists career_goal_selected boolean default false;
+
 -- 1. Create free_questions table
 create table if not exists public.free_questions (
   id uuid default gen_random_uuid() primary key,

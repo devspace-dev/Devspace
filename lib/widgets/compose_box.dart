@@ -19,6 +19,31 @@ import 'glass_container.dart';
 class ComposeBox extends StatefulWidget {
   const ComposeBox({super.key});
 
+  static Future<void> showCreatePostSheet(BuildContext context, {bool showTags = false}) async {
+    HapticFeedback.lightImpact();
+    final result = await showModalBottomSheet<_CreatePostSheetResult>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _CreatePostSheet(showTagsInitially: showTags),
+    );
+
+    if (result == null || !context.mounted) return;
+
+    if (result.message != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.message!), behavior: SnackBarBehavior.floating),
+      );
+    }
+
+    if (!result.posted) return;
+
+    HapticFeedback.mediumImpact();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Post shared successfully'), behavior: SnackBarBehavior.floating),
+    );
+  }
+
   @override
   State<ComposeBox> createState() => _ComposeBoxState();
 }

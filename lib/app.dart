@@ -1,28 +1,27 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'providers/posts_provider.dart';
 import 'providers/questions_provider.dart';
 import 'providers/users_provider.dart';
 import 'providers/notifications_provider.dart';
 import 'providers/engagement_provider.dart';
 import 'screens/home_screen.dart';
+import 'screens/explore_screen.dart';
 import 'screens/people_screen.dart';
-import 'screens/qa_screen.dart';
+import 'screens/arena_screen.dart';
 import 'screens/aura_board_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/daily_challenge_screen.dart';
-import 'screens/opportunities_screen.dart';
 import 'screens/messages_screen.dart';
 import 'screens/weekly_challenge_pricing_screen.dart';
-import 'screens/weekly_challenge_screen.dart';
-import 'screens/weekly_free_challenge_screen.dart';
 import 'screens/question_detail_screen.dart';
+import 'screens/duel_screen.dart';
 import 'providers/auth_provider.dart';
 import 'providers/messages_provider.dart';
 import 'models/user_model.dart';
@@ -32,12 +31,13 @@ import 'screens/chat_detail_screen.dart';
 import 'theme/app_colors.dart';
 import 'widgets/bottom_nav.dart';
 import 'widgets/glass_container.dart';
+import 'widgets/compose_box.dart';
 import 'providers/premium_provider.dart';
 import 'models/notification_model.dart';
-import 'widgets/tier_up_dialog.dart';
 import 'utils/devspace_ui_helper.dart';
 import 'screens/tier_up_celebration_screen.dart';
 import 'services/app_review_service.dart';
+import 'services/supabase_service.dart';
 // Calling feature deferred to future update
 
 final GlobalKey<HomeScreenState> homeScreenKey = GlobalKey<HomeScreenState>();
@@ -211,14 +211,14 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
   bool _isUIVisible = true;
   late final PageController _pageController;
   StreamSubscription<String?>? _notificationSubscription;
+  String? _lastInitializedUid;
+  dynamic _duelRequestsSubscription;
 
   static const List<String> _titles = [
     'DevSpace',
-    'Developers',
-    'Q & A',
-    'Opportunities',
+    'Explore',
+    'Arena',
     'Profile',
-    'Aura Board',
   ];
 
   @override
@@ -319,43 +319,144 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
     final user = auth.currentUserOrNull;
 
     if (user != null) {
+      if (_lastInitializedUid == user.id) {
+        // User already initialized, but we might want to refresh some data
+        // if it's been a while. For now, we skip to avoid connection strain.
+        return;
+      }
+      _lastInitializedUid = user.id;
+
       try {
         NotificationService.instance.init(user.id);
         
         final notificationsProvider = context.read<NotificationsProvider>();
         notificationsProvider.init(user.id);
         
-        // Listen for tier_up notifications to show the full-screen dialog
-        notificationsProvider.addListener(() {
-          final tierUp = notificationsProvider.notifications.firstWhere(
-            (n) => !n.read && n.type == 'tier_up',
-            orElse: () => NotificationModel(id: '', toUid: '', fromUid: '', type: '', message: '', createdAt: DateTime.now(), read: false),
-          );
-          
-          if (tierUp.id.isNotEmpty) {
-            // Mark as read immediately so we don't show it twice
-            notificationsProvider.markAsRead(tierUp.id);
-            
-            // Show the full-screen animation
-            final tier = TierHelper.getTier(user.aura);
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => TierUpCelebrationScreen(
-                  user: user,
-                  tierName: tier.name,
-                ),
-              ),
-            );
-          }
-        });
+        // Listen for tier_up notifications - we only need one listener
+        // instead of adding a new one on every auth change.
+        // But since we now check _lastInitializedUid, it will only be added once per login.
+        notificationsProvider.removeListener(_tierUpListener);
+        notificationsProvider.addListener(_tierUpListener);
 
         context.read<MessagesProvider>().init(user.id);
         context.read<EngagementProvider>().fetchOverview();
-        context.read<PremiumProvider>().loadUserPremiumStatus();
+        context.read<PremiumProvider>().loadUserPremiumStatus(); _setupDuelRequestsListener(user.id);
       } catch (e) {
         debugPrint('Provider initialization failed: $e');
       }
+    } else {
+      _lastInitializedUid = null;
+      _duelRequestsSubscription?.unsubscribe();
+      _duelRequestsSubscription = null;
+    }
+  }
+
+    void _setupDuelRequestsListener(String userId) {
+    _duelRequestsSubscription?.unsubscribe();
+    _duelRequestsSubscription = SupabaseService.instance.listenToIncomingDuelRequests(userId, (request) {
+      if (!mounted) return;
+      _showIncomingDuelDialog(request);
+    });
+  }
+
+  void _showIncomingDuelDialog(Map<String, dynamic> request) async {
+    final senderId = request['sender_id'].toString();
+    final sender = context.read<UsersProvider>().getUserById(senderId);
+
+    if (!mounted || sender == null) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.flash_on_rounded, color: AppColors.primary),
+            const SizedBox(width: 8),
+            const Text('Incoming Challenge!', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+          ],
+        ),
+        content: Text(
+          '${sender.name} has challenged you to a ${request['mode']} in ${request['category']}!',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+           TextButton(
+             onPressed: () {
+                SupabaseService.instance.updateDuelRequestStatus(request['id'].toString(), 'declined');
+                Navigator.pop(ctx);
+             },
+             child: const Text('Decline', style: TextStyle(color: Colors.white54)),
+           ),
+           ElevatedButton(
+             onPressed: () async {
+                await SupabaseService.instance.updateDuelRequestStatus(request['id'].toString(), 'accepted');
+                final me = context.read<AuthProvider>().currentUserOrNull;
+                if (me != null) {
+                  try {
+                    await Supabase.instance.client.from('arena_matches').insert({
+                      'id': request['id'].toString(),
+                      'mode': request['mode'].toString(),
+                      'player1_id': request['sender_id'].toString(),
+                      'player2_id': me.id,
+                      'status': 'playing'
+                    });
+                  } catch (e) {
+                    debugPrint('Match row might exist: $e');
+                  }
+                }
+                if (!mounted) return;
+                Navigator.pop(ctx);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => DuelScreen(
+                      category: request['category'].toString(),
+                      mode: request['mode'].toString(),
+                      matchId: request['id'].toString(),
+                      isPlayer1: false,
+                      opponent: sender,
+                    ),
+                  ),
+                );
+             },
+             style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+             child: const Text('Accept', style: TextStyle(color: Colors.white)),
+           ),
+        ],
+      )
+    );
+  }
+
+  void _tierUpListener() {
+    if (!mounted) return;
+    final user = context.read<AuthProvider>().currentUserOrNull;
+    if (user == null) return;
+
+    final notificationsProvider = context.read<NotificationsProvider>();
+    final tierUp = notificationsProvider.notifications.firstWhere(
+      (n) => !n.read && n.type == 'tier_up',
+      orElse: () => NotificationModel(id: '', toUid: '', fromUid: '', type: '', message: '', createdAt: DateTime.now(), read: false),
+    );
+    
+    if (tierUp.id.isNotEmpty) {
+      // Mark as read immediately so we don't show it twice
+      notificationsProvider.markAsRead(tierUp.id);
+      
+      // Show the full-screen animation
+      final tier = TierHelper.getTier(user.aura);
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => TierUpCelebrationScreen(
+            user: user,
+            tierName: tier.name,
+          ),
+        ),
+      );
     }
   }
 
@@ -689,55 +790,52 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
 
     final List<Widget> screens = [
       HomeScreen(key: homeScreenKey),
-      const PeopleScreen(),
-      const QAScreen(),
-      const OpportunitiesScreen(),
+      const ExploreScreen(),
+      const ArenaScreen(),
       const ProfileScreen(),
-      const AuraBoardScreen(),
     ];
 
-    final showFab = _tab < 4;
     final isHome = _tab == 0;
 
     return Scaffold(
       backgroundColor: AppColors.bgFor(context),
       extendBody: true,
       extendBodyBehindAppBar: false,
-      floatingActionButton: AnimatedSlide(
-        offset: _isUIVisible ? Offset.zero : const Offset(0, 3),
-        duration: const Duration(milliseconds: 300),
-        child: isHome
-            ? CupFab(
-                onDaily: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const DailyChallengeScreen(),
+      floatingActionButton: isHome
+          ? CupFab(
+              onDaily: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const DailyChallengeScreen(),
+                  ),
+                );
+              },
+              onWeekly: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const WeeklyChallengePricingScreen(),
+                  ),
+                );
+              },
+            )
+          : null,
+      appBar: _tab == 2
+          ? null
+          : PreferredSize(
+              preferredSize: const Size.fromHeight(kToolbarHeight),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppColors.bgFor(context),
+                  border: Border(
+                    bottom: BorderSide(
+                      color: AppColors.borderFor(context).withValues(alpha: 0.8),
+                      width: 0.8,
                     ),
-                  );
-                },
-                onWeekly: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const WeeklyChallengePricingScreen(),
-                    ),
-                  );
-                },
-              )
-            : const SizedBox.shrink(),
-      ),
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(kToolbarHeight),
-        child: GlassContainer(
-          color: AppColors.bgFor(context),
-          opacity: 0.7,
-          blur: 20,
-          borderRadius: BorderRadius.zero,
-          border: Border(
-              bottom:
-                  BorderSide(color: AppColors.borderFor(context), width: 0.5)),
-          child: AppBar(
+                  ),
+                ),
+                child: AppBar(
             backgroundColor: Colors.transparent,
             elevation: 0,
             scrolledUnderElevation: 0,
@@ -747,21 +845,18 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                 ? Text(
                     'DevSpace',
                     style: GoogleFonts.plusJakartaSans(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 26,
-                      letterSpacing: -1.5,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 22,
+                      letterSpacing: -1,
                       color: AppColors.textFor(context),
                     ),
-                  ).animate().fadeIn(duration: 400.ms).scale(
-                      begin: const Offset(0.9, 0.9),
-                      curve: Curves.easeOutBack,
-                    )
+                  )
                 : Text(
                     _titles[_tab],
                     style: GoogleFonts.plusJakartaSans(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 18,
-                      letterSpacing: -0.5,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 17,
+                      letterSpacing: -0.3,
                       color: AppColors.textFor(context),
                     ),
                   ),
@@ -774,7 +869,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                   label: Text('$unreadCount',
                       style:
                           const TextStyle(fontSize: 10, color: Colors.white)),
-                  child: const Icon(Icons.notifications_none_rounded, size: 24),
+                  child: const Icon(Icons.notifications_none_rounded, size: 22),
                 ),
               ),
               if (me != null)
@@ -782,16 +877,25 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: Center(
                     child: GestureDetector(
-                      onTap: () => _onTabSelected(5), // Navigate to Aura Board
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AuraBoardScreen(),
+                          ),
+                        );
+                      },
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
+                            horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(20),
+                          color: AppColors.bg2For(context),
+                          borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                              color: AppColors.primary.withValues(alpha: 0.2),
-                              width: 1),
+                            color: AppColors.borderFor(context)
+                                .withValues(alpha: 0.8),
+                          ),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -803,7 +907,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w800,
-                                color: AppColors.primary,
+                                color: AppColors.textFor(context),
                               ),
                             ),
                           ],
@@ -825,7 +929,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                   label: Text('$unreadMessages',
                       style:
                           const TextStyle(fontSize: 10, color: Colors.white)),
-                  child: const Icon(Icons.mail_outline_rounded, size: 24),
+                  child: const Icon(Icons.mail_outline_rounded, size: 22),
                 ),
               ),
               const SizedBox(width: 4),
@@ -833,56 +937,49 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
           ),
         ),
       ),
-      body: NotificationListener<UserScrollNotification>(
-        onNotification: (notification) {
-          if (notification.direction == ScrollDirection.forward) {
-            if (!_isUIVisible) setState(() => _isUIVisible = true);
-          } else if (notification.direction == ScrollDirection.reverse) {
-            if (_isUIVisible) setState(() => _isUIVisible = false);
-          }
-          return false;
-        },
-        child: PopScope(
-          canPop: false,
-          onPopInvokedWithResult: (didPop, result) async {
-            if (didPop) return;
-            if (_tab != 0) {
-              _onTabSelected(0); // Go back to Home tab
+      body: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) async {
+          if (didPop) return;
+          if (_tab != 0) {
+            _onTabSelected(0); // Go back to Home tab
+          } else {
+            // If on home tab, we might want to allow popping if there's no other way
+            // But usually we want to exit the app or something.
+            // In Flutter, if we return true from onWillPop it closes.
+            // With PopScope(canPop: false), we need to manually pop if we want to.
+            final NavigatorState navigator = Navigator.of(context);
+            if (navigator.canPop()) {
+              navigator.pop();
             } else {
-              // If on home tab, we might want to allow popping if there's no other way
-              // But usually we want to exit the app or something.
-              // In Flutter, if we return true from onWillPop it closes.
-              // With PopScope(canPop: false), we need to manually pop if we want to.
-              final NavigatorState navigator = Navigator.of(context);
-              if (navigator.canPop()) {
-                navigator.pop();
-              } else {
-                // Exit app
-                SystemNavigator.pop();
-              }
+              // Exit app
+              SystemNavigator.pop();
+            }
+          }
+        },
+        child: PageView(
+          controller: _pageController,
+          physics: const BouncingScrollPhysics(),
+          onPageChanged: (index) {
+            if (_tab != index && mounted) {
+              setState(() => _tab = index);
             }
           },
-          child: PageView(
-            controller: _pageController,
-            physics: const BouncingScrollPhysics(),
-            onPageChanged: (index) {
-              if (_tab != index && mounted) {
-                setState(() => _tab = index);
-              }
-            },
-            children: screens,
-          ),
+          children: screens,
         ),
       ),
-      bottomNavigationBar: AnimatedSlide(
-        offset: _isUIVisible ? Offset.zero : const Offset(0, 1),
-        duration: const Duration(milliseconds: 300),
-        child: DevSpaceBottomNav(
-          currentIndex: _tab,
-          onTap: _onTabSelected,
-          unreadNotifications: unreadCount,
-          unreadMessages: unreadMessages,
-        ),
+      bottomNavigationBar: DevSpaceBottomNav(
+        currentIndex: _tab == 0 ? 0 : (_tab == 1 ? 1 : (_tab == 2 ? 3 : 4)),
+        onTap: (navIndex) {
+          if (navIndex == 2) {
+            ComposeBox.showCreatePostSheet(context);
+          } else {
+            int pageIndex = navIndex == 0 ? 0 : (navIndex == 1 ? 1 : (navIndex == 3 ? 2 : 3));
+            _onTabSelected(pageIndex);
+          }
+        },
+        unreadNotifications: unreadCount,
+        unreadMessages: unreadMessages,
       ),
     );
   }

@@ -30,6 +30,8 @@ class _LoginScreenState extends State<LoginScreen>
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  final _otpCtrl = TextEditingController();
 
   late final AnimationController _ctrl;
   late final Animation<double> _fade;
@@ -39,6 +41,7 @@ class _LoginScreenState extends State<LoginScreen>
   bool _loading = false;
   String? _error;
   bool _obscurePassword = true;
+  bool _otpSent = false;
 
   bool get _isSignUp => _mode == _AuthMode.signUp;
 
@@ -63,6 +66,8 @@ class _LoginScreenState extends State<LoginScreen>
     _nameCtrl.dispose();
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
+    _phoneCtrl.dispose();
+    _otpCtrl.dispose();
     _ctrl.dispose();
     super.dispose();
   }
@@ -106,11 +111,80 @@ class _LoginScreenState extends State<LoginScreen>
     });
   }
 
+  Future<void> _sendPhoneOtp() async {
+    final phone = _phoneCtrl.text.trim();
+    if (phone.isEmpty || !phone.startsWith('+')) {
+      setState(() {
+        _error = 'Enter phone number with country code, for example +919876543210.';
+      });
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    final result = await AuthService.instance.sendPhoneOtp(phone);
+    if (!mounted) return;
+
+    setState(() {
+      _loading = false;
+      if (result.error != null) {
+        _error = result.error;
+      } else {
+        _otpSent = true;
+      }
+    });
+
+    if (result.error == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.message ?? 'OTP sent.'),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+    }
+  }
+
+  Future<void> _verifyPhoneOtp() async {
+    final phone = _phoneCtrl.text.trim();
+    final otp = _otpCtrl.text.trim();
+    if (otp.length < 4) {
+      setState(() => _error = 'Enter the OTP sent to your phone.');
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    final result = await AuthService.instance.verifyPhoneOtp(
+      phone: phone,
+      otp: otp,
+    );
+    if (!mounted) return;
+
+    setState(() => _loading = false);
+
+    if (result.success) {
+      if (widget.closeOnSuccess && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      widget.onSuccess();
+    } else {
+      setState(() => _error = result.error);
+    }
+  }
+
   void _switchMode(_AuthMode mode) {
     if (_mode == mode) return;
     setState(() {
       _mode = mode;
       _error = null;
+      _otpSent = false;
+      _otpCtrl.clear();
     });
     _formKey.currentState?.reset();
   }
@@ -359,6 +433,25 @@ class _LoginScreenState extends State<LoginScreen>
                                       } else {
                                         setState(() => _error = res.error);
                                       }
+                                    },
+                                  ),
+                                ),
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                                  child: _PhoneOtpBox(
+                                    loading: _loading,
+                                    otpSent: _otpSent,
+                                    phoneController: _phoneCtrl,
+                                    otpController: _otpCtrl,
+                                    onSendOtp: _sendPhoneOtp,
+                                    onVerifyOtp: _verifyPhoneOtp,
+                                    onChangePhone: () {
+                                      setState(() {
+                                        _otpSent = false;
+                                        _otpCtrl.clear();
+                                        _error = null;
+                                      });
                                     },
                                   ),
                                 ),
@@ -808,6 +901,118 @@ class _GoogleButton extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _PhoneOtpBox extends StatelessWidget {
+  final bool loading;
+  final bool otpSent;
+  final TextEditingController phoneController;
+  final TextEditingController otpController;
+  final VoidCallback onSendOtp;
+  final VoidCallback onVerifyOtp;
+  final VoidCallback onChangePhone;
+
+  const _PhoneOtpBox({
+    required this.loading,
+    required this.otpSent,
+    required this.phoneController,
+    required this.otpController,
+    required this.onSendOtp,
+    required this.onVerifyOtp,
+    required this.onChangePhone,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final text = AppColors.textFor(context);
+    final text3 = AppColors.text3For(context);
+    final border = AppColors.borderFor(context);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.bgFor(context).withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.phone_iphone_rounded, color: text3, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                'Continue with phone OTP',
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: text,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: phoneController,
+            enabled: !loading && !otpSent,
+            keyboardType: TextInputType.phone,
+            textInputAction: TextInputAction.next,
+            style: TextStyle(color: text, fontWeight: FontWeight.w600),
+            decoration: const InputDecoration(
+              hintText: '+91 phone number',
+            ),
+          ),
+          if (otpSent) ...[
+            const SizedBox(height: 10),
+            TextField(
+              controller: otpController,
+              keyboardType: TextInputType.number,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => onVerifyOtp(),
+              style: TextStyle(color: text, fontWeight: FontWeight.w700),
+              decoration: const InputDecoration(
+                hintText: 'Enter OTP',
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed:
+                      loading ? null : (otpSent ? onVerifyOtp : onSendOtp),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: text,
+                    side: BorderSide(color: border),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: Text(
+                    otpSent ? 'Verify OTP' : 'Send OTP',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ),
+              if (otpSent) ...[
+                const SizedBox(width: 10),
+                TextButton(
+                  onPressed: loading ? null : onChangePhone,
+                  child: const Text('Change'),
+                ),
+              ],
+            ],
+          ),
+        ],
       ),
     );
   }

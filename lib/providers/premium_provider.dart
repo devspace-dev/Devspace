@@ -28,12 +28,12 @@ class PremiumProvider extends ChangeNotifier {
     try {
       final response = await _supabase
           .from('users')
-          .select('career_goal, career_goal_selected')
+          .select('career_goal, career_goal_selected, is_premium')
           .eq('id', user.id)
           .maybeSingle();
 
       if (response != null) {
-        _isPremium = false; // Default to false if column missing or logic changed
+        _isPremium = response['is_premium'] ?? false;
         _careerGoal = response['career_goal'];
         _careerGoalSelected = response['career_goal_selected'] ?? false;
       }
@@ -53,10 +53,10 @@ class PremiumProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _supabase.from('users').upsert({
-        'id': user.id,
+      await _supabase.from('users').update({
+        'is_premium': true,
         'career_goal_selected': false,
-      });
+      }).eq('id', user.id);
 
       _isPremium = true;
       _careerGoalSelected = false;

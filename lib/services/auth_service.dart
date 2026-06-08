@@ -88,6 +88,24 @@ class AuthService {
     return 'Google sign-in failed: $error';
   }
 
+  String _friendlyPhoneError(AuthException e) {
+    if (e is AuthApiException) {
+      final message = e.message.toLowerCase();
+      if (message.contains('invalid phone')) {
+        return 'Enter a valid phone number with country code, for example +919876543210.';
+      }
+      if (message.contains('otp') || message.contains('token')) {
+        return 'The OTP is invalid or expired. Request a new code and try again.';
+      }
+      if (e.code == 'over_sms_send_rate_limit' ||
+          message.contains('rate limit')) {
+        return 'Too many OTP requests. Wait a minute before trying again.';
+      }
+    }
+
+    return 'Phone login failed: ${e.message}';
+  }
+
   String? _friendlyDatabaseError(Object error) {
     if (error is PostgrestException) {
       if (error.code == 'PGRST204') {
@@ -245,6 +263,11 @@ class AuthService {
       return email.split('@').first.trim();
     }
 
+    final phone = user.phone ?? '';
+    if (phone.isNotEmpty) {
+      return 'DevSpace Student';
+    }
+
     return 'DevSpace Student';
   }
 
@@ -252,7 +275,7 @@ class AuthService {
     final existing = await SupabaseService.instance.getUserById(user.id);
     if (existing != null) return existing;
 
-    final email = user.email ?? '';
+    final email = user.email ?? user.phone ?? '';
     if (email.isNotEmpty) {
       final existingByEmail = await SupabaseService.instance.getUserByEmail(
         email,
@@ -446,6 +469,69 @@ class AuthService {
       );
     } catch (e) {
       return AuthResult(error: _friendlyGoogleError(e));
+    }
+  }
+
+  Future<AuthResult> sendPhoneOtp(String phone) async {
+    try {
+      final normalizedPhone = phone.trim();
+      if (normalizedPhone.isEmpty || !normalizedPhone.startsWith('+')) {
+        return const AuthResult(
+          error: 'Enter phone number with country code, for example +919876543210.',
+        );
+      }
+
+      await _supabase.auth.signInWithOtp(phone: normalizedPhone);
+      return const AuthResult(message: 'OTP sent to your phone.');
+    } on AuthException catch (e) {
+      return AuthResult(error: _friendlyPhoneError(e));
+    } catch (e) {
+      return AuthResult(error: 'Failed to send OTP: $e');
+    }
+  }
+
+  Future<AuthResult> verifyPhoneOtp({
+    required String phone,
+    required String otp,
+  }) async {
+    try {
+      final normalizedPhone = phone.trim();
+      final normalizedOtp = otp.trim();
+      if (normalizedPhone.isEmpty || normalizedOtp.length < 4) {
+        return const AuthResult(error: 'Enter the OTP sent to your phone.');
+      }
+
+      final AuthResponse res = await _supabase.auth.verifyOTP(
+        phone: normalizedPhone,
+        token: normalizedOtp,
+        type: OtpType.sms,
+      );
+
+      final user = res.user;
+      if (user == null) {
+        return const AuthResult(error: 'Phone verification failed.');
+      }
+
+      _currentUser = await _loadOrCreateProfile(user);
+      _authStateController.add(_currentUser);
+
+      AnalyticsService.instance.logLogin('phone');
+      if (_currentUser != null) {
+        AnalyticsService.instance.setUserIdentifier(_currentUser!.id);
+      }
+
+      return AuthResult(user: _currentUser);
+    } on AuthException catch (e) {
+      return AuthResult(error: _friendlyPhoneError(e));
+    } on PostgrestException catch (e) {
+      return AuthResult(
+        error:
+            _friendlyDatabaseError(e) ?? 'Phone login failed: ${e.message}',
+      );
+    } catch (e) {
+      return AuthResult(
+        error: _friendlyDatabaseError(e) ?? 'Phone login failed: $e',
+      );
     }
   }
 

@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +10,7 @@ import '../providers/auth_provider.dart';
 import '../services/backend_api_service.dart';
 import '../services/founder_device_service.dart';
 import '../services/notification_service.dart';
+import '../services/storage_service.dart';
 import '../services/supabase_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/founder_access_denied_view.dart';
@@ -63,6 +66,7 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
   List<Map<String, dynamic>> _challenges = [];
   String? _eventsError;
   String? _challengesError;
+  File? _eventBannerFile;
 
   bool get _isDeveloperDashboard =>
       widget.mode == FounderToolsMode.developerDashboard;
@@ -200,6 +204,21 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
     }
   }
 
+  Future<void> _pickEventBanner() async {
+    final file = await StorageService.instance.pickImage(
+      context,
+      crop: true,
+      maxWidth: 1200,
+      maxHeight: 630, // Standard social share/banner ratio
+    );
+    if (file != null) {
+      setState(() {
+        _eventBannerFile = file;
+        _eventBannerUrlController.text = ''; // Clear URL if file is picked
+      });
+    }
+  }
+
   Widget _buildEventsTab(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
@@ -258,12 +277,83 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
                 ),
               ),
               _LabeledField(
-                label: 'Banner Image URL',
-                child: TextFormField(
-                  controller: _eventBannerUrlController,
-                  decoration: const InputDecoration(
-                    hintText: 'https://images.unsplash.com/...',
-                  ),
+                label: 'Banner Image',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_eventBannerFile != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.file(
+                                _eventBannerFile!,
+                                width: double.infinity,
+                                height: 160,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: IconButton.filled(
+                                onPressed: () => setState(() => _eventBannerFile = null),
+                                icon: const Icon(Icons.close, size: 20),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: Colors.black54,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else if (_eventBannerUrlController.text.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: CachedNetworkImage(
+                            imageUrl: _eventBannerUrlController.text,
+                            width: double.infinity,
+                            height: 160,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Container(
+                              color: AppColors.bg3For(context),
+                              child: const Center(child: CircularProgressIndicator.adaptive()),
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              color: AppColors.bg3For(context),
+                              child: const Icon(Icons.error_outline),
+                            ),
+                          ),
+                        ),
+                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _pickEventBanner,
+                            icon: const Icon(Icons.image_outlined, size: 20),
+                            label: const Text('Pick Image (PNG/JPG)'),
+                          ),
+                        ),
+                        if (_eventBannerFile == null) ...[
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _eventBannerUrlController,
+                              decoration: const InputDecoration(
+                                hintText: 'Or paste URL',
+                              ),
+                              onChanged: (v) => setState(() {}),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
                 ),
               ),
               _LabeledField(
@@ -526,6 +616,12 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
         ),
         const SizedBox(height: 20),
         _SystemActionTile(
+          icon: Icons.sync_rounded,
+          title: 'Sync Devpost Hackathons',
+          subtitle: 'Sync hackathons from Devpost, Devfolio, and Unstop pages to database.',
+          onTap: _syncHackathons,
+        ),
+        _SystemActionTile(
           icon: Icons.analytics_outlined,
           title: 'Backend status',
           subtitle: 'Check whether admin APIs and edge functions are available.',
@@ -627,13 +723,19 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
 
     setState(() => _isCreatingEvent = true);
     try {
+      String bannerUrl = _eventBannerUrlController.text.trim();
+      
+      if (_eventBannerFile != null) {
+        bannerUrl = await StorageService.instance.uploadEventBanner(_eventBannerFile!);
+      }
+
       await BackendApiService.instance.createEvent(
         title: _eventTitleController.text.trim(),
         description: _eventDescriptionController.text.trim(),
         requiredAura: int.parse(_eventRequiredAuraController.text.trim()),
         link: _eventLinkController.text.trim(),
         type: _eventType,
-        bannerUrl: _eventBannerUrlController.text.trim(),
+        bannerUrl: bannerUrl,
         date: _eventDateController.text.trim(),
         location: _eventLocationController.text.trim(),
         organizer: _eventOrganizerController.text.trim(),
@@ -647,6 +749,8 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
       _eventDateController.clear();
       _eventLocationController.clear();
       _eventOrganizerController.clear();
+      setState(() => _eventBannerFile = null);
+      
       await _loadEvents();
       _showSnack('Event created.');
     } catch (e) {
@@ -838,6 +942,7 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
     );
     var eventType = event['type']?.toString() ?? 'event';
     var isActive = event['is_active'] as bool? ?? true;
+    File? bannerFile;
 
     final saved = await showDialog<bool>(
       context: context,
@@ -891,9 +996,48 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
                       },
                     ),
                     const SizedBox(height: 12),
-                    TextField(
-                      controller: bannerUrlController,
-                      decoration: const InputDecoration(labelText: 'Banner URL'),
+                    _LabeledField(
+                      label: 'Banner Image',
+                      child: Column(
+                        children: [
+                          if (bannerFile != null)
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.file(bannerFile!, height: 100, width: double.infinity, fit: BoxFit.cover),
+                            )
+                          else if (bannerUrlController.text.isNotEmpty)
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: CachedNetworkImage(imageUrl: bannerUrlController.text, height: 100, width: double.infinity, fit: BoxFit.cover),
+                            ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () async {
+                                    final file = await StorageService.instance.pickImage(context, crop: true);
+                                    if (file != null) {
+                                      setDialogState(() => bannerFile = file);
+                                    }
+                                  },
+                                  child: const Text('Upload PNG'),
+                                ),
+                              ),
+                              if (bannerFile == null) ...[
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: TextField(
+                                    controller: bannerUrlController,
+                                    decoration: const InputDecoration(labelText: 'Banner URL'),
+                                    onChanged: (_) => setDialogState(() {}),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 12),
                     TextField(
@@ -940,6 +1084,11 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
 
     if (saved == true) {
       try {
+        String finalBannerUrl = bannerUrlController.text.trim();
+        if (bannerFile != null) {
+          finalBannerUrl = await StorageService.instance.uploadEventBanner(bannerFile!);
+        }
+
         await BackendApiService.instance.updateEvent(
           eventId: event['id'].toString(),
           title: titleController.text.trim(),
@@ -948,7 +1097,7 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
           link: linkController.text.trim(),
           type: eventType,
           isActive: isActive,
-          bannerUrl: bannerUrlController.text.trim(),
+          bannerUrl: finalBannerUrl,
           date: dateController.text.trim(),
           location: locationController.text.trim(),
           organizer: organizerController.text.trim(),
@@ -1319,6 +1468,26 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
       _showSnack('Mission admin pipeline is working.');
     } catch (e) {
       _showSnack(_featureErrorMessage(feature: 'missions', error: e));
+    }
+  }
+
+  Future<void> _syncHackathons() async {
+    try {
+      _showSnack('Starting hackathon synchronization from Devpost, Devfolio, and Unstop...');
+      final results = await BackendApiService.instance.syncDevpostHackathons();
+      if (!mounted) return;
+      
+      final newCount = results['newCount'] ?? 0;
+      final updatedCount = results['updatedCount'] ?? 0;
+      final deletedCount = results['deletedCount'] ?? 0;
+      final total = results['totalFetched'] ?? 0;
+      
+      _showSnack(
+        'Sync complete! Fetched: $total. Added: $newCount. Updated: $updatedCount. Expired deleted: $deletedCount.',
+      );
+      await _loadEvents();
+    } catch (e) {
+      _showSnack('Failed to sync hackathons: ${BackendApiService.instance.cleanErrorText(e)}');
     }
   }
 

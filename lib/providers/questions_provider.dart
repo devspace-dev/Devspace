@@ -50,6 +50,9 @@ class QuestionsProvider extends ChangeNotifier {
   void setFilter(String filter) {
     if (_currentFilter == filter) return;
     _currentFilter = filter;
+    _questions = []; // Clear for visual feedback
+    _hasMore = true;
+    notifyListeners();
     fetchQuestions();
   }
 

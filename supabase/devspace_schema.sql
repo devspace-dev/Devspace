@@ -71,7 +71,7 @@ begin
     alter table public.founder_devices
       add constraint founder_devices_user_id_device_id_key unique (user_id, device_id);
   end if;
-end
+end;
 $$;
 
 do $$
@@ -84,7 +84,7 @@ begin
     alter table public.founder_devices
       add constraint founder_devices_device_id_key unique (device_id);
   end if;
-end
+end;
 $$;
 
 do $$
@@ -96,7 +96,7 @@ begin
   ) then
     alter table public.users add constraint users_email_key unique (email);
   end if;
-end
+end;
 $$;
 
 do $$
@@ -108,7 +108,7 @@ begin
   ) then
     alter table public.users add constraint users_handle_key unique (handle);
   end if;
-end
+end;
 $$;
 
 create table if not exists public.posts (
@@ -130,7 +130,17 @@ alter table public.posts add column if not exists user_id uuid references public
 alter table public.posts add column if not exists content text default '';
 alter table public.posts add column if not exists tags text[] default '{}'::text[];
 alter table public.posts add column if not exists image_url text default '';
-alter table public.posts add column if not exists quote_post_id uuid references public.posts(id) on delete set null;
+do $$
+begin
+  if not exists (select 1 from information_schema.columns where table_name = 'posts' and column_name = 'quote_post_id') then
+    if (select data_type from information_schema.columns where table_name = 'posts' and column_name = 'id') = 'bigint' then
+      alter table public.posts add column quote_post_id bigint references public.posts(id) on delete set null;
+    else
+      alter table public.posts add column quote_post_id uuid references public.posts(id) on delete set null;
+    end if;
+  end if;
+end
+$$;
 alter table public.posts add column if not exists likes_count bigint default 0;
 alter table public.posts add column if not exists comments_count bigint default 0;
 alter table public.posts add column if not exists reposts_count bigint default 0;
@@ -158,7 +168,7 @@ begin
   ) then
     alter table public.follows add constraint follows_follower_id_following_id_key unique (follower_id, following_id);
   end if;
-end
+end;
 $$;
 
 create table if not exists public.likes (
@@ -181,7 +191,7 @@ begin
   ) then
     alter table public.likes add constraint likes_post_id_user_id_key unique (post_id, user_id);
   end if;
-end
+end;
 $$;
 
 create table if not exists public.bookmarks (
@@ -205,7 +215,7 @@ begin
     alter table public.bookmarks
       add constraint bookmarks_post_id_user_id_key unique (post_id, user_id);
   end if;
-end
+end;
 $$;
 
 create table if not exists public.comments (
@@ -219,6 +229,24 @@ create table if not exists public.comments (
 alter table public.comments add column if not exists post_id uuid references public.posts(id) on delete cascade;
 alter table public.comments add column if not exists user_id uuid references public.users(id) on delete cascade;
 alter table public.comments add column if not exists content text not null default '';
+do $$
+begin
+  -- Check and add parent_id with correct type matching the 'id' column
+  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'comments' and column_name = 'parent_id') then
+    if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'comments' and column_name = 'id' and data_type in ('bigint', 'integer')) then
+      alter table public.comments add column parent_id bigint references public.comments(id) on delete cascade;
+    else
+      alter table public.comments add column parent_id uuid references public.comments(id) on delete cascade;
+    end if;
+  end if;
+
+  -- Add replying_to_user_id (referencing users table, which is always uuid in Supabase Auth)
+  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'comments' and column_name = 'replying_to_user_id') then
+    alter table public.comments add column replying_to_user_id uuid references public.users(id) on delete set null;
+  end if;
+end
+$$;
+
 alter table public.comments add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
 
 create table if not exists public.questions (
@@ -239,7 +267,18 @@ alter table public.questions add column if not exists body text not null default
 alter table public.questions add column if not exists tags text[] default '{}'::text[];
 alter table public.questions add column if not exists upvotes_count bigint default 0;
 alter table public.questions add column if not exists replies_count bigint default 0;
-alter table public.questions add column if not exists solved_reply_id uuid;
+do $$
+begin
+  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'questions' and column_name = 'solved_reply_id') then
+    if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'question_replies' and column_name = 'id' and data_type in ('bigint', 'integer')) then
+      alter table public.questions add column solved_reply_id bigint;
+    else
+      alter table public.questions add column solved_reply_id uuid;
+    end if;
+  end if;
+end
+$$;
+
 alter table public.questions add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
 
 create table if not exists public.question_replies (
@@ -255,8 +294,24 @@ create table if not exists public.question_replies (
 alter table public.question_replies add column if not exists question_id uuid references public.questions(id) on delete cascade;
 alter table public.question_replies add column if not exists user_id uuid references public.users(id) on delete cascade;
 alter table public.question_replies add column if not exists content text not null default '';
-alter table public.question_replies add column if not exists parent_reply_id uuid references public.question_replies(id) on delete cascade;
-alter table public.question_replies add column if not exists replying_to_user_id uuid references public.users(id) on delete set null;
+do $$
+begin
+  -- Check and add parent_reply_id with correct type matching the 'id' column
+  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'question_replies' and column_name = 'parent_reply_id') then
+    if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'question_replies' and column_name = 'id' and data_type in ('bigint', 'integer')) then
+      alter table public.question_replies add column parent_reply_id bigint references public.question_replies(id) on delete cascade;
+    else
+      alter table public.question_replies add column parent_reply_id uuid references public.question_replies(id) on delete cascade;
+    end if;
+  end if;
+
+  -- Add replying_to_user_id
+  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'question_replies' and column_name = 'replying_to_user_id') then
+    alter table public.question_replies add column replying_to_user_id uuid references public.users(id) on delete set null;
+  end if;
+end
+$$;
+
 alter table public.question_replies add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
 
 create table if not exists public.question_votes (
@@ -295,7 +350,7 @@ begin
     alter table public.question_votes
       add constraint question_votes_question_id_user_id_key unique (question_id, user_id);
   end if;
-end
+end;
 $$;
 
 do $$
@@ -308,7 +363,7 @@ begin
     alter table public.question_pull_requests
       add constraint question_pull_requests_question_id_user_id_key unique (question_id, user_id);
   end if;
-end
+end;
 $$;
 
 do $$
@@ -318,76 +373,18 @@ begin
     from pg_constraint
     where conname = 'questions_solved_reply_id_fkey'
   ) then
+    -- Detect type of solved_reply_id column to ensure it matches question_replies(id)
+    -- Actually, solved_reply_id should already have been added. 
+    -- We just need to add the FK.
     alter table public.questions
       add constraint questions_solved_reply_id_fkey
       foreign key (solved_reply_id)
       references public.question_replies(id)
       on delete set null;
   end if;
-end
+end;
 $$;
 
-create table if not exists public.notifications (
-  id uuid default gen_random_uuid() primary key,
-  to_uid uuid references public.users(id) on delete cascade,
-  from_uid uuid references public.users(id) on delete cascade,
-  type text default '',
-  post_id uuid references public.posts(id) on delete set null,
-  message text default '',
-  read boolean default false,
-  created_at timestamp with time zone default timezone('utc'::text, now())
-);
-
-alter table public.notifications add column if not exists to_uid uuid references public.users(id) on delete cascade;
-alter table public.notifications add column if not exists from_uid uuid references public.users(id) on delete cascade;
-alter table public.notifications add column if not exists type text default '';
-alter table public.notifications add column if not exists post_id uuid references public.posts(id) on delete set null;
-alter table public.notifications add column if not exists message text default '';
-alter table public.notifications add column if not exists read boolean default false;
-alter table public.notifications add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
-
-create table if not exists public.conversations (
-  id uuid default gen_random_uuid() primary key,
-  participants uuid[] not null,
-  participant_key text,
-  last_message text,
-  last_message_at timestamp with time zone,
-  last_message_sender_id uuid references public.users(id) on delete set null,
-  created_at timestamp with time zone default timezone('utc'::text, now()),
-  updated_at timestamp with time zone default timezone('utc'::text, now())
-);
-
-alter table public.conversations add column if not exists participants uuid[];
-alter table public.conversations add column if not exists participant_key text;
-alter table public.conversations add column if not exists last_message text;
-alter table public.conversations add column if not exists last_message_at timestamp with time zone;
-alter table public.conversations add column if not exists last_message_sender_id uuid references public.users(id) on delete set null;
-alter table public.conversations add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
-alter table public.conversations add column if not exists updated_at timestamp with time zone default timezone('utc'::text, now());
-
-create table if not exists public.messages (
-  id uuid default gen_random_uuid() primary key,
-  conversation_id uuid references public.conversations(id) on delete cascade,
-  sender_id uuid references public.users(id) on delete cascade,
-  content text not null,
-  is_read boolean default false,
-  read_at timestamp with time zone,
-
-do $$
-begin
-  if not exists (
-    select 1
-    from pg_constraint
-    where conname = 'questions_solved_reply_id_fkey'
-  ) then
-    alter table public.questions
-      add constraint questions_solved_reply_id_fkey
-      foreign key (solved_reply_id)
-      references public.question_replies(id)
-      on delete set null;
-  end if;
-end
-$$;
 
 create table if not exists public.notifications (
   id uuid default gen_random_uuid() primary key,
@@ -456,7 +453,7 @@ begin
       add constraint conversations_exactly_two_participants
       check (coalesce(array_length(participants, 1), 0) = 2);
   end if;
-end
+end;
 $$;
 
 do $$
@@ -470,7 +467,7 @@ begin
       add constraint conversations_distinct_participants
       check (participants[1] is distinct from participants[2]);
   end if;
-end
+end;
 $$;
 
 do $$
@@ -484,7 +481,7 @@ begin
       add constraint messages_content_not_blank
       check (length(btrim(coalesce(content, ''))) > 0);
   end if;
-end
+end;
 $$;
 
 with normalized_conversations as (
@@ -832,7 +829,7 @@ begin
       to authenticated
       using (true);
   end if;
-end
+end;
 $$;
 
 do $$
@@ -849,7 +846,7 @@ begin
       to authenticated
       using (true);
   end if;
-end
+end;
 $$;
 
 do $$
@@ -866,7 +863,7 @@ begin
       to authenticated
       with check (auth.uid() = user_id);
   end if;
-end
+end;
 $$;
 
 do $$
@@ -898,7 +895,7 @@ begin
         )
       );
   end if;
-end
+end;
 $$;
 
 create or replace function public.can_user_reply(
@@ -937,11 +934,7 @@ begin
 end;
 $$;
 
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-)
+create or replace function public.mark_conversation_messages_read(p_conversation_id uuid)
 returns integer
 language plpgsql
 security definer
@@ -993,7 +986,7 @@ begin
   ) then
     create publication supabase_realtime;
   end if;
-end
+end;
 $$;
 
 do $$
@@ -1011,7 +1004,7 @@ begin
   ) then
     execute 'alter publication supabase_realtime add table public.users';
   end if;
-end
+end;
 $$;
 
 do $$
@@ -1029,7 +1022,7 @@ begin
   ) then
     execute 'alter publication supabase_realtime add table public.notifications';
   end if;
-end
+end;
 $$;
 
 do $$
@@ -1047,7 +1040,7 @@ begin
   ) then
     execute 'alter publication supabase_realtime add table public.conversations';
   end if;
-end
+end;
 $$;
 
 do $$
@@ -1065,7 +1058,7 @@ begin
   ) then
     execute 'alter publication supabase_realtime add table public.messages';
   end if;
-end
+end;
 $$;
 
 create or replace function public.register_rate_limited_action(
@@ -1308,6 +1301,8 @@ $$;
 
 grant execute on function public.like_post_with_aura(uuid) to authenticated;
 
+drop function if exists public.unlike_post(uuid);
+
 create or replace function public.unlike_post(p_post_id uuid)
 returns jsonb
 language plpgsql
@@ -1362,6 +1357,8 @@ end;
 $$;
 
 grant execute on function public.unlike_post(uuid) to authenticated;
+
+drop function if exists public.add_comment_with_aura(uuid, text);
 
 create or replace function public.add_comment_with_aura(
   p_post_id uuid,
@@ -1431,10 +1428,10 @@ begin
     raise exception 'Authentication required';
   end if;
 
-  select coalesce(aura_points, aura, 0)
+  select coalesce(u.aura_points, u.aura, 0)
   into actor_aura
-  from public.users
-  where id = actor_id;
+  from public.users u
+  where u.id = actor_id;
 
   insert into public.user_events(user_id, event_id, unlocked, unlocked_at)
   select
@@ -1868,7 +1865,7 @@ begin
       to authenticated
       using (auth.uid() = user_id);
   end if;
-end
+end;
 $$;
 
 do $$
@@ -1885,7 +1882,7 @@ begin
       to authenticated
       using (auth.uid() = user_id);
   end if;
-end
+end;
 $$;
 
 do $$
@@ -1902,7 +1899,7 @@ begin
       to authenticated
       using (auth.uid() = user_id);
   end if;
-end
+end;
 $$;
 
 do $$
@@ -1919,7 +1916,7 @@ begin
       to authenticated
       using (true);
   end if;
-end
+end;
 $$;
 
 do $$
@@ -1936,7 +1933,7 @@ begin
       to authenticated
       with check (auth.uid() = created_by or created_by is null);
   end if;
-end
+end;
 $$;
 
 do $$
@@ -1953,7 +1950,7 @@ begin
       to authenticated
       using (auth.uid() = user_id);
   end if;
-end
+end;
 $$;
 
 do $$
@@ -1970,7 +1967,7 @@ begin
       to authenticated
       using (true);
   end if;
-end
+end;
 $$;
 
 do $$
@@ -1987,7 +1984,7 @@ begin
       to authenticated
       using (auth.uid() = user_id);
   end if;
-end
+end;
 $$;
 
 do $$
@@ -2004,5 +2001,5 @@ begin
       to authenticated
       using (auth.uid() = user_id);
   end if;
-end
+end;
 $$;

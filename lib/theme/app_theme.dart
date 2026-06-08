@@ -37,7 +37,7 @@ class AppTheme {
         surface: bg2Color,
         onSurface: textColor,
       ),
-      textTheme: _buildScaledTextTheme(GoogleFonts.interTextTheme(baseTheme.textTheme), textColor, 0.9),
+      textTheme: _buildScaledTextTheme(GoogleFonts.plusJakartaSansTextTheme(baseTheme.textTheme), textColor, 0.95),
       appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -50,7 +50,7 @@ class AppTheme {
           fontWeight: FontWeight.w800,
           letterSpacing: -0.5,
         ),
-        iconTheme: IconThemeData(color: AppColors.primary, size: 24),
+        iconTheme: const IconThemeData(color: AppColors.primary, size: 24),
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: bg2Color.withValues(alpha: 0.8),
@@ -101,7 +101,7 @@ class AppTheme {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
-          foregroundColor: Colors.black, // High contrast black on Electric Azure
+          foregroundColor: Colors.white, // White text on DevSpace Premium Orange
           elevation: 0,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),

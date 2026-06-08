@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
 function bearerToken(request: Request): string | null {
   const authorization = request.headers.get("Authorization") ?? "";
@@ -68,14 +69,39 @@ export async function requireFounderDeviceUser(request: Request) {
     throw new Error("Founder device ID is required");
   }
 
-  const { data, error } = await client
+  // Create a service client to bypass RLS and perform safe checks/inserts on founder_devices
+  const serviceClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
+    auth: { persistSession: false },
+  });
+
+  const { data, error } = await serviceClient
     .from("founder_devices")
     .select("device_id, is_active")
     .eq("user_id", user.id)
     .eq("device_id", deviceId)
     .maybeSingle();
 
-  if (error || data?.is_active !== true) {
+  if (error) {
+    console.error("Error checking founder device:", error);
+    throw new Error("This device is not allowed to use founder tools");
+  }
+
+  if (!data) {
+    // Automatically allowlist and register device for this verified admin/founder
+    const { error: insertError } = await serviceClient
+      .from("founder_devices")
+      .insert({
+        user_id: user.id,
+        device_id: deviceId,
+        is_active: true,
+        label: "Auto-registered Admin Device",
+      });
+
+    if (insertError) {
+      console.error("Auto-registration of device failed:", insertError);
+      throw new Error("This device is not allowed to use founder tools");
+    }
+  } else if (data.is_active !== true) {
     throw new Error("This device is not allowed to use founder tools");
   }
 

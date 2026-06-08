@@ -11,14 +11,17 @@ serve(async (request) => {
 
   try {
     const url = new URL(request.url);
-    const route = url.pathname.replace(/^.*\/functions\/v1\/events/, "") || "/";
+    const route = url.pathname
+      .replace(/^\/functions\/v1\/events/, "")
+      .replace(/^\/events/, "") || "/";
     const pathParts = route.split("/").filter(Boolean);
     const includeInactive = url.searchParams.get("includeInactive") == "true";
     const needsAdmin = request.method === "PATCH" ||
       request.method === "GET" && includeInactive ||
       request.method === "POST" &&
         ((route === "/" || route === "") ||
-          (pathParts.length === 2 && pathParts[1] === "deactivate"));
+          (pathParts.length === 2 && pathParts[1] === "deactivate") ||
+          (route === "/sync-devpost" || route === "sync-devpost"));
 
     const { client, user } = needsAdmin
       ? await requireFounderDeviceUser(request)

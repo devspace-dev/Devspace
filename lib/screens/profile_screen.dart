@@ -360,71 +360,12 @@ class ProfileScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          AppColors.primary.withValues(alpha: 0.15),
-                          AppColors.bg2For(context).withValues(alpha: 0.8),
-                          AppColors.bg3For(context),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(32),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.08),
-                        width: 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.4),
-                          blurRadius: 40,
-                          offset: const Offset(0, 20),
-                        ),
-                        BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.05),
-                          blurRadius: 20,
-                          spreadRadius: -5,
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  // Centered Avatar
+                  Center(
+                    child: Stack(
+                      clipBehavior: Clip.none,
                       children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.bgFor(context).withValues(alpha: 0.55),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(
-                            color: AppColors.borderFor(context).withValues(alpha: 0.7),
-                          ),
-                        ),
-                        child: Text(
-                          isMe ? 'My Developer Profile' : 'Developer Profile',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.text2For(context),
-                            letterSpacing: 0.2,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Column(
-                    children: [
-                      // Centered Avatar
-                      Center(
-                        child: GestureDetector(
+                        GestureDetector(
                           onTap: () => _showAvatarActions(
                             context,
                             user: profileUser,
@@ -435,283 +376,278 @@ class ProfileScreen extends StatelessWidget {
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: AppColors.primary.withValues(alpha: 0.35),
-                                width: 1.5,
+                                color: AppColors.primary,
+                                width: 2,
                               ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.primary.withValues(alpha: 0.18),
-                                  blurRadius: 24,
-                                  offset: const Offset(0, 12),
-                                ),
-                              ],
                             ),
                             child: UserAvatar(
                               user: profileUser,
-                              size: 110, // Slightly larger for centering
+                              size: 110,
                               showRing: false,
                               showStory: false,
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 20),
-                      
-                      // Name and Verified Icon
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Flexible(
-                            child: Text(
-                              profileUser.name,
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w900,
-                                color: AppColors.textFor(context),
-                                letterSpacing: -0.5,
+                        if (profileUser.isFounder)
+                          Positioned(
+                            right: 4,
+                            bottom: 4,
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: const BoxDecoration(
+                                color: Colors.black,
+                                shape: BoxShape.circle,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
+                              child: const Icon(
+                                Icons.verified_rounded,
+                                color: AppColors.primary,
+                                size: 24,
+                              ),
                             ),
                           ),
-                          if (profileUser.isFounder) ...[
-                            const SizedBox(width: 6),
-                            const Icon(Icons.verified_rounded, color: Colors.amber, size: 20),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      
-                      // Handle and Followers
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => ConnectionsScreen(
-                                user: profileUser,
-                                type: ConnectionListType.followers,
-                              ),
-                            ),
-                          );
-                        },
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  // Name and Verified Icon
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Flexible(
                         child: Text(
-                          'u/${profileUser.handle} • ${profileUser.followers} followers',
+                          profileUser.name,
                           style: GoogleFonts.plusJakartaSans(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.text3For(context),
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textFor(context),
+                            letterSpacing: -0.5,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      
-                      // Mini Chips (Roles, College)
-                      Center(
-                        child: Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          alignment: WrapAlignment.center,
-                          children: [
-                            if (profileUser.roles.isNotEmpty)
-                              _ProfileMiniChip(
-                                icon: Icons.draw_rounded,
-                                label: profileUser.roles.first,
-                              ),
-                            if (profileUser.academicLabel.isNotEmpty)
-                              _ProfileMiniChip(
-                                icon: Icons.school_rounded,
-                                label: profileUser.academicLabel,
-                              ),
-                            if (profileUser.college.isNotEmpty)
-                              _ProfileMiniChip(
-                                icon: Icons.apartment_rounded,
-                                label: profileUser.college,
-                              ),
-                          ],
-                        ),
-                      ),
-                      
-                      const SizedBox(height: 20),
-                      
-                      // Action Button (Edit or Follow)
-                      if (isMe)
-                        GestureDetector(
-                          onTap: () => _openProfileEditor(context),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(99),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.primary.withValues(alpha: 0.3),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Text(
-                              'Edit Profile',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        )
-                      else
-                        _FollowButton(
-                          isFollowing: profileUser.isFollowing,
-                          isUpdating: usersP.isFollowUpdating(profileUser.id),
-                          onTap: () async {
-                            HapticFeedback.mediumImpact();
-                            await usersP.toggleFollow(me.id, profileUser.id);
-                            if (!context.mounted) return;
-                            final error = usersP.followError(profileUser.id);
-                            if (error != null) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                    content: Text(error),
-                                    behavior: SnackBarBehavior.floating),
-                              );
-                            }
-                          },
-                        ),
+                      if (profileUser.isFounder) ...[
+                        const SizedBox(width: 6),
+                        const Icon(Icons.verified_rounded, color: AppColors.primary, size: 22),
+                      ],
                     ],
                   ),
-                  const SizedBox(height: 24),
-                  Text(
-                    profileUser.bio.isEmpty
-                        ? 'Student builder turning class projects into a real portfolio.'
-                        : profileUser.bio,
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 14,
-                      color: AppColors.text2For(context),
-                      height: 1.6,
+                  const SizedBox(height: 4),
+                  
+                  // Handle
+                  Center(
+                    child: Text(
+                      '@${profileUser.handle}',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.text3For(context),
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
-                  
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 8),
+
+                  // Title / Role (Founder @ DevSpace or Builder)
                   Center(
+                    child: Text(
+                      profileUser.roles.isNotEmpty ? profileUser.roles.first : 'Builder @ DevSpace',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.text2For(context),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Bio
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Text(
+                        profileUser.bio.isEmpty
+                            ? 'Building tools and communities for student developers.'
+                            : profileUser.bio,
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 14,
+                          color: AppColors.text3For(context),
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Stats Row: Aura, Followers, Following
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildStatColumn('${profileUser.aura}', 'Aura', () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const AuraHistoryScreen()),
+                        );
+                      }),
+                      _buildStatColumn('${profileUser.followers}', 'Followers', () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => ConnectionsScreen(
+                              user: profileUser,
+                              type: ConnectionListType.followers,
+                            ),
+                          ),
+                        );
+                      }),
+                      _buildStatColumn('${profileUser.following}', 'Following', () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => ConnectionsScreen(
+                              user: profileUser,
+                              type: ConnectionListType.following,
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                  const SizedBox(height: 28),
+
+                  // Detail rows with icons: Location, Year/Branch, College
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      children: [
+                        _buildDetailRow(
+                          Icons.location_on_outlined,
+                          profileUser.building.isNotEmpty && profileUser.building != 'Not set'
+                              ? profileUser.building
+                              : 'Jaipur, India',
+                          context,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildDetailRow(
+                          Icons.school_outlined,
+                          profileUser.academicLabel.isNotEmpty
+                              ? profileUser.academicLabel
+                              : 'Student',
+                          context,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildDetailRow(
+                          Icons.business_rounded,
+                          profileUser.college.isNotEmpty
+                              ? profileUser.college
+                              : 'Jaipur National University',
+                          context,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+
+                  // Edit Profile or Follow Button
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: isMe
+                        ? SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: () => _openProfileEditor(context),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                              child: Text(
+                                'Edit Profile',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          )
+                        : SizedBox(
+                            width: double.infinity,
+                            child: _FollowButton(
+                              isFollowing: profileUser.isFollowing,
+                              isUpdating: usersP.isFollowUpdating(profileUser.id),
+                              onTap: () async {
+                                HapticFeedback.mediumImpact();
+                                await usersP.toggleFollow(me.id, profileUser.id);
+                                if (!context.mounted) return;
+                                final error = usersP.followError(profileUser.id);
+                                if (error != null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content: Text(error),
+                                        behavior: SnackBarBehavior.floating),
+                                  );
+                                }
+                              },
+                            ),
+                          ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Aura reputation pill
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: GestureDetector(
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const AuraHistoryScreen()),
                       ),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                         decoration: BoxDecoration(
-                          color: Colors.amber.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(999),
+                          color: AppColors.bg2For(context),
+                          borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                            color: Colors.amber.withValues(alpha: 0.3),
-                            width: 1.2,
+                            color: AppColors.borderFor(context),
+                            width: 1,
                           ),
                         ),
                         child: Row(
-                          mainAxisSize: MainAxisSize.min,
                           children: [
                             const Icon(
                               Icons.auto_awesome_rounded,
-                              color: Colors.amber,
-                              size: 15,
+                              color: AppColors.primary,
+                              size: 18,
                             ),
-                            const SizedBox(width: 8),
-                            Flexible(
-                              child: Text(
-                                '${profileUser.aura} aura reputation',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.textFor(context),
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                            const SizedBox(width: 10),
+                            Text(
+                              '${profileUser.aura} Aura Reputation',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textFor(context),
                               ),
                             ),
-                            const SizedBox(width: 6),
-                            Icon(
-                              Icons.chevron_right_rounded,
-                              size: 16,
-                              color: AppColors.text3For(context),
+                            const Spacer(),
+                            Text(
+                              'View',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              size: 12,
+                              color: AppColors.primary,
                             ),
                           ],
                         ),
                       ),
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 28),
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
-                    decoration: BoxDecoration(
-                      color: AppColors.bg2For(context).withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.05),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: _ProfileHeroStat(
-                            value: '${profileUser.currentStreak}',
-                            label: 'Momentum',
-                            icon: Icons.local_fire_department_rounded,
-                            accentColor: Colors.orange,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _ProfileHeroStat(
-                            value: '${posts.length}',
-                            label: 'Showcase',
-                            icon: Icons.grid_view_rounded,
-                            accentColor: AppColors.primary,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _ProfileHeroStat(
-                            value: '${profileUser.following}',
-                            label: 'Network',
-                            icon: Icons.hub_rounded,
-                            accentColor: Colors.teal,
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => ConnectionsScreen(
-                                  user: profileUser,
-                                  type: ConnectionListType.following,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _ProfileHeroStat(
-                            value: '${profileUser.followers}',
-                            label: 'Reach',
-                            icon: Icons.trending_up_rounded,
-                            accentColor: Colors.pinkAccent,
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => ConnectionsScreen(
-                                  user: profileUser,
-                                  type: ConnectionListType.followers,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                      ],
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -917,6 +853,51 @@ class ProfileScreen extends StatelessWidget {
           const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
+    );
+  }
+
+  Widget _buildStatColumn(String count, String label, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(count,
+              style: GoogleFonts.plusJakartaSans(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white)),
+          const SizedBox(height: 4),
+          Text(label,
+              style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: const Color(0xFF8E8E93))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(IconData icon, String text, BuildContext context) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          color: AppColors.primary,
+          size: 18,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            text,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: AppColors.text2For(context),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

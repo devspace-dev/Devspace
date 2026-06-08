@@ -5,12 +5,17 @@ class CommentModel {
   final String text;
   final DateTime createdAt;
 
+  final String? parentId;
+  final String? replyingToUserId;
+
   const CommentModel({
     required this.id,
     required this.postId,
     required this.userId,
     required this.text,
     required this.createdAt,
+    this.parentId,
+    this.replyingToUserId,
   });
 
   factory CommentModel.fromJson(Map<String, dynamic> json) {
@@ -21,6 +26,8 @@ class CommentModel {
       userId: (json['user_id'] ?? json['uid'] ?? '').toString(),
       text: (json['content'] ?? json['text'] ?? '').toString(),
       createdAt: _parseDateTime(createdAtValue),
+      parentId: json['parent_id']?.toString(),
+      replyingToUserId: json['replying_to_user_id']?.toString(),
     );
   }
 

@@ -133,7 +133,7 @@ class BackendApiService {
 
     try {
       final existingFallback = await _client.from('user_challenges')
-          .select('completed, completed_at, is_correct')
+          .select('completed, completed_at')
           .eq('user_id', user.id)
           .eq('challenge_id', matchedMission['id'])
           .maybeSingle();
@@ -141,7 +141,6 @@ class BackendApiService {
       if (existingFallback != null) {
         completed = existingFallback['completed'] == true;
         completedAt = existingFallback['completed_at']?.toString();
-        isCorrect = existingFallback['is_correct'] == true;
       }
     } catch (_) {}
 
@@ -442,13 +441,15 @@ class BackendApiService {
           for (final row in rows) {
             final event = Map<String, dynamic>.from(row as Map);
             final requiredAura = (event['required_aura'] as num? ?? 0).toInt();
+            final type = (event['type']?.toString() ?? 'event').toLowerCase();
+
             results.add(EventAccessModel(
               id: event['id'].toString(),
               title: event['title']?.toString() ?? '',
               description: event['description']?.toString() ?? '',
               requiredAura: requiredAura,
               link: event['link']?.toString() ?? '',
-              type: event['type']?.toString() ?? 'event',
+              type: type,
               unlocked: auraPoints >= requiredAura,
               locked: auraPoints < requiredAura,
               bannerUrl: event['banner_url']?.toString(),
@@ -520,6 +521,30 @@ class BackendApiService {
           .single();
 
       return Map<String, dynamic>.from(data);
+    }
+  }
+
+  Future<Map<String, dynamic>> syncDevpostHackathons() async {
+    try {
+      final res = await _request(
+        'POST',
+        '/events/sync-devpost',
+        includeFounderDevice: true,
+      );
+      if (res is Map) {
+        if (res.containsKey('data')) {
+          return Map<String, dynamic>.from(res['data'] as Map);
+        }
+        return Map<String, dynamic>.from(res);
+      }
+      return {'status': 'success', 'data': res};
+    } catch (error) {
+      if (_isRouteMissingError(error)) {
+        throw StateError(
+          'Hackathon sync endpoint not found. Please deploy the updated "events" Edge Function to Supabase: "supabase functions deploy events"',
+        );
+      }
+      rethrow;
     }
   }
 
@@ -803,7 +828,7 @@ class BackendApiService {
             if (uid != null) {
               userStatus = await _client
                   .from('user_challenges')
-                  .select('challenge_id, completed, completed_at, is_correct')
+                  .select('challenge_id, completed, completed_at')
                   .eq('user_id', uid);
             }
 
@@ -821,7 +846,7 @@ class BackendApiService {
                 'assigned_date': row['publish_date'],
                 'completed': status?['completed'] == true,
                 'completed_at': status?['completed_at'],
-                'is_correct': status?['is_correct'] == true,
+                'is_correct': false,
                 'challenge': row,
               }));
             }

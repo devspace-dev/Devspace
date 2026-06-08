@@ -45,18 +45,20 @@ class AppBadge extends StatelessWidget {
   final String label;
   final Color color;
   final IconData? icon;
+  final EdgeInsetsGeometry? padding;
 
   const AppBadge({
     super.key,
     required this.label,
     required this.color,
     this.icon,
+    this.padding,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: padding ?? const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10),

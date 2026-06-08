@@ -37,8 +37,8 @@ void main() {
         ];
       },
       currentUserResolver: () => _user(),
-      likedPostIdsLoader: (_) async => {'post-1'},
-      bookmarkedPostIdsLoader: (_) async => {'post-2'},
+      likedPostIdsLoader: (_, {postIds}) async => {'post-1'},
+      bookmarkedPostIdsLoader: (_, {postIds}) async => {'post-2'},
     );
 
     await provider.fetchFeed();

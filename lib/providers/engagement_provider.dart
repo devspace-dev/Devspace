@@ -85,6 +85,8 @@ class EngagementProvider extends ChangeNotifier {
   bool _isLoadingHistory = false;
   String? _selectedDailyTechStack;
   String? _error;
+  DateTime? _lastFetchedOverview;
+  static const Duration _minRefreshInterval = Duration(minutes: 2);
 
   AuraSummaryModel? get auraSummary => _auraSummary;
   DailyChallengeModel? get dailyChallenge => _dailyChallenge;
@@ -174,6 +176,15 @@ class EngagementProvider extends ChangeNotifier {
 
   Future<void> fetchOverview(
       {bool forceChallengeRefresh = false, String? techStack}) async {
+    // Throttle refreshes to avoid hammering the DB
+    if (!forceChallengeRefresh && 
+        _lastFetchedOverview != null && 
+        DateTime.now().difference(_lastFetchedOverview!) < _minRefreshInterval &&
+        _auraSummary != null) {
+      debugPrint('Skipping fetchOverview - recently updated');
+      return;
+    }
+
     _isLoading = true;
     _error = null;
 
@@ -239,6 +250,8 @@ class EngagementProvider extends ChangeNotifier {
         debugPrint('Error loading engagement data: $failure');
       }
 
+      failures.removeWhere((f) => f.toString().contains('No authenticated session'));
+
       final hasAnyOverviewData = _auraSummary != null ||
           _dailyChallenge != null ||
           _events.isNotEmpty ||
@@ -253,6 +266,7 @@ class EngagementProvider extends ChangeNotifier {
       debugPrint('CRITICAL ERROR in fetchOverview: $e\n$st');
       _error = 'An unexpected error occurred while loading. Please try again.';
     } finally {
+      _lastFetchedOverview = DateTime.now();
       _isLoading = false;
       notifyListeners();
     }

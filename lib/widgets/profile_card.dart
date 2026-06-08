@@ -13,8 +13,9 @@ import 'user_avatar.dart';
 class ProfileCard extends StatelessWidget {
   final UserModel user;
   final VoidCallback? onTap;
+  final Widget? trailing;
 
-  const ProfileCard({super.key, required this.user, this.onTap});
+  const ProfileCard({super.key, required this.user, this.onTap, this.trailing});
 
   @override
   Widget build(BuildContext context) {
@@ -71,10 +72,15 @@ class ProfileCard extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            _MessageButton(user: liveUser),
-            const SizedBox(width: 4),
-            _FollowButton(user: liveUser),
+            if (trailing != null) ...[
+              const SizedBox(width: 8),
+              trailing!,
+            ] else ...[
+              const SizedBox(width: 8),
+              _MessageButton(user: liveUser),
+              const SizedBox(width: 4),
+              _FollowButton(user: liveUser),
+            ],
           ],
         ),
       ),

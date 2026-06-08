@@ -1,5 +1,6 @@
 import { supabase } from '../config/supabase.js';
 import { generateAIChallenge } from '../services/aiGeneratorService.js';
+import { syncHackathonsFromDevpost } from '../services/hackathonSyncService.js';
 
 export const createChallenge = async (req, res) => {
   const { title, description, techStack, difficulty, pointsReward, publishDate } = req.body;
@@ -76,4 +77,13 @@ export const deleteChallenge = async (req, res) => {
   const { error } = await supabase.from('challenges').delete().eq('id', id);
   if (error) return res.status(400).json(error);
   res.status(204).send();
+};
+
+export const syncDevpostHackathons = async (req, res) => {
+  try {
+    const results = await syncHackathonsFromDevpost();
+    res.status(200).json({ message: "Hackathons Synced Successfully", data: results });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };

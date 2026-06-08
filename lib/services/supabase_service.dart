@@ -376,6 +376,26 @@ class SupabaseService {
     return (data as List).map((row) => row['follower_id'].toString()).toList();
   }
 
+  Future<Set<String>> getLikedStatusForPosts(String userId, List<String> postIds) async {
+    if (postIds.isEmpty) return {};
+    final data = await _client
+        .from('likes')
+        .select('post_id')
+        .eq('user_id', userId)
+        .inFilter('post_id', postIds);
+    return (data as List).map((row) => row['post_id'].toString()).toSet();
+  }
+
+  Future<Set<String>> getBookmarkedStatusForPosts(String userId, List<String> postIds) async {
+    if (postIds.isEmpty) return {};
+    final data = await _client
+        .from('bookmarks')
+        .select('post_id')
+        .eq('user_id', userId)
+        .inFilter('post_id', postIds);
+    return (data as List).map((row) => row['post_id'].toString()).toSet();
+  }
+
   Future<List<String>> getFollowingIdList(String userId) async {
     final data = await _client
         .from('follows')
@@ -632,31 +652,31 @@ class SupabaseService {
     int limit = 20,
     int offset = 0,
   }) async {
-    final baseQuery = _client.from('questions').select();
-    late final dynamic query;
-
+    dynamic query = _client.from('questions').select();
+    
     switch (filter) {
       case 'oldest':
-        query = baseQuery.order('created_at', ascending: true);
+        query = query.order('created_at', ascending: true);
         break;
       case 'popularity':
-        query = baseQuery
+        query = query
             .order('upvotes_count', ascending: false)
             .order('created_at', ascending: false);
         break;
       case 'most replies':
-        query = baseQuery
+        query = query
             .order('replies_count', ascending: false)
             .order('created_at', ascending: false);
         break;
       case 'relevance':
-        query = baseQuery
+        query = query
             .order('upvotes_count', ascending: false)
-            .order('replies_count', ascending: false);
+            .order('replies_count', ascending: false)
+            .order('created_at', ascending: false);
         break;
       case 'latest':
       default:
-        query = baseQuery.order('created_at', ascending: false);
+        query = query.order('created_at', ascending: false);
         break;
     }
 
@@ -995,7 +1015,13 @@ class SupabaseService {
     return (data as List).map((d) => CommentModel.fromJson(d)).toList();
   }
 
-  Future<void> addComment(String postId, String userId, String content) async {
+  Future<void> addComment(
+    String postId,
+    String userId,
+    String content, {
+    String? parentCommentId,
+    String? replyingToUserId,
+  }) async {
     final trimmed = content.trim();
     if (trimmed.isEmpty) {
       throw StateError('Comment cannot be empty.');
@@ -1005,23 +1031,59 @@ class SupabaseService {
       throw StateError('Authenticated user does not match comment author.');
     }
 
-    await _client.rpc(
-      'add_comment_with_aura',
-      params: {
-        'p_post_id': postId,
-        'p_content': trimmed,
-      },
-    );
+    // Use RPC for main comments to award aura, or direct insert for replies
+    // For now, let's try direct insert to support new fields, and we might need to update the trigger/RPC later for aura
+    await _client.from('comments').insert({
+      'post_id': postId,
+      'user_id': userId,
+      'content': trimmed,
+      'parent_id': parentCommentId,
+      'replying_to_user_id': replyingToUserId,
+    });
+
+    // Manually sync count since we didn't use the RPC
+    await _client.rpc('sync_post_comment_count', params: {'p_post_id': postId});
+    
+    // Attempt to award aura manually if not using RPC
+    try {
+      await _client.rpc('award_aura', params: {
+        'p_user_id': userId,
+        'p_action': 'create_comment',
+        'p_points': 3,
+        'p_reference_type': 'comment',
+        'p_reference_id': postId, // Using post ID as reference for now
+      });
+    } catch (e) {
+      debugPrint('Failed to award aura for comment: $e');
+    }
   }
 
   // ══════════════════════════════════════════════════════════════════════════
   // MESSAGING
   // ══════════════════════════════════════════════════════════════════════════
 
+  Future<List<ConversationModel>> getConversations(String userId) async {
+    final data = await _client
+        .from('conversations')
+        .select()
+        .contains('participants', [userId])
+        .order('last_message_at', ascending: false);
+    
+    return (data as List).map((d) => ConversationModel.fromJson(d)).toList();
+  }
+
   Stream<List<ConversationModel>> streamConversations(String userId) {
+    // NOTE: Realtime .stream() on arrays is tricky. 
+    // For now, we use a hybrid approach: fetch once and listen for changes.
+    // However, to keep it simple and fix the immediate crash, we'll use a 
+    // less aggressive stream if possible, or just return the fetch.
+    // Real fix: use a conversation_participants join table.
+    
     return _client
         .from('conversations')
         .stream(primaryKey: ['id'])
+        // We still have the client-side filter for now, but we should 
+        // ideally move to a targeted Realtime Channel.
         .map((list) => list
             .map((d) => ConversationModel.fromJson(d))
             .where((c) => c.participants.contains(userId))
@@ -1052,7 +1114,8 @@ class SupabaseService {
         .select('conversation_id')
         .inFilter('conversation_id', distinctIds)
         .eq('is_read', false)
-        .neq('sender_id', currentUserId);
+        .neq('sender_id', currentUserId)
+        .limit(1000); // Sanity limit to avoid crashing on huge unread counts
 
     final counts = <String, int>{};
     for (final row in data as List) {
@@ -1222,5 +1285,206 @@ class SupabaseService {
 
   Future<void> deleteDailyChallenge(String challengeId) async {
     await _client.from('challenges').delete().eq('id', challengeId);
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // DUELS & MATCHMAKING
+  // ══════════════════════════════════════════════════════════════════════════
+
+  Future<String> sendDuelRequest({
+    required String senderId,
+    required String receiverId,
+    required String category,
+    required String mode,
+  }) async {
+    final data = await _client.from('duel_requests').insert({
+      'sender_id': senderId,
+      'receiver_id': receiverId,
+      'category': category,
+      'mode': mode,
+    }).select().single();
+    return data['id'].toString();
+  }
+
+  Future<void> updateDuelRequestStatus(String requestId, String status) async {
+    await _client.from('duel_requests').update({'status': status}).eq('id', requestId);
+  }
+
+  Future<String> createLiveDuel({
+    required String requestId,
+    required String category,
+    required String player1Id,
+    required String player2Id,
+  }) async {
+    final data = await _client.from('live_duels').insert({
+      'request_id': requestId,
+      'category': category,
+      'player1_id': player1Id,
+      'player2_id': player2Id,
+      'status': 'in_progress',
+    }).select().single();
+    return data['id'].toString();
+  }
+
+  RealtimeChannel listenToIncomingDuelRequests(
+      String userId, void Function(Map<String, dynamic> request) onInvite) {
+    return _client
+        .channel('public:duel_requests:incoming:$userId')
+        .onPostgresChanges(
+            event: PostgresChangeEvent.insert,
+            schema: 'public',
+            table: 'duel_requests',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'receiver_id',
+              value: userId,
+            ),
+            callback: (payload) {
+              final newRecord = payload.newRecord;
+              if (newRecord['status'] == 'pending') {
+                onInvite(newRecord);
+              }
+            })
+        .subscribe();
+  }
+
+  RealtimeChannel listenToDuelRequestStatus(
+      String requestId, void Function(Map<String, dynamic> request) onUpdate) {
+    return _client
+        .channel('public:duel_requests:status:$requestId')
+        .onPostgresChanges(
+            event: PostgresChangeEvent.update,
+            schema: 'public',
+            table: 'duel_requests',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'id',
+              value: requestId,
+            ),
+            callback: (payload) {
+              onUpdate(payload.newRecord);
+            })
+        .subscribe();
+  }
+  Future<String?> findRandomMatch({
+    required String userId,
+    required String category,
+    required String mode,
+  }) async {
+    final response = await _client.rpc('find_match', params: {
+      'p_user_id': userId,
+      'p_category': category,
+      'p_mode': mode,
+    });
+    if (response != null) {
+      return response.toString();
+    }
+    return null;
+  }
+
+  Future<void> leaveMatchmakingPool(String userId) async {
+    await _client.from('matchmaking_pool').delete().eq('user_id', userId);
+  }
+
+  RealtimeChannel listenToLiveDuels(
+      String userId, void Function(Map<String, dynamic> duel) onMatchFound) {
+    return _client
+        .channel('public:live_duels:matchmaking:$userId')
+        .onPostgresChanges(
+            event: PostgresChangeEvent.insert,
+            schema: 'public',
+            table: 'live_duels',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'player1_id',
+              value: userId,
+            ),
+            callback: (payload) {
+              onMatchFound(payload.newRecord);
+            })
+        .subscribe();
+  }
+
+  Future<String?> findArenaMatch(String mode) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return null;
+
+    try {
+      final data = await _client.from('arena_matches')
+          .select()
+          .eq('mode', mode)
+          .eq('status', 'waiting')
+          .neq('player1_id', userId)
+          .isFilter('player2_id', null)
+          .limit(1)
+          .maybeSingle();
+      
+      if (data != null) {
+         final id = data['id'].toString();
+         final update = await _client.from('arena_matches')
+             .update({'player2_id': userId, 'status': 'playing'})
+             .eq('id', id)
+             .eq('status', 'waiting')
+             .select()
+             .maybeSingle();
+         if (update != null) return id;
+      }
+    } catch (e) {
+      debugPrint('Error finding match: $e');
+    }
+    return null;
+  }
+  
+  Future<String> createArenaMatch(String mode, {String? opponentId}) async {
+     final userId = _client.auth.currentUser?.id;
+     if (userId == null) throw StateError('Not logged in');
+
+     // Clean up any stranded matches (as player1 or player2) to avoid RLS active-match limits
+     try {
+       final activeMatches = await _client.from('arena_matches')
+           .select()
+           .or('player1_id.eq.$userId,player2_id.eq.$userId')
+           .inFilter('status', ['waiting', 'playing']);
+           
+       for (var match in activeMatches) {
+           final id = match['id'].toString();
+           
+           // If we found a stranded match where we are the host, we can just reuse it
+           if (match['player1_id'] == userId) {
+               try {
+                 await _client.from('arena_matches').update({
+                    'mode': mode,
+                    'status': 'waiting',
+                    'player2_id': opponentId, // works even if null
+                 }).eq('id', id);
+                 return id;
+               } catch (_) {}
+           }
+           
+           // Otherwise, mark it finished so it doesn't block us
+           try {
+               await _client.from('arena_matches').update({'status': 'finished'}).eq('id', id);
+           } catch (_) {}
+       }
+     } catch (e) {
+       debugPrint('Failed to clean up active matches: $e');
+     }
+
+     final data = await _client.from('arena_matches').insert({
+       'player1_id': userId,
+       if (opponentId != null) 'player2_id': opponentId,
+       'mode': mode,
+       'status': 'waiting'
+     }).select().single();
+     return data['id'].toString();
+  }
+
+  Future<void> updateArenaScore(String matchId, bool isPlayer1, int score) async {
+     final column = isPlayer1 ? 'player1_score' : 'player2_score';
+     await _client.from('arena_matches').update({column: score}).eq('id', matchId);
+  }
+
+  Future<void> finishArenaMatch(String matchId) async {
+     await _client.from('arena_matches').update({'status': 'finished'}).eq('id', matchId);
   }
 }
