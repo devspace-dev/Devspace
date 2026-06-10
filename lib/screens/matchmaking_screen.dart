@@ -297,19 +297,13 @@ class _MatchmakingScreenState extends State<MatchmakingScreen>
           child: Container(
             color: const Color(0xFF121212), // Solid black background to hide radar initially
             child: Center(
-              child: SizedBox(
-                width: 180,
-                height: 180,
-                child: CustomPaint(
-                  painter: _LargeSwordsPainter(color: Colors.cyanAccent),
-                ),
-              )
+              child: const _DeveloperVsLogo()
               .animate()
-              .scale(begin: const Offset(3, 3), end: const Offset(1, 1), duration: 600.ms, curve: Curves.easeOutBack)
+              .scale(begin: const Offset(1.5, 1.5), end: const Offset(1, 1), duration: 600.ms, curve: Curves.easeOutBack)
               .fadeIn(duration: 400.ms)
               .shimmer(color: Colors.white.withValues(alpha: 0.8), duration: 800.ms, delay: 200.ms)
               .then(delay: 400.ms)
-              .scale(begin: const Offset(1, 1), end: const Offset(0.8, 0.8), duration: 300.ms)
+              .scale(begin: const Offset(1, 1), end: const Offset(0.9, 0.9), duration: 300.ms)
               .fadeOut(duration: 300.ms),
             ),
           )
@@ -356,69 +350,66 @@ class _GridPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-class _LargeSwordsPainter extends CustomPainter {
-  final Color color;
-
-  _LargeSwordsPainter({required this.color});
+class _DeveloperVsLogo extends StatelessWidget {
+  const _DeveloperVsLogo();
 
   @override
-  void paint(Canvas canvas, Size size) {
-    void drawMinimalSword(Offset bladeStart, Offset bladeEnd, Offset handleStart, Offset handleEnd, Color glowColor) {
-      // 1. Sleek Core Glow
-      final glowPaint = Paint()
-        ..color = glowColor.withValues(alpha: 0.5)
-        ..strokeWidth = 12.0
-        ..strokeCap = StrokeCap.round
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
-      canvas.drawLine(bladeStart, bladeEnd, glowPaint);
-
-      // 2. Crisp Core
-      final corePaint = Paint()
-        ..color = Colors.white
-        ..strokeWidth = 3.0
-        ..strokeCap = StrokeCap.round;
-      canvas.drawLine(bladeStart, bladeEnd, corePaint);
-
-      // 3. Minimal Handle
-      final handlePaint = Paint()
-        ..color = Colors.white60
-        ..strokeWidth = 5.0
-        ..strokeCap = StrokeCap.round;
-      canvas.drawLine(handleStart, handleEnd, handlePaint);
-
-      // 4. Minimal Crossguard
-      final crossguardPaint = Paint()
-        ..color = Colors.white
-        ..strokeWidth = 3.0
-        ..strokeCap = StrokeCap.round;
-      
-      final lengthCross = 12.0;
-      final dx = bladeEnd.dx - bladeStart.dx;
-      final dy = bladeEnd.dy - bladeStart.dy;
-      final perpCross = Offset(-dy, dx);
-      final perpLenCross = perpCross.distance;
-      if (perpLenCross > 0) {
-        final crossVector = Offset(perpCross.dx / perpLenCross * lengthCross, perpCross.dy / perpLenCross * lengthCross);
-        canvas.drawLine(bladeStart - crossVector, bladeStart + crossVector, crossguardPaint);
-      }
-    }
-
-    final b1Start = Offset(size.width * 0.35, size.height * 0.65);
-    final b1End = Offset(size.width * 0.9, size.height * 0.1);
-    final h1Start = Offset(size.width * 0.35, size.height * 0.65);
-    final h1End = Offset(size.width * 0.15, size.height * 0.85);
-
-    final b2Start = Offset(size.width * 0.65, size.height * 0.65);
-    final b2End = Offset(size.width * 0.1, size.height * 0.1);
-    final h2Start = Offset(size.width * 0.65, size.height * 0.65);
-    final h2End = Offset(size.width * 0.85, size.height * 0.85);
-
-    // Left Sword
-    drawMinimalSword(b1Start, b1End, h1Start, h1End, AppColors.primary);
-    // Right Sword
-    drawMinimalSword(b2Start, b2End, h2Start, h2End, Colors.cyanAccent);
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.02),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.08),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.15),
+            blurRadius: 40,
+            spreadRadius: 2,
+          ),
+          BoxShadow(
+            color: Colors.cyanAccent.withValues(alpha: 0.08),
+            blurRadius: 20,
+            spreadRadius: -2,
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            '<',
+            style: GoogleFonts.firaCode(
+              fontSize: 48,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Text(
+            'VS',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 56,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              letterSpacing: 2,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Text(
+            '>',
+            style: GoogleFonts.firaCode(
+              fontSize: 48,
+              fontWeight: FontWeight.bold,
+              color: Colors.cyanAccent,
+            ),
+          ),
+        ],
+      ),
+    );
   }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

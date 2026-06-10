@@ -4,28 +4,42 @@ import 'package:flutter_animate/flutter_animate.dart';
 class DevSpaceLogo extends StatelessWidget {
   final double size;
   final bool elevated;
+  final Color? color;
 
   const DevSpaceLogo({
     super.key,
     this.size = 72,
     this.elevated = true,
+    this.color,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final targetColor = color ?? (isDark ? Colors.white : const Color(0xFFFF5E00));
+    final filter = ColorFilter.matrix([
+      targetColor.r, 0, 0, 0, 0,
+      targetColor.g, 0, 0, 0, 0,
+      targetColor.b, 0, 0, 0, 0,
+      1.0, 0, 0, 0, 0,
+    ]);
+
     return SizedBox(
       width: size,
       height: size,
       child: Center(
-        child: Image.asset(
-          'assets/images/app_icon.png',
-          width: size * 0.9,
-          height: size * 0.9,
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) => Icon(
-            Icons.rocket_launch_rounded,
-            color: const Color(0xFFFF7A00),
-            size: size * 0.8,
+        child: ColorFiltered(
+          colorFilter: filter,
+          child: Image.asset(
+            'assets/images/app_icon.png',
+            width: size * 0.9,
+            height: size * 0.9,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) => Icon(
+              Icons.rocket_launch_rounded,
+              color: targetColor,
+              size: size * 0.8,
+            ),
           ),
         ).animate(onPlay: (controller) => controller.repeat(reverse: true))
          .scale(

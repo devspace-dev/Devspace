@@ -11,6 +11,7 @@ import '../providers/users_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/user_avatar.dart';
 import 'duel_mode_landing_screen.dart';
+import 'daily_challenge_screen.dart';
 
 class ArenaScreen extends StatefulWidget {
   const ArenaScreen({super.key});
@@ -58,7 +59,6 @@ class _ArenaScreenState extends State<ArenaScreen> {
       'icon': Icons.people_outline_rounded,
       'color': const Color(0xFF32D74B), // Bright Green
       'score': '840',
-      'comingSoon': true,
       'cards': [
         {
           'title': 'Team Duels',
@@ -66,7 +66,7 @@ class _ArenaScreenState extends State<ArenaScreen> {
           'mode': 'TEAM DUELS',
           'activePlayers': '0 playing',
           'icon': Icons.groups_rounded,
-          'duration': '10 Min',
+          'duration': '2 Min',
           'difficulty': 'Co-op',
           'reward': '+40 Aura',
           'tag': 'Squads',
@@ -78,7 +78,6 @@ class _ArenaScreenState extends State<ArenaScreen> {
       'icon': Icons.calendar_today_outlined,
       'color': const Color(0xFFFF375F), // Bright Pink
       'score': '750',
-      'comingSoon': true,
       'cards': [
         {
           'title': 'Daily Mission',
@@ -181,7 +180,9 @@ class _ArenaScreenState extends State<ArenaScreen> {
 
                 // 5. Duel Cards list for the selected category wrapped in Column
                 Column(
-                  children: cards.map((card) {
+                  children: cards.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final card = entry.value;
                     return _buildLiveGameCard(
                       context,
                       categoryName: categoryName,
@@ -195,28 +196,38 @@ class _ArenaScreenState extends State<ArenaScreen> {
                       reward: card['reward'] as String,
                       tag: card['tag'] as String,
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => DuelModeLandingScreen(
-                              category: categoryName,
-                              mode: card['mode'] as String,
-                              color: categoryColor,
+                        if (card['mode'] == 'DAILY MISSION') {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const DailyChallengeScreen(),
                             ),
-                          ),
-                        );
+                          );
+                        } else {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => DuelModeLandingScreen(
+                                category: categoryName,
+                                mode: card['mode'] as String,
+                                color: categoryColor,
+                              ),
+                            ),
+                          );
+                        }
                       },
+                    )
+                    .animate(key: ValueKey('${_selectedCategoryIndex}_$index'))
+                    .fadeIn(duration: 350.ms, delay: (index * 80).ms)
+                    .slideY(
+                      begin: 0.08,
+                      end: 0,
+                      duration: 350.ms,
+                      delay: (index * 80).ms,
+                      curve: Curves.easeOutQuad,
                     );
                   }).toList(),
-                )
-                    .animate(key: ValueKey(_selectedCategoryIndex))
-                    .fadeIn(duration: 300.ms)
-                    .slideY(
-                      begin: 0.05,
-                      end: 0,
-                      duration: 300.ms,
-                      curve: Curves.easeOut,
-                    ),
+                ),
                 const SizedBox(height: 20),
               ],
             ),
@@ -417,6 +428,15 @@ class _ArenaScreenState extends State<ArenaScreen> {
                       : AppColors.borderFor(context).withValues(alpha: 0.5),
                   width: isSelected ? 2.0 : 1.0,
                 ),
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: color.withValues(alpha: 0.12),
+                          blurRadius: 16,
+                          spreadRadius: 1,
+                        )
+                      ]
+                    : [],
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -476,6 +496,13 @@ class _ArenaScreenState extends State<ArenaScreen> {
                     ),
                 ],
               ),
+            )
+            .animate(target: isSelected ? 1 : 0)
+            .scale(
+              begin: const Offset(1, 1),
+              end: const Offset(1.05, 1.05),
+              duration: 200.ms,
+              curve: Curves.easeOutBack,
             ),
           ),
         );

@@ -24,10 +24,66 @@ import '../widgets/skeleton_loaders.dart';
 import '../widgets/github_stats_card.dart';
 import '../widgets/app_ui_kit.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   final String? userId;
 
   const ProfileScreen({super.key, this.userId});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  UserModel? _fetchedUser;
+  bool _loading = false;
+  String? _fetchError;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserIfNeeded();
+  }
+
+  @override
+  void didUpdateWidget(ProfileScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.userId != widget.userId) {
+      _fetchedUser = null;
+      _fetchUserIfNeeded();
+    }
+  }
+
+  Future<void> _fetchUserIfNeeded() async {
+    final me = context.read<AuthProvider>().currentUserOrNull;
+    final isMe = widget.userId == null || widget.userId == me?.id;
+    if (isMe) return;
+
+    final usersP = context.read<UsersProvider>();
+    final cached = usersP.getUserById(widget.userId!);
+    if (cached != null) return;
+
+    setState(() {
+      _loading = true;
+      _fetchError = null;
+    });
+
+    try {
+      final user = await usersP.getUser(widget.userId!);
+      if (mounted) {
+        setState(() {
+          _fetchedUser = user;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _fetchError = e.toString();
+          _loading = false;
+        });
+      }
+    }
+  }
 
   Future<void> _openProfileEditor(BuildContext context) async {
     HapticFeedback.lightImpact();
@@ -216,25 +272,28 @@ class ProfileScreen extends StatelessWidget {
 
     final usersP = context.watch<UsersProvider>();
     final postsP = context.watch<PostsProvider>();
-    final isMe = userId == null || userId == me.id;
-    final user = isMe ? me : usersP.getUserById(userId!);
+    final isMe = widget.userId == null || widget.userId == me.id;
+    final user = isMe ? me : (usersP.getUserById(widget.userId!) ?? _fetchedUser);
 
-    if (!isMe && user == null && usersP.isLoading) {
+    if (!isMe && user == null && (usersP.isLoading || _loading)) {
       return Scaffold(
         backgroundColor: AppColors.bgFor(context),
         body: const SafeArea(child: ProfileSkeleton()),
       );
     }
 
-    if (!isMe && user == null && usersP.error != null) {
+    if (!isMe && user == null && (usersP.error != null || _fetchError != null)) {
       return Scaffold(
         backgroundColor: AppColors.bgFor(context),
         appBar: AppBar(backgroundColor: AppColors.bgFor(context)),
         body: AppErrorState(
           title: 'Profile unavailable',
-          message: usersP.error!,
+          message: usersP.error ?? _fetchError!,
           actionLabel: 'Retry',
-          onAction: usersP.refreshUsers,
+          onAction: () {
+            usersP.refreshUsers();
+            _fetchUserIfNeeded();
+          },
         ),
       );
     }
@@ -248,12 +307,15 @@ class ProfileScreen extends StatelessWidget {
           title: 'Profile unavailable',
           message: 'We could not find this student profile.',
           actionLabel: 'Refresh',
-          onAction: usersP.refreshUsers,
+          onAction: () {
+            usersP.refreshUsers();
+            _fetchUserIfNeeded();
+          },
         ),
       );
     }
 
-    final profileUser = user ?? me;
+    final profileUser = user!;
     final posts = postsP.postsForUser(profileUser.id);
 
     return Scaffold(
@@ -388,23 +450,6 @@ class ProfileScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-                        if (profileUser.isFounder)
-                          Positioned(
-                            right: 4,
-                            bottom: 4,
-                            child: Container(
-                              padding: const EdgeInsets.all(2),
-                              decoration: const BoxDecoration(
-                                color: Colors.black,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.verified_rounded,
-                                color: AppColors.primary,
-                                size: 24,
-                              ),
-                            ),
-                          ),
                       ],
                     ),
                   ),
@@ -487,12 +532,12 @@ class ProfileScreen extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _buildStatColumn('${profileUser.aura}', 'Aura', () {
+                      _buildStatColumn(context, '${profileUser.aura}', 'Aura', () {
                         Navigator.of(context).push(
                           MaterialPageRoute(builder: (_) => const AuraHistoryScreen()),
                         );
                       }),
-                      _buildStatColumn('${profileUser.followers}', 'Followers', () {
+                      _buildStatColumn(context, '${profileUser.followers}', 'Followers', () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => ConnectionsScreen(
@@ -502,7 +547,7 @@ class ProfileScreen extends StatelessWidget {
                           ),
                         );
                       }),
-                      _buildStatColumn('${profileUser.following}', 'Following', () {
+                      _buildStatColumn(context, '${profileUser.following}', 'Following', () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => ConnectionsScreen(
@@ -856,7 +901,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatColumn(String count, String label, VoidCallback onTap) {
+  Widget _buildStatColumn(BuildContext context, String count, String label, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Column(
@@ -866,13 +911,13 @@ class ProfileScreen extends StatelessWidget {
               style: GoogleFonts.plusJakartaSans(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
-                  color: Colors.white)),
+                  color: AppColors.textFor(context))),
           const SizedBox(height: 4),
           Text(label,
               style: GoogleFonts.plusJakartaSans(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color: const Color(0xFF8E8E93))),
+                  color: AppColors.text3For(context))),
         ],
       ),
     );

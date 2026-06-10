@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemeProvider extends ChangeNotifier {
-  ThemeMode _themeMode = ThemeMode.system;
+  ThemeMode _themeMode;
 
   ThemeMode get themeMode => _themeMode;
 
-  ThemeProvider() {
+  ThemeProvider({ThemeMode? initialMode}) : _themeMode = initialMode ?? ThemeMode.system {
     _loadTheme();
   }
 
@@ -21,11 +21,14 @@ class ThemeProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final modeStr = prefs.getString('theme_mode');
     if (modeStr != null) {
-      _themeMode = ThemeMode.values.firstWhere(
+      final loadedMode = ThemeMode.values.firstWhere(
         (e) => e.toString() == modeStr,
         orElse: () => ThemeMode.system,
       );
-      notifyListeners();
+      if (loadedMode != _themeMode) {
+        _themeMode = loadedMode;
+        notifyListeners();
+      }
     }
   }
 }

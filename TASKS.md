@@ -31,8 +31,13 @@ Upgrade the app backend for launch-ready gamification and gated engagement witho
 - [x] Resolved Google Play Console Foreground Service declaration error (Android 14+)
 - [x] Incremented app version to 1.0.5+11 for new release
 - [x] Redesigned Opportunities screen and updated navigation bar labels/icons/colors to match the Explore mock layout
-
-
+- [x] Added gamified resource roadmap levels for DSA, system design, GitHub workflows, and open source learning
+- [x] Fixed theme transition glitch on splash screen for light/dark themes
+- [x] Fixed duplicate verification checkmarks (double ticks) on profile pictures
+- [x] Fixed profile stats (followers, following, aura) when viewing other users
+- [x] Removed non-functional search and settings icons from the Opportunities screen
+- [x] Redesigned upcoming hackathons card with Unsplash banners and distinct dates
+- [x] Removed floating trophy button (CupFab) from home screen and linked Daily Mission card in Arena to Daily Challenge Screen
 ## In Progress
 - [ ] Feed migration from stream-only loading to explicit paginated API consumption
 - [ ] Stronger regression coverage for new backend rules

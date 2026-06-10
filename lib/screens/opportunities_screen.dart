@@ -46,87 +46,57 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
     return Scaffold(
       backgroundColor: AppColors.bgFor(context),
       body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(context, canPop),
-            _buildSearchHeader(context),
-            _buildCategorySelector(context),
-            const SizedBox(height: 10),
-            Expanded(
-              child: Consumer<EngagementProvider>(
-                builder: (context, provider, _) {
-                  if (provider.isLoading && provider.events.isEmpty) {
-                    return _buildLoadingSkeleton();
-                  }
+        child: Consumer<EngagementProvider>(
+          builder: (context, provider, _) {
+            Widget sliverContent;
 
-                  if (provider.error != null && provider.events.isEmpty) {
-                    return AppErrorState(
-                      title: 'Sync failed',
-                      message: provider.error!,
-                      actionLabel: 'Try Again',
-                      onAction: provider.fetchOverview,
-                    );
-                  }
+            if (provider.isLoading && provider.events.isEmpty) {
+              sliverContent = _buildLoadingSkeleton();
+            } else if (provider.error != null && provider.events.isEmpty) {
+              sliverContent = _buildErrorState(context, provider.error!, provider.fetchOverview);
+            } else {
+              final mergedEvents = _getMergedEvents(provider.events);
 
-                  final mergedEvents = _getMergedEvents(provider.events);
+              // Filter logic
+              final filtered = mergedEvents.where((e) {
+                // 1. Search Query Filter
+                if (_searchQuery.isNotEmpty) {
+                  final query = _searchQuery.toLowerCase();
+                  final matchesTitle = e.title.toLowerCase().contains(query);
+                  final matchesDesc = e.description.toLowerCase().contains(query);
+                  final matchesOrg = (e.organizer?.toLowerCase() ?? '').contains(query);
+                  if (!matchesTitle && !matchesDesc && !matchesOrg) return false;
+                }
 
-                  // Filter logic
-                  final filtered = mergedEvents.where((e) {
-                    // 1. Search Query Filter
-                    if (_searchQuery.isNotEmpty) {
-                      final query = _searchQuery.toLowerCase();
-                      final matchesTitle = e.title.toLowerCase().contains(query);
-                      final matchesDesc = e.description.toLowerCase().contains(query);
-                      final matchesOrg = (e.organizer?.toLowerCase() ?? '').contains(query);
-                      if (!matchesTitle && !matchesDesc && !matchesOrg) return false;
-                    }
+                // 2. Category Pill Filter
+                if (_selectedCategory == 'All') return true;
+                if (_selectedCategory == 'Hackathons') {
+                  return e.type.toLowerCase() == 'hackathon';
+                }
+                if (_selectedCategory == 'Internships') {
+                  return e.type.toLowerCase() == 'internship' || e.title.toLowerCase().contains('intern');
+                }
+                if (_selectedCategory == 'Fellowships') {
+                  return e.type.toLowerCase() == 'fellowship' || 
+                         e.type.toLowerCase() == 'ambassador' || 
+                         e.title.toLowerCase().contains('fellow') || 
+                         e.title.toLowerCase().contains('ambassador');
+                }
+                if (_selectedCategory == 'Scholarships') {
+                  return e.type.toLowerCase() == 'scholarship' || e.title.toLowerCase().contains('scholar');
+                }
 
-                    // 2. Category Pill Filter
-                    if (_selectedCategory == 'All') return true;
-                    if (_selectedCategory == 'Hackathons') {
-                      return e.type.toLowerCase() == 'hackathon';
-                    }
-                    if (_selectedCategory == 'Internships') {
-                      return e.type.toLowerCase() == 'internship' || e.title.toLowerCase().contains('intern');
-                    }
-                    if (_selectedCategory == 'Fellowships') {
-                      return e.type.toLowerCase() == 'fellowship' || 
-                             e.type.toLowerCase() == 'ambassador' || 
-                             e.title.toLowerCase().contains('fellow') || 
-                             e.title.toLowerCase().contains('ambassador');
-                    }
-                    if (_selectedCategory == 'Scholarships') {
-                      return e.type.toLowerCase() == 'scholarship' || e.title.toLowerCase().contains('scholar');
-                    }
+                return true;
+              }).toList();
 
-                    return true;
-                  }).toList();
-
-                  if (filtered.isEmpty) {
-                    return RefreshIndicator.adaptive(
-                      onRefresh: () => provider.fetchOverview(forceChallengeRefresh: true),
-                      child: ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        children: [
-                          const SizedBox(height: 100),
-                          AppEmptyState(
-                            icon: Icons.explore_outlined,
-                            title: 'No opportunities found',
-                            message: _searchQuery.isNotEmpty
-                                ? 'Try searching for something else'
-                                : 'Check back later for new openings',
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  return RefreshIndicator.adaptive(
-                    onRefresh: () => provider.fetchOverview(forceChallengeRefresh: true),
-                    child: ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(20, 10, 20, 100),
-                      itemCount: filtered.length,
-                      itemBuilder: (context, index) {
+              if (filtered.isEmpty) {
+                sliverContent = _buildEmptyState();
+              } else {
+                sliverContent = SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 100),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
                         final item = filtered[index];
                         return _OpportunityCard(
                           item: item,
@@ -138,12 +108,27 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                             .fadeIn(delay: (index * 50).ms)
                             .slideY(begin: 0.05, curve: Curves.easeOutCubic);
                       },
+                      childCount: filtered.length,
                     ),
-                  );
-                },
+                  ),
+                );
+              }
+            }
+
+            return RefreshIndicator.adaptive(
+              onRefresh: () => provider.fetchOverview(forceChallengeRefresh: true),
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(child: _buildHeader(context, canPop)),
+                  SliverToBoxAdapter(child: _buildSearchHeader(context)),
+                  SliverToBoxAdapter(child: _buildCategorySelector(context)),
+                  const SliverToBoxAdapter(child: SizedBox(height: 10)),
+                  sliverContent,
+                ],
               ),
-            ),
-          ],
+            );
+          },
         ),
       ),
     );
@@ -199,26 +184,6 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                 ),
               ],
             ),
-          ),
-          Row(
-            children: [
-              IconButton(
-                onPressed: () {},
-                icon: Icon(
-                  Icons.search_rounded,
-                  color: AppColors.textFor(context),
-                  size: 24,
-                ),
-              ),
-              IconButton(
-                onPressed: () {},
-                icon: Icon(
-                  Icons.settings_outlined,
-                  color: AppColors.textFor(context),
-                  size: 24,
-                ),
-              ),
-            ],
           ),
         ],
       ),
@@ -326,7 +291,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
       const EventAccessModel(
         id: 'mlsa_opp',
         title: 'Microsoft Learn Student Ambassadors',
-        description: 'Be a leader in your community, build technical skills, and share technology with peers.',
+        description: 'Be a leader in your community, build technical skills, and share technology with peers. As a Student Ambassador, you will get access to Microsoft resources, Azure credits, mentorship from industry experts, and a global network of student leaders. You will host workshops, build communities, and gain hands-on experience with cutting-edge tech.\n\nBenefits include free Microsoft certification exams, exclusive swags, and invitations to regional summits.',
         requiredAura: 0,
         link: 'https://mvp.microsoft.com/studentambassadors',
         type: 'Ambassador',
@@ -335,11 +300,12 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
         organizer: 'Microsoft',
         location: 'Worldwide',
         date: 'Applications close in 5 days',
+        bannerUrl: 'https://images.unsplash.com/photo-1625014020903-e329f58a4990?w=800&auto=format&fit=crop',
       ),
       const EventAccessModel(
         id: 'nasa_opp',
         title: 'NASA Internships Fall 2025',
-        description: 'NASA Internships are competitive awards to support educational opportunities that provide unique NASA-related research and operational experiences.',
+        description: 'NASA Internships are competitive awards to support educational opportunities that provide unique NASA-related research and operational experiences. Interns work under the guidance of NASA mentors on real projects, ranging from aerospace engineering and astrophysics to software development and earth sciences.\n\nThis is an unparalleled opportunity to contribute directly to space exploration missions, learn from world-renowned scientists, and build a stellar network in the space tech industry.',
         requiredAura: 0,
         link: 'https://intern.nasa.gov/',
         type: 'Internship',
@@ -348,11 +314,12 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
         organizer: 'NASA',
         location: 'On-site',
         date: 'Applications close in 12 days',
+        bannerUrl: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop',
       ),
       const EventAccessModel(
         id: 'postman_opp',
         title: 'Postman Student Expert Program',
-        description: 'Postman Student Experts are student leaders who teach their peers about APIs and Postman.',
+        description: 'Postman Student Experts are student leaders who teach their peers about APIs and Postman. Through this self-paced program, you\'ll learn the essentials of API design, testing, and documentation using Postman.\n\nOnce certified, you\'ll unlock access to exclusive Postman swags, invitations to developer events, and resources to host API workshops on your campus. Boost your developer profile and gain official recognition from Postman.',
         requiredAura: 0,
         link: 'https://www.postman.com/student-program/student-expert/',
         type: 'Program',
@@ -361,11 +328,12 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
         organizer: 'Postman',
         location: 'Remote',
         date: 'Applications close in 7 days',
+        bannerUrl: 'https://images.unsplash.com/photo-1618401471353-b98aedd07871?w=800&auto=format&fit=crop',
       ),
       const EventAccessModel(
         id: 'mlh_opp',
         title: 'MLH Fellowship',
-        description: 'A remote internship alternative for software developers to build open-source projects.',
+        description: 'A remote internship alternative for software developers to build open-source projects. The MLH Fellowship is a 12-week program where students collaborate with maintainers on major open-source projects (like React, Jest, and Dask) used by millions.\n\nYou\'ll receive an educational stipend, participate in daily standups, receive code reviews, and learn from senior engineers. Perfect for building a strong portfolio and starting your career in open source.',
         requiredAura: 0,
         link: 'https://fellowship.mlh.io/',
         type: 'Fellowship',
@@ -374,11 +342,12 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
         organizer: 'MLH',
         location: 'Remote',
         date: 'Applications close in 15 days',
+        bannerUrl: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop',
       ),
       const EventAccessModel(
         id: 'gsoc_opp',
         title: 'Google Summer of Code 2025',
-        description: 'Google Summer of Code is a global program focused on bringing new contributors into open source software development.',
+        description: 'Google Summer of Code is a global program focused on bringing new contributors into open source software development. GSoC contributors work on a 12+ week programming project with an open source organization under the guidance of mentors.\n\nContributors learn about open source culture, get paid a stipend based on their location, and receive invaluable feedback on their code. It is one of the most prestigious open-source initiatives worldwide.',
         requiredAura: 0,
         link: 'https://summerofcode.withgoogle.com/',
         type: 'Program',
@@ -387,6 +356,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
         organizer: 'Google',
         location: 'Remote',
         date: 'Applications close in 20 days',
+        bannerUrl: 'https://images.unsplash.com/photo-1572021335469-31706a17aaef?w=800&auto=format&fit=crop',
       ),
     ];
 
@@ -550,19 +520,52 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
   }
 
   Widget _buildLoadingSkeleton() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(20),
-      itemCount: 4,
-      itemBuilder: (context, index) => Shimmer.fromColors(
-        baseColor: AppColors.bg2For(context),
-        highlightColor: AppColors.bg3For(context),
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 20),
-          height: 120,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (context, index) => Shimmer.fromColors(
+            baseColor: AppColors.bg2For(context),
+            highlightColor: AppColors.bg3For(context),
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 20),
+              height: 120,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
           ),
+          childCount: 4,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState(BuildContext context, String message, VoidCallback onAction) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+        child: AppErrorState(
+          title: 'Sync failed',
+          message: message,
+          actionLabel: 'Try Again',
+          onAction: onAction,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 100),
+        child: AppEmptyState(
+          icon: Icons.explore_outlined,
+          title: 'No opportunities found',
+          message: _searchQuery.isNotEmpty
+              ? 'Try searching for something else'
+              : 'Check back later for new openings',
         ),
       ),
     );

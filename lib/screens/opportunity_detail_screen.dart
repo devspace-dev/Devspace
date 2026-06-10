@@ -99,7 +99,7 @@ class OpportunityDetailScreen extends StatelessWidget {
       leading: IconButton(
         icon: Container(
           padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: Colors.black26,
             shape: BoxShape.circle,
           ),
@@ -111,7 +111,7 @@ class OpportunityDetailScreen extends StatelessWidget {
         IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: Colors.black26,
               shape: BoxShape.circle,
             ),
@@ -130,10 +130,10 @@ class OpportunityDetailScreen extends StatelessWidget {
               Image.network(
                 opportunity.bannerUrl!,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => _buildDefaultBanner(primaryColor),
+                errorBuilder: (context, error, stackTrace) => _buildDefaultBanner(context, primaryColor),
               )
             else
-              _buildDefaultBanner(primaryColor),
+              _buildDefaultBanner(context, primaryColor),
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -153,16 +153,160 @@ class OpportunityDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDefaultBanner(Color color) {
+  Widget _buildDefaultBanner(BuildContext context, Color color) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      color: color.withValues(alpha: 0.15),
-      child: Center(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isDark
+              ? [
+                  color.withValues(alpha: 0.25),
+                  AppColors.bg2Dark,
+                  color.withValues(alpha: 0.05),
+                ]
+              : [
+                  color.withValues(alpha: 0.15),
+                  Colors.white,
+                  color.withValues(alpha: 0.02),
+                ],
+        ),
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned(
+            right: -20,
+            bottom: -20,
+            child: Icon(
+              opportunity.type.toLowerCase() == 'hackathon'
+                  ? Icons.terminal_rounded
+                  : Icons.rocket_launch_rounded,
+              size: 180,
+              color: color.withValues(alpha: 0.08),
+            ),
+          ),
+          Hero(
+            tag: 'opp_logo_${opportunity.id}',
+            child: _buildBrandLogo(opportunity.organizer ?? '', size: 88),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBrandLogo(String organizer, {double size = 44}) {
+    final name = organizer.toLowerCase();
+    if (name.contains('microsoft')) {
+      return Container(
+        width: size,
+        height: size,
+        padding: EdgeInsets.all(size * 0.11),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade200, width: 0.8),
+        ),
+        child: GridView.count(
+          crossAxisCount: 2,
+          mainAxisSpacing: 2,
+          crossAxisSpacing: 2,
+          physics: const NeverScrollableScrollPhysics(),
+          children: [
+            Container(color: const Color(0xFFF25022)), // Red-orange
+            Container(color: const Color(0xFF7FBA00)), // Green
+            Container(color: const Color(0xFF00A4EF)), // Blue
+            Container(color: const Color(0xFFFFB900)), // Yellow
+          ],
+        ),
+      );
+    } else if (name.contains('nasa')) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: const Color(0xFF0C2340), // NASA Dark Blue
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.grey.shade200, width: 0.8),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          'NASA',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: size * 0.22,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.5,
+          ),
+        ),
+      );
+    } else if (name.contains('postman')) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: const Color(0xFFFF6C37), // Postman Orange
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.grey.shade200, width: 0.8),
+        ),
+        alignment: Alignment.center,
         child: Icon(
-          opportunity.type.toLowerCase() == 'hackathon' 
-              ? Icons.terminal_rounded 
-              : Icons.rocket_launch_rounded,
-          size: 100,
-          color: color.withValues(alpha: 0.4),
+          Icons.rocket_launch_rounded,
+          color: Colors.white,
+          size: size * 0.45,
+        ),
+      );
+    } else if (name.contains('google')) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.grey.shade200, width: 0.8),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          'G',
+          style: TextStyle(
+            color: Colors.blue,
+            fontSize: size * 0.5,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      );
+    } else if (name.contains('mlh')) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: const Color(0xFF004851), // MLH Green
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.grey.shade200, width: 0.8),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          'MLH',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: size * 0.22,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      );
+    }
+
+    // Default letter avatar
+    return CircleAvatar(
+      radius: size / 2,
+      backgroundColor: Colors.orange.shade50,
+      child: Text(
+        organizer.isNotEmpty ? organizer[0].toUpperCase() : 'O',
+        style: TextStyle(
+          color: AppColors.primary,
+          fontWeight: FontWeight.bold,
+          fontSize: size * 0.4,
         ),
       ),
     );
@@ -180,7 +324,9 @@ class OpportunityDetailScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             ),
             const SizedBox(width: 12),
-            if (opportunity.organizer != null)
+            if (opportunity.organizer != null) ...[
+              _buildBrandLogo(opportunity.organizer!, size: 28),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   'by ${opportunity.organizer}',
@@ -191,6 +337,7 @@ class OpportunityDetailScreen extends StatelessWidget {
                   ),
                 ),
               ),
+            ],
           ],
         ).animate().fadeIn().slideX(begin: -0.05),
         const SizedBox(height: 18),
@@ -229,7 +376,7 @@ class OpportunityDetailScreen extends StatelessWidget {
           value: opportunity.location ?? 'Remote',
           color: primaryColor,
         ),
-        _MetaItem(
+        const _MetaItem(
           icon: Icons.auto_awesome_rounded,
           label: 'REWARD',
           value: 'Experience',
@@ -289,11 +436,11 @@ class OpportunityDetailScreen extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
       decoration: BoxDecoration(
         color: AppColors.bgFor(context),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
             color: Colors.black26,
             blurRadius: 30,
-            offset: const Offset(0, -10),
+            offset: Offset(0, -10),
           ),
         ],
       ),

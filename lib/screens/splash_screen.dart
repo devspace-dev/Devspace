@@ -9,8 +9,15 @@ class SplashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF000000) : const Color(0xFFF8F9FA);
+    final titleColor = isDark ? Colors.white : const Color(0xFF1E293B);
+    final descColor = isDark ? const Color(0xFF8B95A5) : const Color(0xFF475569);
+    final subColor = isDark ? const Color(0xFF4B5563) : const Color(0xFF64748B);
+    final glowColor = isDark ? const Color(0x1AFF7A00) : const Color(0x0CFF7A00);
+
     return Scaffold(
-      backgroundColor: const Color(0xFF000000),
+      backgroundColor: bgColor,
       body: Stack(
         children: [
           // Background ambient glow
@@ -19,14 +26,14 @@ class SplashScreen extends StatelessWidget {
             child: Container(
               width: 380,
               height: 380,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    Color(0x1AFF7A00),
-                    Color(0x00FF7A00),
+                    glowColor,
+                    glowColor.withValues(alpha: 0.0),
                   ],
-                  stops: [0.0, 1.0],
+                  stops: const [0.0, 1.0],
                 ),
               ),
             ).animate(onPlay: (controller) => controller.repeat(reverse: true))
@@ -52,7 +59,11 @@ class SplashScreen extends StatelessWidget {
                         end: const Offset(1, 1),
                         curve: Curves.easeOutBack,
                       )
-                      .shimmer(delay: 1200.ms, duration: 1500.ms, color: Colors.white.withValues(alpha: 0.1)),
+                      .shimmer(
+                        delay: 1200.ms, 
+                        duration: 1500.ms, 
+                        color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05),
+                      ),
                     const SizedBox(height: 24),
                     Text(
                       'DevSpace',
@@ -60,7 +71,7 @@ class SplashScreen extends StatelessWidget {
                         fontSize: 40,
                         fontWeight: FontWeight.bold,
                         letterSpacing: -1.2,
-                        color: Colors.white,
+                        color: titleColor,
                       ),
                     ).animate()
                       .fadeIn(delay: 300.ms, duration: 600.ms)
@@ -72,7 +83,7 @@ class SplashScreen extends StatelessWidget {
                       style: GoogleFonts.inter(
                         fontSize: 15,
                         fontWeight: FontWeight.w500,
-                        color: const Color(0xFF8B95A5),
+                        color: descColor,
                         letterSpacing: 0.2,
                       ),
                     ).animate().fadeIn(delay: 500.ms, duration: 600.ms),
@@ -90,7 +101,7 @@ class SplashScreen extends StatelessWidget {
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
                 fontSize: 11,
-                color: const Color(0xFF4B5563),
+                color: subColor,
                 letterSpacing: 2.5,
                 fontWeight: FontWeight.w600,
               ),

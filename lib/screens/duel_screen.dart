@@ -56,16 +56,20 @@ class _DuelScreenState extends State<DuelScreen> {
   @override
   void initState() {
     super.initState();
-    _timeRemaining =
-        (widget.mode == 'Reflex Mode' || widget.mode == 'Team Battle')
-            ? 60
-            : 45;
+    final modeUpper = widget.mode.toUpperCase();
+    if (modeUpper == 'TEAM DUELS' || modeUpper == 'TEAM BATTLE') {
+      _timeRemaining = 120;
+    } else if (modeUpper == 'REFLEX MODE' || modeUpper == 'REFLEX') {
+      _timeRemaining = 60;
+    } else {
+      _timeRemaining = 45;
+    }
 
-    if (widget.mode == 'Reflex Mode' || widget.mode == 'Team Battle') {
+    if (modeUpper == 'REFLEX MODE' || modeUpper == 'REFLEX' || modeUpper == 'TEAM DUELS' || modeUpper == 'TEAM BATTLE') {
       _questions.addAll(reflexQuestions.toList()..shuffle());
-    } else if (widget.mode == 'Logic Lab') {
+    } else if (modeUpper == 'LOGIC LAB') {
       _questions.addAll(logicQuestions.toList()..shuffle());
-    } else if (widget.mode == 'Mind Games') {
+    } else if (modeUpper == 'MIND GAMES') {
       _questions.addAll(triviaQuestions.toList()..shuffle());
     } else {
       // Fallback for any other modes
@@ -133,10 +137,11 @@ class _DuelScreenState extends State<DuelScreen> {
       if (_timeRemaining > 0) {
         setState(() {
           _timeRemaining--;
-          // Simulate teammates scoring for Team Battle only
-          if (widget.mode == 'Team Battle' &&
+          // Simulate teammates scoring for Team Battle / Team Duels
+          final modeUpper = widget.mode.toUpperCase();
+          if ((modeUpper == 'TEAM BATTLE' || modeUpper == 'TEAM DUELS') &&
               _timeRemaining % 5 == 0 &&
-              _timeRemaining != 60) {
+              _timeRemaining != (modeUpper == 'TEAM DUELS' ? 120 : 60)) {
             _myScore += 15;
             SupabaseService.instance
                 .updateArenaScore(widget.matchId, widget.isPlayer1, _myScore);
@@ -252,7 +257,8 @@ class _DuelScreenState extends State<DuelScreen> {
         _answerFocus.unfocus();
       }
     } else {
-      if (widget.mode == 'Reflex Mode' || widget.mode == 'Team Battle') {
+      final modeUpper = widget.mode.toUpperCase();
+      if (modeUpper == 'REFLEX MODE' || modeUpper == 'REFLEX' || modeUpper == 'TEAM BATTLE' || modeUpper == 'TEAM DUELS') {
         setState(() {
           _currentQuestionIndex = 0;
           _questions.shuffle();
@@ -308,7 +314,7 @@ class _DuelScreenState extends State<DuelScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            widget.mode == 'Team Battle'
+                            (widget.mode.toUpperCase() == 'TEAM BATTLE' || widget.mode.toUpperCase() == 'TEAM DUELS')
                                 ? 'Your Team (4)'
                                 : 'You',
                             style: const TextStyle(
@@ -335,7 +341,7 @@ class _DuelScreenState extends State<DuelScreen> {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            widget.mode == 'Team Battle'
+                            (widget.mode.toUpperCase() == 'TEAM BATTLE' || widget.mode.toUpperCase() == 'TEAM DUELS')
                                 ? 'Enemy Team (4)'
                                 : widget.opponent.name,
                             style: const TextStyle(
@@ -511,7 +517,7 @@ class _DuelScreenState extends State<DuelScreen> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              (widget.mode == 'Reflex Mode' || widget.mode == 'Team Battle')
+              (widget.mode.toUpperCase() == 'REFLEX MODE' || widget.mode.toUpperCase() == 'REFLEX' || widget.mode.toUpperCase() == 'TEAM BATTLE' || widget.mode.toUpperCase() == 'TEAM DUELS')
                   ? 'Question ${_questionsAnswered + 1}'
                   : 'Question ${_currentQuestionIndex + 1} of ${_questions.length}',
               style: TextStyle(

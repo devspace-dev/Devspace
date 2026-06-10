@@ -801,26 +801,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
       backgroundColor: AppColors.bgFor(context),
       extendBody: true,
       extendBodyBehindAppBar: false,
-      floatingActionButton: isHome
-          ? CupFab(
-              onDaily: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const DailyChallengeScreen(),
-                  ),
-                );
-              },
-              onWeekly: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const WeeklyChallengePricingScreen(),
-                  ),
-                );
-              },
-            )
-          : null,
+      floatingActionButton: null,
       appBar: _tab == 2
           ? null
           : PreferredSize(

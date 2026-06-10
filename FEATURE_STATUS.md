@@ -25,6 +25,7 @@
 - Daily challenge screen with backend-backed submission flow
 - Home engagement cards linked to full-screen challenge/opportunity views
 - Founder tools restricted to allowlisted founder/developer devices on top of admin auth
+- Explore resources now open gamified roadmap levels with learning materials and aura-style rewards
 
 ## Partial
 - Google sign-in is visible but intentionally disabled

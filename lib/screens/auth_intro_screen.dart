@@ -120,15 +120,23 @@ class _AuthIntroScreenState extends State<AuthIntroScreen>
                                         child: child,
                                       );
                                     },
-                                    child: Image.asset(
-                                      'assets/images/app_icon.png',
-                                      width: 108,
-                                      height: 108,
-                                      fit: BoxFit.contain,
-                                      errorBuilder: (context, error, stackTrace) => const Icon(
-                                        Icons.rocket_launch_rounded,
-                                        color: Color(0xFFFF5E00),
-                                        size: 96,
+                                    child: ColorFiltered(
+                                      colorFilter: const ColorFilter.matrix([
+                                        1.0, 0, 0, 0, 0,      // R
+                                        0.3686, 0, 0, 0, 0,   // G (tinted to Color(0xFFFF5E00))
+                                        0.0, 0, 0, 0, 0,      // B
+                                        1.0, 0, 0, 0, 0,      // A
+                                      ]),
+                                      child: Image.asset(
+                                        'assets/images/app_icon.png',
+                                        width: 108,
+                                        height: 108,
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (context, error, stackTrace) => const Icon(
+                                          Icons.rocket_launch_rounded,
+                                          color: Color(0xFFFF5E00),
+                                          size: 96,
+                                        ),
                                       ),
                                     ),
                                   ),

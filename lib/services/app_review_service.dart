@@ -9,7 +9,7 @@ class AppReviewService {
 
   static const _keySessions = 'review_session_count';
   static const _keyLastPrompted = 'review_last_prompted_session';
-  static const _playStoreUrl = 'https://play.google.com/store/apps/details?id=com.devspace.app'; // Replace with real package id
+  static const _playStoreUrl = 'https://play.google.com/store/apps/details?id=com.devspace.community&pcampaignid=web_share';
 
   Future<void> logSession() async {
     final prefs = await SharedPreferences.getInstance();

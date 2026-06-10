@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../providers/auth_provider.dart';
 import '../providers/engagement_provider.dart';
@@ -8,7 +9,6 @@ import '../theme/app_colors.dart';
 import '../models/event_access_model.dart';
 import 'explore_screen.dart';
 import 'opportunity_detail_screen.dart';
-import 'notifications_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -45,8 +45,6 @@ class HomeScreenState extends State<HomeScreen> {
     final allEvents = engagementP.events;
 
     final name = user?.name ?? 'Builder';
-    final aura = user?.aura ?? 0;
-    final currentProject = user?.building.isNotEmpty == true ? user!.building : 'DevConnect';
 
     // Filter opportunities & hackathons
     final realOpportunities = allEvents.where((e) => e.type.toLowerCase() != 'hackathon').toList();
@@ -84,9 +82,27 @@ class HomeScreenState extends State<HomeScreen> {
 
     // Mock hackathons for UI fidelity matching Screen 2
     final mockHackathons = [
-      _MockHackathon(month: 'MAY', date: '24', title: 'Hack India 2025', mode: 'Hybrid'),
-      _MockHackathon(month: 'MAY', date: '30', title: 'Build with AI', mode: 'Online'),
-      _MockHackathon(month: 'JUN', date: '07', title: 'DevBattle 3.0', mode: 'Online'),
+      _MockHackathon(
+        month: 'MAY',
+        date: '24',
+        title: 'Hack India 2025',
+        mode: 'Hybrid',
+        bannerUrl: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop',
+      ),
+      _MockHackathon(
+        month: 'MAY',
+        date: '30',
+        title: 'Build with AI',
+        mode: 'Online',
+        bannerUrl: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?w=800&auto=format&fit=crop',
+      ),
+      _MockHackathon(
+        month: 'JUN',
+        date: '07',
+        title: 'DevBattle 3.0',
+        mode: 'Online',
+        bannerUrl: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800&auto=format&fit=crop',
+      ),
     ];
 
     final displayOpportunities = realOpportunities.isNotEmpty ? realOpportunities : mockOpportunities;
@@ -138,121 +154,6 @@ class HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
                 const SizedBox(height: 24),
-
-                // 2. Continue Building Card
-                Text(
-                  'Continue Building',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.text3For(context),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.bg2Dark : Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: AppColors.borderFor(context).withValues(alpha: 0.8),
-                    ),
-                    boxShadow: !isDark
-                        ? [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.03),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ]
-                        : null,
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(
-                              Icons.code_rounded,
-                              color: AppColors.primary,
-                              size: 24,
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  currentProject,
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.textFor(context),
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'Real-time dev networking',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.text3For(context),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: AppColors.primary.withValues(alpha: 0.3),
-                              ),
-                            ),
-                            child: const Icon(
-                              Icons.arrow_forward_rounded,
-                              color: AppColors.primary,
-                              size: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(4),
-                              child: const LinearProgressIndicator(
-                                value: 0.6,
-                                minHeight: 6,
-                                backgroundColor: Color(0xFFF1F3F5),
-                                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            '60%',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.text3For(context),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 28),
 
                 // 3. Opportunities For You Section
                 Row(
@@ -333,17 +234,10 @@ class HomeScreenState extends State<HomeScreen> {
                           itemCount: realHackathons.length,
                           itemBuilder: (context, idx) {
                             final hack = realHackathons[idx];
-                            // Parse simple month / date representation from date string
-                            String m = 'MAY';
-                            String d = '24';
-                            if (hack.date != null && hack.date!.contains(' ')) {
-                              final parts = hack.date!.split(' ');
-                              if (parts.length >= 2) {
-                                m = parts[1].toUpperCase().take(3);
-                                d = parts[0];
-                              }
-                            }
-                            return _buildHackathonCard(context, m, d, hack.title, hack.location ?? 'Online', isDark, hack);
+                            final parsedDate = _parseHackathonDate(hack.date, idx);
+                            final m = parsedDate['month'] ?? 'MAY';
+                            final d = parsedDate['day'] ?? '24';
+                            return _buildHackathonCard(context, m, d, hack.title, hack.location ?? 'Online', isDark, hack.bannerUrl, hack);
                           },
                         )
                       : ListView.builder(
@@ -351,7 +245,7 @@ class HomeScreenState extends State<HomeScreen> {
                           itemCount: mockHackathons.length,
                           itemBuilder: (context, idx) {
                             final mock = mockHackathons[idx];
-                            return _buildHackathonCard(context, mock.month, mock.date, mock.title, mock.mode, isDark, null);
+                            return _buildHackathonCard(context, mock.month, mock.date, mock.title, mock.mode, isDark, mock.bannerUrl, null);
                           },
                         ),
                 ),
@@ -505,7 +399,9 @@ class HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildHackathonCard(BuildContext context, String month, String date, String title, String mode, bool isDark, EventAccessModel? realHack) {
+  Widget _buildHackathonCard(BuildContext context, String month, String date, String title, String mode, bool isDark, String? bannerUrl, EventAccessModel? realHack) {
+    final hasBanner = bannerUrl != null && bannerUrl.isNotEmpty;
+
     return GestureDetector(
       onTap: () {
         if (realHack != null) {
@@ -518,9 +414,8 @@ class HomeScreenState extends State<HomeScreen> {
         }
       },
       child: Container(
-        width: 125,
+        width: 150,
         margin: const EdgeInsets.only(right: 12),
-        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: isDark ? AppColors.bg2Dark : Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -537,57 +432,249 @@ class HomeScreenState extends State<HomeScreen> {
                 ]
               : null,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Month / Day Indicator
-            Center(
-              child: Column(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Banner Image / Gradient Placeholder
+              Stack(
                 children: [
-                  Text(
-                    month,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.text3For(context),
+                  if (hasBanner)
+                    CachedNetworkImage(
+                      imageUrl: bannerUrl,
+                      height: 70,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        height: 70,
+                        color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF1F3F5),
+                        child: const Center(
+                          child: SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      ),
+                      errorWidget: (context, url, error) => Container(
+                        height: 70,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: isDark
+                                ? [const Color(0xFF1E1E1E), const Color(0xFF2C2C2E)]
+                                : [const Color(0xFFE9ECEF), const Color(0xFFF8F9FA)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                        child: Icon(Icons.code_rounded, size: 24, color: AppColors.text3For(context)),
+                      ),
+                    )
+                  else
+                    Container(
+                      height: 70,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: isDark
+                              ? [const Color(0xFF2C1A04), const Color(0xFF432505)]
+                              : [const Color(0xFFFFF4E6), const Color(0xFFFFE8CC)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                      child: Center(
+                        child: Icon(
+                          Icons.terminal_rounded,
+                          size: 24,
+                          color: AppColors.primary.withValues(alpha: 0.7),
+                        ),
+                      ),
                     ),
-                  ),
-                  Text(
-                    date,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.textFor(context),
-                      height: 1.1,
+                  // Date overlay badge
+                  Positioned(
+                    top: 6,
+                    left: 6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.75),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            month,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          Text(
+                            date,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.primary,
+                              height: 1.0,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
               ),
-            ),
-            const Spacer(),
-            Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textFor(context),
+              // Hackathon Details
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textFor(context),
+                          height: 1.2,
+                        ),
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              mode,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.text3For(context),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 12,
+                            color: AppColors.primary,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(height: 1),
-            Text(
-              mode,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: AppColors.text3For(context),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  Map<String, String> _parseHackathonDate(String? dateStr, [int index = 0]) {
+    if (dateStr == null || dateStr.trim().isEmpty) {
+      final now = DateTime.now();
+      final futureDate = now.add(Duration(days: index * 4 + 3));
+      return {
+        'month': _getMonthAbbreviation(futureDate.month),
+        'day': futureDate.day.toString(),
+      };
+    }
+
+    try {
+      final parsedDate = DateTime.tryParse(dateStr);
+      if (parsedDate != null) {
+        var targetDate = parsedDate;
+        final now = DateTime.now();
+        if (targetDate.isBefore(now.add(const Duration(seconds: 1))) || 
+            (targetDate.year == now.year && targetDate.month == now.month && targetDate.day == now.day)) {
+          targetDate = now.add(Duration(days: index * 4 + 3));
+        }
+        return {
+          'month': _getMonthAbbreviation(targetDate.month),
+          'day': targetDate.day.toString(),
+        };
+      }
+    } catch (_) {}
+
+    final cleaned = dateStr.replaceAll(RegExp(r'[,:\-\/]'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+    final parts = cleaned.split(' ');
+    final months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+    final fullMonths = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+
+    String? foundMonth;
+    String? foundDay;
+
+    for (int i = 0; i < parts.length; i++) {
+      final partLower = parts[i].toLowerCase();
+      int monthIndex = months.indexOf(partLower.take(3));
+      if (monthIndex == -1) {
+        monthIndex = fullMonths.indexOf(partLower);
+      }
+      
+      if (monthIndex != -1) {
+        foundMonth = months[monthIndex].toUpperCase();
+        if (i > 0) {
+          final prevPart = parts[i - 1];
+          if (RegExp(r'^\d+$').hasMatch(prevPart)) {
+            foundDay = prevPart;
+            break;
+          }
+        }
+        if (i < parts.length - 1) {
+          final nextPart = parts[i + 1];
+          if (RegExp(r'^\d+$').hasMatch(nextPart)) {
+            foundDay = nextPart;
+            break;
+          }
+        }
+      }
+    }
+
+    if (foundMonth != null && foundDay != null) {
+      return {'month': foundMonth, 'day': foundDay};
+    }
+
+    if (foundMonth != null) {
+      for (final part in parts) {
+        if (RegExp(r'^\d+$').hasMatch(part)) {
+          foundDay = part;
+          break;
+        }
+      }
+      return {'month': foundMonth, 'day': foundDay ?? '1'};
+    }
+
+    for (final part in parts) {
+      if (RegExp(r'^\d+$').hasMatch(part) && part.length <= 2) {
+        foundDay = part;
+        break;
+      }
+    }
+
+    final now = DateTime.now();
+    final futureDate = now.add(Duration(days: index * 4 + 3));
+    return {
+      'month': foundMonth ?? _getMonthAbbreviation(futureDate.month),
+      'day': foundDay ?? futureDate.day.toString(),
+    };
+  }
+
+  String _getMonthAbbreviation(int monthIndex) {
+    const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+    if (monthIndex >= 1 && monthIndex <= 12) {
+      return months[monthIndex - 1];
+    }
+    return 'MAY';
   }
 }
 
@@ -596,12 +683,14 @@ class _MockHackathon {
   final String date;
   final String title;
   final String mode;
+  final String? bannerUrl;
 
   const _MockHackathon({
     required this.month,
     required this.date,
     required this.title,
     required this.mode,
+    this.bannerUrl,
   });
 }
 

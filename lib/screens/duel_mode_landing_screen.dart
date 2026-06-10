@@ -283,13 +283,14 @@ class DuelModeLandingScreen extends StatelessWidget {
   }
 
   String _getSubtitle() {
-    switch (mode) {
-      case 'Reflex Mode':
+    switch (mode.toUpperCase()) {
+      case 'REFLEX MODE':
         return 'RACE TO SOLVE THE MOST IN 60 SECONDS';
-      case 'Team Battle':
-        return 'TEAM UP AND SCORE POINTS TOGETHER';
-      case 'Logic Lab':
-      case 'Mind Games':
+      case 'TEAM DUELS':
+      case 'TEAM BATTLE':
+        return 'TEAM UP AND SCORE POINTS TOGETHER (2 MINS)';
+      case 'LOGIC LAB':
+      case 'MIND GAMES':
         return 'TEST YOUR LOGIC AGAINST THE PAR SCORE';
       default:
         return 'RACE TO SOLVE THE MOST IN 45 SECONDS';
@@ -297,11 +298,12 @@ class DuelModeLandingScreen extends StatelessWidget {
   }
 
   String _getButtonText() {
-    switch (mode) {
-      case 'Logic Lab':
-      case 'Mind Games':
+    switch (mode.toUpperCase()) {
+      case 'LOGIC LAB':
+      case 'MIND GAMES':
         return 'START CHALLENGE';
-      case 'Team Battle':
+      case 'TEAM DUELS':
+      case 'TEAM BATTLE':
         return 'FIND TEAMMATES';
       default:
         return 'START DUEL';

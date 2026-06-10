@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'app.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_colors.dart';
@@ -32,7 +33,7 @@ import 'package:safe_device/safe_device.dart';
 
 final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   SystemChrome.setPreferredOrientations([
@@ -47,11 +48,26 @@ void main() {
     systemNavigationBarIconBrightness: Brightness.light,
   ));
 
-  runApp(const AppBootstrapper());
+  ThemeMode bootThemeMode = ThemeMode.system;
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final modeStr = prefs.getString('theme_mode');
+    if (modeStr != null) {
+      bootThemeMode = ThemeMode.values.firstWhere(
+        (e) => e.toString() == modeStr,
+        orElse: () => ThemeMode.system,
+      );
+    }
+  } catch (e) {
+    debugPrint('Error preloading theme mode: $e');
+  }
+
+  runApp(AppBootstrapper(initialThemeMode: bootThemeMode));
 }
 
 class AppBootstrapper extends StatefulWidget {
-  const AppBootstrapper({super.key});
+  final ThemeMode initialThemeMode;
+  const AppBootstrapper({super.key, required this.initialThemeMode});
 
   @override
   State<AppBootstrapper> createState() => _AppBootstrapperState();
@@ -61,11 +77,19 @@ class _AppBootstrapperState extends State<AppBootstrapper> {
   bool _initialized = false;
   String? _error;
   bool _isCompromised = false;
+  late ThemeMode _bootThemeMode;
 
   @override
   void initState() {
     super.initState();
+    _bootThemeMode = widget.initialThemeMode;
     _initApp();
+  }
+
+  bool get _isBootThemeDark {
+    if (_bootThemeMode == ThemeMode.dark) return true;
+    if (_bootThemeMode == ThemeMode.light) return false;
+    return PlatformDispatcher.instance.platformBrightness == Brightness.dark;
   }
 
   Future<void> _initApp() async {
@@ -136,6 +160,9 @@ class _AppBootstrapperState extends State<AppBootstrapper> {
             bootstrapErrorLocal = 'Supabase initialization failed: $e';
           }
         }),
+
+        // Task D: Enforce minimum display time for splash logo/shimmer animations
+        Future.delayed(const Duration(milliseconds: 1600)),
       ]);
 
       if (firebaseInitialized && bootstrapErrorLocal == null) {
@@ -160,18 +187,19 @@ class _AppBootstrapperState extends State<AppBootstrapper> {
   @override
   Widget build(BuildContext context) {
     return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 300),
       child: !_initialized
           ? MaterialApp(
               key: const ValueKey('splash'),
               debugShowCheckedModeBanner: false,
-              theme: AppTheme.dark,
+              theme: _isBootThemeDark ? AppTheme.dark : AppTheme.light,
               home: const SplashScreen(),
             )
           : (_error == null
               ? DevSpaceRoot(
                   key: const ValueKey('app'),
                   isCompromised: _isCompromised,
+                  initialThemeMode: _bootThemeMode,
                 )
               : DevSpaceSetupApp(
                   key: const ValueKey('setup'),
@@ -183,13 +211,18 @@ class _AppBootstrapperState extends State<AppBootstrapper> {
 
 class DevSpaceRoot extends StatelessWidget {
   final bool isCompromised;
-  const DevSpaceRoot({super.key, required this.isCompromised});
+  final ThemeMode initialThemeMode;
+  const DevSpaceRoot({
+    super.key,
+    required this.isCompromised,
+    required this.initialThemeMode,
+  });
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider(initialMode: initialThemeMode)),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => PostsProvider()),
         ChangeNotifierProvider(create: (_) => QuestionsProvider()),

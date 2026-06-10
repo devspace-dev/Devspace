@@ -291,8 +291,8 @@ export class EventService {
         const locationText = hack.region || "Online";
         
         let rawDesc = hack.details ? hack.details.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim() : "";
-        if (rawDesc.length > 250) {
-          rawDesc = rawDesc.substring(0, 247) + "...";
+        if (rawDesc.length > 2500) {
+          rawDesc = rawDesc.substring(0, 2497) + "...";
         }
         const description = rawDesc || `Join ${title} on Unstop!`;
 
