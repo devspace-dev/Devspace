@@ -297,14 +297,16 @@ class _MatchmakingScreenState extends State<MatchmakingScreen>
           child: Container(
             color: const Color(0xFF121212), // Solid black background to hide radar initially
             child: Center(
-              child: const _DeveloperVsLogo()
+              child: _BattleTypeIntro(
+                category: widget.category,
+                mode: widget.mode,
+              )
               .animate()
-              .scale(begin: const Offset(1.5, 1.5), end: const Offset(1, 1), duration: 600.ms, curve: Curves.easeOutBack)
+              .scale(begin: const Offset(1.3, 1.3), end: const Offset(1, 1), duration: 600.ms, curve: Curves.easeOutBack)
               .fadeIn(duration: 400.ms)
-              .shimmer(color: Colors.white.withValues(alpha: 0.8), duration: 800.ms, delay: 200.ms)
-              .then(delay: 400.ms)
-              .scale(begin: const Offset(1, 1), end: const Offset(0.9, 0.9), duration: 300.ms)
-              .fadeOut(duration: 300.ms),
+              .then(delay: 500.ms)
+              .scale(begin: const Offset(1, 1), end: const Offset(0.9, 0.9), duration: 400.ms)
+              .fadeOut(duration: 400.ms),
             ),
           )
           .animate()
@@ -350,66 +352,208 @@ class _GridPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-class _DeveloperVsLogo extends StatelessWidget {
-  const _DeveloperVsLogo();
+class _BattleTypeIntro extends StatelessWidget {
+  final String category;
+  final String mode;
+
+  const _BattleTypeIntro({
+    required this.category,
+    required this.mode,
+  });
+
+  Color _getModeColor() {
+    final modeUpper = mode.toUpperCase();
+    if (modeUpper.contains('REFLEX')) {
+      return const Color(0xFFFFD300); // Bright Yellow
+    } else if (modeUpper.contains('COMBAT')) {
+      return const Color(0xFFFF375F); // Bright Crimson
+    } else if (modeUpper.contains('TEAM') || modeUpper.contains('DUEL')) {
+      return const Color(0xFF32D74B); // Bright Green
+    }
+    return AppColors.primary; // Orange
+  }
+
+  IconData _getModeIcon() {
+    final modeUpper = mode.toUpperCase();
+    if (modeUpper.contains('REFLEX')) {
+      return Icons.bolt_rounded;
+    } else if (modeUpper.contains('COMBAT')) {
+      return Icons.terminal_rounded;
+    } else if (modeUpper.contains('TEAM')) {
+      return Icons.groups_rounded;
+    }
+    return Icons.local_fire_department_rounded;
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.02),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.08),
-          width: 1.5,
+    final themeColor = _getModeColor();
+    final modeIcon = _getModeIcon();
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // Pulsing, rotating futuristic rings
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            // Outer dotted/segmented ring rotating clockwise
+            Container(
+              width: 156,
+              height: 156,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: themeColor.withValues(alpha: 0.25),
+                  width: 1.5,
+                ),
+              ),
+            )
+            .animate(onPlay: (controller) => controller.repeat())
+            .rotate(duration: 6.seconds, begin: 0, end: 1),
+
+            // Inner sweep gradient rotating counter-clockwise
+            Container(
+              width: 124,
+              height: 124,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: SweepGradient(
+                  colors: [
+                    Colors.transparent,
+                    themeColor.withValues(alpha: 0.02),
+                    themeColor.withValues(alpha: 0.2),
+                    themeColor.withValues(alpha: 0.6),
+                    Colors.transparent,
+                  ],
+                  stops: const [0.0, 0.4, 0.8, 0.95, 1.0],
+                ),
+              ),
+            )
+            .animate(onPlay: (controller) => controller.repeat())
+            .rotate(duration: 2.5.seconds, begin: 0, end: -1),
+
+            // central neon glass orb with icon
+            Container(
+              width: 90,
+              height: 90,
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E1E1E),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: themeColor.withValues(alpha: 0.4),
+                  width: 2.0,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: themeColor.withValues(alpha: 0.25),
+                    blurRadius: 20,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Icon(
+                  modeIcon,
+                  size: 40,
+                  color: themeColor,
+                ),
+              ),
+            )
+            .animate(onPlay: (controller) => controller.repeat(reverse: true))
+            .scale(
+              begin: const Offset(0.95, 0.95),
+              end: const Offset(1.05, 1.05),
+              duration: 1.seconds,
+              curve: Curves.easeInOut,
+            ),
+          ],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.15),
-            blurRadius: 40,
-            spreadRadius: 2,
-          ),
-          BoxShadow(
-            color: Colors.cyanAccent.withValues(alpha: 0.08),
-            blurRadius: 20,
-            spreadRadius: -2,
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            '<',
-            style: GoogleFonts.firaCode(
-              fontSize: 48,
-              fontWeight: FontWeight.bold,
-              color: AppColors.primary,
+
+        const SizedBox(height: 36),
+
+        // Category Tag
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+            color: themeColor.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(
+              color: themeColor.withValues(alpha: 0.25),
+              width: 1,
             ),
           ),
-          const SizedBox(width: 16),
-          Text(
-            'VS',
+          child: Text(
+            category.toUpperCase(),
             style: GoogleFonts.plusJakartaSans(
-              fontSize: 56,
+              fontSize: 12,
               fontWeight: FontWeight.w900,
-              color: Colors.white,
+              color: themeColor,
               letterSpacing: 2,
             ),
           ),
-          const SizedBox(width: 16),
-          Text(
-            '>',
-            style: GoogleFonts.firaCode(
-              fontSize: 48,
-              fontWeight: FontWeight.bold,
-              color: Colors.cyanAccent,
-            ),
+        )
+        .animate()
+        .fadeIn(delay: 200.ms, duration: 400.ms)
+        .slideY(begin: 0.2, end: 0, delay: 200.ms, duration: 400.ms, curve: Curves.easeOut),
+
+        const SizedBox(height: 16),
+
+        // Mode Title with customized styling
+        Text(
+          mode.toUpperCase(),
+          textAlign: TextAlign.center,
+          style: GoogleFonts.oswald(
+            fontSize: 40,
+            fontWeight: FontWeight.w800,
+            color: Colors.white,
+            letterSpacing: 1.5,
+            height: 1.1,
+            shadows: [
+              Shadow(
+                color: themeColor.withValues(alpha: 0.5),
+                blurRadius: 15,
+                offset: const Offset(0, 0),
+              ),
+            ],
           ),
-        ],
-      ),
+        )
+        .animate()
+        .fadeIn(delay: 350.ms, duration: 500.ms)
+        .scale(begin: const Offset(0.95, 0.95), end: const Offset(1, 1), delay: 350.ms, duration: 500.ms, curve: Curves.easeOutBack),
+
+        const SizedBox(height: 24),
+
+        // Arena Status Pulse Indicator
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: themeColor,
+                shape: BoxShape.circle,
+              ),
+            )
+            .animate(onPlay: (controller) => controller.repeat(reverse: true))
+            .scale(begin: const Offset(0.5, 0.5), end: const Offset(1.5, 1.5), duration: 600.ms),
+            const SizedBox(width: 8),
+            Text(
+              'ARENA INITIALIZING...',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: Colors.white30,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ],
+        )
+        .animate()
+        .fadeIn(delay: 500.ms, duration: 400.ms),
+      ],
     );
   }
 }

@@ -290,10 +290,7 @@ export class EventService {
         const organizer = hack.organisation?.name || "Unstop";
         const locationText = hack.region || "Online";
         
-        let rawDesc = hack.details ? hack.details.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim() : "";
-        if (rawDesc.length > 2500) {
-          rawDesc = rawDesc.substring(0, 2497) + "...";
-        }
+        const rawDesc = hack.details ? hack.details.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim() : "";
         const description = rawDesc || `Join ${title} on Unstop!`;
 
         const startDate = hack.regnRequirements?.start_regn_dt ? new Date(hack.regnRequirements.start_regn_dt) : null;

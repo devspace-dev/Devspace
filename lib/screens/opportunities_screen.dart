@@ -53,7 +53,8 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
             if (provider.isLoading && provider.events.isEmpty) {
               sliverContent = _buildLoadingSkeleton();
             } else if (provider.error != null && provider.events.isEmpty) {
-              sliverContent = _buildErrorState(context, provider.error!, provider.fetchOverview);
+              sliverContent = _buildErrorState(
+                  context, provider.error!, provider.fetchOverview);
             } else {
               final mergedEvents = _getMergedEvents(provider.events);
 
@@ -63,9 +64,12 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                 if (_searchQuery.isNotEmpty) {
                   final query = _searchQuery.toLowerCase();
                   final matchesTitle = e.title.toLowerCase().contains(query);
-                  final matchesDesc = e.description.toLowerCase().contains(query);
-                  final matchesOrg = (e.organizer?.toLowerCase() ?? '').contains(query);
-                  if (!matchesTitle && !matchesDesc && !matchesOrg) return false;
+                  final matchesDesc =
+                      e.description.toLowerCase().contains(query);
+                  final matchesOrg =
+                      (e.organizer?.toLowerCase() ?? '').contains(query);
+                  if (!matchesTitle && !matchesDesc && !matchesOrg)
+                    return false;
                 }
 
                 // 2. Category Pill Filter
@@ -74,16 +78,18 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                   return e.type.toLowerCase() == 'hackathon';
                 }
                 if (_selectedCategory == 'Internships') {
-                  return e.type.toLowerCase() == 'internship' || e.title.toLowerCase().contains('intern');
+                  return e.type.toLowerCase() == 'internship' ||
+                      e.title.toLowerCase().contains('intern');
                 }
                 if (_selectedCategory == 'Fellowships') {
-                  return e.type.toLowerCase() == 'fellowship' || 
-                         e.type.toLowerCase() == 'ambassador' || 
-                         e.title.toLowerCase().contains('fellow') || 
-                         e.title.toLowerCase().contains('ambassador');
+                  return e.type.toLowerCase() == 'fellowship' ||
+                      e.type.toLowerCase() == 'ambassador' ||
+                      e.title.toLowerCase().contains('fellow') ||
+                      e.title.toLowerCase().contains('ambassador');
                 }
                 if (_selectedCategory == 'Scholarships') {
-                  return e.type.toLowerCase() == 'scholarship' || e.title.toLowerCase().contains('scholar');
+                  return e.type.toLowerCase() == 'scholarship' ||
+                      e.title.toLowerCase().contains('scholar');
                 }
 
                 return true;
@@ -116,7 +122,8 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
             }
 
             return RefreshIndicator.adaptive(
-              onRefresh: () => provider.fetchOverview(forceChallengeRefresh: true),
+              onRefresh: () =>
+                  provider.fetchOverview(forceChallengeRefresh: true),
               child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [
@@ -185,6 +192,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
               ],
             ),
           ),
+
         ],
       ),
     );
@@ -274,7 +282,9 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                 style: GoogleFonts.plusJakartaSans(
                   color: isSelected
                       ? Colors.white
-                      : (isDark ? AppColors.text2Dark : const Color(0xFF495057)),
+                      : (isDark
+                          ? AppColors.text2Dark
+                          : const Color(0xFF495057)),
                   fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                   fontSize: 13,
                 ),
@@ -291,7 +301,8 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
       const EventAccessModel(
         id: 'mlsa_opp',
         title: 'Microsoft Learn Student Ambassadors',
-        description: 'Be a leader in your community, build technical skills, and share technology with peers. As a Student Ambassador, you will get access to Microsoft resources, Azure credits, mentorship from industry experts, and a global network of student leaders. You will host workshops, build communities, and gain hands-on experience with cutting-edge tech.\n\nBenefits include free Microsoft certification exams, exclusive swags, and invitations to regional summits.',
+        description:
+            'Be a leader in your community, build technical skills, and share technology with peers. As a Student Ambassador, you will get access to Microsoft resources, Azure credits, mentorship from industry experts, and a global network of student leaders. You will host workshops, build communities, and gain hands-on experience with cutting-edge tech.\n\nBenefits include free Microsoft certification exams, exclusive swags, and invitations to regional summits.',
         requiredAura: 0,
         link: 'https://mvp.microsoft.com/studentambassadors',
         type: 'Ambassador',
@@ -300,12 +311,14 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
         organizer: 'Microsoft',
         location: 'Worldwide',
         date: 'Applications close in 5 days',
-        bannerUrl: 'https://images.unsplash.com/photo-1625014020903-e329f58a4990?w=800&auto=format&fit=crop',
+        bannerUrl:
+            'https://images.unsplash.com/photo-1625014020903-e329f58a4990?w=800&auto=format&fit=crop',
       ),
       const EventAccessModel(
         id: 'nasa_opp',
         title: 'NASA Internships Fall 2025',
-        description: 'NASA Internships are competitive awards to support educational opportunities that provide unique NASA-related research and operational experiences. Interns work under the guidance of NASA mentors on real projects, ranging from aerospace engineering and astrophysics to software development and earth sciences.\n\nThis is an unparalleled opportunity to contribute directly to space exploration missions, learn from world-renowned scientists, and build a stellar network in the space tech industry.',
+        description:
+            'NASA Internships are competitive awards to support educational opportunities that provide unique NASA-related research and operational experiences. Interns work under the guidance of NASA mentors on real projects, ranging from aerospace engineering and astrophysics to software development and earth sciences.\n\nThis is an unparalleled opportunity to contribute directly to space exploration missions, learn from world-renowned scientists, and build a stellar network in the space tech industry.',
         requiredAura: 0,
         link: 'https://intern.nasa.gov/',
         type: 'Internship',
@@ -314,12 +327,14 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
         organizer: 'NASA',
         location: 'On-site',
         date: 'Applications close in 12 days',
-        bannerUrl: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop',
+        bannerUrl:
+            'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop',
       ),
       const EventAccessModel(
         id: 'postman_opp',
         title: 'Postman Student Expert Program',
-        description: 'Postman Student Experts are student leaders who teach their peers about APIs and Postman. Through this self-paced program, you\'ll learn the essentials of API design, testing, and documentation using Postman.\n\nOnce certified, you\'ll unlock access to exclusive Postman swags, invitations to developer events, and resources to host API workshops on your campus. Boost your developer profile and gain official recognition from Postman.',
+        description:
+            'Postman Student Experts are student leaders who teach their peers about APIs and Postman. Through this self-paced program, you\'ll learn the essentials of API design, testing, and documentation using Postman.\n\nOnce certified, you\'ll unlock access to exclusive Postman swags, invitations to developer events, and resources to host API workshops on your campus. Boost your developer profile and gain official recognition from Postman.',
         requiredAura: 0,
         link: 'https://www.postman.com/student-program/student-expert/',
         type: 'Program',
@@ -328,12 +343,14 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
         organizer: 'Postman',
         location: 'Remote',
         date: 'Applications close in 7 days',
-        bannerUrl: 'https://images.unsplash.com/photo-1618401471353-b98aedd07871?w=800&auto=format&fit=crop',
+        bannerUrl:
+            'https://images.unsplash.com/photo-1618401471353-b98aedd07871?w=800&auto=format&fit=crop',
       ),
       const EventAccessModel(
         id: 'mlh_opp',
         title: 'MLH Fellowship',
-        description: 'A remote internship alternative for software developers to build open-source projects. The MLH Fellowship is a 12-week program where students collaborate with maintainers on major open-source projects (like React, Jest, and Dask) used by millions.\n\nYou\'ll receive an educational stipend, participate in daily standups, receive code reviews, and learn from senior engineers. Perfect for building a strong portfolio and starting your career in open source.',
+        description:
+            'A remote internship alternative for software developers to build open-source projects. The MLH Fellowship is a 12-week program where students collaborate with maintainers on major open-source projects (like React, Jest, and Dask) used by millions.\n\nYou\'ll receive an educational stipend, participate in daily standups, receive code reviews, and learn from senior engineers. Perfect for building a strong portfolio and starting your career in open source.',
         requiredAura: 0,
         link: 'https://fellowship.mlh.io/',
         type: 'Fellowship',
@@ -342,12 +359,14 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
         organizer: 'MLH',
         location: 'Remote',
         date: 'Applications close in 15 days',
-        bannerUrl: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop',
+        bannerUrl:
+            'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop',
       ),
       const EventAccessModel(
         id: 'gsoc_opp',
         title: 'Google Summer of Code 2025',
-        description: 'Google Summer of Code is a global program focused on bringing new contributors into open source software development. GSoC contributors work on a 12+ week programming project with an open source organization under the guidance of mentors.\n\nContributors learn about open source culture, get paid a stipend based on their location, and receive invaluable feedback on their code. It is one of the most prestigious open-source initiatives worldwide.',
+        description:
+            'Google Summer of Code is a global program focused on bringing new contributors into open source software development. GSoC contributors work on a 12+ week programming project with an open source organization under the guidance of mentors.\n\nContributors learn about open source culture, get paid a stipend based on their location, and receive invaluable feedback on their code. It is one of the most prestigious open-source initiatives worldwide.',
         requiredAura: 0,
         link: 'https://summerofcode.withgoogle.com/',
         type: 'Program',
@@ -356,13 +375,15 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
         organizer: 'Google',
         location: 'Remote',
         date: 'Applications close in 20 days',
-        bannerUrl: 'https://images.unsplash.com/photo-1572021335469-31706a17aaef?w=800&auto=format&fit=crop',
+        bannerUrl:
+            'https://images.unsplash.com/photo-1572021335469-31706a17aaef?w=800&auto=format&fit=crop',
       ),
     ];
 
     final merged = List<EventAccessModel>.from(serverEvents);
     for (final mock in screenshotMocks) {
-      if (!merged.any((e) => e.title.toLowerCase() == mock.title.toLowerCase())) {
+      if (!merged
+          .any((e) => e.title.toLowerCase() == mock.title.toLowerCase())) {
         merged.add(mock);
       }
     }
@@ -542,7 +563,8 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
     );
   }
 
-  Widget _buildErrorState(BuildContext context, String message, VoidCallback onAction) {
+  Widget _buildErrorState(
+      BuildContext context, String message, VoidCallback onAction) {
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
@@ -618,7 +640,9 @@ class _OpportunityCardState extends State<_OpportunityCard> {
       child: InkWell(
         onTap: () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => OpportunityDetailScreen(opportunity: widget.item)),
+          MaterialPageRoute(
+              builder: (context) =>
+                  OpportunityDetailScreen(opportunity: widget.item)),
         ),
         borderRadius: BorderRadius.circular(20),
         child: Padding(
@@ -654,7 +678,9 @@ class _OpportunityCardState extends State<_OpportunityCard> {
                         Wrap(
                           spacing: 6,
                           runSpacing: 6,
-                          children: widget.tags.map((tag) => _buildTag(context, tag)).toList(),
+                          children: widget.tags
+                              .map((tag) => _buildTag(context, tag))
+                              .toList(),
                         ),
                       ],
                     ),

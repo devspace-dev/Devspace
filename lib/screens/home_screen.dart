@@ -173,7 +173,7 @@ class HomeScreenState extends State<HomeScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const ExploreScreen(initialIndex: 0),
+                            builder: (_) => const ExploreScreen(initialIndex: 1),
                           ),
                         );
                       },
@@ -210,7 +210,7 @@ class HomeScreenState extends State<HomeScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const ExploreScreen(initialIndex: 0),
+                            builder: (_) => const ExploreScreen(initialIndex: 1),
                           ),
                         );
                       },
@@ -400,7 +400,20 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHackathonCard(BuildContext context, String month, String date, String title, String mode, bool isDark, String? bannerUrl, EventAccessModel? realHack) {
-    final hasBanner = bannerUrl != null && bannerUrl.isNotEmpty;
+    final String displayBannerUrl;
+    if (bannerUrl != null && bannerUrl.isNotEmpty) {
+      displayBannerUrl = bannerUrl;
+    } else {
+      final hash = title.hashCode.abs();
+      final fallbacks = [
+        'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop',
+        'https://images.unsplash.com/photo-1531482615713-2afd69097998?w=800&auto=format&fit=crop',
+        'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800&auto=format&fit=crop',
+        'https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=800&auto=format&fit=crop',
+        'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&auto=format&fit=crop',
+      ];
+      displayBannerUrl = fallbacks[hash % fallbacks.length];
+    }
 
     return GestureDetector(
       onTap: () {
@@ -437,60 +450,39 @@ class HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Banner Image / Gradient Placeholder
+              // Banner Image
               Stack(
                 children: [
-                  if (hasBanner)
-                    CachedNetworkImage(
-                      imageUrl: bannerUrl,
+                  CachedNetworkImage(
+                    imageUrl: displayBannerUrl,
+                    height: 70,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(
                       height: 70,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        height: 70,
-                        color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF1F3F5),
-                        child: const Center(
-                          child: SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
+                      color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF1F3F5),
+                      child: const Center(
+                        child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         ),
                       ),
-                      errorWidget: (context, url, error) => Container(
-                        height: 70,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: isDark
-                                ? [const Color(0xFF1E1E1E), const Color(0xFF2C2C2E)]
-                                : [const Color(0xFFE9ECEF), const Color(0xFFF8F9FA)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                        ),
-                        child: Icon(Icons.code_rounded, size: 24, color: AppColors.text3For(context)),
-                      ),
-                    )
-                  else
-                    Container(
+                    ),
+                    errorWidget: (context, url, error) => Container(
                       height: 70,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: isDark
-                              ? [const Color(0xFF2C1A04), const Color(0xFF432505)]
-                              : [const Color(0xFFFFF4E6), const Color(0xFFFFE8CC)],
+                              ? [const Color(0xFF1E1E1E), const Color(0xFF2C2C2E)]
+                              : [const Color(0xFFE9ECEF), const Color(0xFFF8F9FA)],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
                       ),
-                      child: Center(
-                        child: Icon(
-                          Icons.terminal_rounded,
-                          size: 24,
-                          color: AppColors.primary.withValues(alpha: 0.7),
-                        ),
-                      ),
+                      child: Icon(Icons.code_rounded, size: 24, color: AppColors.text3For(context)),
                     ),
+                  ),
                   // Date overlay badge
                   Positioned(
                     top: 6,

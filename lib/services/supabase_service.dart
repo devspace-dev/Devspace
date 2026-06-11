@@ -1454,7 +1454,7 @@ class SupabaseService {
                try {
                  await _client.from('arena_matches').update({
                     'mode': mode,
-                    'status': 'waiting',
+                    'status': opponentId != null ? 'playing' : 'waiting',
                     'player2_id': opponentId, // works even if null
                  }).eq('id', id);
                  return id;
@@ -1470,13 +1470,24 @@ class SupabaseService {
        debugPrint('Failed to clean up active matches: $e');
      }
 
+     // 1. Insert the match with player2_id as null to comply with potential RLS restrictions
      final data = await _client.from('arena_matches').insert({
        'player1_id': userId,
-       if (opponentId != null) 'player2_id': opponentId,
        'mode': mode,
        'status': 'waiting'
      }).select().single();
-     return data['id'].toString();
+     
+     final newMatchId = data['id'].toString();
+
+     // 2. If opponentId is provided, update the match to set the opponent and status to 'playing'
+     if (opponentId != null) {
+       await _client.from('arena_matches').update({
+         'player2_id': opponentId,
+         'status': 'playing'
+       }).eq('id', newMatchId);
+     }
+
+     return newMatchId;
   }
 
   Future<void> updateArenaScore(String matchId, bool isPlayer1, int score) async {
