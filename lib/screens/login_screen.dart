@@ -277,7 +277,6 @@ class _LoginScreenState extends State<LoginScreen>
                                 children: [
                                   const DevSpaceLogo(
                                     size: 70,
-                                    color: Color(0xFFFF5E00),
                                   ),
                                   const SizedBox(width: 16),
                                   Expanded(
@@ -411,7 +410,6 @@ class _LoginScreenState extends State<LoginScreen>
                                             const DevSpaceLogo(
                                               size: 42,
                                               elevated: false,
-                                              color: Color(0xFFFF5E00),
                                             ),
                                             const SizedBox(width: 12),
                                             Expanded(
