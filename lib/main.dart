@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'app.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_colors.dart';
@@ -31,7 +32,8 @@ import 'utils/runtime_config.dart';
 import 'utils/secure_local_storage.dart';
 import 'package:safe_device/safe_device.dart';
 
-final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey =
+    GlobalKey<ScaffoldMessengerState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,7 +42,6 @@ void main() async {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  // Set system UI overlay style for initial splash screen appearance
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
@@ -100,11 +101,10 @@ class _AppBootstrapperState extends State<AppBootstrapper> {
     try {
       await Future.wait([
         // Task A: Firebase Initialization
-        Firebase.initializeApp()
-            .timeout(const Duration(seconds: 5))
-            .then((_) {
+        Firebase.initializeApp().timeout(const Duration(seconds: 5)).then((_) {
           firebaseInitialized = true;
-          FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+          FlutterError.onError =
+              FirebaseCrashlytics.instance.recordFlutterFatalError;
           PlatformDispatcher.instance.onError = (error, stack) {
             FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
             return true;
@@ -154,7 +154,9 @@ class _AppBootstrapperState extends State<AppBootstrapper> {
                 ),
               ).timeout(const Duration(seconds: 5));
 
-              await AuthService.instance.init().timeout(const Duration(seconds: 5));
+              await AuthService.instance
+                  .init()
+                  .timeout(const Duration(seconds: 5));
             }
           } catch (e) {
             bootstrapErrorLocal = 'Supabase initialization failed: $e';
@@ -184,6 +186,14 @@ class _AppBootstrapperState extends State<AppBootstrapper> {
     }
   }
 
+  void _retryInit() {
+    setState(() {
+      _initialized = false;
+      _error = null;
+    });
+    _initApp();
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedSwitcher(
@@ -204,6 +214,7 @@ class _AppBootstrapperState extends State<AppBootstrapper> {
               : DevSpaceSetupApp(
                   key: const ValueKey('setup'),
                   error: _error!,
+                  onRetry: _retryInit,
                 )),
     );
   }
@@ -222,7 +233,8 @@ class DevSpaceRoot extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => ThemeProvider(initialMode: initialThemeMode)),
+        ChangeNotifierProvider(
+            create: (_) => ThemeProvider(initialMode: initialThemeMode)),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => PostsProvider()),
         ChangeNotifierProvider(create: (_) => QuestionsProvider()),
@@ -243,6 +255,17 @@ class DevSpaceRoot extends StatelessWidget {
             darkTheme: AppTheme.dark,
             themeMode: themeProvider.themeMode,
             navigatorObservers: [AnalyticsService.instance.observer],
+            builder: (context, child) {
+              return MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  textScaler: MediaQuery.of(context).textScaler.clamp(
+                        minScaleFactor: 0.85,
+                        maxScaleFactor: 1.15,
+                      ),
+                ),
+                child: child!,
+              );
+            },
             home: _Root(isCompromised: isCompromised),
           );
         },
@@ -253,10 +276,12 @@ class DevSpaceRoot extends StatelessWidget {
 
 class DevSpaceSetupApp extends StatelessWidget {
   final String error;
+  final VoidCallback onRetry;
 
   const DevSpaceSetupApp({
     super.key,
     required this.error,
+    required this.onRetry,
   });
 
   @override
@@ -266,7 +291,7 @@ class DevSpaceSetupApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark,
       navigatorObservers: [AnalyticsService.instance.observer],
-      home: _SetupRequiredScreen(error: error),
+      home: _SetupRequiredScreen(error: error, onRetry: onRetry),
     );
   }
 }
@@ -287,7 +312,6 @@ class _RootState extends State<_Root> {
   }
 
   Widget _buildCurrentScreen() {
-
     return StreamBuilder<UserModel?>(
       key: const ValueKey('auth-gate'),
       stream: AuthService.instance.authStateChanges,
@@ -324,15 +348,193 @@ class _RootState extends State<_Root> {
   }
 }
 
-class _SetupRequiredScreen extends StatelessWidget {
+class _SetupRequiredScreen extends StatefulWidget {
   final String error;
+  final VoidCallback onRetry;
 
   const _SetupRequiredScreen({
     required this.error,
+    required this.onRetry,
   });
 
   @override
+  State<_SetupRequiredScreen> createState() => _SetupRequiredScreenState();
+}
+
+class _SetupRequiredScreenState extends State<_SetupRequiredScreen> {
+  bool _showDetails = false;
+
+  bool get _isNetworkError {
+    final err = widget.error.toLowerCase();
+    if (err.contains('missing supabase') ||
+        err.contains('invalid supabase') ||
+        err.contains('--dart-define')) {
+      return false;
+    }
+    return true;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_isNetworkError) {
+      return _buildNetworkErrorView(context);
+    }
+    return _buildSetupRequiredView(context);
+  }
+
+  Widget _buildNetworkErrorView(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF000000),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 96,
+                  height: 96,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.25),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.12),
+                        blurRadius: 32,
+                        spreadRadius: 8,
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.wifi_off_rounded,
+                    color: AppColors.primary,
+                    size: 44,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                Text(
+                  'Connection Failed',
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  "We couldn't connect to DevSpace. Please check your internet connection and try again.",
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 15,
+                    color: AppColors.text2Dark,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 36),
+                Container(
+                  width: double.infinity,
+                  constraints: const BoxConstraints(maxWidth: 280),
+                  height: 54,
+                  decoration: BoxDecoration(
+                    gradient: AppColors.premiumGradient,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.25),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: Colors.white,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    onPressed: widget.onRetry,
+                    child: Text(
+                      'Try Again',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 40),
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _showDetails = !_showDetails;
+                    });
+                  },
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Technical details',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.text3Dark,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        _showDetails
+                            ? Icons.keyboard_arrow_up_rounded
+                            : Icons.keyboard_arrow_down_rounded,
+                        size: 16,
+                        color: AppColors.text3Dark,
+                      ),
+                    ],
+                  ),
+                ),
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeInOut,
+                  child: _showDetails
+                      ? Container(
+                          margin: const EdgeInsets.only(top: 16),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF121214),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFF1F1F22)),
+                          ),
+                          child: SelectableText(
+                            widget.error,
+                            style: const TextStyle(
+                              fontFamily: 'monospace',
+                              fontSize: 12,
+                              height: 1.4,
+                              color: AppColors.text2Dark,
+                            ),
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSetupRequiredView(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bgFor(context),
       body: SafeArea(
@@ -388,7 +590,7 @@ class _SetupRequiredScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      error,
+                      widget.error,
                       style: TextStyle(
                         fontSize: 13,
                         height: 1.5,

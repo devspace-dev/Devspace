@@ -216,6 +216,7 @@ class MessagesProvider extends ChangeNotifier {
         content: trimmed,
       );
       _sendErrors[conversationId] = null;
+      refresh();
       return true;
     } catch (e) {
       _sendErrors[conversationId] = 'Failed to send message: $e';

@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 import '../providers/auth_provider.dart';
-import '../providers/engagement_provider.dart';
+import '../providers/posts_provider.dart';
+import '../providers/users_provider.dart';
 import '../theme/app_colors.dart';
-import '../models/event_access_model.dart';
-import 'explore_screen.dart';
-import 'opportunity_detail_screen.dart';
+import '../widgets/post_card.dart';
+import '../widgets/post_shimmer.dart';
+import '../widgets/compose_box.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,7 +18,50 @@ class HomeScreen extends StatefulWidget {
 }
 
 class HomeScreenState extends State<HomeScreen> {
+  int _activeSubTab = 0; // 0: For You, 1: Following, 2: Projects
   final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_handleScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshFeed();
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_handleScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _refreshFeed() async {
+    final postsP = context.read<PostsProvider>();
+    await postsP.refreshFeed();
+    if (mounted) {
+      final userIds = postsP.posts.map((p) => p.userId).toList();
+      await context.read<UsersProvider>().fetchAndCacheUsers(userIds);
+    }
+  }
+
+  Future<void> _loadMoreFeed() async {
+    final postsP = context.read<PostsProvider>();
+    await postsP.loadMoreFeed();
+    if (mounted) {
+      final userIds = postsP.posts.map((p) => p.userId).toList();
+      await context.read<UsersProvider>().fetchAndCacheUsers(userIds);
+    }
+  }
+
+  void _handleScroll() {
+    if (!_scrollController.hasClients) return;
+    final threshold = _scrollController.position.maxScrollExtent - 300;
+    if (_scrollController.position.pixels >= threshold) {
+      _loadMoreFeed();
+    }
+  }
 
   void scrollToTopAndRefresh() {
     if (_scrollController.hasClients) {
@@ -27,13 +70,8 @@ class HomeScreenState extends State<HomeScreen> {
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
+      _refreshFeed();
     }
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
   }
 
   @override
@@ -41,71 +79,22 @@ class HomeScreenState extends State<HomeScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final authP = context.watch<AuthProvider>();
     final user = authP.currentUserOrNull;
-    final engagementP = context.watch<EngagementProvider>();
-    final allEvents = engagementP.events;
-
     final name = user?.name ?? 'Builder';
 
-    // Filter opportunities & hackathons
-    final realOpportunities = allEvents.where((e) => e.type.toLowerCase() != 'hackathon').toList();
-    final realHackathons = allEvents.where((e) => e.type.toLowerCase() == 'hackathon').toList();
+    final postsP = context.watch<PostsProvider>();
+    final posts = postsP.posts;
 
-    // Mock opportunities for UI fidelity matching Screen 2
-    final mockOpportunities = [
-      EventAccessModel(
-        id: 'mock_gsoc',
-        title: 'Google Summer of Code 2025',
-        description: 'Google Summer of Code is a global program focused on bringing new contributors into open source software development.',
-        requiredAura: 0,
-        link: 'https://summerofcode.withgoogle.com/',
-        type: 'Program',
-        unlocked: true,
-        locked: false,
-        organizer: 'Google',
-        location: 'Remote',
-        date: 'Applications close in 3 days',
-      ),
-      EventAccessModel(
-        id: 'mock_mlsa',
-        title: 'Microsoft Learn Student Ambassadors',
-        description: 'Be a leader in your community, build technical skills, and share technology with peers.',
-        requiredAura: 0,
-        link: 'https://mvp.microsoft.com/studentambassadors',
-        type: 'Ambassador',
-        unlocked: true,
-        locked: false,
-        organizer: 'Microsoft',
-        location: 'Worldwide',
-        date: 'Applications close in 12 days',
-      ),
-    ];
-
-    // Mock hackathons for UI fidelity matching Screen 2
-    final mockHackathons = [
-      _MockHackathon(
-        month: 'MAY',
-        date: '24',
-        title: 'Hack India 2025',
-        mode: 'Hybrid',
-        bannerUrl: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop',
-      ),
-      _MockHackathon(
-        month: 'MAY',
-        date: '30',
-        title: 'Build with AI',
-        mode: 'Online',
-        bannerUrl: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?w=800&auto=format&fit=crop',
-      ),
-      _MockHackathon(
-        month: 'JUN',
-        date: '07',
-        title: 'DevBattle 3.0',
-        mode: 'Online',
-        bannerUrl: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800&auto=format&fit=crop',
-      ),
-    ];
-
-    final displayOpportunities = realOpportunities.isNotEmpty ? realOpportunities : mockOpportunities;
+    // Filter posts for subtabs
+    List filteredPosts = posts;
+    if (_activeSubTab == 2) {
+      // Filter project-related updates (contain github links or keyword project)
+      filteredPosts = posts
+          .where((p) =>
+              p.content.toLowerCase().contains('github') ||
+              p.content.toLowerCase().contains('project') ||
+              p.content.toLowerCase().contains('build'))
+          .toList();
+    }
 
     return Scaffold(
       backgroundColor: AppColors.bgFor(context),
@@ -113,322 +102,253 @@ class HomeScreenState extends State<HomeScreen> {
         child: RefreshIndicator.adaptive(
           color: AppColors.primary,
           onRefresh: () async {
-            await Future.wait([
-              authP.refreshUsers(),
-              engagementP.fetchOverview(),
-            ]);
+            await authP.refreshUsers();
+            await _refreshFeed();
           },
-          child: SingleChildScrollView(
+          child: CustomScrollView(
             controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 1. Greeting Header
-                Row(
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Good Evening,',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 14,
-                            color: AppColors.text3For(context),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '$name 👋',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 24,
-                            color: AppColors.textFor(context),
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.6,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                // 3. Opportunities For You Section
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Opportunities for you',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textFor(context),
-                        letterSpacing: -0.4,
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const ExploreScreen(initialIndex: 1),
-                          ),
-                        );
-                      },
-                      child: Text(
-                        'View all',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                ...displayOpportunities.take(2).map((opp) => _buildOpportunityCard(context, opp, isDark)),
-                const SizedBox(height: 24),
-
-                // 4. Upcoming Hackathons Section
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Upcoming Hackathons',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textFor(context),
-                        letterSpacing: -0.4,
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const ExploreScreen(initialIndex: 1),
-                          ),
-                        );
-                      },
-                      child: Text(
-                        'View all',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  height: 140,
-                  child: realHackathons.isNotEmpty
-                      ? ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: realHackathons.length,
-                          itemBuilder: (context, idx) {
-                            final hack = realHackathons[idx];
-                            final parsedDate = _parseHackathonDate(hack.date, idx);
-                            final m = parsedDate['month'] ?? 'MAY';
-                            final d = parsedDate['day'] ?? '24';
-                            return _buildHackathonCard(context, m, d, hack.title, hack.location ?? 'Online', isDark, hack.bannerUrl, hack);
-                          },
-                        )
-                      : ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: mockHackathons.length,
-                          itemBuilder: (context, idx) {
-                            final mock = mockHackathons[idx];
-                            return _buildHackathonCard(context, mock.month, mock.date, mock.title, mock.mode, isDark, mock.bannerUrl, null);
-                          },
-                        ),
-                ),
-                const SizedBox(height: 36),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOpportunityCard(BuildContext context, EventAccessModel opp, bool isDark) {
-    String initial = opp.organizer?.isNotEmpty == true ? opp.organizer![0].toUpperCase() : 'G';
-    Color circleColor = opp.organizer?.toLowerCase() == 'google' ? Colors.blue.shade50 : (opp.organizer?.toLowerCase() == 'microsoft' ? Colors.orange.shade50 : Colors.red.shade50);
-    Color textColor = opp.organizer?.toLowerCase() == 'google' ? Colors.blue : (opp.organizer?.toLowerCase() == 'microsoft' ? Colors.orange : Colors.red);
-
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => OpportunityDetailScreen(opportunity: opp),
-          ),
-        );
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.bg2Dark : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: AppColors.borderFor(context).withValues(alpha: 0.8),
-          ),
-          boxShadow: !isDark
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.02),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ]
-              : null,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundColor: circleColor,
-                  child: Text(
-                    initial,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: textColor,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
+            slivers: [
+              // 0. Greeting Header
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        opp.title,
+                        'Good Evening,',
                         style: GoogleFonts.plusJakartaSans(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textFor(context),
+                          fontSize: 14,
+                          color: AppColors.text3For(context),
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      // Tags row
-                      Row(
-                        children: [
-                          _buildTag(context, opp.location ?? 'Remote'),
-                          const SizedBox(width: 8),
-                          _buildTag(context, 'Stipend'),
-                        ],
+                      const SizedBox(height: 2),
+                      Text(
+                        '$name 👋',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 24,
+                          color: AppColors.textFor(context),
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.6,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                Icon(
-                  Icons.bookmark_border_rounded,
-                  color: AppColors.text3For(context),
-                  size: 22,
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Divider(color: AppColors.borderFor(context).withValues(alpha: 0.5), height: 1),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  opp.requiredAura > 0 ? '${opp.requiredAura} Aura' : '\$5000',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textFor(context),
+              ),
+
+              // 1. Sub-tabs segment
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  child: Row(
+                    children: [
+                      _buildSubTab(0, 'For You'),
+                      const SizedBox(width: 8),
+                      _buildSubTab(1, 'Following'),
+                      const SizedBox(width: 8),
+                      _buildSubTab(2, 'Projects'),
+                    ],
                   ),
                 ),
-                Row(
-                  children: [
-                    Text(
-                      opp.date ?? 'Applications close soon',
+              ),
+
+              // 2. For You shows resources first
+              if (_activeSubTab == 0) ...[
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+                    child: Text(
+                      'Resources for you',
                       style: GoogleFonts.plusJakartaSans(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFFFF5E00), // Warm premium accent red-orange
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textFor(context),
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    Icon(
-                      Icons.arrow_forward_ios_rounded,
-                      size: 11,
-                      color: AppColors.text3For(context),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: 120,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      children: [
+                        _buildResourceCard(
+                          context,
+                          roadmap: _learningRoadmaps[0],
+                          isDark: isDark,
+                        ),
+                        _buildResourceCard(
+                          context,
+                          roadmap: _learningRoadmaps[1],
+                          isDark: isDark,
+                        ),
+                        _buildResourceCard(
+                          context,
+                          roadmap: _learningRoadmaps[2],
+                          isDark: isDark,
+                        ),
+                        _buildResourceCard(
+                          context,
+                          roadmap: _learningRoadmaps[3],
+                          isDark: isDark,
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ],
-            ),
-          ],
+
+              // 3. Active Discussions Header
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Active Discussions',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textFor(context),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          ComposeBox.showCreatePostSheet(context);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.edit_rounded,
+                            color: AppColors.primary,
+                            size: 16,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // 4. Discussions feed list
+              if (postsP.isLoading && filteredPosts.isEmpty)
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => const PostShimmer(),
+                    childCount: 4,
+                  ),
+                )
+              else if (filteredPosts.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(36),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.chat_bubble_outline_rounded,
+                            size: 44,
+                            color: AppColors.text3For(context),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No active discussions',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.text2For(context),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              else
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, idx) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: PostCard(post: filteredPosts[idx]),
+                      );
+                    },
+                    childCount: filteredPosts.length,
+                  ),
+                ),
+              const SliverToBoxAdapter(child: SizedBox(height: 100)),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildTag(BuildContext context, String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2C2C2E) : const Color(0xFFF1F3F5),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        text,
-        style: GoogleFonts.plusJakartaSans(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: AppColors.text3For(context),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHackathonCard(BuildContext context, String month, String date, String title, String mode, bool isDark, String? bannerUrl, EventAccessModel? realHack) {
-    final String displayBannerUrl;
-    if (bannerUrl != null && bannerUrl.isNotEmpty) {
-      displayBannerUrl = bannerUrl;
-    } else {
-      final hash = title.hashCode.abs();
-      final fallbacks = [
-        'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop',
-        'https://images.unsplash.com/photo-1531482615713-2afd69097998?w=800&auto=format&fit=crop',
-        'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800&auto=format&fit=crop',
-        'https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=800&auto=format&fit=crop',
-        'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&auto=format&fit=crop',
-      ];
-      displayBannerUrl = fallbacks[hash % fallbacks.length];
-    }
+  Widget _buildSubTab(int index, String label) {
+    final active = _activeSubTab == index;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return GestureDetector(
       onTap: () {
-        if (realHack != null) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => OpportunityDetailScreen(opportunity: realHack),
-            ),
-          );
-        }
+        setState(() {
+          _activeSubTab = index;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: active
+              ? AppColors.primary.withValues(alpha: 0.12)
+              : (isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF1F3F5)),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: active
+                ? AppColors.primary.withValues(alpha: 0.3)
+                : Colors.transparent,
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 12,
+            fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+            color: active ? AppColors.primary : AppColors.text2For(context),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResourceCard(
+    BuildContext context, {
+    required LearningRoadmap roadmap,
+    required bool isDark,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => LearningRoadmapScreen(roadmap: roadmap),
+          ),
+        );
       },
       child: Container(
-        width: 150,
-        margin: const EdgeInsets.only(right: 12),
+        width: 175,
+        margin: const EdgeInsets.only(right: 12, bottom: 8, top: 4),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: isDark ? AppColors.bg2Dark : Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -445,250 +365,796 @@ class HomeScreenState extends State<HomeScreen> {
                 ]
               : null,
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Banner Image
-              Stack(
-                children: [
-                  CachedNetworkImage(
-                    imageUrl: displayBannerUrl,
-                    height: 70,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      height: 70,
-                      color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF1F3F5),
-                      child: const Center(
-                        child: SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      ),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      height: 70,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: isDark
-                              ? [const Color(0xFF1E1E1E), const Color(0xFF2C2C2E)]
-                              : [const Color(0xFFE9ECEF), const Color(0xFFF8F9FA)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
-                      child: Icon(Icons.code_rounded, size: 24, color: AppColors.text3For(context)),
-                    ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: roadmap.color.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
                   ),
-                  // Date overlay badge
-                  Positioned(
-                    top: 6,
-                    left: 6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.75),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            month,
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                          Text(
-                            date,
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w900,
-                              color: AppColors.primary,
-                              height: 1.0,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              // Hackathon Details
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textFor(context),
-                          height: 1.2,
-                        ),
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              mode,
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.text3For(context),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          Icon(
-                            Icons.arrow_forward_rounded,
-                            size: 12,
-                            color: AppColors.primary,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                  child: Icon(roadmap.icon, color: roadmap.color, size: 16),
                 ),
+                const Spacer(),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppColors.text4For(context),
+                  size: 16,
+                ),
+              ],
+            ),
+            const Spacer(),
+            Text(
+              roadmap.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textFor(context),
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 1),
+            Text(
+              roadmap.subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+                color: AppColors.text3For(context),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class LearningRoadmapScreen extends StatelessWidget {
+  final LearningRoadmap roadmap;
+
+  const LearningRoadmapScreen({super.key, required this.roadmap});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Scaffold(
+      backgroundColor: AppColors.bgFor(context),
+      body: SafeArea(
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(child: _buildHeader(context)),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                child: _RoadmapProgressCard(roadmap: roadmap, isDark: isDark),
+              ),
+            ),
+            SliverList.builder(
+              itemCount: roadmap.levels.length,
+              itemBuilder: (context, index) {
+                final level = roadmap.levels[index];
+                return Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    20,
+                    index == 0 ? 6 : 0,
+                    20,
+                    index == roadmap.levels.length - 1 ? 100 : 14,
+                  ),
+                  child: _RoadmapLevelCard(
+                    roadmap: roadmap,
+                    level: level,
+                    levelNumber: index + 1,
+                    isLast: index == roadmap.levels.length - 1,
+                  ),
+                );
+              },
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Map<String, String> _parseHackathonDate(String? dateStr, [int index = 0]) {
-    if (dateStr == null || dateStr.trim().isEmpty) {
-      final now = DateTime.now();
-      final futureDate = now.add(Duration(days: index * 4 + 3));
-      return {
-        'month': _getMonthAbbreviation(futureDate.month),
-        'day': futureDate.day.toString(),
-      };
-    }
-
-    try {
-      final parsedDate = DateTime.tryParse(dateStr);
-      if (parsedDate != null) {
-        var targetDate = parsedDate;
-        final now = DateTime.now();
-        if (targetDate.isBefore(now.add(const Duration(seconds: 1))) || 
-            (targetDate.year == now.year && targetDate.month == now.month && targetDate.day == now.day)) {
-          targetDate = now.add(Duration(days: index * 4 + 3));
-        }
-        return {
-          'month': _getMonthAbbreviation(targetDate.month),
-          'day': targetDate.day.toString(),
-        };
-      }
-    } catch (_) {}
-
-    final cleaned = dateStr.replaceAll(RegExp(r'[,:\-\/]'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
-    final parts = cleaned.split(' ');
-    final months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-    final fullMonths = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
-
-    String? foundMonth;
-    String? foundDay;
-
-    for (int i = 0; i < parts.length; i++) {
-      final partLower = parts[i].toLowerCase();
-      int monthIndex = months.indexOf(partLower.take(3));
-      if (monthIndex == -1) {
-        monthIndex = fullMonths.indexOf(partLower);
-      }
-      
-      if (monthIndex != -1) {
-        foundMonth = months[monthIndex].toUpperCase();
-        if (i > 0) {
-          final prevPart = parts[i - 1];
-          if (RegExp(r'^\d+$').hasMatch(prevPart)) {
-            foundDay = prevPart;
-            break;
-          }
-        }
-        if (i < parts.length - 1) {
-          final nextPart = parts[i + 1];
-          if (RegExp(r'^\d+$').hasMatch(nextPart)) {
-            foundDay = nextPart;
-            break;
-          }
-        }
-      }
-    }
-
-    if (foundMonth != null && foundDay != null) {
-      return {'month': foundMonth, 'day': foundDay};
-    }
-
-    if (foundMonth != null) {
-      for (final part in parts) {
-        if (RegExp(r'^\d+$').hasMatch(part)) {
-          foundDay = part;
-          break;
-        }
-      }
-      return {'month': foundMonth, 'day': foundDay ?? '1'};
-    }
-
-    for (final part in parts) {
-      if (RegExp(r'^\d+$').hasMatch(part) && part.length <= 2) {
-        foundDay = part;
-        break;
-      }
-    }
-
-    final now = DateTime.now();
-    final futureDate = now.add(Duration(days: index * 4 + 3));
-    return {
-      'month': foundMonth ?? _getMonthAbbreviation(futureDate.month),
-      'day': foundDay ?? futureDate.day.toString(),
-    };
-  }
-
-  String _getMonthAbbreviation(int monthIndex) {
-    const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-    if (monthIndex >= 1 && monthIndex <= 12) {
-      return months[monthIndex - 1];
-    }
-    return 'MAY';
+  Widget _buildHeader(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                color: AppColors.bg2For(context),
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.borderFor(context)),
+              ),
+              child: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: AppColors.textFor(context),
+                size: 16,
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(roadmap.icon, color: roadmap.color, size: 20),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'Resource Quest',
+                        style: GoogleFonts.plusJakartaSans(
+                          color: roadmap.color,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  roadmap.title,
+                  style: GoogleFonts.plusJakartaSans(
+                    color: AppColors.textFor(context),
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    height: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  roadmap.description,
+                  style: GoogleFonts.plusJakartaSans(
+                    color: AppColors.text3For(context),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
-class _MockHackathon {
-  final String month;
-  final String date;
-  final String title;
-  final String mode;
-  final String? bannerUrl;
+class _RoadmapProgressCard extends StatelessWidget {
+  final LearningRoadmap roadmap;
+  final bool isDark;
 
-  const _MockHackathon({
-    required this.month,
-    required this.date,
+  const _RoadmapProgressCard({
+    required this.roadmap,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            roadmap.color.withValues(alpha: isDark ? 0.22 : 0.16),
+            AppColors.bg2For(context),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: roadmap.color.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 54,
+            width: 54,
+            decoration: BoxDecoration(
+              color: roadmap.color.withValues(alpha: 0.14),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.auto_awesome_rounded,
+              color: roadmap.color,
+              size: 25,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${roadmap.levels.length} levels - ${roadmap.totalMaterials} materials',
+                  style: GoogleFonts.plusJakartaSans(
+                    color: AppColors.textFor(context),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    value: 0.28,
+                    minHeight: 7,
+                    backgroundColor: AppColors.borderFor(context),
+                    valueColor: AlwaysStoppedAnimation<Color>(roadmap.color),
+                  ),
+                ),
+                const SizedBox(height: 7),
+                Text(
+                  'Complete levels, post your learnings, and earn aura.',
+                  style: GoogleFonts.plusJakartaSans(
+                    color: AppColors.text3For(context),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RoadmapLevelCard extends StatelessWidget {
+  final LearningRoadmap roadmap;
+  final RoadmapLevel level;
+  final int levelNumber;
+  final bool isLast;
+
+  const _RoadmapLevelCard({
+    required this.roadmap,
+    required this.level,
+    required this.levelNumber,
+    required this.isLast,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final completed = levelNumber == 1;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Column(
+          children: [
+            Container(
+              height: 34,
+              width: 34,
+              decoration: BoxDecoration(
+                color: completed ? roadmap.color : AppColors.bg2For(context),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: completed
+                      ? roadmap.color
+                      : roadmap.color.withValues(alpha: 0.35),
+                ),
+              ),
+              child: Icon(
+                completed ? Icons.check_rounded : Icons.flag_rounded,
+                color: completed ? Colors.white : roadmap.color,
+                size: 18,
+              ),
+            ),
+            if (!isLast)
+              Container(
+                width: 2,
+                height: 210,
+                color: roadmap.color.withValues(alpha: 0.18),
+              ),
+          ],
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              color: AppColors.bg2For(context),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppColors.borderFor(context)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'Level $levelNumber',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: roadmap.color,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const Spacer(),
+                    _AuraRewardChip(
+                      reward: '+${level.auraReward} aura',
+                      color: roadmap.color,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  level.title,
+                  style: GoogleFonts.plusJakartaSans(
+                    color: AppColors.textFor(context),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  level.goal,
+                  style: GoogleFonts.plusJakartaSans(
+                    color: AppColors.text3For(context),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ...level.materials.map(
+                  (material) => _MaterialRow(
+                    material: material,
+                    color: roadmap.color,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(11),
+                  decoration: BoxDecoration(
+                    color: roadmap.color.withValues(alpha: 0.09),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'Quest: ${level.quest}',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: AppColors.text2For(context),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MaterialRow extends StatelessWidget {
+  final RoadmapMaterial material;
+  final Color color;
+
+  const _MaterialRow({
+    required this.material,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 26,
+            width: 26,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(material.icon, color: color, size: 14),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  material.title,
+                  style: GoogleFonts.plusJakartaSans(
+                    color: AppColors.textFor(context),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  material.detail,
+                  style: GoogleFonts.plusJakartaSans(
+                    color: AppColors.text3For(context),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    height: 1.28,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AuraRewardChip extends StatelessWidget {
+  final String reward;
+  final Color color;
+
+  const _AuraRewardChip({
+    required this.reward,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        reward,
+        style: GoogleFonts.plusJakartaSans(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class LearningRoadmap {
+  final String title;
+  final String subtitle;
+  final String description;
+  final IconData icon;
+  final Color color;
+  final List<RoadmapLevel> levels;
+
+  const LearningRoadmap({
     required this.title,
-    required this.mode,
-    this.bannerUrl,
+    required this.subtitle,
+    required this.description,
+    required this.icon,
+    required this.color,
+    required this.levels,
+  });
+
+  int get totalMaterials =>
+      levels.fold(0, (sum, level) => sum + level.materials.length);
+}
+
+class RoadmapLevel {
+  final String title;
+  final String goal;
+  final String quest;
+  final int auraReward;
+  final List<RoadmapMaterial> materials;
+
+  const RoadmapLevel({
+    required this.title,
+    required this.goal,
+    required this.quest,
+    required this.auraReward,
+    required this.materials,
   });
 }
 
-extension TakeExtension on String {
-  String take(int n) {
-    if (length <= n) return this;
-    return substring(0, n);
-  }
+class RoadmapMaterial {
+  final String title;
+  final String detail;
+  final IconData icon;
+
+  const RoadmapMaterial({
+    required this.title,
+    required this.detail,
+    required this.icon,
+  });
 }
+
+const List<LearningRoadmap> _learningRoadmaps = [
+  LearningRoadmap(
+    title: 'Top 10 DSA Problems',
+    subtitle: 'Practice path with levels',
+    description: 'A short DSA quest for interviews and coding rounds.',
+    icon: Icons.storage_rounded,
+    color: Colors.blue,
+    levels: [
+      RoadmapLevel(
+        title: 'Array Starter',
+        goal: 'Build confidence with the patterns used in most easy rounds.',
+        quest:
+            'Solve Two Sum and Best Time to Buy/Sell Stock, then post one trick you learned.',
+        auraReward: 20,
+        materials: [
+          RoadmapMaterial(
+            title: 'Two Sum',
+            detail: 'Hash map lookup, complements, and one-pass thinking.',
+            icon: Icons.functions_rounded,
+          ),
+          RoadmapMaterial(
+            title: 'Best Time to Buy/Sell Stock',
+            detail: 'Track minimum price and maximum profit in one scan.',
+            icon: Icons.trending_up_rounded,
+          ),
+        ],
+      ),
+      RoadmapLevel(
+        title: 'Pointers & Windows',
+        goal: 'Learn to reduce nested loops into clean linear scans.',
+        quest:
+            'Solve Valid Palindrome, Container With Most Water, and Longest Substring Without Repeating Characters.',
+        auraReward: 35,
+        materials: [
+          RoadmapMaterial(
+            title: 'Two Pointer Notes',
+            detail:
+                'When a sorted or boundary-based problem can shrink inward.',
+            icon: Icons.compare_arrows_rounded,
+          ),
+          RoadmapMaterial(
+            title: 'Sliding Window Notes',
+            detail:
+                'Use a moving range for longest, shortest, and count problems.',
+            icon: Icons.view_week_rounded,
+          ),
+        ],
+      ),
+      RoadmapLevel(
+        title: 'Core Interview Set',
+        goal: 'Cover the patterns that frequently decide shortlists.',
+        quest:
+            'Finish Merge Intervals, Binary Search, Valid Parentheses, Number of Islands, and Climbing Stairs.',
+        auraReward: 50,
+        materials: [
+          RoadmapMaterial(
+            title: 'Intervals + Search',
+            detail:
+                'Sort intervals first, and write binary search from a template.',
+            icon: Icons.timeline_rounded,
+          ),
+          RoadmapMaterial(
+            title: 'Stack, Graph, DP',
+            detail:
+                'Use stack for matching, DFS/BFS for grids, and recurrence for DP.',
+            icon: Icons.account_tree_rounded,
+          ),
+        ],
+      ),
+    ],
+  ),
+  LearningRoadmap(
+    title: 'System Design Roadmap',
+    subtitle: 'Scale beginner architectures',
+    description: 'Move from app features to reliable, scalable systems.',
+    icon: Icons.alt_route_rounded,
+    color: Colors.green,
+    levels: [
+      RoadmapLevel(
+        title: 'Web App Basics',
+        goal:
+            'Understand what happens between phone, server, database, and storage.',
+        quest: 'Draw the architecture of DevSpace feed loading in four boxes.',
+        auraReward: 20,
+        materials: [
+          RoadmapMaterial(
+            title: 'Client Server Model',
+            detail: 'Requests, responses, auth tokens, and API boundaries.',
+            icon: Icons.http_rounded,
+          ),
+          RoadmapMaterial(
+            title: 'Database Basics',
+            detail: 'Tables, indexes, constraints, and why reads need shape.',
+            icon: Icons.table_chart_rounded,
+          ),
+        ],
+      ),
+      RoadmapLevel(
+        title: 'Reliability Layer',
+        goal:
+            'Design features that keep working when traffic or failures increase.',
+        quest:
+            'Explain caching, pagination, and rate limiting using the feed as an example.',
+        auraReward: 35,
+        materials: [
+          RoadmapMaterial(
+            title: 'Caching',
+            detail:
+                'Use cache for repeated reads and avoid stale critical writes.',
+            icon: Icons.cached_rounded,
+          ),
+          RoadmapMaterial(
+            title: 'Queues',
+            detail:
+                'Move slow jobs like notifications away from user requests.',
+            icon: Icons.low_priority_rounded,
+          ),
+        ],
+      ),
+      RoadmapLevel(
+        title: 'Design Practice',
+        goal: 'Practice end-to-end designs for student app features.',
+        quest:
+            'Design a Q&A feed with votes, solved answers, and abuse limits.',
+        auraReward: 50,
+        materials: [
+          RoadmapMaterial(
+            title: 'Feed Design',
+            detail: 'Ranking, fan-out, pagination, and freshness tradeoffs.',
+            icon: Icons.dynamic_feed_rounded,
+          ),
+          RoadmapMaterial(
+            title: 'Metrics',
+            detail: 'Track latency, error rate, and feature-specific health.',
+            icon: Icons.monitor_heart_rounded,
+          ),
+        ],
+      ),
+    ],
+  ),
+  LearningRoadmap(
+    title: 'Git & GitHub Workflows',
+    subtitle: 'Collaborative builder guide',
+    description: 'A practical workflow for projects, teams, and open source.',
+    icon: Icons.commit_rounded,
+    color: Colors.purple,
+    levels: [
+      RoadmapLevel(
+        title: 'Git Control',
+        goal: 'Use Git without losing work or depending on random commands.',
+        quest:
+            'Create a branch, make two commits, and write clear commit messages.',
+        auraReward: 20,
+        materials: [
+          RoadmapMaterial(
+            title: 'Core Commands',
+            detail: 'status, add, commit, branch, checkout, pull, and push.',
+            icon: Icons.terminal_rounded,
+          ),
+          RoadmapMaterial(
+            title: 'Commit Hygiene',
+            detail: 'Small commits with messages that explain the change.',
+            icon: Icons.edit_note_rounded,
+          ),
+        ],
+      ),
+      RoadmapLevel(
+        title: 'Pull Request Flow',
+        goal: 'Work with reviews and avoid breaking the main branch.',
+        quest:
+            'Open a PR with summary, screenshots if UI changed, and test notes.',
+        auraReward: 35,
+        materials: [
+          RoadmapMaterial(
+            title: 'PR Checklist',
+            detail: 'What changed, why it changed, how it was tested.',
+            icon: Icons.fact_check_rounded,
+          ),
+          RoadmapMaterial(
+            title: 'Merge Conflicts',
+            detail: 'Read the file, keep the intended code, then test again.',
+            icon: Icons.merge_type_rounded,
+          ),
+        ],
+      ),
+      RoadmapLevel(
+        title: 'Team Workflow',
+        goal: 'Make GitHub useful for college teams and project launches.',
+        quest:
+            'Set up issues, labels, README tasks, and one release checklist.',
+        auraReward: 50,
+        materials: [
+          RoadmapMaterial(
+            title: 'Issues & Labels',
+            detail: 'Split bugs, features, and polish tasks clearly.',
+            icon: Icons.label_rounded,
+          ),
+          RoadmapMaterial(
+            title: 'Release Notes',
+            detail: 'Summarize user-facing changes and known issues.',
+            icon: Icons.new_releases_rounded,
+          ),
+        ],
+      ),
+    ],
+  ),
+  LearningRoadmap(
+    title: 'Build Open Source',
+    subtitle: 'First contributions guide',
+    description:
+        'Learn how to contribute without guessing or spamming maintainers.',
+    icon: Icons.rocket_launch_rounded,
+    color: Colors.orange,
+    levels: [
+      RoadmapLevel(
+        title: 'Find Your First Issue',
+        goal: 'Pick contribution work that is small and actually useful.',
+        quest:
+            'Find one docs bug or small UI issue and describe the fix before coding.',
+        auraReward: 20,
+        materials: [
+          RoadmapMaterial(
+            title: 'Repo Reading',
+            detail:
+                'Read README, setup steps, issue history, and contribution guide.',
+            icon: Icons.menu_book_rounded,
+          ),
+          RoadmapMaterial(
+            title: 'Good First Issues',
+            detail:
+                'Prefer scoped fixes over large rewrites for your first PR.',
+            icon: Icons.search_rounded,
+          ),
+        ],
+      ),
+      RoadmapLevel(
+        title: 'Make a Clean PR',
+        goal: 'Ship a contribution maintainers can review quickly.',
+        quest: 'Submit one focused PR with screenshots or logs where relevant.',
+        auraReward: 35,
+        materials: [
+          RoadmapMaterial(
+            title: 'Local Setup',
+            detail: 'Run the project, reproduce the issue, and test your fix.',
+            icon: Icons.build_circle_rounded,
+          ),
+          RoadmapMaterial(
+            title: 'PR Description',
+            detail:
+                'Include problem, solution, and verification in plain language.',
+            icon: Icons.description_rounded,
+          ),
+        ],
+      ),
+      RoadmapLevel(
+        title: 'Become Reliable',
+        goal: 'Build identity through useful repeated contributions.',
+        quest:
+            'Follow up on review comments and write a learning post in DevSpace.',
+        auraReward: 50,
+        materials: [
+          RoadmapMaterial(
+            title: 'Review Replies',
+            detail:
+                'Respond clearly, update code, and avoid defensive replies.',
+            icon: Icons.rate_review_rounded,
+          ),
+          RoadmapMaterial(
+            title: 'Contribution Log',
+            detail:
+                'Track what you changed and what you learned for your profile.',
+            icon: Icons.workspace_premium_rounded,
+          ),
+        ],
+      ),
+    ],
+  ),
+];

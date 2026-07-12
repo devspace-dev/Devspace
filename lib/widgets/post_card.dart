@@ -91,8 +91,23 @@ class _PostCardState extends State<PostCard> {
     if (hasQuote && quotedPost == null && !quotedPostLoading) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        context.read<PostsProvider>().ensureQuotedPostLoaded(quotePostId);
+        context.read<PostsProvider>().ensureQuotedPostLoaded(quotePostId).then((_) {
+          if (mounted) {
+            final loadedQuote = context.read<PostsProvider>().quotedPost(quotePostId);
+            if (loadedQuote != null) {
+              context.read<UsersProvider>().fetchAndCacheUsers([loadedQuote.userId]);
+            }
+          }
+        });
       });
+    } else if (hasQuote && quotedPost != null) {
+      final quoteAuthorId = quotedPost.userId;
+      if (usersP.getUserById(quoteAuthorId) == null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          context.read<UsersProvider>().fetchAndCacheUsers([quoteAuthorId]);
+        });
+      }
     }
 
     final surfaceColor =
@@ -300,7 +315,13 @@ class _PostCardState extends State<PostCard> {
                       final nextShowComments = !_showComments;
                       setState(() => _showComments = nextShowComments);
                       if (nextShowComments) {
-                        context.read<PostsProvider>().fetchComments(post.id);
+                        context.read<PostsProvider>().fetchComments(post.id).then((_) {
+                          if (mounted) {
+                            final comments = context.read<PostsProvider>().commentsForPost(post.id);
+                            final userIds = comments.map((c) => c.userId).toList();
+                            context.read<UsersProvider>().fetchAndCacheUsers(userIds);
+                          }
+                        });
                       }
                     },
                   ),
@@ -635,6 +656,10 @@ class _PostCardState extends State<PostCard> {
       _commentCtrl.clear();
       setState(() => _replyingTo = null);
       FocusScope.of(context).unfocus();
+      
+      final comments = postsProvider.commentsForPost(postId);
+      final userIds = comments.map((c) => c.userId).toList();
+      context.read<UsersProvider>().fetchAndCacheUsers(userIds);
     } else {
       final error = postsProvider.commentError(postId);
       ScaffoldMessenger.of(context).showSnackBar(

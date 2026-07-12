@@ -1,7 +1,7 @@
 name: devspace
 description: A social platform for college developers — built by devs, for devs.
 publish_to: 'none'
-version: 1.0.13+19
+version: 1.0.15+21
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

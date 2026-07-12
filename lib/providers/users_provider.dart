@@ -113,6 +113,31 @@ class UsersProvider extends ChangeNotifier {
     return await SupabaseService.instance.getUserById(id);
   }
 
+  Future<void> fetchAndCacheUsers(List<String> ids) async {
+    final uniqueIds = ids.toSet().toList();
+    if (uniqueIds.isEmpty) return;
+    
+    final missingIds = uniqueIds.where((id) => getUserById(id) == null).toList();
+    if (missingIds.isEmpty) return;
+
+    try {
+      final fetchedUsers = await SupabaseService.instance.getUsersByIds(missingIds);
+      if (fetchedUsers.isNotEmpty) {
+        final hydrated = await _hydrateUsers(fetchedUsers);
+        
+        final existingIds = _users.map((u) => u.id).toSet();
+        final newUsers = hydrated.where((u) => !existingIds.contains(u.id)).toList();
+        
+        if (newUsers.isNotEmpty) {
+          _users.addAll(newUsers);
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      debugPrint('Failed to batch fetch users: $e');
+    }
+  }
+
   Future<void> toggleFollow(String fromUid, String toUid) async {
     if (fromUid == toUid || _followUpdating[toUid] == true) return;
 

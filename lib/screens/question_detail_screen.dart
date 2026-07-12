@@ -41,8 +41,24 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      context.read<QuestionsProvider>().fetchReplies(widget.questionId);
-      context.read<QuestionsProvider>().fetchPullRequests(widget.questionId);
+      final qp = context.read<QuestionsProvider>();
+      final up = context.read<UsersProvider>();
+
+      qp.fetchReplies(widget.questionId).then((_) {
+        if (mounted) {
+          final replies = qp.repliesForQuestion(widget.questionId);
+          final userIds = replies.map((r) => r.userId).toList();
+          up.fetchAndCacheUsers(userIds);
+        }
+      });
+
+      qp.fetchPullRequests(widget.questionId).then((_) {
+        if (mounted) {
+          final prs = qp.pullRequestsForQuestion(widget.questionId);
+          final userIds = prs.map((pr) => pr.userId).toList();
+          up.fetchAndCacheUsers(userIds);
+        }
+      });
     });
   }
 
@@ -87,6 +103,10 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
     messenger.showSnackBar(
       const SnackBar(content: Text('Request submitted successfully.')),
     );
+
+    final prs = questionsP.pullRequestsForQuestion(widget.questionId);
+    final userIds = prs.map((pr) => pr.userId).toList();
+    context.read<UsersProvider>().fetchAndCacheUsers(userIds);
   }
 
   void _showPRDialog() {
@@ -270,6 +290,10 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
     messenger.showSnackBar(
       SnackBar(content: Text('Pull Request $status.')),
     );
+
+    final prs = questionsP.pullRequestsForQuestion(widget.questionId);
+    final userIds = prs.map((pr) => pr.userId).toList();
+    context.read<UsersProvider>().fetchAndCacheUsers(userIds);
   }
 
   Future<void> _submitReply() async {
@@ -297,6 +321,10 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
     messenger.showSnackBar(
       const SnackBar(content: Text('+5 aura for helping another builder')),
     );
+
+    final replies = questionsP.repliesForQuestion(widget.questionId);
+    final userIds = replies.map((r) => r.userId).toList();
+    context.read<UsersProvider>().fetchAndCacheUsers(userIds);
   }
 
   Future<void> _submitThreadReply() async {
@@ -330,6 +358,10 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
     messenger.showSnackBar(
       const SnackBar(content: Text('+5 aura for helping another builder')),
     );
+
+    final replies = questionsP.repliesForQuestion(widget.questionId);
+    final userIds = replies.map((r) => r.userId).toList();
+    context.read<UsersProvider>().fetchAndCacheUsers(userIds);
   }
 
   void _startReplyComposer({

@@ -36,6 +36,7 @@ class _MatchmakingScreenState extends State<MatchmakingScreen>
   bool _matchFound = false;
   String? _myUserId;
   bool _searching = true;
+  String? _createdMatchId;
 
   @override
   void initState() {
@@ -53,23 +54,32 @@ class _MatchmakingScreenState extends State<MatchmakingScreen>
   }
 
   void _startMatchmaking() async {
-    setState(() => _searching = true);
+    setState(() {
+      _searching = true;
+      _matchFound = false;
+    });
+    _createdMatchId = null;
     final user = context.read<AuthProvider>().currentUserOrNull;
     if (user == null) return;
     _myUserId = user.id;
 
     // 1. Try to join an existing match
-    final matchId = await SupabaseService.instance.findArenaMatch(widget.mode);
+    final matchData = await SupabaseService.instance.findArenaMatch(widget.mode);
     
-    if (matchId != null) {
+    if (matchData != null) {
+      if (!mounted) return;
       _matchFound = true;
-      // Fetching actual player 1 logic would go here, using generic challenger for speed
-      _navigateToDuel(matchId, isPlayer1: false, opponentId: 'placeholder'); 
+      final matchId = matchData['id'].toString();
+      final opponentId = matchData['player1_id'].toString();
+      _navigateToDuel(matchId, isPlayer1: false, opponentId: opponentId); 
       return;
     }
 
+    if (!mounted) return;
+
     // 2. If no match, create one and listen for player 2
     final newMatchId = await SupabaseService.instance.createArenaMatch(widget.mode);
+    _createdMatchId = newMatchId;
     
     _matchSubscription = Supabase.instance.client
         .channel('public:arena_matches:id=eq.$newMatchId')
@@ -92,10 +102,13 @@ class _MatchmakingScreenState extends State<MatchmakingScreen>
             })
         .subscribe();
 
-    // 30 second timeout for finding a match
-    Future.delayed(const Duration(seconds: 30), () async {
-      if (mounted && !_matchFound) {
-        setState(() => _searching = false);
+    // 45 second timeout for finding a match
+    Future.delayed(const Duration(seconds: 45), () async {
+      if (mounted && !_matchFound && _createdMatchId == newMatchId) {
+        setState(() {
+          _searching = false;
+        });
+        _controller.stop();
         _matchSubscription?.unsubscribe();
         try {
           await Supabase.instance.client.from('arena_matches').delete().eq('id', newMatchId);
@@ -104,8 +117,20 @@ class _MatchmakingScreenState extends State<MatchmakingScreen>
     });
   }
 
-  void _navigateToDuel(String matchId, {required bool isPlayer1, required String opponentId}) {
+  void _navigateToDuel(String matchId, {required bool isPlayer1, required String opponentId}) async {
     if (!mounted) return;
+
+    UserModel? opponentUser;
+    if (opponentId != 'placeholder') {
+      try {
+        opponentUser = await context.read<UsersProvider>().getUser(opponentId);
+      } catch (e) {
+        debugPrint('Error loading opponent user profile: $e');
+      }
+    }
+
+    if (!mounted) return;
+
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => DuelScreen(
@@ -113,7 +138,7 @@ class _MatchmakingScreenState extends State<MatchmakingScreen>
           mode: widget.mode,
           matchId: matchId,
           isPlayer1: isPlayer1,
-          opponent: UserModel(
+          opponent: opponentUser ?? UserModel(
             id: opponentId,
             name: 'Online Challenger',
             handle: 'challenger',
@@ -144,6 +169,10 @@ class _MatchmakingScreenState extends State<MatchmakingScreen>
     _matchSubscription?.unsubscribe();
     if (!_matchFound && _myUserId != null) {
       SupabaseService.instance.leaveMatchmakingPool(_myUserId!);
+    }
+    if (!_matchFound && _createdMatchId != null) {
+      final matchToDelete = _createdMatchId!;
+      Supabase.instance.client.from('arena_matches').delete().eq('id', matchToDelete).then((_) {}).catchError((_) {});
     }
     super.dispose();
   }
@@ -202,26 +231,27 @@ class _MatchmakingScreenState extends State<MatchmakingScreen>
                       );
                     }),
                     // Better Radar sweep
-                    RotationTransition(
-                      turns: _controller,
-                      child: Container(
-                        width: 280,
-                        height: 280,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: SweepGradient(
-                            colors: [
-                              Colors.transparent,
-                              AppColors.primary.withValues(alpha: 0.05),
-                              AppColors.primary.withValues(alpha: 0.25),
-                              AppColors.primary.withValues(alpha: 0.8),
-                              Colors.transparent,
-                            ],
-                            stops: const [0.0, 0.5, 0.85, 0.98, 1.0],
+                    if (_searching)
+                      RotationTransition(
+                        turns: _controller,
+                        child: Container(
+                          width: 280,
+                          height: 280,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: SweepGradient(
+                              colors: [
+                                Colors.transparent,
+                                AppColors.primary.withValues(alpha: 0.05),
+                                AppColors.primary.withValues(alpha: 0.25),
+                                AppColors.primary.withValues(alpha: 0.8),
+                                Colors.transparent,
+                              ],
+                              stops: const [0.0, 0.5, 0.85, 0.98, 1.0],
+                            ),
                           ),
                         ),
                       ),
-                    ),
                     // Center Logo (Subtle Pulse)
                     Container(
                       width: 64,
@@ -231,17 +261,17 @@ class _MatchmakingScreenState extends State<MatchmakingScreen>
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.2),
+                            color: (_searching ? AppColors.primary : Colors.redAccent).withValues(alpha: 0.2),
                             blurRadius: 20,
                             spreadRadius: 5,
                           ),
                         ],
                       ),
-                      child: const Center(
+                      child: Center(
                         child: Icon(
-                          Icons.code_rounded,
+                          _searching ? Icons.code_rounded : Icons.search_off_rounded,
                           size: 32,
-                          color: AppColors.primary,
+                          color: _searching ? AppColors.primary : Colors.redAccent,
                         ),
                       ),
                     )
@@ -249,12 +279,12 @@ class _MatchmakingScreenState extends State<MatchmakingScreen>
                     .scale(begin: const Offset(1, 1), end: const Offset(1.05, 1.05), duration: 1000.ms, curve: Curves.easeInOut)
                     .boxShadow(
                       begin: BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.1),
+                        color: (_searching ? AppColors.primary : Colors.redAccent).withValues(alpha: 0.1),
                         blurRadius: 15,
                         spreadRadius: 2,
                       ),
                       end: BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.35),
+                        color: (_searching ? AppColors.primary : Colors.redAccent).withValues(alpha: 0.35),
                         blurRadius: 25,
                         spreadRadius: 6,
                       ),
@@ -266,27 +296,60 @@ class _MatchmakingScreenState extends State<MatchmakingScreen>
             ),
             Padding(
               padding: const EdgeInsets.only(bottom: 40),
-              child: OutlinedButton(
-                onPressed: () => Navigator.of(context).pop(),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  side: const BorderSide(color: Colors.white24),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 32,
-                    vertical: 16,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (!_searching) ...[
+                    OutlinedButton(
+                      onPressed: () {
+                        _controller.repeat();
+                        _startMatchmaking();
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.primary),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 16,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        backgroundColor: AppColors.primary.withValues(alpha: 0.05),
+                      ),
+                      child: const Text(
+                        'Try Again',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                  ],
+                  OutlinedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Colors.white24),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: _searching ? 32 : 24,
+                        vertical: 16,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      backgroundColor: Colors.white.withValues(alpha: 0.05),
+                    ),
+                    child: Text(
+                      _searching ? 'Cancel Search' : 'Go Back',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  backgroundColor: Colors.white.withValues(alpha: 0.05),
-                ),
-                child: const Text(
-                  'Cancel Search',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                ],
               ),
             ),
           ],

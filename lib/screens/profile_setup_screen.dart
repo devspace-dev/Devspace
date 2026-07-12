@@ -109,8 +109,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       setState(() => _error = 'Name is required.');
       return false;
     }
-    if (_handleCtrl.text.trim().isEmpty) {
+    final handle = _handleCtrl.text.trim();
+    if (handle.isEmpty) {
       setState(() => _error = 'Handle is required.');
+      return false;
+    }
+    if (handle.length < 3 || handle.length > 25) {
+      setState(() => _error = 'Handle must be between 3 and 25 characters.');
       return false;
     }
     if (_collegeCtrl.text.trim().isEmpty) {

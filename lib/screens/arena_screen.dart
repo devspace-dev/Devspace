@@ -348,7 +348,7 @@ class _ArenaScreenState extends State<ArenaScreen> {
               ),
               Expanded(
                 child: _buildProfileStat(
-                  label: 'Win Streak',
+                  label: 'Daily Streak',
                   value: '${me.currentStreak}',
                 ),
               ),
@@ -395,6 +395,9 @@ class _ArenaScreenState extends State<ArenaScreen> {
   }
 
   Widget _buildOptionCards(BuildContext context) {
+    final engagement = context.watch<EngagementProvider>();
+    final history = engagement.auraHistory;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: List.generate(_arenaCategories.length, (index) {
@@ -402,6 +405,30 @@ class _ArenaScreenState extends State<ArenaScreen> {
         final isSelected = _selectedCategoryIndex == index;
         final color = cat['color'] as Color;
         final bool isComingSoon = cat['comingSoon'] == true;
+
+        // Calculate dynamic score based on the category name
+        int dynamicScore = 0;
+        final String name = cat['name'] as String;
+        if (name == 'Combat') {
+          dynamicScore = history.where((e) {
+            final isDuel = e.action == 'arena_duel';
+            final mode = e.metadata['mode']?.toString().toUpperCase() ?? '';
+            return isDuel && !mode.contains('TEAM');
+          }).fold(0, (sum, e) => sum + e.points);
+        } else if (name == 'Team') {
+          dynamicScore = history.where((e) {
+            final isDuel = e.action == 'arena_duel';
+            final mode = e.metadata['mode']?.toString().toUpperCase() ?? '';
+            return isDuel && mode.contains('TEAM');
+          }).fold(0, (sum, e) => sum + e.points);
+        } else if (name == 'Daily Challenge') {
+          dynamicScore = history.where((e) {
+            return e.action == 'daily_challenge' ||
+                e.action == 'daily_mission_attempt' ||
+                e.action == 'mission_solved' ||
+                e.action == 'mission_attempted';
+          }).fold(0, (sum, e) => sum + e.points);
+        }
 
         return Expanded(
           child: GestureDetector(
@@ -475,7 +502,7 @@ class _ArenaScreenState extends State<ArenaScreen> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            cat['score'].toString(),
+                            dynamicScore.toString(),
                             style: GoogleFonts.plusJakartaSans(
                               color: Colors.black,
                               fontSize: 9,

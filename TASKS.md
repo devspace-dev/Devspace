@@ -29,7 +29,7 @@ Upgrade the app backend for launch-ready gamification and gated engagement witho
 - [x] Founder tools locked behind admin plus allowlisted device checks
 - [x] Integrated new brand identity (Logo 1) and premium "Cyber-Premium" theme
 - [x] Resolved Google Play Console Foreground Service declaration error (Android 14+)
-- [x] Incremented app version to 1.0.5+11 for new release
+- [x] Incremented app version to 1.0.15+21 for new release
 - [x] Redesigned Opportunities screen and updated navigation bar labels/icons/colors to match the Explore mock layout
 - [x] Added gamified resource roadmap levels for DSA, system design, GitHub workflows, and open source learning
 - [x] Fixed theme transition glitch on splash screen for light/dark themes
@@ -38,6 +38,11 @@ Upgrade the app backend for launch-ready gamification and gated engagement witho
 - [x] Removed non-functional search and settings icons from the Opportunities screen
 - [x] Redesigned upcoming hackathons card with Unsplash banners and distinct dates
 - [x] Removed floating trophy button (CupFab) from home screen and linked Daily Mission card in Arena to Daily Challenge Screen
+- [x] Implemented 2v2 Team Duels gameplay scoring, pooled team points, divided reward distributions, and live activity feeds
+- [x] Redesigned the Opportunities Detail Page to adopt the premium Warm Orange app theme, replacing outdated pink/purple styles with glassmorphic cards
+- [x] Extended matchmaking search timeout to 45 seconds to prevent premature search failure
+- [x] Fixed manual opportunity dates and registration deadlines in client, Edge Functions, and founder tools panel
+- [x] Push notification delivery and tap routing for Arena Duel Invites across background, closed, and foreground app states
 ## In Progress
 - [ ] Feed migration from stream-only loading to explicit paginated API consumption
 - [ ] Stronger regression coverage for new backend rules

@@ -40,9 +40,9 @@ class EventAccessModel {
       type: (json['type'] ?? 'event').toString(),
       unlocked: json['unlocked'] as bool? ?? false,
       locked: json['locked'] as bool? ?? true,
-      bannerUrl: json['banner_url']?.toString(),
+      bannerUrl: (json['banner_url'] ?? json['bannerUrl'])?.toString(),
       date: json['date']?.toString(),
-      endDate: json['end_date']?.toString(),
+      endDate: (json['end_date'] ?? json['endDate'])?.toString(),
       location: json['location']?.toString(),
       organizer: json['organizer']?.toString(),
     );

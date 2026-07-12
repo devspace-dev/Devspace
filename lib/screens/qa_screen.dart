@@ -28,7 +28,10 @@ class _QAScreenState extends State<QAScreen> {
       if (!mounted) return;
       final questionsP = context.read<QuestionsProvider>();
       if (questionsP.questions.isEmpty && !questionsP.isLoading) {
-        questionsP.fetchQuestions();
+        _refreshQuestions();
+      } else {
+        final userIds = questionsP.questions.map((q) => q.userId).toList();
+        context.read<UsersProvider>().fetchAndCacheUsers(userIds);
       }
     });
   }
@@ -40,11 +43,29 @@ class _QAScreenState extends State<QAScreen> {
     super.dispose();
   }
 
+  Future<void> _refreshQuestions() async {
+    final questionsP = context.read<QuestionsProvider>();
+    await questionsP.refreshQuestions();
+    if (mounted) {
+      final userIds = questionsP.questions.map((q) => q.userId).toList();
+      await context.read<UsersProvider>().fetchAndCacheUsers(userIds);
+    }
+  }
+
+  Future<void> _loadMoreQuestions() async {
+    final questionsP = context.read<QuestionsProvider>();
+    await questionsP.loadMoreQuestions();
+    if (mounted) {
+      final userIds = questionsP.questions.map((q) => q.userId).toList();
+      await context.read<UsersProvider>().fetchAndCacheUsers(userIds);
+    }
+  }
+
   void _handleScroll() {
     if (!_scrollController.hasClients) return;
     final threshold = _scrollController.position.maxScrollExtent - 300;
     if (_scrollController.position.pixels >= threshold) {
-      context.read<QuestionsProvider>().loadMoreQuestions();
+      _loadMoreQuestions();
     }
   }
 
@@ -95,7 +116,7 @@ class _QAScreenState extends State<QAScreen> {
       body: RefreshIndicator(
         color: AppColors.primary,
         backgroundColor: AppColors.bg2For(context),
-        onRefresh: questionsP.refreshQuestions,
+        onRefresh: _refreshQuestions,
         edgeOffset: 0,
         child: CustomScrollView(
           controller: _scrollController,

@@ -55,6 +55,7 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
   );
 
   String _eventType = 'event';
+  DateTime? _eventEndDate;
   String? _challengeCorrectAnswer;
   bool _isCreatingEvent = false;
   bool _isCreatingChallenge = false;
@@ -363,6 +364,46 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
                   decoration: const InputDecoration(
                     hintText: 'April 20th, 2026',
                   ),
+                ),
+              ),
+              _LabeledField(
+                label: 'End Date / Registration Deadline (Optional)',
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _eventEndDate != null
+                            ? '${_eventEndDate!.year}-${_eventEndDate!.month.toString().padLeft(2, '0')}-${_eventEndDate!.day.toString().padLeft(2, '0')}'
+                            : 'No deadline set',
+                        style: TextStyle(
+                          color: _eventEndDate != null
+                              ? AppColors.textFor(context)
+                              : AppColors.text3For(context),
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    if (_eventEndDate != null)
+                      IconButton(
+                        icon: const Icon(Icons.clear_rounded, size: 20),
+                        onPressed: () => setState(() => _eventEndDate = null),
+                      ),
+                    TextButton.icon(
+                      icon: const Icon(Icons.calendar_today_rounded, size: 16),
+                      label: const Text('Pick Date'),
+                      onPressed: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: _eventEndDate ?? DateTime.now(),
+                          firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                          lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
+                        );
+                        if (date != null) {
+                          setState(() => _eventEndDate = date);
+                        }
+                      },
+                    ),
+                  ],
                 ),
               ),
               _LabeledField(
@@ -737,6 +778,7 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
         type: _eventType,
         bannerUrl: bannerUrl,
         date: _eventDateController.text.trim(),
+        endDate: _eventEndDate,
         location: _eventLocationController.text.trim(),
         organizer: _eventOrganizerController.text.trim(),
       );
@@ -749,7 +791,10 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
       _eventDateController.clear();
       _eventLocationController.clear();
       _eventOrganizerController.clear();
-      setState(() => _eventBannerFile = null);
+      setState(() {
+        _eventBannerFile = null;
+        _eventEndDate = null;
+      });
       
       await _loadEvents();
       _showSnack('Event created.');
@@ -943,6 +988,8 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
     var eventType = event['type']?.toString() ?? 'event';
     var isActive = event['is_active'] as bool? ?? true;
     File? bannerFile;
+    final rawEndDate = event['end_date'] ?? event['endDate'];
+    var endDateVal = rawEndDate != null ? DateTime.tryParse(rawEndDate.toString()) : null;
 
     final saved = await showDialog<bool>(
       context: context,
@@ -1045,6 +1092,47 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
                       decoration: const InputDecoration(labelText: 'Date'),
                     ),
                     const SizedBox(height: 12),
+                    _LabeledField(
+                      label: 'End Date / Registration Deadline (Optional)',
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              endDateVal != null
+                                  ? '${endDateVal!.year}-${endDateVal!.month.toString().padLeft(2, '0')}-${endDateVal!.day.toString().padLeft(2, '0')}'
+                                  : 'No deadline set',
+                              style: TextStyle(
+                                color: endDateVal != null
+                                    ? AppColors.textFor(context)
+                                    : AppColors.text3For(context),
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                          if (endDateVal != null)
+                            IconButton(
+                              icon: const Icon(Icons.clear_rounded, size: 20),
+                              onPressed: () => setDialogState(() => endDateVal = null),
+                            ),
+                          TextButton.icon(
+                            icon: const Icon(Icons.calendar_today_rounded, size: 16),
+                            label: const Text('Pick Date'),
+                            onPressed: () async {
+                              final date = await showDatePicker(
+                                context: context,
+                                initialDate: endDateVal ?? DateTime.now(),
+                                firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                                lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
+                              );
+                              if (date != null) {
+                                setDialogState(() => endDateVal = date);
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     TextField(
                       controller: locationController,
                       decoration: const InputDecoration(labelText: 'Location'),
@@ -1099,6 +1187,7 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
           isActive: isActive,
           bannerUrl: finalBannerUrl,
           date: dateController.text.trim(),
+          endDate: endDateVal,
           location: locationController.text.trim(),
           organizer: organizerController.text.trim(),
         );

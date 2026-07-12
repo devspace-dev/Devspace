@@ -240,14 +240,14 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
   }
 
   void _setupNotificationTapListener() {
-    _notificationSubscription = NotificationService.instance.notificationResponseStream.listen((payload) {
+    _notificationSubscription = NotificationService.instance.notificationResponseStream.listen((payload) async {
       if (payload == null || !mounted) return;
       try {
         final data = jsonDecode(payload);
         final String type = data['type'] ?? '';
-        final String? postId = data['postId'];
-        final String? questionId = data['questionId'];
-        final String? fromUid = data['fromUid'];
+        final String? postId = data['postId'] ?? data['post_id'];
+        final String? questionId = data['questionId'] ?? data['question_id'];
+        final String? fromUid = data['fromUid'] ?? data['from_uid'];
 
         if (type == 'message' && fromUid != null) {
           final me = context.read<AuthProvider>().currentUserOrNull;
@@ -263,14 +263,19 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
             ),
           );
           
-          final other = context.read<UsersProvider>().getUserById(fromUid);
-          if (other != null) {
+          UserModel? other = context.read<UsersProvider>().getUserById(fromUid);
+          if (other == null) {
+            try {
+              other = await context.read<UsersProvider>().getUser(fromUid);
+            } catch (_) {}
+          }
+          if (other != null && mounted) {
             Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (_) => ChatDetailScreen(
                   conversation: conv,
-                  otherUser: other,
+                  otherUser: other!,
                 ),
               ),
             );
@@ -290,7 +295,16 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
               MaterialPageRoute(builder: (_) => QuestionDetailScreen(questionId: questionId)),
             );
           }
-        }
+        } else if (type == 'duel_invite' && postId != null) {
+           final request = await SupabaseService.instance.getDuelRequest(postId);
+           if (request != null && request['status'] == 'pending') {
+             _showIncomingDuelDialog(request);
+           } else {
+             ScaffoldMessenger.of(context).showSnackBar(
+               const SnackBar(content: Text('This challenge has expired or already been handled.')),
+             );
+           }
+         }
       } catch (e) {
         debugPrint('Failed to handle notification tap: $e');
       }
@@ -361,9 +375,18 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
 
   void _showIncomingDuelDialog(Map<String, dynamic> request) async {
     final senderId = request['sender_id'].toString();
-    final sender = context.read<UsersProvider>().getUserById(senderId);
+    UserModel? sender = context.read<UsersProvider>().getUserById(senderId);
+    if (sender == null) {
+      try {
+        sender = await context.read<UsersProvider>().getUser(senderId);
+      } catch (e) {
+        debugPrint('Error loading opponent for challenge dialog: $e');
+      }
+    }
 
     if (!mounted || sender == null) return;
+
+    final opponent = sender;
 
     showDialog(
       context: context,
@@ -380,7 +403,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
           ],
         ),
         content: Text(
-          '${sender.name} has challenged you to a ${request['mode']} in ${request['category']}!',
+          '${opponent.name} has challenged you to a ${request['mode']} in ${request['category']}!',
           style: const TextStyle(color: Colors.white70),
         ),
         actions: [
@@ -397,15 +420,23 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                 final me = context.read<AuthProvider>().currentUserOrNull;
                 if (me != null) {
                   try {
-                    await Supabase.instance.client.from('arena_matches').insert({
-                      'id': request['id'].toString(),
-                      'mode': request['mode'].toString(),
-                      'player1_id': request['sender_id'].toString(),
-                      'player2_id': me.id,
+                    // Try to update the pre-created match row (which we expect to exist)
+                    final response = await Supabase.instance.client.from('arena_matches').update({
                       'status': 'playing'
-                    });
+                    }).eq('id', request['id'].toString()).select();
+
+                    // If for some reason the row doesn't exist, try to insert it as a fallback
+                    if (response.isEmpty) {
+                      await Supabase.instance.client.from('arena_matches').insert({
+                        'id': request['id'].toString(),
+                        'mode': request['mode'].toString(),
+                        'player1_id': request['sender_id'].toString(),
+                        'player2_id': me.id,
+                        'status': 'playing'
+                      });
+                    }
                   } catch (e) {
-                    debugPrint('Match row might exist: $e');
+                    debugPrint('Failed to initialize arena match row: $e');
                   }
                 }
                 if (!mounted) return;
@@ -418,7 +449,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                       mode: request['mode'].toString(),
                       matchId: request['id'].toString(),
                       isPlayer1: false,
-                      opponent: sender,
+                      opponent: opponent,
                     ),
                   ),
                 );
@@ -599,14 +630,19 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                                   createdAt: DateTime.now(),
                                 ),
                               );
-                              final other = context.read<UsersProvider>().getUserById(n.fromUid);
-                              if (other != null) {
+                              UserModel? other = context.read<UsersProvider>().getUserById(n.fromUid);
+                              if (other == null) {
+                                try {
+                                  other = await context.read<UsersProvider>().getUser(n.fromUid);
+                                } catch (_) {}
+                              }
+                              if (other != null && mounted) {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (_) => ChatDetailScreen(
                                       conversation: conv,
-                                      otherUser: other,
+                                      otherUser: other!,
                                     ),
                                   ),
                                 );

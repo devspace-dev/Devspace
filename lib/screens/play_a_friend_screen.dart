@@ -226,7 +226,7 @@ class _PlayAFriendScreenState extends State<PlayAFriendScreen> {
                                         senderId: me.id,
                                         receiverId: user.id,
                                         category: widget.category,
-                                        mode: 'Live Duel',
+                                        mode: widget.mode,
                                       );
                                       if (context.mounted) {
                                         Navigator.pushReplacement(
@@ -235,7 +235,7 @@ class _PlayAFriendScreenState extends State<PlayAFriendScreen> {
                                             builder: (_) => WaitingForOpponentScreen(
                                               requestId: requestId,
                                               category: widget.category,
-                                              mode: 'Live Duel',
+                                              mode: widget.mode,
                                               opponent: user,
                                             ),
                                           ),
@@ -293,7 +293,7 @@ class _PlayAFriendScreenState extends State<PlayAFriendScreen> {
                                         senderId: me.id,
                                         receiverId: user.id,
                                         category: widget.category,
-                                        mode: 'Live Duel',
+                                        mode: widget.mode,
                                       );
                                       if (context.mounted) {
                                         Navigator.pushReplacement(
@@ -302,7 +302,7 @@ class _PlayAFriendScreenState extends State<PlayAFriendScreen> {
                                             builder: (_) => WaitingForOpponentScreen(
                                               requestId: requestId,
                                               category: widget.category,
-                                              mode: 'Live Duel',
+                                              mode: widget.mode,
                                               opponent: user,
                                             ),
                                           ),

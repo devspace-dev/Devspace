@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../models/event_access_model.dart';
 import '../providers/engagement_provider.dart';
@@ -108,7 +109,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                           item: item,
                           myAura: myAura,
                           tags: _getTagsForOpportunity(item),
-                          brandLogo: _buildBrandLogo(item.organizer ?? ''),
+                          brandLogo: _buildBrandLogo(item.organizer ?? '', item.bannerUrl),
                         )
                             .animate()
                             .fadeIn(delay: (index * 50).ms)
@@ -121,6 +122,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
               }
             }
 
+            final isDark = Theme.of(context).brightness == Brightness.dark;
             return RefreshIndicator.adaptive(
               onRefresh: () =>
                   provider.fetchOverview(forceChallengeRefresh: true),
@@ -130,7 +132,9 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                   SliverToBoxAdapter(child: _buildHeader(context, canPop)),
                   SliverToBoxAdapter(child: _buildSearchHeader(context)),
                   SliverToBoxAdapter(child: _buildCategorySelector(context)),
-                  const SliverToBoxAdapter(child: SizedBox(height: 10)),
+                  const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                  if (_searchQuery.isEmpty && (_selectedCategory == 'All' || _selectedCategory == 'Hackathons'))
+                    SliverToBoxAdapter(child: _buildUpcomingHackathonsSection(context, provider.events, isDark)),
                   sliverContent,
                 ],
               ),
@@ -424,8 +428,54 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
     return tags;
   }
 
-  Widget _buildBrandLogo(String organizer) {
+  Widget _buildBrandLogo(String organizer, String? bannerUrl) {
     final name = organizer.toLowerCase();
+    
+    // Check if the bannerUrl is actually a logo image (e.g. from Unstop)
+    final isLogoUrl = _isLogoUrl(bannerUrl);
+
+    if (isLogoUrl) {
+      return Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade200, width: 0.8),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: CachedNetworkImage(
+            imageUrl: bannerUrl!,
+            width: 44,
+            height: 44,
+            fit: BoxFit.cover,
+            placeholder: (context, url) => Container(
+              color: Colors.grey.shade50,
+              alignment: Alignment.center,
+              child: const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(strokeWidth: 1.5),
+              ),
+            ),
+            errorWidget: (context, url, error) => Container(
+              color: Colors.orange.shade50,
+              alignment: Alignment.center,
+              child: Text(
+                organizer.isNotEmpty ? organizer[0].toUpperCase() : 'O',
+                style: const TextStyle(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     if (name.contains('microsoft')) {
       return Container(
         width: 44,
@@ -578,6 +628,344 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
     );
   }
 
+  Widget _buildUpcomingHackathonsSection(BuildContext context, List<EventAccessModel> events, bool isDark) {
+    final realHackathons = events.where((e) => e.type.toLowerCase() == 'hackathon').toList();
+    final mockHackathons = [
+      const _MockHackathon(
+        month: 'MAY',
+        date: '24',
+        title: 'Hack India 2025',
+        mode: 'Hybrid',
+        bannerUrl: 'https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?w=800&auto=format&fit=crop',
+      ),
+      const _MockHackathon(
+        month: 'MAY',
+        date: '30',
+        title: 'Build with AI',
+        mode: 'Online',
+        bannerUrl: 'https://images.unsplash.com/photo-1677442136019-21780efad99a?w=800&auto=format&fit=crop',
+      ),
+      const _MockHackathon(
+        month: 'JUN',
+        date: '07',
+        title: 'DevBattle 3.0',
+        mode: 'Online',
+        bannerUrl: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&auto=format&fit=crop',
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Text(
+            'Upcoming Hackathons',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textFor(context),
+              letterSpacing: -0.4,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 185,
+          child: realHackathons.isNotEmpty
+              ? ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  itemCount: realHackathons.length,
+                  itemBuilder: (context, idx) {
+                    final hack = realHackathons[idx];
+                    final parsedDate = _parseHackathonDate(hack.date, idx);
+                    final m = parsedDate['month'] ?? 'MAY';
+                    final d = parsedDate['day'] ?? '24';
+                    return _buildHackathonCard(context, m, d, hack.title, hack.location ?? 'Online', isDark, hack.bannerUrl, hack);
+                  },
+                )
+              : ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  itemCount: mockHackathons.length,
+                  itemBuilder: (context, idx) {
+                    final mock = mockHackathons[idx];
+                    return _buildHackathonCard(context, mock.month, mock.date, mock.title, mock.mode, isDark, mock.bannerUrl, null);
+                  },
+                ),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _buildHackathonCard(BuildContext context, String month, String date, String title, String mode, bool isDark, String? bannerUrl, EventAccessModel? realHack) {
+    final String displayBannerUrl;
+    if (bannerUrl != null && bannerUrl.isNotEmpty) {
+      displayBannerUrl = bannerUrl;
+    } else {
+      final hash = title.hashCode.abs();
+      final fallbacks = [
+        'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&auto=format&fit=crop',
+        'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop',
+        'https://images.unsplash.com/photo-1563089145-599997674d42?w=800&auto=format&fit=crop',
+        'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&auto=format&fit=crop',
+        'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop',
+      ];
+      displayBannerUrl = fallbacks[hash % fallbacks.length];
+    }
+
+    final isLogo = _isLogoUrl(displayBannerUrl);
+
+    return GestureDetector(
+      onTap: () {
+        if (realHack != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => OpportunityDetailScreen(opportunity: realHack),
+            ),
+          );
+        }
+      },
+      child: Container(
+        width: 180,
+        margin: const EdgeInsets.only(right: 12),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.bg2Dark : Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: AppColors.borderFor(context).withValues(alpha: 0.8),
+            width: 1.0,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isDark ? Colors.black.withValues(alpha: 0.25) : Colors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Stack(
+                children: [
+                  if (isLogo) ...[
+                    _buildLogoBanner(context, displayBannerUrl, 95, isDark),
+                  ] else ...[
+                    CachedNetworkImage(
+                      imageUrl: displayBannerUrl,
+                      height: 95,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        height: 95,
+                        color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF1F3F5),
+                        child: const Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      ),
+                      errorWidget: (context, url, error) => _buildGradientBanner(
+                        context: context,
+                        title: title,
+                        type: 'HACKATHON',
+                        height: 95,
+                        isDark: isDark,
+                      ),
+                    ),
+                  ],
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.8),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            month,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          Text(
+                            date,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.primary,
+                              height: 1.0,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textFor(context),
+                          height: 1.25,
+                        ),
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              mode,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.text3For(context),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 14,
+                            color: AppColors.primary,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Map<String, String> _parseHackathonDate(String? dateStr, [int index = 0]) {
+    if (dateStr == null || dateStr.trim().isEmpty) {
+      final now = DateTime.now();
+      final futureDate = now.add(Duration(days: index * 4 + 3));
+      return {
+        'month': _getMonthAbbreviation(futureDate.month),
+        'day': futureDate.day.toString(),
+      };
+    }
+
+    try {
+      final parsedDate = DateTime.tryParse(dateStr);
+      if (parsedDate != null) {
+        var targetDate = parsedDate;
+        final now = DateTime.now();
+        if (targetDate.isBefore(now.add(const Duration(seconds: 1))) || 
+            (targetDate.year == now.year && targetDate.month == now.month && targetDate.day == now.day)) {
+          targetDate = now.add(Duration(days: index * 4 + 3));
+        }
+        return {
+          'month': _getMonthAbbreviation(targetDate.month),
+          'day': targetDate.day.toString(),
+        };
+      }
+    } catch (_) {}
+
+    final cleaned = dateStr.replaceAll(RegExp(r'[,:\-\/]'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+    final parts = cleaned.split(' ');
+    final months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+    final fullMonths = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+
+    String? foundMonth;
+    String? foundDay;
+
+    for (int i = 0; i < parts.length; i++) {
+      final partLower = parts[i].toLowerCase();
+      int monthIndex = months.indexOf(partLower.length >= 3 ? partLower.substring(0, 3) : partLower);
+      if (monthIndex == -1) {
+        monthIndex = fullMonths.indexOf(partLower);
+      }
+      
+      if (monthIndex != -1) {
+        foundMonth = months[monthIndex].toUpperCase();
+        if (i > 0) {
+          final prevPart = parts[i - 1];
+          if (RegExp(r'^\d+$').hasMatch(prevPart)) {
+            foundDay = prevPart;
+            break;
+          }
+        }
+        if (i < parts.length - 1) {
+          final nextPart = parts[i + 1];
+          if (RegExp(r'^\d+$').hasMatch(nextPart)) {
+            foundDay = nextPart;
+            break;
+          }
+        }
+      }
+    }
+
+    if (foundMonth != null && foundDay != null) {
+      return {'month': foundMonth, 'day': foundDay};
+    }
+
+    if (foundMonth != null) {
+      for (final part in parts) {
+        if (RegExp(r'^\d+$').hasMatch(part)) {
+          foundDay = part;
+          break;
+        }
+      }
+      return {'month': foundMonth, 'day': foundDay ?? '1'};
+    }
+
+    for (final part in parts) {
+      if (RegExp(r'^\d+$').hasMatch(part) && part.length <= 2) {
+        foundDay = part;
+        break;
+      }
+    }
+
+    final now = DateTime.now();
+    final futureDate = now.add(Duration(days: index * 4 + 3));
+    return {
+      'month': foundMonth ?? _getMonthAbbreviation(futureDate.month),
+      'day': foundDay ?? futureDate.day.toString(),
+    };
+  }
+
+  String _getMonthAbbreviation(int monthIndex) {
+    const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+    if (monthIndex >= 1 && monthIndex <= 12) {
+      return months[monthIndex - 1];
+    }
+    return 'MAY';
+  }
+
   Widget _buildEmptyState() {
     return SliverToBoxAdapter(
       child: Padding(
@@ -618,134 +1006,390 @@ class _OpportunityCardState extends State<_OpportunityCard> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isLocked = widget.item.requiredAura > widget.myAura;
+    final bannerUrl = widget.item.bannerUrl;
+    final isLogoUrl = _isLogoUrl(bannerUrl);
+    final hasBanner = bannerUrl != null && bannerUrl.trim().isNotEmpty && !isLogoUrl;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
         color: isDark ? AppColors.bg2Dark : Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: AppColors.borderFor(context),
+          color: isLocked 
+              ? (isDark ? const Color(0xFF2C2C2E) : Colors.grey.shade200)
+              : AppColors.borderFor(context).withValues(alpha: 0.8),
+          width: isLocked ? 1.0 : 1.2,
         ),
-        boxShadow: !isDark
-            ? [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.02),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ]
-            : null,
+        boxShadow: [
+          BoxShadow(
+            color: isDark ? Colors.black.withValues(alpha: 0.35) : Colors.black.withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
-      child: InkWell(
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (context) =>
-                  OpportunityDetailScreen(opportunity: widget.item)),
-        ),
-        borderRadius: BorderRadius.circular(20),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Brand Logo
-                  widget.brandLogo,
-                  const SizedBox(width: 12),
-
-                  // Title and tags
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.item.title,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: isLocked
-                                ? AppColors.text3For(context)
-                                : AppColors.textFor(context),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    OpportunityDetailScreen(opportunity: widget.item),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (isLogoUrl) ...[
+                  Stack(
+                    children: [
+                      _buildLogoBanner(context, bannerUrl!, 120, isDark),
+                      // Type overlay badge
+                      Positioned(
+                        top: 12,
+                        left: 12,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            widget.item.type.toUpperCase(),
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              letterSpacing: 0.8,
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 10),
-
-                        // Tags wrap
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 6,
-                          children: widget.tags
-                              .map((tag) => _buildTag(context, tag))
-                              .toList(),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-
-                  // Bookmark icon & lock indicator
-                  Column(
-                    children: [
-                      IconButton(
-                        onPressed: () {
-                          HapticFeedback.mediumImpact();
-                          setState(() {
-                            _isSaved = !_isSaved;
-                          });
-                        },
-                        icon: Icon(
-                          _isSaved
-                              ? Icons.bookmark_rounded
-                              : Icons.bookmark_border_rounded,
-                          color: _isSaved
-                              ? AppColors.primary
-                              : AppColors.text3For(context),
-                          size: 22,
-                        ),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
                       ),
-                      if (isLocked) ...[
-                        const SizedBox(height: 8),
-                        Icon(
-                          Icons.lock_rounded,
-                          size: 16,
-                          color: AppColors.text3For(context),
+                      if (isLocked)
+                        Positioned(
+                          top: 12,
+                          right: 12,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: const BoxDecoration(
+                              color: Colors.black87,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.lock_rounded,
+                              size: 16,
+                              color: Color(0xFFFFD60A),
+                            ),
+                          ),
                         ),
-                      ],
+                    ],
+                  ),
+                ] else if (hasBanner) ...[
+                  Stack(
+                    children: [
+                      CachedNetworkImage(
+                        imageUrl: bannerUrl,
+                        height: 150,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(
+                          height: 150,
+                          color: isDark ? AppColors.bg3Dark : const Color(0xFFF1F3F5),
+                          child: const Center(
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2.5),
+                            ),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => _buildGradientBanner(
+                          context: context,
+                          title: widget.item.title,
+                          type: widget.item.type,
+                          height: 150,
+                          isDark: isDark,
+                        ),
+                      ),
+                      // Top gradient overlay for text readability
+                      Positioned.fill(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.black.withValues(alpha: 0.45),
+                                Colors.transparent,
+                                Colors.black.withValues(alpha: 0.1),
+                              ],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Type overlay badge
+                      Positioned(
+                        top: 12,
+                        left: 12,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            widget.item.type.toUpperCase(),
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (isLocked)
+                        Positioned(
+                          top: 12,
+                          right: 12,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: const BoxDecoration(
+                              color: Colors.black87,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.lock_rounded,
+                              size: 16,
+                              color: Color(0xFFFFD60A),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ] else ...[
+                  // If there is no banner, show a beautiful dynamic tech gradient banner
+                  Stack(
+                    children: [
+                      _buildGradientBanner(
+                        context: context,
+                        title: widget.item.title,
+                        type: widget.item.type,
+                        height: 120,
+                        isDark: isDark,
+                      ),
+                      // Type overlay badge
+                      Positioned(
+                        top: 12,
+                        left: 12,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            widget.item.type.toUpperCase(),
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (isLocked)
+                        Positioned(
+                          top: 12,
+                          right: 12,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: const BoxDecoration(
+                              color: Colors.black87,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.lock_rounded,
+                              size: 16,
+                              color: Color(0xFFFFD60A),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ],
-              ),
-              const SizedBox(height: 16),
-
-              // Footer close date
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildCloseDateText(context, widget.item.date),
-                  if (widget.item.requiredAura > 0)
-                    Text(
-                      '⚡ ${widget.item.requiredAura} Aura',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.text3For(context),
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header Row: Organizer & Logo & Bookmark
+                      Row(
+                        children: [
+                          widget.brandLogo,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  widget.item.organizer ?? 'Opportunity',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.text3For(context),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if (!hasBanner) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    widget.item.type.toUpperCase(),
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.primary,
+                                      letterSpacing: 0.8,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () {
+                              HapticFeedback.mediumImpact();
+                              setState(() {
+                                _isSaved = !_isSaved;
+                              });
+                            },
+                            icon: Icon(
+                              _isSaved
+                                  ? Icons.bookmark_rounded
+                                  : Icons.bookmark_border_rounded,
+                              color: _isSaved
+                                  ? AppColors.primary
+                                  : AppColors.text3For(context),
+                              size: 24,
+                            ),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        ],
                       ),
-                    ),
-                ],
-              ),
+                      const SizedBox(height: 16),
 
-              // Lock progress if locked
-              if (isLocked) ...[
-                const SizedBox(height: 12),
-                _buildLockProgress(context),
+                      // Opportunity Title
+                      Text(
+                        widget.item.title,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          height: 1.3,
+                          color: isLocked
+                              ? AppColors.text3For(context)
+                              : AppColors.textFor(context),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Description snippet
+                      if (widget.item.description.isNotEmpty) ...[
+                        Text(
+                          widget.item.description,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 13,
+                            color: AppColors.text2For(context),
+                            height: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // Tags wrap
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: widget.tags
+                            .map((tag) => _buildTag(context, tag))
+                            .toList(),
+                      ),
+                      const SizedBox(height: 20),
+
+                      const Divider(height: 1, thickness: 0.8),
+                      const SizedBox(height: 16),
+
+                      // Footer: Close Date & Aura Requirement
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.calendar_today_rounded,
+                                  size: 14,
+                                  color: AppColors.text3For(context),
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(child: _buildCloseDateText(context, widget.item.date)),
+                              ],
+                            ),
+                          ),
+                          if (widget.item.requiredAura > 0)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: isLocked 
+                                    ? AppColors.bg3For(context)
+                                    : AppColors.primary.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    '⚡',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isLocked ? Colors.grey : AppColors.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${widget.item.requiredAura} Aura',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      color: isLocked 
+                                          ? AppColors.text3For(context)
+                                          : AppColors.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+
+                      // Lock progress if locked
+                      if (isLocked) ...[
+                        const SizedBox(height: 16),
+                        _buildLockProgress(context),
+                      ],
+                    ],
+                  ),
+                ),
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -883,3 +1527,155 @@ class _OpportunityCardState extends State<_OpportunityCard> {
     );
   }
 }
+
+class _MockHackathon {
+  final String month;
+  final String date;
+  final String title;
+  final String mode;
+  final String? bannerUrl;
+
+  const _MockHackathon({
+    required this.month,
+    required this.date,
+    required this.title,
+    required this.mode,
+    this.bannerUrl,
+  });
+}
+
+class TechPatternPainter extends CustomPainter {
+  final Color color;
+  TechPatternPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.0
+      ..style = PaintingStyle.stroke;
+
+    const spacing = 12.0;
+    for (double x = 0.0; x < size.width; x += spacing) {
+      for (double y = 0.0; y < size.height; y += spacing) {
+        canvas.drawCircle(Offset(x, y), 0.8, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant TechPatternPainter oldDelegate) => false;
+}
+
+Widget _buildGradientBanner({
+  required BuildContext context,
+  required String title,
+  required String type,
+  required double height,
+  required bool isDark,
+}) {
+  final hash = title.hashCode.abs();
+  final gradients = [
+    [const Color(0xFF6366F1), const Color(0xFFA855F7)], // Indigo to Purple
+    [const Color(0xFFEC4899), const Color(0xFF8B5CF6)], // Pink to Violet
+    [const Color(0xFF3B82F6), const Color(0xFF2DD4BF)], // Blue to Teal
+    [const Color(0xFFF43F5E), const Color(0xFFFB7185)], // Rose
+    [const Color(0xFF10B981), const Color(0xFF059669)], // Emerald
+    [const Color(0xFFF59E0B), const Color(0xFFD97706)], // Amber
+  ];
+  final selectedGradient = gradients[hash % gradients.length];
+  final overlayColor = Colors.white.withValues(alpha: 0.08);
+
+  return Container(
+    height: height,
+    width: double.infinity,
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        colors: selectedGradient,
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+    ),
+    child: Stack(
+      children: [
+        Positioned.fill(
+          child: CustomPaint(
+            painter: TechPatternPainter(color: overlayColor),
+          ),
+        ),
+        Positioned(
+          right: -30,
+          top: -30,
+          child: Container(
+            width: height * 1.2,
+            height: height * 1.2,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+bool _isLogoUrl(String? url) {
+  if (url == null || url.isEmpty) return false;
+  final lower = url.toLowerCase();
+  return lower.contains('150x150') ||
+      lower.contains('/logo/') ||
+      lower.endsWith('_logo.jpg') ||
+      lower.endsWith('_logo.png') ||
+      lower.contains('organisation_image') ||
+      lower.contains('organization_image');
+}
+
+Widget _buildLogoBanner(BuildContext context, String logoUrl, double height, bool isDark) {
+  return Container(
+    height: height,
+    width: double.infinity,
+    color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF8F9FA),
+    child: Stack(
+      alignment: Alignment.center,
+      children: [
+        Positioned.fill(
+          child: Opacity(
+            opacity: 0.12,
+            child: CachedNetworkImage(
+              imageUrl: logoUrl,
+              fit: BoxFit.cover,
+              errorWidget: (_, __, ___) => const SizedBox(),
+            ),
+          ),
+        ),
+        Positioned.fill(
+          child: BackdropFilter(
+            filter: ColorFilter.mode(
+              (isDark ? Colors.black : Colors.white).withValues(alpha: 0.1),
+              BlendMode.srcOver,
+            ),
+            child: const SizedBox(),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: CachedNetworkImage(
+            imageUrl: logoUrl,
+            fit: BoxFit.contain,
+            placeholder: (context, url) => const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            errorWidget: (context, url, error) => const Icon(
+              Icons.image_outlined,
+              color: Colors.grey,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+

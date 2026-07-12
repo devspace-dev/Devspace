@@ -7,6 +7,11 @@ type CreateEventInput = {
   link?: string;
   type?: "hackathon" | "event";
   createdBy?: string;
+  bannerUrl?: string;
+  date?: string;
+  endDate?: string;
+  location?: string;
+  organizer?: string;
 };
 
 type UpdateEventInput = {
@@ -16,6 +21,11 @@ type UpdateEventInput = {
   link?: string;
   type?: "hackathon" | "event";
   isActive?: boolean;
+  bannerUrl?: string;
+  date?: string;
+  endDate?: string;
+  location?: string;
+  organizer?: string;
 };
 
 export class EventService {
@@ -25,7 +35,7 @@ export class EventService {
     let query = this.client
       .from("events")
       .select(
-        "id, title, description, required_aura, link, type, is_active, created_at",
+        "id, title, description, required_aura, link, type, is_active, created_at, banner_url, date, end_date, location, organizer",
       )
       .order("required_aura", { ascending: true })
       .order("created_at", { ascending: false });
@@ -63,9 +73,14 @@ export class EventService {
         link: input.link?.trim() ?? "",
         type: normalizedType,
         created_by: input.createdBy ?? null,
+        banner_url: input.bannerUrl?.trim() ?? null,
+        date: input.date?.trim() ?? null,
+        end_date: input.endDate?.trim() ?? null,
+        location: input.location?.trim() ?? null,
+        organizer: input.organizer?.trim() ?? null,
       })
       .select(
-        "id, title, description, required_aura, link, type, is_active, created_at",
+        "id, title, description, required_aura, link, type, is_active, created_at, banner_url, date, end_date, location, organizer",
       )
       .single();
 
@@ -87,13 +102,20 @@ export class EventService {
       updatePayload.type = input.type === "hackathon" ? "hackathon" : "event";
     }
     if (input.isActive != null) updatePayload.is_active = input.isActive;
+    if (input.bannerUrl != null) updatePayload.banner_url = input.bannerUrl.trim();
+    if (input.date != null) updatePayload.date = input.date.trim();
+    if (input.endDate !== undefined) {
+      updatePayload.end_date = input.endDate?.trim() || null;
+    }
+    if (input.location != null) updatePayload.location = input.location.trim();
+    if (input.organizer != null) updatePayload.organizer = input.organizer.trim();
 
     const { data, error } = await this.client
       .from("events")
       .update(updatePayload)
       .eq("id", eventId)
       .select(
-        "id, title, description, required_aura, link, type, is_active, created_at",
+        "id, title, description, required_aura, link, type, is_active, created_at, banner_url, date, end_date, location, organizer",
       )
       .single();
 
@@ -138,11 +160,16 @@ export class EventService {
         if (!title || !link) continue;
 
         let bannerUrl = hack.thumbnail_url || "";
-        if (bannerUrl.startsWith("//")) {
-          bannerUrl = "https:" + bannerUrl;
+        if (bannerUrl) {
+          if (bannerUrl.includes("medium_square")) {
+            bannerUrl = bannerUrl.replace("medium_square", "original");
+          }
+          if (bannerUrl.startsWith("//")) {
+            bannerUrl = "https:" + bannerUrl;
+          }
         }
         if (!bannerUrl) {
-          bannerUrl = "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?q=80&w=1000";
+          bannerUrl = null;
         }
 
         const organizer = hack.organization_name || "Devpost Sponsor";
@@ -214,6 +241,29 @@ export class EventService {
         const link = `https://${slug}.devfolio.co`;
 
         let bannerUrl = hack.settings?.featured_cover_img_v2 || hack.settings?.featured_cover_img || "";
+        if (!bannerUrl && slug) {
+          try {
+            const subRes = await fetch(`https://${slug}.devfolio.co/`, {
+              headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+              }
+            });
+            if (subRes.ok) {
+              const subHtml = await subRes.text();
+              const subMatch = subHtml.match(/<script id="__NEXT_DATA__" type="application\/json">(.*?)<\/script>/);
+              if (subMatch) {
+                const subData = JSON.parse(subMatch[1]);
+                const hackObj = subData.props?.pageProps?.hackathon;
+                if (hackObj?.cover_img) {
+                  bannerUrl = hackObj.cover_img;
+                }
+              }
+            }
+          } catch (err) {
+            console.error(`Failed to fetch cover image for Devfolio hackathon ${slug}:`, err);
+          }
+        }
+
         if (bannerUrl) {
           if (!bannerUrl.startsWith("http://") && !bannerUrl.startsWith("https://")) {
             if (bannerUrl.startsWith("/")) {
@@ -223,7 +273,7 @@ export class EventService {
             }
           }
         } else {
-          bannerUrl = "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?q=80&w=1000";
+          bannerUrl = null;
         }
 
         const organizer = "Devfolio";
@@ -286,7 +336,7 @@ export class EventService {
         if (!title || !publicUrl) continue;
 
         const link = hack.seo_url || `https://unstop.com/${publicUrl}`;
-        const bannerUrl = hack.logoUrl2 || "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=1000";
+        const bannerUrl = hack.logoUrl2 || null;
         const organizer = hack.organisation?.name || "Unstop";
         const locationText = hack.region || "Online";
         

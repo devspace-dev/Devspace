@@ -121,6 +121,10 @@ class AuthService {
               error.message.toLowerCase().contains('duplicate key value'))) {
         return 'That email already has an account. Sign in with the method you used before for this email, or delete the old account before using Google sign-in.';
       }
+
+      if (error.message.contains('users_handle_length')) {
+        return 'Handle must be between 3 and 25 characters.';
+      }
     }
 
     return null;
@@ -239,12 +243,33 @@ class AuthService {
   }
 
   Future<String> _generateUniqueHandle(String email) async {
-    final base = _sanitizeHandleSeed(email.split('@').first);
+    var base = _sanitizeHandleSeed(email.split('@').first);
+    if (base.length < 3) {
+      base = '${base}_ds';
+    }
+    if (base.length > 20) {
+      base = base.substring(0, 20);
+    }
+    // Remove any trailing underscores that might result from truncation
+    base = base.replaceAll(RegExp(r'_+$'), '');
+    if (base.length < 3) {
+      base = base.padRight(3, '0');
+    }
+
     var candidate = base;
     var suffix = 1;
 
     while (await SupabaseService.instance.getUserByHandle(candidate) != null) {
-      candidate = '${base}_$suffix';
+      final suffixStr = '_$suffix';
+      final maxBaseLength = 25 - suffixStr.length;
+      var currentBase = base;
+      if (currentBase.length > maxBaseLength) {
+        currentBase = currentBase.substring(0, maxBaseLength).replaceAll(RegExp(r'_+$'), '');
+        if (currentBase.length < 3) {
+          currentBase = currentBase.padRight(3, '0');
+        }
+      }
+      candidate = '$currentBase$suffixStr';
       suffix += 1;
     }
 
@@ -590,6 +615,9 @@ class AuthService {
 
     try {
       final normalizedHandle = _sanitizeHandleSeed(handle);
+      if (normalizedHandle.length < 3 || normalizedHandle.length > 25) {
+        return const AuthResult(error: 'Handle must be between 3 and 25 characters.');
+      }
       final existingHandleUser =
           await SupabaseService.instance.getUserByHandle(normalizedHandle);
       if (existingHandleUser != null && existingHandleUser.id != user.id) {

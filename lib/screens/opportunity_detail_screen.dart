@@ -47,7 +47,10 @@ class OpportunityDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final isHackathon = opportunity.type.toLowerCase() == 'hackathon';
     final isJob = opportunity.type.toLowerCase() == 'job' || opportunity.requiredAura > 100;
-    final primaryColor = isHackathon ? Colors.purpleAccent : (isJob ? Colors.blueAccent : AppColors.primary);
+    // Replace pink/purple with DevSpace Premium Orange/Teal/Blue palette
+    final primaryColor = isHackathon 
+        ? AppColors.primary 
+        : (isJob ? const Color(0xFF007AFF) : const Color(0xFF10B981));
 
     return Scaffold(
       backgroundColor: AppColors.bgFor(context),
@@ -58,26 +61,18 @@ class OpportunityDetailScreen extends StatelessWidget {
             _buildAppBar(context, primaryColor),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 130),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildHeader(context, primaryColor),
-                    const SizedBox(height: 32),
+                    _buildHeaderCard(context, primaryColor),
+                    const SizedBox(height: 24),
                     _buildMetaCards(context, primaryColor),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 28),
                     _buildSectionTitle(context, 'About the ${opportunity.type}'),
-                    const SizedBox(height: 16),
-                    Text(
-                      opportunity.description,
-                      style: TextStyle(
-                        fontSize: 15,
-                        height: 1.6,
-                        color: AppColors.text2For(context),
-                        letterSpacing: 0.1,
-                      ),
-                    ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.05),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 14),
+                    _buildDescriptionCard(context),
+                    const SizedBox(height: 28),
                     if (opportunity.locked) _buildLockIncentive(context),
                   ],
                 ),
@@ -91,19 +86,22 @@ class OpportunityDetailScreen extends StatelessWidget {
   }
 
   Widget _buildAppBar(BuildContext context, Color primaryColor) {
+    final hasBanner = opportunity.bannerUrl != null && opportunity.bannerUrl!.trim().isNotEmpty;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return SliverAppBar(
-      expandedHeight: 280,
+      expandedHeight: 250,
       pinned: true,
       stretch: true,
       backgroundColor: AppColors.bgFor(context),
+      elevation: 0,
       leading: IconButton(
         icon: Container(
           padding: const EdgeInsets.all(8),
-          decoration: const BoxDecoration(
-            color: Colors.black26,
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.35),
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+          child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 16),
         ),
         onPressed: () => Navigator.pop(context),
       ),
@@ -111,11 +109,11 @@ class OpportunityDetailScreen extends StatelessWidget {
         IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
-            decoration: const BoxDecoration(
-              color: Colors.black26,
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.35),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.share_rounded, color: Colors.white, size: 20),
+            child: const Icon(Icons.share_rounded, color: Colors.white, size: 18),
           ),
           onPressed: _handleShare,
         ),
@@ -126,12 +124,14 @@ class OpportunityDetailScreen extends StatelessWidget {
         background: Stack(
           fit: StackFit.expand,
           children: [
-            if (opportunity.bannerUrl != null && opportunity.bannerUrl!.isNotEmpty)
-              Image.network(
-                opportunity.bannerUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => _buildDefaultBanner(context, primaryColor),
-              )
+            if (hasBanner)
+              _isLogoUrl(opportunity.bannerUrl)
+                  ? _buildLogoBanner(context, opportunity.bannerUrl!, isDark)
+                  : Image.network(
+                      opportunity.bannerUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => _buildDefaultBanner(context, primaryColor),
+                    )
             else
               _buildDefaultBanner(context, primaryColor),
             Container(
@@ -140,9 +140,9 @@ class OpportunityDetailScreen extends StatelessWidget {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black45,
+                    Colors.black54,
                     Colors.transparent,
-                    AppColors.bgFor(context).withValues(alpha: 0.95),
+                    AppColors.bgFor(context),
                   ],
                 ),
               ),
@@ -177,19 +177,33 @@ class OpportunityDetailScreen extends StatelessWidget {
         alignment: Alignment.center,
         children: [
           Positioned(
-            right: -20,
-            bottom: -20,
+            right: -10,
+            bottom: -10,
             child: Icon(
               opportunity.type.toLowerCase() == 'hackathon'
                   ? Icons.terminal_rounded
                   : Icons.rocket_launch_rounded,
-              size: 180,
-              color: color.withValues(alpha: 0.08),
+              size: 150,
+              color: color.withValues(alpha: 0.06),
             ),
           ),
           Hero(
             tag: 'opp_logo_${opportunity.id}',
-            child: _buildBrandLogo(opportunity.organizer ?? '', size: 88),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withValues(alpha: 0.25),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: _buildBrandLogo(opportunity.organizer ?? '', size: 68),
+            ),
           ),
         ],
       ),
@@ -206,7 +220,6 @@ class OpportunityDetailScreen extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade200, width: 0.8),
         ),
         child: GridView.count(
           crossAxisCount: 2,
@@ -214,10 +227,10 @@ class OpportunityDetailScreen extends StatelessWidget {
           crossAxisSpacing: 2,
           physics: const NeverScrollableScrollPhysics(),
           children: [
-            Container(color: const Color(0xFFF25022)), // Red-orange
-            Container(color: const Color(0xFF7FBA00)), // Green
-            Container(color: const Color(0xFF00A4EF)), // Blue
-            Container(color: const Color(0xFFFFB900)), // Yellow
+            Container(color: const Color(0xFFF25022)),
+            Container(color: const Color(0xFF7FBA00)),
+            Container(color: const Color(0xFF00A4EF)),
+            Container(color: const Color(0xFFFFB900)),
           ],
         ),
       );
@@ -225,10 +238,9 @@ class OpportunityDetailScreen extends StatelessWidget {
       return Container(
         width: size,
         height: size,
-        decoration: BoxDecoration(
-          color: const Color(0xFF0C2340), // NASA Dark Blue
+        decoration: const BoxDecoration(
+          color: Color(0xFF0C2340),
           shape: BoxShape.circle,
-          border: Border.all(color: Colors.grey.shade200, width: 0.8),
         ),
         alignment: Alignment.center,
         child: Text(
@@ -245,10 +257,9 @@ class OpportunityDetailScreen extends StatelessWidget {
       return Container(
         width: size,
         height: size,
-        decoration: BoxDecoration(
-          color: const Color(0xFFFF6C37), // Postman Orange
+        decoration: const BoxDecoration(
+          color: Color(0xFFFF6C37),
           shape: BoxShape.circle,
-          border: Border.all(color: Colors.grey.shade200, width: 0.8),
         ),
         alignment: Alignment.center,
         child: Icon(
@@ -261,10 +272,9 @@ class OpportunityDetailScreen extends StatelessWidget {
       return Container(
         width: size,
         height: size,
-        decoration: BoxDecoration(
-          color: Colors.grey.shade50,
+        decoration: const BoxDecoration(
+          color: Colors.white,
           shape: BoxShape.circle,
-          border: Border.all(color: Colors.grey.shade200, width: 0.8),
         ),
         alignment: Alignment.center,
         child: Text(
@@ -280,10 +290,9 @@ class OpportunityDetailScreen extends StatelessWidget {
       return Container(
         width: size,
         height: size,
-        decoration: BoxDecoration(
-          color: const Color(0xFF004851), // MLH Green
+        decoration: const BoxDecoration(
+          color: Color(0xFF004851),
           shape: BoxShape.circle,
-          border: Border.all(color: Colors.grey.shade200, width: 0.8),
         ),
         alignment: Alignment.center,
         child: Text(
@@ -297,7 +306,6 @@ class OpportunityDetailScreen extends StatelessWidget {
       );
     }
 
-    // Default letter avatar
     return CircleAvatar(
       radius: size / 2,
       backgroundColor: Colors.orange.shade50,
@@ -312,46 +320,80 @@ class OpportunityDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context, Color primaryColor) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            AppBadge(
-              label: opportunity.type.toUpperCase(),
-              color: primaryColor,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            ),
-            const SizedBox(width: 12),
-            if (opportunity.organizer != null) ...[
-              _buildBrandLogo(opportunity.organizer!, size: 28),
-              const SizedBox(width: 8),
-              Expanded(
+  Widget _buildHeaderCard(BuildContext context, Color primaryColor) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100,
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: primaryColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: primaryColor.withValues(alpha: 0.2)),
+                ),
                 child: Text(
-                  'by ${opportunity.organizer}',
+                  opportunity.type.toUpperCase(),
                   style: GoogleFonts.plusJakartaSans(
-                    color: AppColors.text3For(context),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
+                    color: primaryColor,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 10,
+                    letterSpacing: 1.0,
                   ),
                 ),
               ),
+              const SizedBox(width: 12),
+              if (opportunity.organizer != null) ...[
+                _buildBrandLogo(opportunity.organizer!, size: 24),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    opportunity.organizer!,
+                    style: GoogleFonts.plusJakartaSans(
+                      color: AppColors.text2For(context),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ],
-          ],
-        ).animate().fadeIn().slideX(begin: -0.05),
-        const SizedBox(height: 18),
-        Text(
-          opportunity.title,
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 28,
-            fontWeight: FontWeight.w900,
-            color: AppColors.textFor(context),
-            letterSpacing: -1.2,
-            height: 1.1,
-          ),
-        ).animate().fadeIn(delay: 100.ms).slideX(begin: -0.05),
-      ],
+          ).animate().fadeIn().slideX(begin: -0.05),
+          const SizedBox(height: 16),
+          Text(
+            opportunity.title,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textFor(context),
+              letterSpacing: -0.8,
+              height: 1.25,
+            ),
+          ).animate().fadeIn(delay: 100.ms).slideX(begin: -0.05),
+        ],
+      ),
     );
   }
 
@@ -360,14 +402,14 @@ class OpportunityDetailScreen extends StatelessWidget {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       crossAxisCount: 2,
-      childAspectRatio: 2.2,
+      childAspectRatio: 2.3,
       mainAxisSpacing: 12,
       crossAxisSpacing: 12,
       children: [
         _MetaItem(
           icon: Icons.calendar_today_rounded,
-          label: 'DATE',
-          value: opportunity.date ?? 'TBA',
+          label: 'DEADLINE',
+          value: _getFriendlyDeadline(opportunity),
           color: primaryColor,
         ),
         _MetaItem(
@@ -377,16 +419,16 @@ class OpportunityDetailScreen extends StatelessWidget {
           color: primaryColor,
         ),
         const _MetaItem(
-          icon: Icons.auto_awesome_rounded,
+          icon: Icons.emoji_events_rounded,
           label: 'REWARD',
-          value: 'Experience',
+          value: 'Swags & Certs',
           color: Colors.amber,
         ),
         _MetaItem(
           icon: Icons.shield_moon_rounded,
-          label: 'AURA',
-          value: '${opportunity.requiredAura} Needed',
-          color: opportunity.locked ? Colors.redAccent : Colors.greenAccent,
+          label: 'REQUIRED AURA',
+          value: opportunity.requiredAura > 0 ? '${opportunity.requiredAura} Needed' : 'No Minimum',
+          color: opportunity.locked ? const Color(0xFFFF416C) : const Color(0xFF00FFCC),
         ),
       ],
     ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.05);
@@ -395,36 +437,151 @@ class OpportunityDetailScreen extends StatelessWidget {
   Widget _buildSectionTitle(BuildContext context, String title) {
     return Text(
       title,
-      style: TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.w900,
+      style: GoogleFonts.plusJakartaSans(
+        fontSize: 17,
+        fontWeight: FontWeight.w800,
         color: AppColors.textFor(context),
         letterSpacing: -0.2,
       ),
     );
   }
 
+  Widget _buildDescriptionText(BuildContext context, String text) {
+    final paragraphs = text.split(RegExp(r'\r?\n+'));
+    
+    if (paragraphs.length == 1 && text.length > 120) {
+      final sentenceRegex = RegExp(r'\.\s+(?=[A-Z])');
+      final sentences = text.split(sentenceRegex);
+      
+      if (sentences.length > 1) {
+        final List<Widget> children = [];
+        for (int i = 0; i < sentences.length; i++) {
+          var s = sentences[i].trim();
+          if (s.isEmpty) continue;
+          if (!s.endsWith('.') && i < sentences.length - 1) {
+            s += '.';
+          }
+          children.add(
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12.0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6.0, right: 8.0),
+                    child: Container(
+                      width: 5,
+                      height: 5,
+                      decoration: const BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      s,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 14,
+                        height: 1.6,
+                        color: AppColors.text2For(context),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: children,
+        );
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: paragraphs.map((para) {
+        final trimmed = para.trim();
+        if (trimmed.isEmpty) return const SizedBox.shrink();
+        
+        final isBullet = trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*');
+        final cleanText = isBullet ? trimmed.substring(1).trim() : trimmed;
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (isBullet)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6.0, right: 8.0),
+                  child: Container(
+                    width: 5,
+                    height: 5,
+                    decoration: const BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              Expanded(
+                child: Text(
+                  cleanText,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    height: 1.6,
+                    color: AppColors.text2For(context),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildDescriptionCard(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF191920) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.grey.shade100,
+        ),
+      ),
+      child: _buildDescriptionText(context, opportunity.description),
+    ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.05);
+  }
+
   Widget _buildLockIncentive(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.amber.withValues(alpha: 0.1),
+        color: Colors.amber.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.amber.withValues(alpha: 0.2)),
+        border: Border.all(color: Colors.amber.withValues(alpha: 0.15)),
       ),
       child: Column(
         children: [
-          const Icon(Icons.lock_person_rounded, color: Colors.amber, size: 32),
-          const SizedBox(height: 12),
-          const Text(
+          const Icon(Icons.lock_person_rounded, color: Colors.amber, size: 28),
+          const SizedBox(height: 10),
+          Text(
             'High Aura Required',
-            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+            style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 15),
           ),
           const SizedBox(height: 6),
           Text(
-            'Complete daily missions and engage with the community to unlock this opportunity.',
+            'Complete daily matches and engage with other builders to earn aura and unlock premium opportunities.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.text3For(context), fontSize: 13),
+            style: GoogleFonts.plusJakartaSans(color: AppColors.text3For(context), fontSize: 12),
           ),
         ],
       ),
@@ -432,45 +589,128 @@ class OpportunityDetailScreen extends StatelessWidget {
   }
 
   Widget _buildActionFAB(BuildContext context, Color primaryColor) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 36),
       decoration: BoxDecoration(
-        color: AppColors.bgFor(context),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 30,
-            offset: Offset(0, -10),
+        color: isDark ? AppColors.bgDark : Colors.white,
+        border: Border(
+          top: BorderSide(
+            color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100,
+            width: 1,
           ),
-        ],
+        ),
       ),
-      child: AppButton(
-        height: 60,
-        backgroundColor: opportunity.locked ? AppColors.bg3For(context) : primaryColor,
-        onPressed: opportunity.locked ? null : () => _handleRegister(context),
-        child: Center(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (opportunity.locked)
-                const Icon(Icons.lock_rounded, size: 20, color: Colors.grey),
-              if (opportunity.locked) const SizedBox(width: 10),
-              Text(
-                opportunity.locked 
-                    ? 'LOCKED (${opportunity.requiredAura} AURA)' 
-                    : (opportunity.type.toLowerCase() == 'hackathon' ? 'REGISTER FOR HACKATHON' : 'APPLY FOR ACCESS'),
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                  letterSpacing: 1.0,
-                ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            if (!opportunity.locked)
+              BoxShadow(
+                color: primaryColor.withValues(alpha: 0.35),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
               ),
-            ],
+          ],
+        ),
+        child: AppButton(
+          height: 56,
+          backgroundColor: opportunity.locked ? AppColors.bg3For(context) : primaryColor,
+          onPressed: opportunity.locked ? null : () => _handleRegister(context),
+          child: Center(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (opportunity.locked) ...[
+                  const Icon(Icons.lock_rounded, size: 18, color: Colors.grey),
+                  const SizedBox(width: 8),
+                ],
+                Text(
+                  opportunity.locked 
+                      ? 'LOCKED (${opportunity.requiredAura} AURA)' 
+                      : (opportunity.type.toLowerCase() == 'hackathon' ? 'REGISTER NOW' : 'APPLY TO ACCESS'),
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     ).animate().fadeIn(delay: 500.ms).slideY(begin: 0.5);
+  }
+
+  bool _isLogoUrl(String? url) {
+    if (url == null || url.isEmpty) return false;
+    final lower = url.toLowerCase();
+    return lower.contains('150x150') ||
+        lower.contains('/logo/') ||
+        lower.endsWith('_logo.jpg') ||
+        lower.endsWith('_logo.png') ||
+        lower.contains('organisation_image') ||
+        lower.contains('organization_image');
+  }
+
+  Widget _buildLogoBanner(BuildContext context, String logoUrl, bool isDark) {
+    return Container(
+      color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF8F9FA),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned.fill(
+            child: Opacity(
+              opacity: 0.12,
+              child: Image.network(
+                logoUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const SizedBox(),
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ColorFilter.mode(
+                (isDark ? Colors.black : Colors.white).withValues(alpha: 0.1),
+                BlendMode.srcOver,
+              ),
+              child: const SizedBox(),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(28.0),
+            child: Image.network(
+              logoUrl,
+              fit: BoxFit.contain,
+              errorBuilder: (context, url, error) => const Icon(
+                Icons.image_outlined,
+                color: Colors.grey,
+                size: 48,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getFriendlyDeadline(EventAccessModel opportunity) {
+    if (opportunity.date != null && opportunity.date!.trim().isNotEmpty) {
+      return opportunity.date!;
+    }
+    if (opportunity.endDate != null && opportunity.endDate!.trim().isNotEmpty) {
+      try {
+        final parsed = DateTime.tryParse(opportunity.endDate!);
+        if (parsed != null) {
+          final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          return '${months[parsed.month - 1]} ${parsed.day}, ${parsed.year}';
+        }
+      } catch (_) {}
+    }
+    return 'TBA';
   }
 }
 
@@ -489,11 +729,26 @@ class _MetaItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppGlassCard(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100,
+        ),
+      ),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 20),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 18),
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -502,21 +757,22 @@ class _MetaItem extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: TextStyle(
+                  style: GoogleFonts.plusJakartaSans(
                     color: AppColors.text4For(context),
-                    fontSize: 9,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w800,
                     letterSpacing: 0.5,
                   ),
                 ),
+                const SizedBox(height: 2),
                 Text(
                   value,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
+                  style: GoogleFonts.plusJakartaSans(
                     color: AppColors.textFor(context),
                     fontSize: 12,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],

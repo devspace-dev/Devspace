@@ -27,6 +27,22 @@ class NotificationService {
     importance: Importance.high,
   );
 
+  void _handleFcmMessageTap(RemoteMessage message) {
+    try {
+      final data = message.data;
+      final payload = jsonEncode({
+        'type': data['type'] ?? '',
+        'postId': data['post_id'] ?? data['postId'],
+        'questionId': data['question_id'] ?? data['questionId'],
+        'fromUid': data['from_uid'] ?? data['fromUid'],
+        'id': data['id'] ?? '',
+      });
+      _notificationStreamController.add(payload);
+    } catch (e) {
+      debugPrint('Failed to handle FCM message tap: $e');
+    }
+  }
+
   Future<void> init(String uid) async {
     try {
       // 1. Firebase Messaging Setup
@@ -53,15 +69,39 @@ class NotificationService {
       // Background handler
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
+      // Handle notification taps when app is in background or closed
+      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+        _handleFcmMessageTap(message);
+      });
+
+      fcm.getInitialMessage().then((RemoteMessage? message) {
+        if (message != null) {
+          _handleFcmMessageTap(message);
+        }
+      });
+
       // Listen for foreground messages
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        // If the message is a personal database notification, we skip showing
+        // a local notification in the foreground. The active NotificationsProvider stream
+        // will capture the database insertion in real-time and display a local notification
+        // along with the premium in-app SnackBar popup. This avoids double-alerts.
+        final isDbNotification = message.data.containsKey('from_uid') || 
+                                 (message.data['type'] != null && 
+                                  ['like', 'comment', 'follow', 'message', 'solved', 'pr_request', 'duel_invite', 'pr_accepted'].contains(message.data['type']));
+
+        if (isDbNotification) {
+          debugPrint("Skipping foreground FCM local notification since it is handled by the database stream listener.");
+          return;
+        }
+
         RemoteNotification? notification = message.notification;
-        AndroidNotification? android = message.notification?.android;
-        if (notification != null && android != null) {
+        if (notification != null) {
           showLocalNotification(
             id: message.messageId ?? DateTime.now().toString(),
             title: notification.title ?? 'DevSpace',
             body: notification.body ?? '',
+            payload: jsonEncode(message.data),
           );
         }
       });

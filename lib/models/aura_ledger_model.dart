@@ -9,6 +9,7 @@ class AuraLedgerModel {
   final String? referenceId;
   final String? actorId;
   final DateTime createdAt;
+  final Map<String, dynamic> metadata;
 
   AuraLedgerModel({
     required this.id,
@@ -19,6 +20,7 @@ class AuraLedgerModel {
     this.referenceId,
     this.actorId,
     required this.createdAt,
+    this.metadata = const {},
   });
 
   factory AuraLedgerModel.fromJson(Map<String, dynamic> json) {
@@ -33,6 +35,7 @@ class AuraLedgerModel {
       createdAt: json['created_at'] != null 
           ? DateTime.parse(json['created_at']).toLocal() 
           : DateTime.now(),
+      metadata: json['metadata'] is Map ? Map<String, dynamic>.from(json['metadata'] as Map) : const {},
     );
   }
 

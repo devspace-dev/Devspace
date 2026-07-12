@@ -5,7 +5,7 @@
   "packages": [
     {
       "name": "devspace",
-      "version": "1.0.13+19",
+      "version": "1.0.15+21",
       "dependencies": [
         "agora_rtc_engine",
         "cached_network_image",

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/aura_summary_model.dart';
 import '../models/daily_challenge_model.dart';
@@ -199,6 +200,15 @@ class EngagementProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      try {
+        await Supabase.instance.client.rpc('refresh_user_streak_if_needed');
+      } catch (streakError) {
+        debugPrint('Failed to refresh user streak in fetchOverview: $streakError');
+      }
+
+      final user = AuthService.instance.currentUser;
+      final uid = user?.id;
+
       final results = await Future.wait([
         _OverviewLoadResult.guard(_auraSummaryLoader),
         _OverviewLoadResult.guard(_eligibleEventsLoader),
@@ -210,6 +220,10 @@ class EngagementProvider extends ChangeNotifier {
           () => _weeklyFreeChallengeLoader(
               techStack: techStack ?? _selectedDailyTechStack),
         ),
+        if (uid != null)
+          _OverviewLoadResult.guard(
+            () => SupabaseService.instance.getAuraLedger(uid),
+          ),
       ]).timeout(const Duration(seconds: 12));
 
       final auraResult = results[0] as _OverviewLoadResult<AuraSummaryModel>;
@@ -244,6 +258,15 @@ class EngagementProvider extends ChangeNotifier {
         _weeklyFreeChallenges = weeklyResult.data!;
       } else if (weeklyResult.hasError) {
         failures.add(weeklyResult.error!);
+      }
+
+      if (uid != null && results.length > 4) {
+        final historyResult = results[4] as _OverviewLoadResult<List<AuraLedgerModel>>;
+        if (historyResult.data != null) {
+          _auraHistory = historyResult.data!;
+        } else if (historyResult.hasError) {
+          failures.add(historyResult.error!);
+        }
       }
 
       for (final failure in failures) {

@@ -19,6 +19,7 @@ create table if not exists public.users (
   college text default '',
   github_handle text default '',
   profile_completed boolean default false,
+  fcm_token text,
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
 
@@ -41,6 +42,7 @@ alter table public.users add column if not exists github_handle text default '';
 alter table public.users add column if not exists profile_completed boolean default false;
 alter table public.users add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
 alter table public.users add column if not exists is_admin boolean default false;
+alter table public.users add column if not exists fcm_token text;
 
 create table if not exists public.founder_devices (
   id uuid default gen_random_uuid() primary key,
@@ -391,8 +393,10 @@ create table if not exists public.notifications (
   to_uid uuid references public.users(id) on delete cascade,
   from_uid uuid references public.users(id) on delete cascade,
   type text default '',
-  post_id uuid references public.posts(id) on delete set null,
+  post_id uuid,
+  question_id uuid,
   message text default '',
+  title text,
   read boolean default false,
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
@@ -400,10 +404,25 @@ create table if not exists public.notifications (
 alter table public.notifications add column if not exists to_uid uuid references public.users(id) on delete cascade;
 alter table public.notifications add column if not exists from_uid uuid references public.users(id) on delete cascade;
 alter table public.notifications add column if not exists type text default '';
-alter table public.notifications add column if not exists post_id uuid references public.posts(id) on delete set null;
+alter table public.notifications add column if not exists post_id uuid;
+alter table public.notifications add column if not exists question_id uuid;
 alter table public.notifications add column if not exists message text default '';
+alter table public.notifications add column if not exists title text;
 alter table public.notifications add column if not exists read boolean default false;
 alter table public.notifications add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
+
+-- Remove foreign key constraint on post_id to allow storing other ID types (like duel requests)
+do $$
+begin
+  if exists (
+    select 1
+    from pg_constraint
+    where conname = 'notifications_post_id_fkey'
+  ) then
+    alter table public.notifications drop constraint notifications_post_id_fkey;
+  end if;
+end;
+$$;
 
 create table if not exists public.conversations (
   id uuid default gen_random_uuid() primary key,
@@ -1413,7 +1432,12 @@ returns table (
   link text,
   type text,
   unlocked boolean,
-  locked boolean
+  locked boolean,
+  banner_url text,
+  date text,
+  end_date timestamptz,
+  location text,
+  organizer text
 )
 language plpgsql
 security definer
@@ -1458,7 +1482,12 @@ begin
     e.link,
     e.type,
     (actor_aura >= e.required_aura) as unlocked,
-    not (actor_aura >= e.required_aura) as locked
+    not (actor_aura >= e.required_aura) as locked,
+    e.banner_url,
+    e.date,
+    e.end_date,
+    e.location,
+    e.organizer
   from public.events e
   where e.is_active = true
   order by e.required_aura asc, e.created_at desc;

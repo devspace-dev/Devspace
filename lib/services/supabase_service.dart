@@ -955,15 +955,34 @@ class SupabaseService {
     String? message,
     String? title,
   }) async {
-    await _client.from('notifications').insert({
-      'to_uid': toUid,
-      'from_uid': fromUid,
-      'type': type,
-      'post_id': postId,
-      'question_id': questionId,
-      'message': message ?? '',
-      'title': title,
-    });
+    try {
+      await _client.from('notifications').insert({
+        'to_uid': toUid,
+        'from_uid': fromUid,
+        'type': type,
+        'post_id': postId,
+        'question_id': questionId,
+        'message': message ?? '',
+        'title': title,
+      });
+    } catch (e) {
+      // Defensive fallback: if the title column does not exist in the database,
+      // try inserting without the title column to prevent breaking the flow.
+      debugPrint('pushNotification failed: $e. Retrying without title column.');
+      try {
+        await _client.from('notifications').insert({
+          'to_uid': toUid,
+          'from_uid': fromUid,
+          'type': type,
+          'post_id': postId,
+          'question_id': questionId,
+          'message': message ?? '',
+        });
+      } catch (err) {
+        debugPrint('Fallback pushNotification failed: $err');
+        rethrow;
+      }
+    }
   }
 
   Future<void> sendBroadcastNotification({
@@ -1072,25 +1091,25 @@ class SupabaseService {
     return (data as List).map((d) => ConversationModel.fromJson(d)).toList();
   }
 
-  Stream<List<ConversationModel>> streamConversations(String userId) {
-    // NOTE: Realtime .stream() on arrays is tricky. 
-    // For now, we use a hybrid approach: fetch once and listen for changes.
-    // However, to keep it simple and fix the immediate crash, we'll use a 
-    // less aggressive stream if possible, or just return the fetch.
-    // Real fix: use a conversation_participants join table.
-    
-    return _client
-        .from('conversations')
-        .stream(primaryKey: ['id'])
-        // We still have the client-side filter for now, but we should 
-        // ideally move to a targeted Realtime Channel.
-        .map((list) => list
-            .map((d) => ConversationModel.fromJson(d))
-            .where((c) => c.participants.contains(userId))
-            .toList())
-        .map((list) => list
-          ..sort((a, b) =>
-              (b.lastMessageAt ?? b.createdAt).compareTo(a.lastMessageAt ?? a.createdAt)));
+  Stream<List<ConversationModel>> streamConversations(String userId) async* {
+    // Yield the initial fetch immediately
+    try {
+      final initial = await getConversations(userId);
+      yield initial;
+    } catch (e) {
+      debugPrint('Error in initial streamConversations fetch: $e');
+    }
+
+    // Poll periodically every 15 seconds
+    while (true) {
+      await Future.delayed(const Duration(seconds: 15));
+      try {
+        final data = await getConversations(userId);
+        yield data;
+      } catch (e) {
+        debugPrint('Error in polling streamConversations: $e');
+      }
+    }
   }
 
   Stream<List<MessageModel>> streamMessages(String conversationId) {
@@ -1303,11 +1322,62 @@ class SupabaseService {
       'category': category,
       'mode': mode,
     }).select().single();
-    return data['id'].toString();
+    final requestId = data['id'].toString();
+
+    // Pre-create the arena_matches row with the same ID, so both players can read/write it.
+    // This succeeds because the sender (player1_id) is the one inserting it, satisfying the RLS insert policy.
+    try {
+      await _client.from('arena_matches').insert({
+        'id': requestId,
+        'mode': mode,
+        'player1_id': senderId,
+        'player2_id': receiverId,
+        'status': 'waiting',
+      });
+    } catch (e) {
+      debugPrint('Failed to pre-create arena_matches row: $e');
+    }
+
+    String senderName = 'A peer';
+    try {
+      final userDoc = await _client.from('users').select('name').eq('id', senderId).maybeSingle();
+      if (userDoc != null && userDoc['name'] != null) {
+        senderName = userDoc['name'].toString();
+      }
+    } catch (_) {}
+
+    try {
+      await pushNotification(
+        toUid: receiverId,
+        fromUid: senderId,
+        type: 'duel_invite',
+        postId: requestId,
+        message: '$senderName challenged you to a $mode in $category',
+        title: 'New Duel Challenge! ⚔️',
+      );
+    } catch (e) {
+      debugPrint('Failed to push duel invite notification: $e');
+    }
+
+    return requestId;
   }
 
   Future<void> updateDuelRequestStatus(String requestId, String status) async {
     await _client.from('duel_requests').update({'status': status}).eq('id', requestId);
+  }
+
+  Future<Map<String, dynamic>?> getDuelRequest(String requestId) async {
+    try {
+      final response = await _client
+          .from('duel_requests')
+          .select()
+          .eq('id', requestId)
+          .maybeSingle();
+      return response;
+    } catch (e) {
+      debugPrint('Error getting duel request: $e');
+      return null;
+    }
   }
 
   Future<String> createLiveDuel({
@@ -1405,10 +1475,33 @@ class SupabaseService {
         .subscribe();
   }
 
-  Future<String?> findArenaMatch(String mode) async {
+  Future<Map<String, dynamic>?> findArenaMatch(String mode) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return null;
 
+    // 1. Try to use the atomic RPC function
+    try {
+      final response = await _client.rpc('find_arena_match', params: {
+        'p_user_id': userId,
+        'p_mode': mode,
+      });
+      if (response != null) {
+        final matchId = response.toString();
+        // Fetch the match record to get player1_id
+        final matchData = await _client.from('arena_matches')
+            .select('player1_id')
+            .eq('id', matchId)
+            .maybeSingle();
+        return {
+          'id': matchId,
+          'player1_id': matchData?['player1_id']?.toString() ?? 'placeholder',
+        };
+      }
+    } catch (e) {
+      debugPrint('find_arena_match RPC failed, falling back to client-side query: $e');
+    }
+
+    // 2. Fallback to client-side query (in case they haven't run the SQL script yet)
     try {
       final data = await _client.from('arena_matches')
           .select()
@@ -1421,13 +1514,19 @@ class SupabaseService {
       
       if (data != null) {
          final id = data['id'].toString();
+         final player1Id = data['player1_id'].toString();
          final update = await _client.from('arena_matches')
              .update({'player2_id': userId, 'status': 'playing'})
              .eq('id', id)
              .eq('status', 'waiting')
              .select()
              .maybeSingle();
-         if (update != null) return id;
+         if (update != null) {
+           return {
+             'id': id,
+             'player1_id': player1Id,
+           };
+         }
       }
     } catch (e) {
       debugPrint('Error finding match: $e');

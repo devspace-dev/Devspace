@@ -432,7 +432,7 @@ class BackendApiService {
 
         final rows = await _client
             .from('events')
-            .select('id, title, description, required_aura, link, type, banner_url, date, location, organizer')
+            .select('id, title, description, required_aura, link, type, banner_url, date, end_date, location, organizer')
             .eq('is_active', true)
             .order('required_aura', ascending: true);
 
@@ -454,6 +454,7 @@ class BackendApiService {
               locked: auraPoints < requiredAura,
               bannerUrl: event['banner_url']?.toString(),
               date: event['date']?.toString(),
+              endDate: event['end_date']?.toString(),
               location: event['location']?.toString(),
               organizer: event['organizer']?.toString(),
             ));
@@ -475,6 +476,7 @@ class BackendApiService {
     required String type,
     String? bannerUrl,
     String? date,
+    DateTime? endDate,
     String? location,
     String? organizer,
   }) async {
@@ -491,6 +493,7 @@ class BackendApiService {
           'type': type,
           'bannerUrl': bannerUrl,
           'date': date,
+          'endDate': endDate?.toUtc().toIso8601String(),
           'location': location,
           'organizer': organizer,
         },
@@ -510,13 +513,14 @@ class BackendApiService {
             'type': type.trim(),
             'banner_url': bannerUrl?.trim(),
             'date': date?.trim(),
+            'end_date': endDate?.toUtc().toIso8601String(),
             'location': location?.trim(),
             'organizer': organizer?.trim(),
             'is_active': true,
             'created_by': _client.auth.currentUser?.id,
           })
           .select(
-            'id, title, description, required_aura, link, type, banner_url, date, location, organizer, is_active, created_by, created_at, updated_at',
+            'id, title, description, required_aura, link, type, banner_url, date, end_date, location, organizer, is_active, created_by, created_at, updated_at',
           )
           .single();
 
@@ -563,7 +567,7 @@ class BackendApiService {
       final data = await _client
           .from('events')
           .select(
-            'id, title, description, required_aura, link, type, banner_url, date, location, organizer, is_active, created_by, created_at, updated_at',
+            'id, title, description, required_aura, link, type, banner_url, date, end_date, location, organizer, is_active, created_by, created_at, updated_at',
           )
           .order('created_at', ascending: false);
 
@@ -583,6 +587,7 @@ class BackendApiService {
     required bool isActive,
     String? bannerUrl,
     String? date,
+    DateTime? endDate,
     String? location,
     String? organizer,
   }) async {
@@ -600,6 +605,7 @@ class BackendApiService {
           'isActive': isActive,
           'bannerUrl': bannerUrl,
           'date': date,
+          'endDate': endDate?.toUtc().toIso8601String(),
           'location': location,
           'organizer': organizer,
         },
@@ -621,6 +627,7 @@ class BackendApiService {
             'type': type.trim(),
             'banner_url': bannerUrl?.trim(),
             'date': date?.trim(),
+            'end_date': endDate?.toUtc().toIso8601String(),
             'location': location?.trim(),
             'organizer': organizer?.trim(),
             'is_active': isActive,
@@ -628,7 +635,7 @@ class BackendApiService {
           })
           .eq('id', eventId)
           .select(
-            'id, title, description, required_aura, link, type, banner_url, date, location, organizer, is_active, created_by, created_at, updated_at',
+            'id, title, description, required_aura, link, type, banner_url, date, end_date, location, organizer, is_active, created_by, created_at, updated_at',
           )
           .single();
 

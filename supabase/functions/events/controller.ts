@@ -16,6 +16,11 @@ type CreateEventBody = {
   link?: string;
   type?: "hackathon" | "event";
   isActive?: boolean;
+  bannerUrl?: string;
+  date?: string;
+  endDate?: string;
+  location?: string;
+  organizer?: string;
 };
 
 export async function handleEventsRequest(

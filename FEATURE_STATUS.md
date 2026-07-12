@@ -26,6 +26,12 @@
 - Home engagement cards linked to full-screen challenge/opportunity views
 - Founder tools restricted to allowlisted founder/developer devices on top of admin auth
 - Explore resources now open gamified roadmap levels with learning materials and aura-style rewards
+- Dynamic Arena mode category scores (Combat, Team, Daily Challenge) calculated from the user's Aura ledger
+- Automated daily streak verification and DB reset via client-invoked Postgres RPC
+- Expanded Arena mode question pool to 520+ distinct questions across reflex, logic, and trivia
+- Implemented 2v2 Team Duels gameplay simulation, including pooled scores, split aura rewards, activity logging, and stacked avatars
+- Redesigned Opportunities Detail Page with glassmorphism layouts, clean metadata rows, and premium Warm Orange theme integration
+- Push notification delivery and tap routing for Arena Duel Invites across background, closed, and foreground app states
 
 ## Partial
 - Google sign-in is visible but intentionally disabled
@@ -37,6 +43,6 @@
 
 ## Missing
 - Settings/account surface beyond sign-out
-- Notifications screen/inbox
+- Notifications screen/inbox (Implemented)
 - Broader automated coverage for core flows
 - External privacy policy URL and full Play Store listing assets/metadata

@@ -48,13 +48,16 @@ serve(async (req) => {
     }
 
     // Determine the push notification title based on the type
-    let title = "DevSpace";
-    if (notification.type === "like") title = "New Like ⚡";
-    if (notification.type === "comment") title = "New Comment 💬";
-    if (notification.type === "follow") title = "New Follower 👥";
-    if (notification.type === "message") title = "New Message ✉️";
-    if (notification.type === "solved") title = "Solution Accepted ✅";
-    if (notification.type === "pr_request") title = "Collaboration Request 🤝";
+    let title = notification.title || "DevSpace";
+    if (!notification.title) {
+      if (notification.type === "like") title = "New Like ⚡";
+      if (notification.type === "comment") title = "New Comment 💬";
+      if (notification.type === "follow") title = "New Follower 👥";
+      if (notification.type === "message") title = "New Message ✉️";
+      if (notification.type === "solved") title = "Solution Accepted ✅";
+      if (notification.type === "pr_request") title = "Collaboration Request 🤝";
+      if (notification.type === "duel_invite") title = "New Duel Challenge! ⚔️";
+    }
 
     // Send the notification using Firebase Admin SDK
     const message = {

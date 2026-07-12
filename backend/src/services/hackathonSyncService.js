@@ -32,8 +32,13 @@ async function fetchDevpost() {
       if (!title || !link) continue;
 
       let bannerUrl = hack.thumbnail_url || '';
-      if (bannerUrl.startsWith('//')) {
-        bannerUrl = 'https:' + bannerUrl;
+      if (bannerUrl) {
+        if (bannerUrl.includes('medium_square')) {
+          bannerUrl = bannerUrl.replace('medium_square', 'original');
+        }
+        if (bannerUrl.startsWith('//')) {
+          bannerUrl = 'https:' + bannerUrl;
+        }
       }
       if (!bannerUrl) {
         bannerUrl = 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?q=80&w=1000';
@@ -102,6 +107,29 @@ async function fetchDevfolio() {
       const link = `https://${slug}.devfolio.co`;
 
       let bannerUrl = hack.settings?.featured_cover_img_v2 || hack.settings?.featured_cover_img || '';
+      if (!bannerUrl && slug) {
+        try {
+          const subRes = await fetch(`https://${slug}.devfolio.co/`, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            }
+          });
+          if (subRes.ok) {
+            const subHtml = await subRes.text();
+            const subMatch = subHtml.match(/<script id="__NEXT_DATA__" type="application\/json">(.*?)<\/script>/);
+            if (subMatch) {
+              const subData = JSON.parse(subMatch[1]);
+              const hackObj = subData.props?.pageProps?.hackathon;
+              if (hackObj?.cover_img) {
+                bannerUrl = hackObj.cover_img;
+              }
+            }
+          }
+        } catch (err) {
+          console.error(`Failed to fetch cover image for Devfolio hackathon ${slug}:`, err);
+        }
+      }
+
       if (bannerUrl) {
         if (!bannerUrl.startsWith('http://') && !bannerUrl.startsWith('https://')) {
           if (bannerUrl.startsWith('/')) {

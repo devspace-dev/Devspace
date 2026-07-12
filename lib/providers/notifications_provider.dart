@@ -67,6 +67,7 @@ class NotificationsProvider extends ChangeNotifier {
     if (n.type == 'message') title = 'New Message ✉️';
     if (n.type == 'solved') title = 'Solution Accepted ✅';
     if (n.type == 'pr_request') title = 'Collaboration Request 🤝';
+    if (n.type == 'duel_invite') title = 'New Duel Challenge! ⚔️';
 
     final payload = jsonEncode({
       'type': n.type,
