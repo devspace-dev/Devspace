@@ -171,8 +171,6 @@ class UserModel {
     final inferredCompleted = explicitCompleted ??
         (parsedAcademic.year.isNotEmpty &&
             parsedAcademic.branch.isNotEmpty &&
-            building.isNotEmpty &&
-            building != 'Not set' &&
             stack.isNotEmpty &&
             roles.isNotEmpty &&
             (json['college']?.toString() ?? '').isNotEmpty);

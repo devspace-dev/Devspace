@@ -43,6 +43,7 @@ Upgrade the app backend for launch-ready gamification and gated engagement witho
 - [x] Extended matchmaking search timeout to 45 seconds to prevent premature search failure
 - [x] Fixed manual opportunity dates and registration deadlines in client, Edge Functions, and founder tools panel
 - [x] Push notification delivery and tap routing for Arena Duel Invites across background, closed, and foreground app states
+- [x] Added Burger Sidebar (Drawer) featuring Resources for You & quick navigation; removed Currently Building from onboarding and profile screens
 ## In Progress
 - [ ] Feed migration from stream-only loading to explicit paginated API consumption
 - [ ] Stronger regression coverage for new backend rules

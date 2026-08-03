@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../providers/auth_provider.dart';
 import '../providers/premium_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_ui_kit.dart';
 import '../widgets/challenge_tier_card.dart';
 import 'weekly_free_challenge_screen.dart';
-import 'career_goal_onboarding_screen.dart';
 import 'explore_premium_screen.dart';
 import 'weekly_challenge_registration_screen.dart';
 
@@ -187,7 +185,7 @@ class _WeeklyChallengePricingScreenState extends State<WeeklyChallengePricingScr
             'Priority Placement Support'
           ],
           buttonText: buttonText,
-          onPressed: onPressed ?? () {},
+          onPressed: onPressed,
         ),
         const SizedBox(height: 24),
         _buildBenefitSection(context),

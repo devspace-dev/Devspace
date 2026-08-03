@@ -10,7 +10,6 @@ import '../providers/engagement_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_state_widgets.dart';
 import '../widgets/app_ui_kit.dart';
-import '../widgets/info_block.dart';
 import '../widgets/glass_container.dart';
 
 class WeeklyFreeChallengeScreen extends StatefulWidget {

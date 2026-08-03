@@ -11,7 +11,6 @@ import '../services/backend_api_service.dart';
 import '../services/founder_device_service.dart';
 import '../services/notification_service.dart';
 import '../services/storage_service.dart';
-import '../services/supabase_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/founder_access_denied_view.dart';
 

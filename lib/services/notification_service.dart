@@ -18,7 +18,8 @@ class NotificationService {
 
   final _local = FlutterLocalNotificationsPlugin();
   final _notificationStreamController = StreamController<String?>.broadcast();
-  Stream<String?> get notificationResponseStream => _notificationStreamController.stream;
+  Stream<String?> get notificationResponseStream =>
+      _notificationStreamController.stream;
 
   static const _channel = AndroidNotificationChannel(
     'devspace_high',
@@ -47,7 +48,7 @@ class NotificationService {
     try {
       // 1. Firebase Messaging Setup
       final fcm = FirebaseMessaging.instance;
-      
+
       // Request permissions (especially for iOS)
       await fcm.requestPermission(
         alert: true,
@@ -67,7 +68,8 @@ class NotificationService {
       );
 
       // Background handler
-      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      FirebaseMessaging.onBackgroundMessage(
+          _firebaseMessagingBackgroundHandler);
 
       // Handle notification taps when app is in background or closed
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
@@ -80,18 +82,23 @@ class NotificationService {
         }
       });
 
-      // Listen for foreground messages
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        // If the message is a personal database notification, we skip showing
-        // a local notification in the foreground. The active NotificationsProvider stream
-        // will capture the database insertion in real-time and display a local notification
-        // along with the premium in-app SnackBar popup. This avoids double-alerts.
-        final isDbNotification = message.data.containsKey('from_uid') || 
-                                 (message.data['type'] != null && 
-                                  ['like', 'comment', 'follow', 'message', 'solved', 'pr_request', 'duel_invite', 'pr_accepted'].contains(message.data['type']));
+        final isDbNotification = message.data.containsKey('from_uid') ||
+            (message.data['type'] != null &&
+                [
+                  'like',
+                  'comment',
+                  'follow',
+                  'message',
+                  'solved',
+                  'pr_request',
+                  'duel_invite',
+                  'pr_accepted'
+                ].contains(message.data['type']));
 
         if (isDbNotification) {
-          debugPrint("Skipping foreground FCM local notification since it is handled by the database stream listener.");
+          debugPrint(
+              "Skipping foreground FCM local notification since it is handled by the database stream listener.");
           return;
         }
 
@@ -256,7 +263,8 @@ class NotificationService {
   }) async {
     await SupabaseService.instance.sendBroadcastNotification(
       title: 'New Daily Mission! 🚀',
-      body: 'Today\'s challenge: $title ($techStack). Solve it to earn Aura points!',
+      body:
+          'Today\'s challenge: $title ($techStack). Solve it to earn Aura points!',
       type: 'mission',
     );
   }

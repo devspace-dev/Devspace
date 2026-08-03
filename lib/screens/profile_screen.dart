@@ -568,9 +568,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         _buildDetailRow(
                           Icons.location_on_outlined,
-                          profileUser.building.isNotEmpty && profileUser.building != 'Not set'
-                              ? profileUser.building
-                              : 'Jaipur, India',
+                          'Jaipur, India',
                           context,
                         ),
                         const SizedBox(height: 12),
@@ -698,69 +696,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 24),
                   Column(
                     children: [
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(22),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              AppColors.primary.withValues(alpha: 0.1),
-                              AppColors.bg2For(context),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(
-                            color: AppColors.primary.withValues(alpha: 0.3),
-                            width: 1.2,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.05),
-                              blurRadius: 16,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(Icons.rocket_launch_rounded, 
-                                  size: 16, color: AppColors.primary.withValues(alpha: 0.8)),
-                                const SizedBox(width: 8),
-                                Text(
-                                  profileUser.building.isNotEmpty &&
-                                          profileUser.building != 'Not set'
-                                      ? 'CURRENTLY BUILDING'
-                                      : 'PORTFOLIO FOCUS',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.text3For(context),
-                                    letterSpacing: 1.2,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              profileUser.building.isNotEmpty &&
-                                      profileUser.building != 'Not set'
-                                  ? profileUser.building
-                                  : 'Shipping projects, learning in public, and building a stronger student developer identity.',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textFor(context),
-                                height: 1.5,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                       if (profileUser.stack.isNotEmpty) ...[
                         const SizedBox(height: 16),
                         Container(
@@ -1037,129 +972,6 @@ class _AvatarPreviewFallback extends StatelessWidget {
           fontSize: 88,
           fontWeight: FontWeight.w900,
           color: user.color,
-        ),
-      ),
-    );
-  }
-}
-
-class _ProfileMiniChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _ProfileMiniChip({
-    required this.icon,
-    required this.label,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.4),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: AppColors.bgFor(context).withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: AppColors.borderFor(context).withValues(alpha: 0.8),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 13, color: AppColors.text3For(context)),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              label,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: AppColors.text2For(context),
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProfileHeroStat extends StatelessWidget {
-  final String value;
-  final String label;
-  final VoidCallback? onTap;
-  final IconData? icon;
-  final Color? accentColor;
-
-  const _ProfileHeroStat({
-    required this.value,
-    required this.label,
-    this.onTap,
-    this.icon,
-    this.accentColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-        decoration: BoxDecoration(
-          color: AppColors.bgFor(context).withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: AppColors.borderFor(context).withValues(alpha: 0.7),
-          ),
-        ),
-        child: Column(
-          children: [
-            if (icon != null) ...[
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: (accentColor ?? AppColors.primary).withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                alignment: Alignment.center,
-                child: Icon(
-                  icon,
-                  size: 15,
-                  color: accentColor ?? AppColors.primary,
-                ),
-              ),
-              const SizedBox(height: 8),
-            ],
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                value,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.textFor(context),
-                ),
-              ),
-            ),
-            const SizedBox(height: 2),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                label,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.text3For(context),
-                ),
-              ),
-            ),
-          ],
         ),
       ),
     );

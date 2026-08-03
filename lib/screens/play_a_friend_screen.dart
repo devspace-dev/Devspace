@@ -5,7 +5,6 @@ import '../services/supabase_service.dart';
 import '../providers/auth_provider.dart';
 import 'package:provider/provider.dart';
 
-import '../theme/app_colors.dart';
 import '../providers/users_provider.dart';
 import '../widgets/profile_card.dart';
 import 'duel_screen.dart';
@@ -27,7 +26,7 @@ class PlayAFriendScreen extends StatefulWidget {
 }
 
 class _PlayAFriendScreenState extends State<PlayAFriendScreen> {
-  bool _isLiveDuel = true;
+  final bool _isLiveDuel = true;
   String _query = '';
   final TextEditingController _searchController = TextEditingController();
 

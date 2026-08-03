@@ -32,7 +32,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final notificationsP = context.watch<NotificationsProvider>();
     final realNotifications = notificationsP.notifications;
     final authP = context.watch<AuthProvider>();
@@ -225,7 +224,6 @@ class _NotificationList extends StatelessWidget {
 
         // Determine icon based on notification type
         Widget typeIcon;
-        Color iconColor = AppColors.primary;
         if (n.type == 'like') {
           typeIcon = const Icon(Icons.favorite_rounded, color: AppColors.like, size: 16);
         } else if (n.type == 'comment') {

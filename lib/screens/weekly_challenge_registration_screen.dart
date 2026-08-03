@@ -107,7 +107,7 @@ class _WeeklyChallengeRegistrationScreenState
       amountInPaise: 4900,
       name: 'DevSpace',
       description: 'Weekly Coding Challenge',
-      email: user.email ?? 'dev@devspace.com',
+      email: user.email,
       contact: '9876543210',
     );
   }

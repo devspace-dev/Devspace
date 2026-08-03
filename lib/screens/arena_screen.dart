@@ -12,6 +12,8 @@ import '../theme/app_colors.dart';
 import '../widgets/user_avatar.dart';
 import 'duel_mode_landing_screen.dart';
 import 'daily_challenge_screen.dart';
+import 'practice_map_screen.dart';
+import '../providers/practice_provider.dart';
 
 class ArenaScreen extends StatefulWidget {
   const ArenaScreen({super.key});
@@ -93,6 +95,26 @@ class _ArenaScreenState extends State<ArenaScreen> {
         },
       ]
     },
+    {
+      'name': 'Practice',
+      'icon': Icons.map_rounded,
+      'color': const Color(0xFF00E676), // Bright Emerald Green
+      'score': 'Levels',
+      'cards': [
+        {
+          'title': 'Practice Track',
+          'subtitle':
+              'Noob → Easy → Medium → Hard. 20 Questions per level section.',
+          'mode': 'PRACTICE MODE',
+          'activePlayers': 'Untimed',
+          'icon': Icons.route_rounded,
+          'duration': 'Untimed',
+          'difficulty': '4 Levels',
+          'reward': 'Level Map',
+          'tag': 'Practice',
+        },
+      ]
+    },
   ];
 
   @override
@@ -163,8 +185,12 @@ class _ArenaScreenState extends State<ArenaScreen> {
                 _buildProfileCard(context, me),
                 const SizedBox(height: 20),
 
-                // 3. Category Selector Grid (Combat, Team, Daily Challenge)
+                // 3. Category Selector Grid (Combat, Team, Daily Challenge, Practice)
                 _buildOptionCards(context),
+                const SizedBox(height: 20),
+
+                // 3b. Practice Mode Featured Card
+                _buildPracticeHeroCard(context),
                 const SizedBox(height: 28),
 
                 // 4. "Live Now" Section Header
@@ -196,7 +222,14 @@ class _ArenaScreenState extends State<ArenaScreen> {
                       reward: card['reward'] as String,
                       tag: card['tag'] as String,
                       onTap: () {
-                        if (card['mode'] == 'DAILY MISSION') {
+                        if (card['mode'] == 'PRACTICE MODE') {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const PracticeMapScreen(),
+                            ),
+                          );
+                        } else if (card['mode'] == 'DAILY MISSION') {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -739,6 +772,170 @@ class _ArenaScreenState extends State<ArenaScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPracticeHeroCard(BuildContext context) {
+    final practiceProvider = context.watch<PracticeProvider>();
+    final completedCount = practiceProvider.totalCompletedCount;
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.mediumImpact();
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const PracticeMapScreen(),
+          ),
+        );
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [
+              Color(0xFF00E676),
+              Color(0xFF00B0FF),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF00E676).withValues(alpha: 0.3),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.spa_rounded,
+                          color: Colors.white, size: 14),
+                      const SizedBox(width: 4),
+                      Text(
+                        'UNTIMED PRACTICE MODE',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '$completedCount / 80 Solved',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Practice Track',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Noob → Easy → Medium → Hard\n20 Questions per level section',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white.withValues(alpha: 0.9),
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white,
+                  ),
+                  child: const Icon(
+                    Icons.map_rounded,
+                    color: Color(0xFF00E676),
+                    size: 28,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'EXPLORE LEVEL MAP',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                        color: const Color(0xFF00897B),
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 16,
+                      color: Color(0xFF00897B),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

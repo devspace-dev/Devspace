@@ -38,6 +38,7 @@ import 'utils/devspace_ui_helper.dart';
 import 'screens/tier_up_celebration_screen.dart';
 import 'services/app_review_service.dart';
 import 'services/supabase_service.dart';
+import 'widgets/app_drawer.dart';
 // Calling feature deferred to future update
 
 final GlobalKey<HomeScreenState> homeScreenKey = GlobalKey<HomeScreenState>();
@@ -240,7 +241,9 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
   }
 
   void _setupNotificationTapListener() {
-    _notificationSubscription = NotificationService.instance.notificationResponseStream.listen((payload) async {
+    _notificationSubscription = NotificationService
+        .instance.notificationResponseStream
+        .listen((payload) async {
       if (payload == null || !mounted) return;
       try {
         final data = jsonDecode(payload);
@@ -252,7 +255,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
         if (type == 'message' && fromUid != null) {
           final me = context.read<AuthProvider>().currentUserOrNull;
           if (me == null) return;
-          
+
           final msgP = context.read<MessagesProvider>();
           final conv = msgP.conversations.firstWhere(
             (c) => c.participants.contains(fromUid),
@@ -262,7 +265,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
               createdAt: DateTime.now(),
             ),
           );
-          
+
           UserModel? other = context.read<UsersProvider>().getUserById(fromUid);
           if (other == null) {
             try {
@@ -281,30 +284,33 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
             );
           }
         } else if (type == 'like' || type == 'comment') {
-           // We navigate to profile for now since PostDetail is new
-           if (fromUid != null) {
-             Navigator.push(
-               context,
-               MaterialPageRoute(builder: (_) => ProfileScreen(userId: fromUid)),
-             );
-           }
+          // We navigate to profile for now since PostDetail is new
+          if (fromUid != null) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => ProfileScreen(userId: fromUid)),
+            );
+          }
         } else if (type == 'pr_request' || type == 'solved') {
           if (questionId != null) {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => QuestionDetailScreen(questionId: questionId)),
+              MaterialPageRoute(
+                  builder: (_) => QuestionDetailScreen(questionId: questionId)),
             );
           }
         } else if (type == 'duel_invite' && postId != null) {
-           final request = await SupabaseService.instance.getDuelRequest(postId);
-           if (request != null && request['status'] == 'pending') {
-             _showIncomingDuelDialog(request);
-           } else {
-             ScaffoldMessenger.of(context).showSnackBar(
-               const SnackBar(content: Text('This challenge has expired or already been handled.')),
-             );
-           }
-         }
+          final request = await SupabaseService.instance.getDuelRequest(postId);
+          if (request != null && request['status'] == 'pending') {
+            _showIncomingDuelDialog(request);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content: Text(
+                      'This challenge has expired or already been handled.')),
+            );
+          }
+        }
       } catch (e) {
         debugPrint('Failed to handle notification tap: $e');
       }
@@ -315,7 +321,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       final auth = context.read<AuthProvider>();
-      
+
       // Initialize shared public data
       context.read<UsersProvider>().fetchUsers();
       context.read<PostsProvider>().fetchFeed();
@@ -334,27 +340,23 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
 
     if (user != null) {
       if (_lastInitializedUid == user.id) {
-        // User already initialized, but we might want to refresh some data
-        // if it's been a while. For now, we skip to avoid connection strain.
         return;
       }
       _lastInitializedUid = user.id;
 
       try {
         NotificationService.instance.init(user.id);
-        
+
         final notificationsProvider = context.read<NotificationsProvider>();
         notificationsProvider.init(user.id);
-        
-        // Listen for tier_up notifications - we only need one listener
-        // instead of adding a new one on every auth change.
-        // But since we now check _lastInitializedUid, it will only be added once per login.
+
         notificationsProvider.removeListener(_tierUpListener);
         notificationsProvider.addListener(_tierUpListener);
 
         context.read<MessagesProvider>().init(user.id);
         context.read<EngagementProvider>().fetchOverview();
-        context.read<PremiumProvider>().loadUserPremiumStatus(); _setupDuelRequestsListener(user.id);
+        context.read<PremiumProvider>().loadUserPremiumStatus();
+        _setupDuelRequestsListener(user.id);
       } catch (e) {
         debugPrint('Provider initialization failed: $e');
       }
@@ -365,9 +367,10 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
     }
   }
 
-    void _setupDuelRequestsListener(String userId) {
+  void _setupDuelRequestsListener(String userId) {
     _duelRequestsSubscription?.unsubscribe();
-    _duelRequestsSubscription = SupabaseService.instance.listenToIncomingDuelRequests(userId, (request) {
+    _duelRequestsSubscription = SupabaseService.instance
+        .listenToIncomingDuelRequests(userId, (request) {
       if (!mounted) return;
       _showIncomingDuelDialog(request);
     });
@@ -389,77 +392,88 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
     final opponent = sender;
 
     showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            const Icon(Icons.flash_on_rounded, color: AppColors.primary),
-            const SizedBox(width: 8),
-            const Text('Incoming Challenge!', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-          ],
-        ),
-        content: Text(
-          '${opponent.name} has challenged you to a ${request['mode']} in ${request['category']}!',
-          style: const TextStyle(color: Colors.white70),
-        ),
-        actions: [
-           TextButton(
-             onPressed: () {
-                SupabaseService.instance.updateDuelRequestStatus(request['id'].toString(), 'declined');
-                Navigator.pop(ctx);
-             },
-             child: const Text('Decline', style: TextStyle(color: Colors.white54)),
-           ),
-           ElevatedButton(
-             onPressed: () async {
-                await SupabaseService.instance.updateDuelRequestStatus(request['id'].toString(), 'accepted');
-                final me = context.read<AuthProvider>().currentUserOrNull;
-                if (me != null) {
-                  try {
-                    // Try to update the pre-created match row (which we expect to exist)
-                    final response = await Supabase.instance.client.from('arena_matches').update({
-                      'status': 'playing'
-                    }).eq('id', request['id'].toString()).select();
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+              backgroundColor: const Color(0xFF1E1E1E),
+              surfaceTintColor: Colors.transparent,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
+              title: Row(
+                children: [
+                  const Icon(Icons.flash_on_rounded, color: AppColors.primary),
+                  const SizedBox(width: 8),
+                  const Text('Incoming Challenge!',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18)),
+                ],
+              ),
+              content: Text(
+                '${opponent.name} has challenged you to a ${request['mode']} in ${request['category']}!',
+                style: const TextStyle(color: Colors.white70),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    SupabaseService.instance.updateDuelRequestStatus(
+                        request['id'].toString(), 'declined');
+                    Navigator.pop(ctx);
+                  },
+                  child: const Text('Decline',
+                      style: TextStyle(color: Colors.white54)),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    await SupabaseService.instance.updateDuelRequestStatus(
+                        request['id'].toString(), 'accepted');
+                    final me = context.read<AuthProvider>().currentUserOrNull;
+                    if (me != null) {
+                      try {
+                        final response = await Supabase.instance.client
+                            .from('arena_matches')
+                            .update({'status': 'playing'})
+                            .eq('id', request['id'].toString())
+                            .select();
 
-                    // If for some reason the row doesn't exist, try to insert it as a fallback
-                    if (response.isEmpty) {
-                      await Supabase.instance.client.from('arena_matches').insert({
-                        'id': request['id'].toString(),
-                        'mode': request['mode'].toString(),
-                        'player1_id': request['sender_id'].toString(),
-                        'player2_id': me.id,
-                        'status': 'playing'
-                      });
+                        if (response.isEmpty) {
+                          await Supabase.instance.client
+                              .from('arena_matches')
+                              .insert({
+                            'id': request['id'].toString(),
+                            'mode': request['mode'].toString(),
+                            'player1_id': request['sender_id'].toString(),
+                            'player2_id': me.id,
+                            'status': 'playing'
+                          });
+                        }
+                      } catch (e) {
+                        debugPrint('Failed to initialize arena match row: $e');
+                      }
                     }
-                  } catch (e) {
-                    debugPrint('Failed to initialize arena match row: $e');
-                  }
-                }
-                if (!mounted) return;
-                Navigator.pop(ctx);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => DuelScreen(
-                      category: request['category'].toString(),
-                      mode: request['mode'].toString(),
-                      matchId: request['id'].toString(),
-                      isPlayer1: false,
-                      opponent: opponent,
-                    ),
-                  ),
-                );
-             },
-             style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-             child: const Text('Accept', style: TextStyle(color: Colors.white)),
-           ),
-        ],
-      )
-    );
+                    if (!mounted) return;
+                    Navigator.pop(ctx);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => DuelScreen(
+                          category: request['category'].toString(),
+                          mode: request['mode'].toString(),
+                          matchId: request['id'].toString(),
+                          isPlayer1: false,
+                          opponent: opponent,
+                        ),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary),
+                  child: const Text('Accept',
+                      style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            ));
   }
 
   void _tierUpListener() {
@@ -470,14 +484,19 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
     final notificationsProvider = context.read<NotificationsProvider>();
     final tierUp = notificationsProvider.notifications.firstWhere(
       (n) => !n.read && n.type == 'tier_up',
-      orElse: () => NotificationModel(id: '', toUid: '', fromUid: '', type: '', message: '', createdAt: DateTime.now(), read: false),
+      orElse: () => NotificationModel(
+          id: '',
+          toUid: '',
+          fromUid: '',
+          type: '',
+          message: '',
+          createdAt: DateTime.now(),
+          read: false),
     );
-    
+
     if (tierUp.id.isNotEmpty) {
-      // Mark as read immediately so we don't show it twice
       notificationsProvider.markAsRead(tierUp.id);
-      
-      // Show the full-screen animation
+
       final tier = TierHelper.getTier(user.aura);
       Navigator.push(
         context,
@@ -498,8 +517,6 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
     super.dispose();
   }
 
-
-
   void _showNotifications(BuildContext context) {
     late final UserModel me;
     try {
@@ -517,12 +534,12 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
         minChildSize: 0.5,
         maxChildSize: 0.95,
         builder: (context, scrollController) => GlassContainer(
-              color: AppColors.bgFor(context),
-              opacity: 0.8,
-              blur: 25,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-              border: Border(
-                  top: BorderSide(color: AppColors.borderFor(context), width: 0.5)),
+          color: AppColors.bgFor(context),
+          opacity: 0.8,
+          blur: 25,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          border: Border(
+              top: BorderSide(color: AppColors.borderFor(context), width: 0.5)),
           child: Column(
             children: [
               const SizedBox(height: 12),
@@ -589,7 +606,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                         return ListTile(
                           onTap: () async {
                             if (!n.read) provider.markAsRead(n.id);
-                            
+
                             // Navigation logic for different types
                             if (n.questionId != null) {
                               Navigator.pop(context);
@@ -603,12 +620,12 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                               );
                             } else if (n.postId != null) {
                               Navigator.pop(context);
-                              // We don't have a PostDetailScreen yet, 
-                              // so we navigate to the user profile where the post is.
+
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => ProfileScreen(userId: n.toUid),
+                                  builder: (_) =>
+                                      ProfileScreen(userId: n.toUid),
                                 ),
                               );
                             } else if (n.type == 'follow') {
@@ -616,7 +633,8 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => ProfileScreen(userId: n.fromUid),
+                                  builder: (_) =>
+                                      ProfileScreen(userId: n.fromUid),
                                 ),
                               );
                             } else if (n.type == 'message') {
@@ -630,10 +648,14 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                                   createdAt: DateTime.now(),
                                 ),
                               );
-                              UserModel? other = context.read<UsersProvider>().getUserById(n.fromUid);
+                              UserModel? other = context
+                                  .read<UsersProvider>()
+                                  .getUserById(n.fromUid);
                               if (other == null) {
                                 try {
-                                  other = await context.read<UsersProvider>().getUser(n.fromUid);
+                                  other = await context
+                                      .read<UsersProvider>()
+                                      .getUser(n.fromUid);
                                 } catch (_) {}
                               }
                               if (other != null && mounted) {
@@ -691,16 +713,20 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                               ),
                               if (n.type == 'pr_request' && !n.read)
                                 Padding(
-                                  padding: const EdgeInsets.only(top: 12, bottom: 4),
+                                  padding:
+                                      const EdgeInsets.only(top: 12, bottom: 4),
                                   child: Row(
                                     children: [
                                       Expanded(
                                         child: ElevatedButton(
                                           onPressed: () async {
                                             HapticFeedback.mediumImpact();
-                                            final qp = context.read<QuestionsProvider>();
-                                            await qp.fetchPullRequests(n.questionId!);
-                                            final pr = qp.getMyPullRequest(n.questionId!, n.fromUid);
+                                            final qp = context
+                                                .read<QuestionsProvider>();
+                                            await qp.fetchPullRequests(
+                                                n.questionId!);
+                                            final pr = qp.getMyPullRequest(
+                                                n.questionId!, n.fromUid);
                                             if (pr != null) {
                                               await qp.updatePullRequestStatus(
                                                 questionId: n.questionId!,
@@ -714,9 +740,11 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                                             backgroundColor: AppColors.primary,
                                             foregroundColor: Colors.white,
                                             elevation: 0,
-                                            padding: const EdgeInsets.symmetric(vertical: 10),
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 10),
                                             shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(10),
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
                                             ),
                                           ),
                                           child: const Text(
@@ -734,9 +762,12 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                                         child: OutlinedButton(
                                           onPressed: () async {
                                             HapticFeedback.lightImpact();
-                                            final qp = context.read<QuestionsProvider>();
-                                            await qp.fetchPullRequests(n.questionId!);
-                                            final pr = qp.getMyPullRequest(n.questionId!, n.fromUid);
+                                            final qp = context
+                                                .read<QuestionsProvider>();
+                                            await qp.fetchPullRequests(
+                                                n.questionId!);
+                                            final pr = qp.getMyPullRequest(
+                                                n.questionId!, n.fromUid);
                                             if (pr != null) {
                                               await qp.updatePullRequestStatus(
                                                 questionId: n.questionId!,
@@ -747,11 +778,16 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                                             }
                                           },
                                           style: OutlinedButton.styleFrom(
-                                            foregroundColor: AppColors.text3For(context),
-                                            side: BorderSide(color: AppColors.borderFor(context)),
-                                            padding: const EdgeInsets.symmetric(vertical: 10),
+                                            foregroundColor:
+                                                AppColors.text3For(context),
+                                            side: BorderSide(
+                                                color: AppColors.borderFor(
+                                                    context)),
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 10),
                                             shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(10),
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
                                             ),
                                           ),
                                           child: const Text(
@@ -837,6 +873,7 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
       backgroundColor: AppColors.bgFor(context),
       extendBody: true,
       extendBodyBehindAppBar: false,
+      drawer: const DevSpaceDrawer(),
       floatingActionButton: null,
       appBar: _tab == 2
           ? null
@@ -847,113 +884,129 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                   color: AppColors.bgFor(context),
                   border: Border(
                     bottom: BorderSide(
-                      color: AppColors.borderFor(context).withValues(alpha: 0.8),
+                      color:
+                          AppColors.borderFor(context).withValues(alpha: 0.8),
                       width: 0.8,
                     ),
                   ),
                 ),
                 child: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            centerTitle: false,
-            titleSpacing: 20,
-            title: _tab == 0
-                ? Text(
-                    'DevSpace',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 22,
-                      letterSpacing: -1,
-                      color: AppColors.textFor(context),
-                    ),
-                  )
-                : Text(
-                    _titles[_tab],
-                    style: GoogleFonts.plusJakartaSans(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 17,
-                      letterSpacing: -0.3,
-                      color: AppColors.textFor(context),
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  scrolledUnderElevation: 0,
+                  centerTitle: false,
+                  leading: Builder(
+                    builder: (ctx) => IconButton(
+                      icon: Icon(
+                        Icons.menu_rounded,
+                        color: AppColors.textFor(ctx),
+                        size: 22,
+                      ),
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        Scaffold.of(ctx).openDrawer();
+                      },
                     ),
                   ),
-            actions: [
-              IconButton(
-                onPressed: () => _showNotifications(context),
-                icon: Badge(
-                  backgroundColor: AppColors.primary,
-                  isLabelVisible: unreadCount > 0,
-                  label: Text('$unreadCount',
-                      style:
-                          const TextStyle(fontSize: 10, color: Colors.white)),
-                  child: const Icon(Icons.notifications_none_rounded, size: 22),
-                ),
-              ),
-              if (me != null)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Center(
-                    child: GestureDetector(
-                      onTap: () {
-                        HapticFeedback.lightImpact();
+                  title: _tab == 0
+                      ? Text(
+                          'DevSpace',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 22,
+                            letterSpacing: -1,
+                            color: AppColors.textFor(context),
+                          ),
+                        )
+                      : Text(
+                          _titles[_tab],
+                          style: GoogleFonts.plusJakartaSans(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 17,
+                            letterSpacing: -0.3,
+                            color: AppColors.textFor(context),
+                          ),
+                        ),
+                  actions: [
+                    IconButton(
+                      onPressed: () => _showNotifications(context),
+                      icon: Badge(
+                        backgroundColor: AppColors.primary,
+                        isLabelVisible: unreadCount > 0,
+                        label: Text('$unreadCount',
+                            style: const TextStyle(
+                                fontSize: 10, color: Colors.white)),
+                        child: const Icon(Icons.notifications_none_rounded,
+                            size: 22),
+                      ),
+                    ),
+                    if (me != null)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: Center(
+                          child: GestureDetector(
+                            onTap: () {
+                              HapticFeedback.lightImpact();
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const AuraBoardScreen(),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: AppColors.bg2For(context),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: AppColors.borderFor(context)
+                                      .withValues(alpha: 0.8),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Text('⚡',
+                                      style: TextStyle(fontSize: 12)),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${me.aura}',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.textFor(context),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    IconButton(
+                      onPressed: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const AuraBoardScreen(),
-                          ),
+                              builder: (_) => const MessagesScreen()),
                         );
                       },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: AppColors.bg2For(context),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: AppColors.borderFor(context)
-                                .withValues(alpha: 0.8),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text('⚡', style: TextStyle(fontSize: 12)),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${me.aura}',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.textFor(context),
-                              ),
-                            ),
-                          ],
-                        ),
+                      icon: Badge(
+                        backgroundColor: AppColors.primary,
+                        isLabelVisible: unreadMessages > 0,
+                        label: Text('$unreadMessages',
+                            style: const TextStyle(
+                                fontSize: 10, color: Colors.white)),
+                        child: const Icon(Icons.mail_outline_rounded, size: 22),
                       ),
                     ),
-                  ),
-                ),
-              IconButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const MessagesScreen()),
-                  );
-                },
-                icon: Badge(
-                  backgroundColor: AppColors.primary,
-                  isLabelVisible: unreadMessages > 0,
-                  label: Text('$unreadMessages',
-                      style:
-                          const TextStyle(fontSize: 10, color: Colors.white)),
-                  child: const Icon(Icons.mail_outline_rounded, size: 22),
+                    const SizedBox(width: 4),
+                  ],
                 ),
               ),
-              const SizedBox(width: 4),
-            ],
-          ),
-        ),
-      ),
+            ),
       body: PopScope(
         canPop: false,
         onPopInvokedWithResult: (didPop, result) async {
@@ -961,15 +1014,10 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
           if (_tab != 0) {
             _onTabSelected(0); // Go back to Home tab
           } else {
-            // If on home tab, we might want to allow popping if there's no other way
-            // But usually we want to exit the app or something.
-            // In Flutter, if we return true from onWillPop it closes.
-            // With PopScope(canPop: false), we need to manually pop if we want to.
             final NavigatorState navigator = Navigator.of(context);
             if (navigator.canPop()) {
               navigator.pop();
             } else {
-              // Exit app
               SystemNavigator.pop();
             }
           }
@@ -991,7 +1039,9 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
           if (navIndex == 2) {
             ComposeBox.showCreatePostSheet(context);
           } else {
-            int pageIndex = navIndex == 0 ? 0 : (navIndex == 1 ? 1 : (navIndex == 3 ? 2 : 3));
+            int pageIndex = navIndex == 0
+                ? 0
+                : (navIndex == 1 ? 1 : (navIndex == 3 ? 2 : 3));
             _onTabSelected(pageIndex);
           }
         },

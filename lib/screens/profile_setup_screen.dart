@@ -512,16 +512,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           ),
         ),
         _FieldBlock(
-          label: 'Currently building',
-          child: TextField(
-            controller: _buildingCtrl,
-            style: TextStyle(color: AppColors.textFor(context)),
-            decoration: const InputDecoration(
-              hintText: 'Optional: placement app, portfolio, ML project...',
-            ),
-          ),
-        ),
-        _FieldBlock(
           label: 'Skills',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

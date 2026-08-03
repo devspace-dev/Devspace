@@ -7,7 +7,6 @@ import '../theme/app_colors.dart';
 import '../widgets/app_ui_kit.dart';
 import 'career_goal_onboarding_screen.dart';
 import 'weekly_premium_challenge_screen.dart';
-import 'weekly_free_challenge_screen.dart';
 
 class ExplorePremiumScreen extends StatelessWidget {
   const ExplorePremiumScreen({super.key});

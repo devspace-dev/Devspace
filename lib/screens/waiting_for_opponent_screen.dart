@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -128,7 +127,7 @@ class _WaitingForOpponentScreenState extends State<WaitingForOpponentScreen> {
               onPressed: () async {
                 _cancelled = true;
                 await SupabaseService.instance.updateDuelRequestStatus(widget.requestId, 'cancelled');
-                if (mounted) Navigator.pop(context);
+                if (context.mounted) Navigator.pop(context);
               },
               child: const Text('Cancel Request', style: TextStyle(color: Colors.redAccent)),
             ),

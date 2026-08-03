@@ -141,6 +141,13 @@ class _MessagesScreenState extends State<MessagesScreen> {
       expandedHeight: 80,
       centerTitle: false,
       automaticallyImplyLeading: false,
+      actions: [
+        IconButton(
+          icon: Icon(Icons.more_vert_rounded, color: AppColors.textFor(context)),
+          onPressed: () => _showTopOptions(context),
+        ),
+        const SizedBox(width: 8),
+      ],
       flexibleSpace: FlexibleSpaceBar(
         titlePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         title: Text(
@@ -161,31 +168,31 @@ class _MessagesScreenState extends State<MessagesScreen> {
       decoration: BoxDecoration(
         color: AppColors.bg2For(context),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.borderFor(context).withOpacity(0.5),
-        ),
-      ),
-      child: TextField(
-        onChanged: (value) =>
-            setState(() => _searchQuery = value.toLowerCase()),
-        style: TextStyle(color: AppColors.textFor(context)),
-        decoration: InputDecoration(
-          hintText: 'Search people or messages...',
-          hintStyle: TextStyle(
-            color: AppColors.text3For(context),
-            fontSize: 14,
+          border: Border.all(
+            color: AppColors.borderFor(context).withValues(alpha: 0.5),
           ),
-          prefixIcon: Icon(
-            Icons.search_rounded,
-            size: 20,
-            color: AppColors.text3For(context),
-          ),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 12),
         ),
-      ),
-    );
-  }
+        child: TextField(
+          onChanged: (value) =>
+              setState(() => _searchQuery = value.toLowerCase()),
+          style: TextStyle(color: AppColors.textFor(context)),
+          decoration: InputDecoration(
+            hintText: 'Search people or messages...',
+            hintStyle: TextStyle(
+              color: AppColors.text3For(context),
+              fontSize: 14,
+            ),
+            prefixIcon: Icon(
+              Icons.search_rounded,
+              size: 20,
+              color: AppColors.text3For(context),
+            ),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+          ),
+        ),
+      );
+    }
 
   void _showTopOptions(BuildContext context) {
     showModalBottomSheet(
@@ -198,7 +205,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
+              color: Colors.black.withValues(alpha: 0.2),
               blurRadius: 20,
               offset: const Offset(0, -5),
             )
@@ -261,7 +268,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           shape: BoxShape.circle,
         ),
         child: Icon(icon, color: color, size: 20),
@@ -311,7 +318,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.message_outlined,
-              size: 64, color: AppColors.text3For(context).withOpacity(0.5)),
+              size: 64, color: AppColors.text3For(context).withValues(alpha: 0.5)),
           const SizedBox(height: 16),
           Text(
             'No messages yet',
@@ -343,7 +350,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
+              color: Colors.black.withValues(alpha: 0.2),
               blurRadius: 20,
               offset: const Offset(0, -5),
             )
@@ -396,22 +403,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
         ),
       ),
     );
-  }
-
-  String _formatTime(DateTime dt) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final date = DateTime(dt.year, dt.month, dt.day);
-
-    if (date == today) {
-      return DateFormat('HH:mm').format(dt);
-    } else if (today.difference(date).inDays == 1) {
-      return 'Yesterday';
-    } else if (today.difference(date).inDays < 7) {
-      return DateFormat('EEEE').format(dt);
-    } else {
-      return DateFormat('dd/MM/yy').format(dt);
-    }
   }
 }
 
