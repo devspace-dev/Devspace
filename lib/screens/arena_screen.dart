@@ -14,6 +14,7 @@ import 'duel_mode_landing_screen.dart';
 import 'daily_challenge_screen.dart';
 import 'practice_map_screen.dart';
 import '../providers/practice_provider.dart';
+import '../data/practice_questions.dart';
 
 class ArenaScreen extends StatefulWidget {
   const ArenaScreen({super.key});
