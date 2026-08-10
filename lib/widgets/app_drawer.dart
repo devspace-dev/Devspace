@@ -11,18 +11,28 @@ import '../screens/founder_tools_screen.dart';
 import '../screens/learning_roadmap_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/settings_screen.dart';
-import '../screens/weekly_challenge_pricing_screen.dart';
 import '../screens/practice_map_screen.dart';
 import '../theme/app_colors.dart';
 import 'user_avatar.dart';
 
-class DevSpaceDrawer extends StatelessWidget {
+class DevSpaceDrawer extends StatefulWidget {
   const DevSpaceDrawer({super.key});
+
+  @override
+  State<DevSpaceDrawer> createState() => _DevSpaceDrawerState();
+}
+
+class _DevSpaceDrawerState extends State<DevSpaceDrawer> {
+  bool _showAllResources = false;
 
   @override
   Widget build(BuildContext context) {
     final me = context.watch<AuthProvider>().currentUserOrNull;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final visibleRoadmaps = _showAllResources
+        ? kLearningRoadmaps
+        : kLearningRoadmaps.take(2).toList();
 
     return Drawer(
       backgroundColor: AppColors.bgFor(context),
@@ -146,7 +156,7 @@ class DevSpaceDrawer extends StatelessWidget {
                     ),
                   ),
 
-                  ...kLearningRoadmaps.map((roadmap) {
+                  ...visibleRoadmaps.map((roadmap) {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Material(
@@ -218,6 +228,48 @@ class DevSpaceDrawer extends StatelessWidget {
                     );
                   }),
 
+                  if (kLearningRoadmaps.length > 2)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            setState(() {
+                              _showAllResources = !_showAllResources;
+                            });
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 8, horizontal: 12),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  _showAllResources ? 'Show Less' : 'Show More',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  _showAllResources
+                                      ? Icons.keyboard_arrow_up_rounded
+                                      : Icons.keyboard_arrow_down_rounded,
+                                  size: 18,
+                                  color: AppColors.primary,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
                   const SizedBox(height: 16),
                   Divider(
                     color: AppColors.borderFor(context).withValues(alpha: 0.5),
@@ -265,21 +317,6 @@ class DevSpaceDrawer extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (_) => const DailyChallengeScreen(),
-                        ),
-                      );
-                    },
-                  ),
-
-                  _DrawerTile(
-                    icon: Icons.code_rounded,
-                    title: 'Weekly Challenge',
-                    subtitle: 'Submit PR & earn aura',
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const WeeklyChallengePricingScreen(),
                         ),
                       );
                     },
