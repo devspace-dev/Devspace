@@ -327,6 +327,74 @@ class SupabaseService {
     await _client.from('users').update(data).eq('id', uid);
   }
 
+  /// Resets every user's aura to 0 for a fresh monthly leaderboard season
+  Future<void> resetAllUsersMonthlyAura() async {
+    try {
+      await _client
+          .from('users')
+          .update({'aura': 0})
+          .neq('id', '00000000-0000-0000-0000-000000000000');
+    } catch (e) {
+      debugPrint('Error executing resetAllUsersMonthlyAura: $e');
+      rethrow;
+    }
+  }
+
+  /// Returns users ranked by weekly aura points (earned in the last 7 days)
+  Future<List<UserModel>> getWeeklyAuraLeaderboard() async {
+    try {
+      final since = DateTime.now().subtract(const Duration(days: 7));
+      final totals = await getAuraTotalsSince(since);
+      final users = await getUsers();
+      if (totals.isEmpty) {
+        final sorted = List<UserModel>.from(users);
+        sorted.sort((a, b) => b.aura.compareTo(a.aura));
+        return sorted;
+      }
+      final sortedUsers = List<UserModel>.from(users);
+      sortedUsers.sort((a, b) {
+        final scoreA = totals[a.id] ?? 0;
+        final scoreB = totals[b.id] ?? 0;
+        if (scoreA != scoreB) return scoreB.compareTo(scoreA);
+        return b.aura.compareTo(a.aura);
+      });
+      return sortedUsers;
+    } catch (e) {
+      debugPrint('Error fetching weekly aura leaderboard: $e');
+      final users = await getUsers();
+      users.sort((a, b) => b.aura.compareTo(a.aura));
+      return users;
+    }
+  }
+
+  /// Returns users ranked by monthly aura points (earned in current calendar month)
+  Future<List<UserModel>> getMonthlyAuraLeaderboard() async {
+    try {
+      final now = DateTime.now();
+      final since = DateTime(now.year, now.month, 1);
+      final totals = await getAuraTotalsSince(since);
+      final users = await getUsers();
+      if (totals.isEmpty) {
+        final sorted = List<UserModel>.from(users);
+        sorted.sort((a, b) => b.aura.compareTo(a.aura));
+        return sorted;
+      }
+      final sortedUsers = List<UserModel>.from(users);
+      sortedUsers.sort((a, b) {
+        final scoreA = totals[a.id] ?? 0;
+        final scoreB = totals[b.id] ?? 0;
+        if (scoreA != scoreB) return scoreB.compareTo(scoreA);
+        return b.aura.compareTo(a.aura);
+      });
+      return sortedUsers;
+    } catch (e) {
+      debugPrint('Error fetching monthly aura leaderboard: $e');
+      final users = await getUsers();
+      users.sort((a, b) => b.aura.compareTo(a.aura));
+      return users;
+    }
+  }
+
   Future<void> updateFcmToken(String uid, String token) async {
     await _client.from('users').update({'fcm_token': token}).eq('id', uid);
   }

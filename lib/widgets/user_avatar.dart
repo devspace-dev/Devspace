@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'skeleton_loaders.dart';
 
 import '../models/user_model.dart';
-import '../models/badge_model.dart';
 import '../services/storage_service.dart';
 import '../theme/app_colors.dart';
 
@@ -24,10 +22,8 @@ class UserAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final badge = getBadge(user.aura);
-    final isPremium = user.aura >= 500; // Flame tier and above
-    final borderColor = showStory ? badge.color : AppColors.borderFor(context);
-    final borderWidth = (showStory || showRing) ? (isPremium ? 2.5 : 1.5) : 0.0;
+    final borderColor = showStory ? AppColors.primary : AppColors.borderFor(context);
+    final borderWidth = (showStory || showRing) ? 1.5 : 0.0;
 
     Widget avatar = Container(
       width: size,
@@ -35,15 +31,6 @@ class UserAvatar extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: AppColors.bg3For(context),
-        boxShadow: isPremium && (showStory || showRing)
-            ? [
-                BoxShadow(
-                  color: badge.color.withValues(alpha: 0.3),
-                  blurRadius: 10,
-                  spreadRadius: 1,
-                )
-              ]
-            : null,
       ),
       child: Stack(
         children: [
@@ -93,22 +80,13 @@ class UserAvatar extends StatelessWidget {
 
     if (borderWidth > 0) {
       avatar = Container(
-        padding: EdgeInsets.all(isPremium ? 2.5 : 1.5),
+        padding: const EdgeInsets.all(1.5),
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           border: Border.all(color: borderColor, width: borderWidth),
         ),
         child: avatar,
       );
-    }
-
-    if (isPremium && (showStory || showRing)) {
-      return avatar
-          .animate(onPlay: (controller) => controller.repeat(reverse: true))
-          .shimmer(
-            duration: 2000.ms,
-            color: badge.color.withValues(alpha: 0.2),
-          );
     }
 
     return avatar;

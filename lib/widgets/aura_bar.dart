@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import '../models/badge_model.dart';
-import '../utils/aura_helpers.dart';
 import '../theme/app_colors.dart';
 
 class AuraBar extends StatelessWidget {
@@ -10,46 +8,42 @@ class AuraBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final badge    = getBadge(aura);
-    final next     = getNextBadge(aura);
-    final progress = getAuraProgress(aura);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              '${badge.icon} ${badge.name}',
-              style: TextStyle(
-                fontSize: 13, fontWeight: FontWeight.w600, color: badge.color,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.bg2For(context),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.borderFor(context).withValues(alpha: 0.5),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              const Text('⚡', style: TextStyle(fontSize: 16)),
+              const SizedBox(width: 8),
+              Text(
+                'Developer Aura',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textFor(context),
+                ),
               ),
-            ),
-            Text(
-              '${aura.toString()} Aura',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.text3),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: progress.clamp(0.0, 1.0),
-            minHeight: 4,
-            backgroundColor: AppColors.bg3,
-            valueColor: AlwaysStoppedAnimation<Color>(badge.color),
+            ],
           ),
-        ),
-        if (next != null) ...[
-          const SizedBox(height: 6),
           Text(
-            auraProgressLabel(aura),
-            style: const TextStyle(fontSize: 11, color: AppColors.text3),
+            '$aura Points',
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              color: AppColors.primary,
+            ),
           ),
         ],
-      ],
+      ),
     );
   }
 }

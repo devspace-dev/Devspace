@@ -40,81 +40,28 @@ class TierInfo {
 class TierHelper {
   static const List<TierInfo> tiers = [
     TierInfo(
-      name: 'Seed',
-      emoji: '🥚',
-      accentColor: Color(0xFF9CA3AF),
-      minPoints: 0,
-      maxPoints: 149,
-      description: 'Getting ready to sprout. Start contributing!',
-    ),
-    TierInfo(
-      name: 'Sprout',
-      emoji: '🌱',
-      accentColor: Color(0xFF4ADE80),
-      minPoints: 150,
-      maxPoints: 999,
-      description: 'You are just getting started. Keep building!',
-    ),
-    TierInfo(
-      name: 'Spark',
+      name: 'Aura',
       emoji: '⚡',
-      accentColor: Color(0xFFFACC15),
-      minPoints: 1000,
-      maxPoints: 2499,
-      description: 'The energy is building. Your code is catching fire.',
-    ),
-    TierInfo(
-      name: 'Flame',
-      emoji: '🔥',
-      accentColor: Color(0xFFF97316),
-      minPoints: 2500,
-      maxPoints: 4999,
-      description: 'You are on a roll. A true builder in the making.',
-    ),
-    TierInfo(
-      name: 'Voltage',
-      emoji: '🌀',
-      accentColor: Color(0xFF22D3EE),
-      minPoints: 5000,
-      maxPoints: 9999,
-      description: 'Incredible power. Your contributions are shocking.',
-    ),
-    TierInfo(
-      name: 'Nova',
-      emoji: '✨',
       accentColor: Color(0xFFB8FF57),
-      minPoints: 10000,
+      minPoints: 0,
       maxPoints: 999999999,
-      description: 'A legendary builder. You are the star of DevSpace.',
+      description: 'Developer Aura Points',
     ),
   ];
 
   static TierInfo getTier(int points) {
-    return tiers.firstWhere(
-      (t) => points >= t.minPoints && points <= t.maxPoints,
-      orElse: () => tiers.last,
-    );
+    return tiers.first;
   }
 
   static double getProgress(int points) {
-    final tier = getTier(points);
-    if (tier.name == 'Nova') return 1.0;
-    
-    final range = tier.maxPoints - tier.minPoints + 1;
-    final progress = points - tier.minPoints;
-    return (progress / range).clamp(0.0, 1.0);
+    return 1.0;
   }
 
   static int getPointsToNext(int points) {
-    final tier = getTier(points);
-    if (tier.name == 'Nova') return 0;
-    return (tier.maxPoints + 1) - points;
+    return 0;
   }
   
   static TierInfo? getNextTier(int points) {
-    final current = getTier(points);
-    final index = tiers.indexOf(current);
-    if (index >= tiers.length - 1) return null;
-    return tiers[index + 1];
+    return null;
   }
 }

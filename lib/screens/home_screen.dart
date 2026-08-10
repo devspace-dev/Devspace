@@ -6,6 +6,7 @@ import '../providers/auth_provider.dart';
 import '../providers/posts_provider.dart';
 import '../providers/users_provider.dart';
 import '../theme/app_colors.dart';
+import '../services/monthly_aura_service.dart';
 import '../widgets/post_card.dart';
 import '../widgets/post_shimmer.dart';
 import '../widgets/compose_box.dart';
@@ -25,8 +26,12 @@ class HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _scrollController.addListener(_handleScroll);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       _refreshFeed();
+      final wasReset = await MonthlyAuraService.instance.checkAndResetMonthlyAuraIfNeeded();
+      if (wasReset && mounted) {
+        context.read<UsersProvider>().refreshUsers();
+      }
     });
   }
 

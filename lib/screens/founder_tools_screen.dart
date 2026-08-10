@@ -7,8 +7,10 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
+import '../providers/users_provider.dart';
 import '../services/backend_api_service.dart';
 import '../services/founder_device_service.dart';
+import '../services/monthly_aura_service.dart';
 import '../services/notification_service.dart';
 import '../services/storage_service.dart';
 import '../theme/app_colors.dart';
@@ -690,6 +692,12 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
           title: 'Mission pipeline',
           subtitle: 'Confirm mission management routes are working.',
           onTap: _checkChallengesRoute,
+        ),
+        _SystemActionTile(
+          icon: Icons.restore_rounded,
+          title: 'Reset Monthly Leaderboard Aura',
+          subtitle: 'Force reset all users\' Aura points to 0 for a new monthly season.',
+          onTap: _resetMonthlyAura,
         ),
       ],
     );
@@ -1556,6 +1564,42 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
       _showSnack('Mission admin pipeline is working.');
     } catch (e) {
       _showSnack(_featureErrorMessage(feature: 'missions', error: e));
+    }
+  }
+
+  Future<void> _resetMonthlyAura() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reset Monthly Aura?'),
+        content: const Text(
+          'This will reset every user\'s Aura points to 0 for a new monthly season. Proceed?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Reset Aura'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await MonthlyAuraService.instance.forceResetMonthlyAura();
+        if (mounted) {
+          await context.read<UsersProvider>().refreshUsers();
+          _showSnack('Monthly Aura reset executed successfully!');
+        }
+      } catch (e) {
+        if (mounted) {
+          _showSnack('Failed to reset monthly aura: $e');
+        }
+      }
     }
   }
 
