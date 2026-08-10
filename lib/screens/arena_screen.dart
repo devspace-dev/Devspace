@@ -53,15 +53,7 @@ class _ArenaScreenState extends State<ArenaScreen> {
           'difficulty': 'Hard',
           'reward': '+50 Aura',
           'tag': 'Ranked',
-        }
-      ]
-    },
-    {
-      'name': 'Team',
-      'icon': Icons.people_outline_rounded,
-      'color': const Color(0xFF32D74B), // Bright Green
-      'score': '840',
-      'cards': [
+        },
         {
           'title': 'Team Duels',
           'subtitle': 'Team up with your friends and compete together.',
@@ -97,14 +89,14 @@ class _ArenaScreenState extends State<ArenaScreen> {
     },
     {
       'name': 'Practice',
-      'icon': Icons.map_rounded,
+      'icon': Icons.fitness_center_rounded,
       'color': const Color(0xFF00E676), // Bright Emerald Green
       'score': 'Levels',
       'cards': [
         {
           'title': 'Practice Track',
           'subtitle':
-              'Noob → Easy → Medium → Hard. 20 Questions per level section.',
+              'Easy → Medium → Hard → Ultra. Practice questions at your own pace.',
           'mode': 'PRACTICE MODE',
           'activePlayers': 'Untimed',
           'icon': Icons.route_rounded,
@@ -185,82 +177,87 @@ class _ArenaScreenState extends State<ArenaScreen> {
                 _buildProfileCard(context, me),
                 const SizedBox(height: 20),
 
-                // 3. Category Selector Grid (Combat, Team, Daily Challenge, Practice)
+                // 3. Category Selector Grid (Combat, Daily Challenge, Practice)
                 _buildOptionCards(context),
                 const SizedBox(height: 20),
 
-                // 3b. Practice Mode Featured Card
-                _buildPracticeHeroCard(context),
-                const SizedBox(height: 28),
+                if (_selectedCategoryIndex == 2) ...[
+                  // Practice Mode Tab Selected: Display Sharpen Your Skills Level Cards
+                  _buildSharpenYourSkillsSection(context),
+                ] else ...[
+                  // Combat or Daily Challenge Tab Selected
+                  _buildPracticeHeroCard(context),
+                  const SizedBox(height: 28),
 
-                // 4. "Live Now" Section Header
-                Text(
-                  'Live Now',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textFor(context),
+                  // 4. "Live Now" Section Header
+                  Text(
+                    'Live Now',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textFor(context),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
-                // 5. Duel Cards list for the selected category wrapped in Column
-                Column(
-                  children: cards.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final card = entry.value;
-                    return _buildLiveGameCard(
-                      context,
-                      categoryName: categoryName,
-                      title: card['title'] as String,
-                      subtitle: card['subtitle'] as String,
-                      accentColor: categoryColor,
-                      activePlayers: card['activePlayers'] as String,
-                      cardIcon: card['icon'] as IconData,
-                      duration: card['duration'] as String,
-                      difficulty: card['difficulty'] as String,
-                      reward: card['reward'] as String,
-                      tag: card['tag'] as String,
-                      onTap: () {
-                        if (card['mode'] == 'PRACTICE MODE') {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const PracticeMapScreen(),
-                            ),
-                          );
-                        } else if (card['mode'] == 'DAILY MISSION') {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const DailyChallengeScreen(),
-                            ),
-                          );
-                        } else {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => DuelModeLandingScreen(
-                                category: categoryName,
-                                mode: card['mode'] as String,
-                                color: categoryColor,
+                  // 5. Duel Cards list for the selected category wrapped in Column
+                  Column(
+                    children: cards.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final card = entry.value;
+                      return _buildLiveGameCard(
+                        context,
+                        categoryName: categoryName,
+                        title: card['title'] as String,
+                        subtitle: card['subtitle'] as String,
+                        accentColor: categoryColor,
+                        activePlayers: card['activePlayers'] as String,
+                        cardIcon: card['icon'] as IconData,
+                        duration: card['duration'] as String,
+                        difficulty: card['difficulty'] as String,
+                        reward: card['reward'] as String,
+                        tag: card['tag'] as String,
+                        onTap: () {
+                          if (card['mode'] == 'PRACTICE MODE') {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const PracticeMapScreen(),
                               ),
-                            ),
-                          );
-                        }
-                      },
-                    )
-                    .animate(key: ValueKey('${_selectedCategoryIndex}_$index'))
-                    .fadeIn(duration: 350.ms, delay: (index * 80).ms)
-                    .slideY(
-                      begin: 0.08,
-                      end: 0,
-                      duration: 350.ms,
-                      delay: (index * 80).ms,
-                      curve: Curves.easeOutQuad,
-                    );
-                  }).toList(),
-                ),
+                            );
+                          } else if (card['mode'] == 'DAILY MISSION') {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const DailyChallengeScreen(),
+                              ),
+                            );
+                          } else {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => DuelModeLandingScreen(
+                                  category: categoryName,
+                                  mode: card['mode'] as String,
+                                  color: categoryColor,
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                      )
+                      .animate(key: ValueKey('${_selectedCategoryIndex}_$index'))
+                      .fadeIn(duration: 350.ms, delay: (index * 80).ms)
+                      .slideY(
+                        begin: 0.08,
+                        end: 0,
+                        duration: 350.ms,
+                        delay: (index * 80).ms,
+                        curve: Curves.easeOutQuad,
+                      );
+                    }).toList(),
+                  ),
+                ],
                 const SizedBox(height: 20),
               ],
             ),
@@ -427,6 +424,176 @@ class _ArenaScreenState extends State<ArenaScreen> {
     );
   }
 
+  Widget _buildSharpenYourSkillsSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Sharpen Your Skills',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 28,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textFor(context),
+            letterSpacing: -0.5,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Choose a level to start solving problems.',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: AppColors.text3For(context),
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // 4 Practice Level Cards: Easy (120 XP), Medium (250 XP), Hard (500 XP), Ultra (1000+ XP)
+        ...PracticeLevelData.levels.map((level) {
+          final int levelIndex = level['index'] as int;
+          final String name = level['name'] as String;
+          final String tagline = level['tagline'] as String;
+          final String xp = level['xp'] as String;
+          final Color color = Color(level['color'] as int);
+
+          IconData iconData;
+          switch (levelIndex) {
+            case 0:
+              iconData = Icons.battery_charging_full_rounded;
+              break;
+            case 1:
+              iconData = Icons.bolt_rounded;
+              break;
+            case 2:
+              iconData = Icons.local_fire_department_rounded;
+              break;
+            case 3:
+              iconData = Icons.all_inclusive_rounded;
+              break;
+            default:
+              iconData = Icons.star_rounded;
+          }
+
+          return Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 16),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  HapticFeedback.mediumImpact();
+                  context.read<PracticeProvider>().setSelectedSection(levelIndex);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const PracticeMapScreen(),
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(24),
+                child: Container(
+                  padding: const EdgeInsets.all(22),
+                  decoration: BoxDecoration(
+                    color: AppColors.bg2For(context),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: AppColors.borderFor(context).withValues(alpha: 0.6),
+                      width: 1.2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: color.withValues(alpha: 0.05),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Top Row: Icon on left, XP Pill on right
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // Level Icon inside circular container
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.12),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: color.withValues(alpha: 0.25),
+                                width: 1,
+                              ),
+                            ),
+                            child: Center(
+                              child: Icon(
+                                iconData,
+                                color: color,
+                                size: 24,
+                              ),
+                            ),
+                          ),
+                          // XP Pill
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AppColors.bg3For(context),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: AppColors.borderFor(context)
+                                    .withValues(alpha: 0.8),
+                              ),
+                            ),
+                            child: Text(
+                              xp,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.text2For(context),
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+
+                      // Level Title
+                      Text(
+                        name,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textFor(context),
+                          letterSpacing: -0.4,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+
+                      // Subtitle / Tagline
+                      Text(
+                        tagline,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.text3For(context),
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
   Widget _buildOptionCards(BuildContext context) {
     final engagement = context.watch<EngagementProvider>();
     final history = engagement.auraHistory;
@@ -444,15 +611,7 @@ class _ArenaScreenState extends State<ArenaScreen> {
         final String name = cat['name'] as String;
         if (name == 'Combat') {
           dynamicScore = history.where((e) {
-            final isDuel = e.action == 'arena_duel';
-            final mode = e.metadata['mode']?.toString().toUpperCase() ?? '';
-            return isDuel && !mode.contains('TEAM');
-          }).fold(0, (sum, e) => sum + e.points);
-        } else if (name == 'Team') {
-          dynamicScore = history.where((e) {
-            final isDuel = e.action == 'arena_duel';
-            final mode = e.metadata['mode']?.toString().toUpperCase() ?? '';
-            return isDuel && mode.contains('TEAM');
+            return e.action == 'arena_duel';
           }).fold(0, (sum, e) => sum + e.points);
         } else if (name == 'Daily Challenge') {
           dynamicScore = history.where((e) {
@@ -461,6 +620,8 @@ class _ArenaScreenState extends State<ArenaScreen> {
                 e.action == 'mission_solved' ||
                 e.action == 'mission_attempted';
           }).fold(0, (sum, e) => sum + e.points);
+        } else if (name == 'Practice') {
+          dynamicScore = context.watch<PracticeProvider>().totalAuraEarned;
         }
 
         return Expanded(

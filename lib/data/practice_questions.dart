@@ -1103,34 +1103,42 @@ class PracticeLevelData {
   static const List<Map<String, dynamic>> levels = [
     {
       'index': 0,
-      'name': 'Noob',
-      'tagline': 'Foundations & Basics',
-      'color': 0xFF00E676, // Bright Lime/Green
-      'accent': 0xFF00B0FF,
+      'name': 'Easy',
+      'tagline': 'Perfect for beginners. Focus on fundamentals.',
+      'color': 0xFF32D74B, // Green
+      'accent': 0xFF00E676,
+      'xp': '120 XP',
+      'icon': 0, // Battery / Eco
       'auraPerQuestion': 10,
     },
     {
       'index': 1,
-      'name': 'Easy',
-      'tagline': 'Core Logic & Control Flow',
-      'color': 0xFF2962FF, // Electric Blue
-      'accent': 0xFF00E676,
+      'name': 'Medium',
+      'tagline': 'Step up the challenge. Intermediate data structures.',
+      'color': 0xFFFFD300, // Yellow
+      'accent': 0xFFFFAB00,
+      'xp': '250 XP',
+      'icon': 1, // Lightning
       'auraPerQuestion': 15,
     },
     {
       'index': 2,
-      'name': 'Medium',
-      'tagline': 'Data Structures & OOP',
-      'color': 0xFFFFAB00, // Gold / Amber
-      'accent': 0xFF7C4DFF,
+      'name': 'Hard',
+      'tagline': 'Advanced algorithms and complex logic.',
+      'color': 0xFFFF9F00, // Orange
+      'accent': 0xFFFF375F,
+      'xp': '500 XP',
+      'icon': 2, // Flame
       'auraPerQuestion': 20,
     },
     {
       'index': 3,
-      'name': 'Hard',
-      'tagline': 'Systems, Algorithms & Performance',
-      'color': 0xFFFF1744, // Crimson Red
+      'name': 'Ultra',
+      'tagline': 'The ultimate test. Competitive programming level.',
+      'color': 0xFFBF5AF2, // Purple
       'accent': 0xFFD500F9,
+      'xp': '1000+ XP',
+      'icon': 3, // Infinity
       'auraPerQuestion': 25,
     },
   ];
