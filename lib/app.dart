@@ -875,138 +875,91 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
       extendBodyBehindAppBar: false,
       drawer: const DevSpaceDrawer(),
       floatingActionButton: null,
-      appBar: _tab == 2
-          ? null
-          : PreferredSize(
-              preferredSize: const Size.fromHeight(kToolbarHeight),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppColors.bgFor(context),
-                  border: Border(
-                    bottom: BorderSide(
-                      color:
-                          AppColors.borderFor(context).withValues(alpha: 0.8),
-                      width: 0.8,
-                    ),
-                  ),
-                ),
-                child: AppBar(
-                  backgroundColor: Colors.transparent,
-                  elevation: 0,
-                  scrolledUnderElevation: 0,
-                  centerTitle: false,
-                  leading: Builder(
-                    builder: (ctx) => IconButton(
-                      icon: Icon(
-                        Icons.menu_rounded,
-                        color: AppColors.textFor(ctx),
-                        size: 22,
-                      ),
-                      onPressed: () {
-                        HapticFeedback.lightImpact();
-                        Scaffold.of(ctx).openDrawer();
-                      },
-                    ),
-                  ),
-                  title: _tab == 0
-                      ? Text(
-                          'DevSpace',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 22,
-                            letterSpacing: -1,
-                            color: AppColors.textFor(context),
-                          ),
-                        )
-                      : Text(
-                          _titles[_tab],
-                          style: GoogleFonts.plusJakartaSans(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 17,
-                            letterSpacing: -0.3,
-                            color: AppColors.textFor(context),
-                          ),
-                        ),
-                  actions: [
-                    IconButton(
-                      onPressed: () => _showNotifications(context),
-                      icon: Badge(
-                        backgroundColor: AppColors.primary,
-                        isLabelVisible: unreadCount > 0,
-                        label: Text('$unreadCount',
-                            style: const TextStyle(
-                                fontSize: 10, color: Colors.white)),
-                        child: const Icon(Icons.notifications_none_rounded,
-                            size: 22),
-                      ),
-                    ),
-                    if (me != null)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: Center(
-                          child: GestureDetector(
-                            onTap: () {
-                              HapticFeedback.lightImpact();
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const AuraBoardScreen(),
-                                ),
-                              );
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: AppColors.bg2For(context),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: AppColors.borderFor(context)
-                                      .withValues(alpha: 0.8),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Text('⚡',
-                                      style: TextStyle(fontSize: 12)),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '${me.aura}',
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.textFor(context),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    IconButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const MessagesScreen()),
-                        );
-                      },
-                      icon: Badge(
-                        backgroundColor: AppColors.primary,
-                        isLabelVisible: unreadMessages > 0,
-                        label: Text('$unreadMessages',
-                            style: const TextStyle(
-                                fontSize: 10, color: Colors.white)),
-                        child: const Icon(Icons.mail_outline_rounded, size: 22),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                  ],
-                ),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight),
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.bgFor(context),
+            border: Border(
+              bottom: BorderSide(
+                color:
+                    AppColors.borderFor(context).withValues(alpha: 0.8),
+                width: 0.8,
               ),
             ),
+          ),
+          child: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            centerTitle: false,
+            leading: Builder(
+              builder: (ctx) => IconButton(
+                icon: Icon(
+                  Icons.menu_rounded,
+                  color: AppColors.textFor(ctx),
+                  size: 22,
+                ),
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  Scaffold.of(ctx).openDrawer();
+                },
+              ),
+            ),
+            title: _tab == 0
+                ? Text(
+                    'DevSpace',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 22,
+                      letterSpacing: -1,
+                      color: AppColors.textFor(context),
+                    ),
+                  )
+                : Text(
+                    _titles[_tab],
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 17,
+                      letterSpacing: -0.3,
+                      color: AppColors.textFor(context),
+                    ),
+                  ),
+            actions: [
+              IconButton(
+                onPressed: () => _showNotifications(context),
+                icon: Badge(
+                  backgroundColor: AppColors.primary,
+                  isLabelVisible: unreadCount > 0,
+                  label: Text('$unreadCount',
+                      style: const TextStyle(
+                          fontSize: 10, color: Colors.white)),
+                  child: const Icon(Icons.notifications_none_rounded,
+                      size: 22),
+                ),
+              ),
+              IconButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const MessagesScreen()),
+                  );
+                },
+                icon: Badge(
+                  backgroundColor: AppColors.primary,
+                  isLabelVisible: unreadMessages > 0,
+                  label: Text('$unreadMessages',
+                      style: const TextStyle(
+                          fontSize: 10, color: Colors.white)),
+                  child: const Icon(Icons.mail_outline_rounded, size: 22),
+                ),
+              ),
+              const SizedBox(width: 4),
+            ],
+          ),
+        ),
+      ),
       body: PopScope(
         canPop: false,
         onPopInvokedWithResult: (didPop, result) async {
