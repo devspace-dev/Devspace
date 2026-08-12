@@ -65,25 +65,30 @@ class _PracticeQuestionScreenState extends State<PracticeQuestionScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: themeColor.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                                color: themeColor.withValues(alpha: 0.4)),
-                          ),
-                          child: Text(
-                            '${widget.question.levelName.toUpperCase()} • Q${widget.question.questionNumber}/20',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w900,
-                              color: themeColor,
-                              letterSpacing: 0.8,
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: themeColor.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                  color: themeColor.withValues(alpha: 0.4)),
+                            ),
+                            child: Text(
+                              '${widget.question.levelName.toUpperCase()} • Q${widget.question.questionNumber}/20',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
+                                color: themeColor,
+                                letterSpacing: 0.8,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ),
+                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 4),
@@ -94,6 +99,7 @@ class _PracticeQuestionScreenState extends State<PracticeQuestionScreen> {
                                 color: const Color(0xFFFFD300).withValues(alpha: 0.3)),
                           ),
                           child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               const Icon(Icons.bolt_rounded,
                                   color: Color(0xFFFFD300), size: 14),
@@ -435,8 +441,11 @@ class _PracticeQuestionScreenState extends State<PracticeQuestionScreen> {
       HapticFeedback.heavyImpact();
       await practiceProvider.completeQuestion(widget.question.id);
 
+      if (!mounted) return;
+
       // Check if it's question 20 (completion of section!)
-      if (widget.question.questionNumber == 20 && mounted) {
+      if (widget.question.questionNumber == 20) {
+        // ignore: use_build_context_synchronously
         _showSectionCompletionModal(context, themeColor);
       }
     } else {
