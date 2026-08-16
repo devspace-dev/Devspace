@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/challenge_question.dart';
 
@@ -53,7 +54,7 @@ class ChallengeService {
         return response.map((q) => ChallengeQuestion.fromMap(q)).toList();
       }
     } catch (e) {
-      print('Error fetching weekly questions: $e');
+      debugPrint('Error fetching weekly questions: $e');
       return [];
     }
   }

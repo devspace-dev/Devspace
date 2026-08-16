@@ -28,7 +28,6 @@ class _DevSpaceDrawerState extends State<DevSpaceDrawer> {
   @override
   Widget build(BuildContext context) {
     final me = context.watch<AuthProvider>().currentUserOrNull;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final visibleRoadmaps = _showAllResources
         ? kLearningRoadmaps

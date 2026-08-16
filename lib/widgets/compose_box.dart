@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:file_picker/file_picker.dart' as fp;
-import 'package:path/path.dart' as path;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -169,7 +168,6 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
   int _charCount = 0;
 
   List<String> _hashtagSuggestions = [];
-  String _currentHashtagQuery = '';
   int _hashtagStartIndex = -1;
 
   final List<String> _allCommonTags = [
@@ -226,7 +224,6 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
       }
       
       _hashtagStartIndex = hashtagIndex;
-      _currentHashtagQuery = query;
       
       final filtered = _allCommonTags
           .where((tag) => 
@@ -248,7 +245,6 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
       setState(() {
         _hashtagSuggestions = [];
         _hashtagStartIndex = -1;
-        _currentHashtagQuery = '';
       });
     }
   }

@@ -82,7 +82,7 @@ class BackendApiService {
         .eq('publish_date', today)
         .order('created_at', ascending: false);
 
-    if (missionRows is! List || missionRows.isEmpty) {
+    if (missionRows.isEmpty) {
       return null;
     }
 
@@ -437,7 +437,7 @@ class BackendApiService {
             .order('required_aura', ascending: true);
 
         final results = <EventAccessModel>[];
-        if (rows is List) {
+        if (rows.isNotEmpty) {
           for (final row in rows) {
             final event = Map<String, dynamic>.from(row as Map);
             final requiredAura = (event['required_aura'] as num? ?? 0).toInt();
@@ -830,7 +830,7 @@ class BackendApiService {
           
           final challengeRows = await query.order('publish_date', ascending: false).limit(15);
           
-          if (challengeRows is List && challengeRows.isNotEmpty) {
+          if (challengeRows.isNotEmpty) {
             List<dynamic> userStatus = [];
             if (uid != null) {
               userStatus = await _client
@@ -1315,7 +1315,7 @@ class BackendApiService {
           .gte('publish_date', today)
           .order('publish_date', ascending: true);
 
-      if (missionRows is! List || missionRows.isEmpty) {
+      if (missionRows.isEmpty) {
         return const [];
       }
 

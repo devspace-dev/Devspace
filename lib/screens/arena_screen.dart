@@ -10,6 +10,7 @@ import '../providers/engagement_provider.dart';
 import '../providers/users_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/user_avatar.dart';
+import 'aura_board_screen.dart';
 import 'duel_mode_landing_screen.dart';
 import 'daily_challenge_screen.dart';
 import 'practice_map_screen.dart';
@@ -273,9 +274,19 @@ class _ArenaScreenState extends State<ArenaScreen> {
   // ══════════════════════════════════════════════════════════════════════════
 
   Widget _buildProfileCard(BuildContext context, UserModel me) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const AuraBoardScreen(),
+          ),
+        );
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: AppColors.bg2For(context),
         borderRadius: BorderRadius.circular(24),
@@ -398,7 +409,8 @@ class _ArenaScreenState extends State<ArenaScreen> {
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildProfileStat({required String label, required String value}) {
@@ -979,31 +991,38 @@ class _ArenaScreenState extends State<ArenaScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.25),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.spa_rounded,
-                          color: Colors.white, size: 14),
-                      const SizedBox(width: 4),
-                      Text(
-                        'UNTIMED PRACTICE MODE',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                          letterSpacing: 0.8,
+                Flexible(
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.spa_rounded,
+                            color: Colors.white, size: 13),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            'UNTIMED PRACTICE MODE',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              letterSpacing: 0.5,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
+                const SizedBox(width: 6),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1014,10 +1033,11 @@ class _ArenaScreenState extends State<ArenaScreen> {
                   child: Text(
                     '$completedCount / 80 Solved',
                     style: GoogleFonts.plusJakartaSans(
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.w900,
                       color: Colors.white,
                     ),
+                    maxLines: 1,
                   ),
                 ),
               ],

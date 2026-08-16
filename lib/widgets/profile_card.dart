@@ -7,7 +7,6 @@ import '../providers/messages_provider.dart';
 import '../providers/users_provider.dart';
 import '../screens/chat_detail_screen.dart';
 import '../theme/app_colors.dart';
-import 'aura_bar.dart';
 import 'user_avatar.dart';
 
 class ProfileCard extends StatelessWidget {

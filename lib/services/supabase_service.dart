@@ -10,7 +10,6 @@ import '../models/question_pull_request_model.dart';
 import '../models/conversation_model.dart';
 import '../models/message_model.dart';
 import '../models/aura_ledger_model.dart';
-import '../models/aura_summary_model.dart';
 import 'calling_service.dart';
 import 'github_service.dart';
 
@@ -1255,7 +1254,7 @@ class SupabaseService {
         toUid: otherUserId,
         fromUid: senderId,
         type: 'message',
-        message: trimmed.length > 50 ? trimmed.substring(0, 47) + '...' : trimmed,
+        message: trimmed.length > 50 ? '${trimmed.substring(0, 47)}...' : trimmed,
       );
     } catch (e) {
       debugPrint('Failed to send message: $e');

@@ -47,9 +47,9 @@ class DevSpaceBottomNav extends StatelessWidget {
                 badgeCount: unreadNotifications,
               ),
               _NavItem(
-                icon: Icons.explore_outlined,
-                activeIcon: Icons.explore,
-                label: 'Explore',
+                icon: Icons.emoji_events_outlined,
+                activeIcon: Icons.emoji_events_rounded,
+                label: 'Arena',
                 index: 1,
                 current: currentIndex,
                 onTap: onTap,
@@ -85,9 +85,9 @@ class DevSpaceBottomNav extends StatelessWidget {
                 ),
               ),
               _NavItem(
-                icon: Icons.emoji_events_outlined,
-                activeIcon: Icons.emoji_events_rounded,
-                label: 'Arena',
+                icon: Icons.explore_outlined,
+                activeIcon: Icons.explore,
+                label: 'Explore',
                 index: 3,
                 current: currentIndex,
                 onTap: onTap,
@@ -117,7 +117,6 @@ class _NavItem extends StatelessWidget {
   final int current;
   final ValueChanged<int> onTap;
   final int badgeCount;
-  final String? imageAsset;
 
   const _NavItem({
     required this.icon,
@@ -127,7 +126,6 @@ class _NavItem extends StatelessWidget {
     required this.current,
     required this.onTap,
     this.badgeCount = 0,
-    this.imageAsset,
   });
 
   @override
@@ -163,19 +161,11 @@ class _NavItem extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                child: imageAsset != null
-                    ? Image.asset(
-                        imageAsset!,
-                        width: 24,
-                        height: 24,
-                        color: active ? null : AppColors.text3For(context),
-                        colorBlendMode: active ? null : BlendMode.srcIn,
-                      )
-                    : Icon(
-                        active ? activeIcon : icon,
-                        size: 24,
-                        color: iconColor,
-                      ),
+                child: Icon(
+                  active ? activeIcon : icon,
+                  size: 24,
+                  color: iconColor,
+                ),
               ).animate(key: ValueKey(active), target: active ? 1 : 0)
                .scale(begin: const Offset(1, 1), end: const Offset(1.25, 1.25), duration: 200.ms, curve: Curves.easeOutBack)
                .then()

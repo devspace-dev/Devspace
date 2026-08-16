@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../data/practice_questions.dart';
+import '../providers/auth_provider.dart';
 import '../providers/practice_provider.dart';
 import '../theme/app_colors.dart';
 import 'practice_question_screen.dart';
@@ -25,6 +26,11 @@ class _PracticeMapScreenState extends State<PracticeMapScreen>
   void initState() {
     super.initState();
     _scrollController = ScrollController();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final authProvider = context.read<AuthProvider>();
+      context.read<PracticeProvider>().syncUnsyncedQuestions(authProvider);
+    });
   }
 
   @override
@@ -68,23 +74,16 @@ class _PracticeMapScreenState extends State<PracticeMapScreen>
                             margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  themeColor.withValues(alpha: 0.25),
-                                  themeColor.withValues(alpha: 0.05),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(24),
+                              color: AppColors.bg2For(context),
+                              borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color: themeColor.withValues(alpha: 0.4),
-                                width: 1.5,
+                                color: AppColors.borderFor(context).withValues(alpha: 0.8),
+                                width: 1.2,
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: themeColor.withValues(alpha: 0.1),
-                                  blurRadius: 16,
+                                  color: Colors.black.withValues(alpha: 0.04),
+                                  blurRadius: 10,
                                   offset: const Offset(0, 4),
                                 ),
                               ],
@@ -94,13 +93,16 @@ class _PracticeMapScreenState extends State<PracticeMapScreen>
                                 Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: themeColor.withValues(alpha: 0.2),
+                                    color: themeColor.withValues(alpha: 0.12),
                                     shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: themeColor.withValues(alpha: 0.3),
+                                    ),
                                   ),
                                   child: Icon(
                                     _getLevelIcon(currentSectionIndex),
                                     color: themeColor,
-                                    size: 28,
+                                    size: 24,
                                   ),
                                 ),
                                 const SizedBox(width: 14),
@@ -112,10 +114,10 @@ class _PracticeMapScreenState extends State<PracticeMapScreen>
                                       Text(
                                         'SECTION ${currentSectionIndex + 1}: $levelName',
                                         style: GoogleFonts.plusJakartaSans(
-                                          fontSize: 12,
+                                          fontSize: 11,
                                           fontWeight: FontWeight.w900,
                                           color: themeColor,
-                                          letterSpacing: 1.2,
+                                          letterSpacing: 1.0,
                                         ),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
@@ -147,13 +149,13 @@ class _PracticeMapScreenState extends State<PracticeMapScreen>
                                     ],
                                   ),
                                 ),
-                                const SizedBox(width: 10),
+                                const SizedBox(width: 12),
                                 Column(
                                   children: [
                                     Text(
                                       '$completedCount/20',
                                       style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 16,
+                                        fontSize: 15,
                                         fontWeight: FontWeight.w900,
                                         color: AppColors.textFor(context),
                                       ),
@@ -190,7 +192,6 @@ class _PracticeMapScreenState extends State<PracticeMapScreen>
                                         questions[index + 1].levelIndex,
                                         questions[index + 1].questionNumber);
 
-                                // Calculate horizontal curve offset for serpentine track
                                 final double curveOffset = _getCurveOffset(index);
 
                                 return _buildPathNodeRow(
@@ -268,7 +269,7 @@ class _PracticeMapScreenState extends State<PracticeMapScreen>
                         color: const Color(0xFF00E676).withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                            color: const Color(0xFF00E676).withValues(alpha: 0.4)),
+                            color: const Color(0xFF00E676).withValues(alpha: 0.3)),
                       ),
                       child: Text(
                         'UNTIMED',
@@ -297,7 +298,7 @@ class _PracticeMapScreenState extends State<PracticeMapScreen>
             ),
           ),
           const SizedBox(width: 8),
-          // Total Stats Pill
+          // Total Practice Aura Pill
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
@@ -352,30 +353,30 @@ class _PracticeMapScreenState extends State<PracticeMapScreen>
               }
             },
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
+              duration: const Duration(milliseconds: 200),
               margin: const EdgeInsets.only(right: 10),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
                 color: isSelected
                     ? color
                     : isUnlocked
                         ? AppColors.bg2For(context)
                         : AppColors.bg2For(context).withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: isSelected
                       ? color
                       : isUnlocked
                           ? AppColors.borderFor(context)
                           : AppColors.borderFor(context).withValues(alpha: 0.3),
-                  width: isSelected ? 2 : 1,
+                  width: isSelected ? 1.5 : 1.0,
                 ),
                 boxShadow: isSelected
                     ? [
                         BoxShadow(
-                          color: color.withValues(alpha: 0.3),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
+                          color: color.withValues(alpha: 0.15),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
                         )
                       ]
                     : [],
@@ -386,7 +387,7 @@ class _PracticeMapScreenState extends State<PracticeMapScreen>
                     isUnlocked
                         ? _getLevelIcon(index)
                         : Icons.lock_outline_rounded,
-                    size: 16,
+                    size: 15,
                     color: isSelected
                         ? Colors.white
                         : isUnlocked
@@ -398,7 +399,7 @@ class _PracticeMapScreenState extends State<PracticeMapScreen>
                     level['name'] as String,
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 13,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w800,
                       color: isSelected
                           ? Colors.white
                           : isUnlocked
@@ -412,9 +413,9 @@ class _PracticeMapScreenState extends State<PracticeMapScreen>
                         const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? Colors.white.withValues(alpha: 0.25)
+                          ? Colors.white.withValues(alpha: 0.22)
                           : AppColors.borderFor(context),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
                       '20 Qs',
@@ -437,7 +438,7 @@ class _PracticeMapScreenState extends State<PracticeMapScreen>
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // DUOLINGO / CANDY CRUSH WINDING PATH NODE
+  // DUOLINGO / CLEAN PATH NODE
   // ══════════════════════════════════════════════════════════════════════════
 
   Widget _buildPathNodeRow({
@@ -461,8 +462,8 @@ class _PracticeMapScreenState extends State<PracticeMapScreen>
     final bool isSpecialMilestone =
         question.questionNumber == 10 || question.questionNumber == 20;
 
-    const double rowHeight = 115.0;
-    const double circleCenterY = 36.0;
+    const double rowHeight = 110.0;
+    const double circleCenterY = 34.0;
 
     final double screenWidth = MediaQuery.of(context).size.width - 40;
     final double maxOffset = math.min(screenWidth * 0.32, 110.0);
@@ -532,74 +533,56 @@ class _PracticeMapScreenState extends State<PracticeMapScreen>
                       alignment: Alignment.center,
                       clipBehavior: Clip.none,
                       children: [
-                        // Active Glow Ring
+                        // Clean Subtle Focus Ring for Active Node (No Neon Blur Spread)
                         if (isCurrentActive && !isCompleted)
                           Container(
-                            width: 82,
-                            height: 82,
+                            width: 78,
+                            height: 78,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: themeColor.withValues(alpha: 0.2),
+                              color: themeColor.withValues(alpha: 0.1),
                               border: Border.all(
-                                color: themeColor,
-                                width: 2.5,
+                                color: themeColor.withValues(alpha: 0.5),
+                                width: 1.5,
                               ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: themeColor.withValues(alpha: 0.4),
-                                  blurRadius: 20,
-                                  spreadRadius: 4,
-                                ),
-                              ],
                             ),
                           )
                               .animate(onPlay: (controller) => controller.repeat(reverse: true))
                               .scale(
                                 begin: const Offset(1.0, 1.0),
-                                end: const Offset(1.08, 1.08),
-                                duration: 900.ms,
+                                end: const Offset(1.06, 1.06),
+                                duration: 1000.ms,
                                 curve: Curves.easeInOut,
                               ),
 
                         // Node Circle Base
                         Container(
-                          width: isSpecialMilestone ? 74 : 68,
-                          height: isSpecialMilestone ? 74 : 68,
+                          width: isSpecialMilestone ? 70 : 64,
+                          height: isSpecialMilestone ? 70 : 64,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: isCompleted
-                                  ? [
-                                      const Color(0xFF00E676),
-                                      const Color(0xFF00B0FF),
-                                    ]
-                                  : isUnlocked
-                                      ? [
-                                          themeColor,
-                                          themeColor.withValues(alpha: 0.8),
-                                        ]
-                                      : [
-                                          AppColors.bg2For(context),
-                                          AppColors.bg2For(context),
-                                        ],
-                            ),
+                            color: isCompleted
+                                ? const Color(0xFF00E676)
+                                : isUnlocked
+                                    ? themeColor
+                                    : AppColors.bg2For(context),
                             border: Border.all(
                               color: isCompleted
                                   ? Colors.white
                                   : isUnlocked
-                                      ? themeColor
+                                      ? Colors.white.withValues(alpha: 0.9)
                                       : AppColors.borderFor(context),
-                              width: isCompleted ? 3 : 2,
+                              width: isCompleted ? 2.5 : 2.0,
                             ),
                             boxShadow: isUnlocked
                                 ? [
                                     BoxShadow(
-                                      color: (isCompleted ? const Color(0xFF00E676) : themeColor)
-                                          .withValues(alpha: 0.35),
-                                      blurRadius: 14,
-                                      offset: const Offset(0, 6),
+                                      color: (isCompleted
+                                              ? const Color(0xFF00E676)
+                                              : themeColor)
+                                          .withValues(alpha: 0.25),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
                                     ),
                                   ]
                                 : [],
@@ -609,7 +592,7 @@ class _PracticeMapScreenState extends State<PracticeMapScreen>
                                 ? const Icon(
                                     Icons.check_rounded,
                                     color: Colors.white,
-                                    size: 32,
+                                    size: 30,
                                   )
                                 : isUnlocked
                                     ? Column(
@@ -622,13 +605,13 @@ class _PracticeMapScreenState extends State<PracticeMapScreen>
                                                   ? Icons.emoji_events_rounded
                                                   : Icons.card_giftcard_rounded,
                                               color: Colors.white,
-                                              size: 18,
+                                              size: 16,
                                             ),
                                           Text(
                                             '${question.questionNumber}',
                                             style: GoogleFonts.plusJakartaSans(
                                               fontSize:
-                                                  isSpecialMilestone ? 20 : 22,
+                                                  isSpecialMilestone ? 19 : 21,
                                               fontWeight: FontWeight.w900,
                                               color: Colors.white,
                                             ),
@@ -638,7 +621,7 @@ class _PracticeMapScreenState extends State<PracticeMapScreen>
                                     : Icon(
                                         Icons.lock_rounded,
                                         color: AppColors.text3For(context),
-                                        size: 24,
+                                        size: 22,
                                       ),
                           ),
                         ),
@@ -646,18 +629,18 @@ class _PracticeMapScreenState extends State<PracticeMapScreen>
                         // "START" Floating Badge for current active level
                         if (isCurrentActive && !isCompleted)
                           Positioned(
-                            top: -14,
+                            top: -12,
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 4),
+                                  horizontal: 9, vertical: 3),
                               decoration: BoxDecoration(
                                 color: themeColor,
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(10),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: themeColor.withValues(alpha: 0.4),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 3),
+                                    color: Colors.black.withValues(alpha: 0.15),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
                                   ),
                                 ],
                               ),
@@ -665,9 +648,9 @@ class _PracticeMapScreenState extends State<PracticeMapScreen>
                                 'START',
                                 style: GoogleFonts.plusJakartaSans(
                                   color: Colors.white,
-                                  fontSize: 10,
+                                  fontSize: 9,
                                   fontWeight: FontWeight.w900,
-                                  letterSpacing: 1.0,
+                                  letterSpacing: 0.8,
                                 ),
                               ),
                             ),
@@ -676,23 +659,23 @@ class _PracticeMapScreenState extends State<PracticeMapScreen>
                         // Star Badge for Completed Levels
                         if (isCompleted)
                           Positioned(
-                            bottom: -6,
+                            bottom: -5,
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
+                                  horizontal: 6, vertical: 1.5),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFFFD300),
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(Icons.star_rounded,
-                                      size: 11, color: Colors.black),
+                                      size: 10, color: Colors.black),
                                   Icon(Icons.star_rounded,
-                                      size: 11, color: Colors.black),
+                                      size: 10, color: Colors.black),
                                   Icon(Icons.star_rounded,
-                                      size: 11, color: Colors.black),
+                                      size: 10, color: Colors.black),
                                 ],
                               ),
                             ),
@@ -847,15 +830,15 @@ class PathConnectorPainter extends CustomPainter {
       endY,
     );
 
-    // 1. Background dark track shadow
+    // 1. Crisp track line
     final bgPaint = Paint()
-      ..color = Colors.black.withValues(alpha: 0.18)
-      ..strokeWidth = 9.0
+      ..color = Colors.black.withValues(alpha: 0.12)
+      ..strokeWidth = 6.0
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
     canvas.drawPath(path, bgPaint);
 
-    // 2. Main path line
+    // 2. Main path line (clean, no gaudy 9px neon glow blur overlay)
     final Color pathColor = isCompleted
         ? const Color(0xFF00E676)
         : isNextUnlocked
@@ -864,21 +847,11 @@ class PathConnectorPainter extends CustomPainter {
 
     final linePaint = Paint()
       ..color = pathColor
-      ..strokeWidth = 5.0
+      ..strokeWidth = 4.5
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
     canvas.drawPath(path, linePaint);
-
-    // 3. Glow overlay for completed segments
-    if (isCompleted) {
-      final glowPaint = Paint()
-        ..color = const Color(0xFF00E676).withValues(alpha: 0.35)
-        ..strokeWidth = 9.0
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round;
-      canvas.drawPath(path, glowPaint);
-    }
   }
 
   @override
@@ -890,4 +863,3 @@ class PathConnectorPainter extends CustomPainter {
         oldDelegate.themeColor != themeColor;
   }
 }
-

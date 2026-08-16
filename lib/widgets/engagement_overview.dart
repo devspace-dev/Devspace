@@ -357,26 +357,6 @@ class EngagementOverview extends StatelessWidget {
       ),
     );
   }
-
-  void _confirmDeleteEvent(BuildContext context, EngagementProvider provider, String id) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Event?'),
-        content: const Text('This will remove the event/opportunity for everyone. This cannot be undone.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await provider.deleteEvent(id);
-            },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _PremiumMissionCard extends StatelessWidget {

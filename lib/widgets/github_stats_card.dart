@@ -1,9 +1,7 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/github_service.dart';
-import '../theme/app_colors.dart';
 
 class GitHubStatsCard extends StatefulWidget {
   final String githubHandle;

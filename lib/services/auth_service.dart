@@ -3,11 +3,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'supabase_service.dart';
 import 'analytics_service.dart';
 import '../models/user_model.dart';
-import '../utils/sanitizer.dart';
 
 class AuthResult {
   final UserModel? user;
@@ -437,9 +435,6 @@ class AuthService {
       } catch (_) {}
 
       final googleUser = await googleSignIn.authenticate();
-      if (googleUser == null) {
-        return const AuthResult(error: 'Google sign-in was canceled.');
-      }
 
       if (!_isAllowedEmail(googleUser.email)) {
         await googleSignIn.signOut();

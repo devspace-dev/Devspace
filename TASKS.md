@@ -44,6 +44,7 @@ Upgrade the app backend for launch-ready gamification and gated engagement witho
 - [x] Fixed manual opportunity dates and registration deadlines in client, Edge Functions, and founder tools panel
 - [x] Push notification delivery and tap routing for Arena Duel Invites across background, closed, and foreground app states
 - [x] Added Burger Sidebar (Drawer) featuring Resources for You & quick navigation; removed Currently Building from onboarding and profile screens
+- [x] Executed systematic codebase cleanup pass: purged 14 orphaned files (legacy mocks, deprecated screens/models/widgets), fixed unused imports and variables, optimized type checks, and updated unit test expectations to match current MVP Aura structure
 ## In Progress
 - [ ] Feed migration from stream-only loading to explicit paginated API consumption
 - [ ] Stronger regression coverage for new backend rules

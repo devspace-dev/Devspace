@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../data/practice_questions.dart';
+import '../providers/auth_provider.dart';
 import '../providers/practice_provider.dart';
 import '../theme/app_colors.dart';
 
@@ -76,7 +77,7 @@ class _PracticeQuestionScreenState extends State<PracticeQuestionScreen> {
                                   color: themeColor.withValues(alpha: 0.4)),
                             ),
                             child: Text(
-                              '${widget.question.levelName.toUpperCase()} • Q${widget.question.questionNumber}/20',
+                              'Question ${widget.question.questionNumber} of 20',
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w900,
@@ -439,9 +440,38 @@ class _PracticeQuestionScreenState extends State<PracticeQuestionScreen> {
 
     if (correct) {
       HapticFeedback.heavyImpact();
-      await practiceProvider.completeQuestion(widget.question.id);
+      final authProvider = context.read<AuthProvider>();
+      final isNewCompletion = await practiceProvider.completeQuestion(
+        widget.question.id,
+        authProvider: authProvider,
+      );
 
       if (!mounted) return;
+
+      final auraReward = PracticeLevelData.levels[widget.question.levelIndex]['auraPerQuestion'] as int? ?? 10;
+      if (isNewCompletion) {
+        // ignore: use_build_context_synchronously
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.bolt_rounded, color: Color(0xFFFFD300)),
+                const SizedBox(width: 8),
+                Text(
+                  '+$auraReward Aura Points Added!',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+            duration: const Duration(seconds: 2),
+            backgroundColor: const Color(0xFF1E1E24),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
 
       // Check if it's question 20 (completion of section!)
       if (widget.question.questionNumber == 20) {

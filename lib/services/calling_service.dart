@@ -1,9 +1,5 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/user_model.dart';
-import '../screens/call_screen.dart';
-import '../services/supabase_service.dart';
 
 enum CallStatus { idle, ringing, inCall }
 
@@ -122,7 +118,7 @@ class CallingService {
 
   Future<void> sendHangup(String toUserId) async {
     final channel = Supabase.instance.client.channel('calling:$toUserId');
-    await channel.subscribe((status, error) async {
+    channel.subscribe((status, error) async {
       if (status == RealtimeSubscribeStatus.subscribed) {
         await channel.sendBroadcastMessage(
           event: 'call_hangup',

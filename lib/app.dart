@@ -217,8 +217,8 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
 
   static const List<String> _titles = [
     'DevSpace',
-    'Explore',
     'Arena',
+    'Explore',
     'Profile',
   ];
 
@@ -862,8 +862,8 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
 
     final List<Widget> screens = [
       HomeScreen(key: homeScreenKey),
-      const ExploreScreen(),
       const ArenaScreen(),
+      const ExploreScreen(),
       const ProfileScreen(),
     ];
 

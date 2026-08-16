@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/badge_model.dart';
-import '../theme/app_colors.dart';
 
 class TierUpDialog extends StatelessWidget {
   final int aura;
@@ -140,7 +139,7 @@ class TierUpDialog extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '${aura} Aura',
+                          '$aura Aura',
                           style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900),
                         ),
                       ],
