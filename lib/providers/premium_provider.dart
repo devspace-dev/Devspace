@@ -38,7 +38,16 @@ class PremiumProvider extends ChangeNotifier {
         _careerGoalSelected = response['career_goal_selected'] ?? false;
       }
     } catch (e) {
-      debugPrint('Error loading premium status: $e');
+      try {
+        final basicResponse = await _supabase
+            .from('users')
+            .select('is_premium')
+            .eq('id', user.id)
+            .maybeSingle();
+        if (basicResponse != null) {
+          _isPremium = basicResponse['is_premium'] ?? false;
+        }
+      } catch (_) {}
     } finally {
       _isLoading = false;
       notifyListeners();

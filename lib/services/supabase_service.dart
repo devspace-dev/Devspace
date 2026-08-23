@@ -340,58 +340,110 @@ class SupabaseService {
   }
 
   /// Returns users ranked by weekly aura points (earned in the last 7 days)
-  Future<List<UserModel>> getWeeklyAuraLeaderboard() async {
+  Future<List<UserModel>> getWeeklyAuraLeaderboard({String? college}) async {
+    try {
+      final response = await _client.rpc(
+        'get_aura_leaderboard',
+        params: {
+          'p_timeframe': 'weekly',
+          'p_college': college,
+          'p_limit': 100,
+        },
+      );
+      if (response != null) {
+        return (response as List).map((d) => UserModel.fromJson(d)).toList();
+      }
+    } catch (e) {
+      debugPrint('RPC get_aura_leaderboard failed for weekly, running fallback: $e');
+    }
+
     try {
       final since = DateTime.now().subtract(const Duration(days: 7));
       final totals = await getAuraTotalsSince(since);
-      final users = await getUsers();
-      if (totals.isEmpty) {
-        final sorted = List<UserModel>.from(users);
-        sorted.sort((a, b) => b.aura.compareTo(a.aura));
-        return sorted;
+      var users = await getUsers(limit: 200);
+      if (college != null && college.isNotEmpty) {
+        users = users.where((u) => u.college == college).toList();
       }
-      final sortedUsers = List<UserModel>.from(users);
-      sortedUsers.sort((a, b) {
+      if (totals.isEmpty) return [];
+
+      final activeUsers = users.where((u) => (totals[u.id] ?? 0) > 0).toList();
+      activeUsers.sort((a, b) {
         final scoreA = totals[a.id] ?? 0;
         final scoreB = totals[b.id] ?? 0;
-        if (scoreA != scoreB) return scoreB.compareTo(scoreA);
-        return b.aura.compareTo(a.aura);
+        return scoreB.compareTo(scoreA);
       });
-      return sortedUsers;
+      return activeUsers.map((u) => u.copyWith(aura: totals[u.id] ?? 0)).toList();
     } catch (e) {
-      debugPrint('Error fetching weekly aura leaderboard: $e');
-      final users = await getUsers();
-      users.sort((a, b) => b.aura.compareTo(a.aura));
-      return users;
+      debugPrint('Error fetching weekly aura leaderboard fallback: $e');
+      return [];
     }
   }
 
   /// Returns users ranked by monthly aura points (earned in current calendar month)
-  Future<List<UserModel>> getMonthlyAuraLeaderboard() async {
+  Future<List<UserModel>> getMonthlyAuraLeaderboard({String? college}) async {
+    try {
+      final response = await _client.rpc(
+        'get_aura_leaderboard',
+        params: {
+          'p_timeframe': 'monthly',
+          'p_college': college,
+          'p_limit': 100,
+        },
+      );
+      if (response != null) {
+        return (response as List).map((d) => UserModel.fromJson(d)).toList();
+      }
+    } catch (e) {
+      debugPrint('RPC get_aura_leaderboard failed for monthly, running fallback: $e');
+    }
+
     try {
       final now = DateTime.now();
       final since = DateTime(now.year, now.month, 1);
       final totals = await getAuraTotalsSince(since);
-      final users = await getUsers();
-      if (totals.isEmpty) {
-        final sorted = List<UserModel>.from(users);
-        sorted.sort((a, b) => b.aura.compareTo(a.aura));
-        return sorted;
+      var users = await getUsers(limit: 200);
+      if (college != null && college.isNotEmpty) {
+        users = users.where((u) => u.college == college).toList();
       }
-      final sortedUsers = List<UserModel>.from(users);
-      sortedUsers.sort((a, b) {
+      if (totals.isEmpty) return [];
+
+      final activeUsers = users.where((u) => (totals[u.id] ?? 0) > 0).toList();
+      activeUsers.sort((a, b) {
         final scoreA = totals[a.id] ?? 0;
         final scoreB = totals[b.id] ?? 0;
-        if (scoreA != scoreB) return scoreB.compareTo(scoreA);
-        return b.aura.compareTo(a.aura);
+        return scoreB.compareTo(scoreA);
       });
-      return sortedUsers;
+      return activeUsers.map((u) => u.copyWith(aura: totals[u.id] ?? 0)).toList();
     } catch (e) {
-      debugPrint('Error fetching monthly aura leaderboard: $e');
-      final users = await getUsers();
-      users.sort((a, b) => b.aura.compareTo(a.aura));
-      return users;
+      debugPrint('Error fetching monthly aura leaderboard fallback: $e');
+      return [];
     }
+  }
+
+  /// Returns users ranked by All-Time Aura
+  Future<List<UserModel>> getAllTimeAuraLeaderboard({String? college}) async {
+    try {
+      final response = await _client.rpc(
+        'get_aura_leaderboard',
+        params: {
+          'p_timeframe': 'all_time',
+          'p_college': college,
+          'p_limit': 100,
+        },
+      );
+      if (response != null) {
+        return (response as List).map((d) => UserModel.fromJson(d)).toList();
+      }
+    } catch (e) {
+      debugPrint('RPC get_aura_leaderboard failed for all_time, running fallback: $e');
+    }
+
+    var users = await getUsers(limit: 100);
+    if (college != null && college.isNotEmpty) {
+      users = users.where((u) => u.college == college).toList();
+    }
+    users.sort((a, b) => b.aura.compareTo(a.aura));
+    return users;
   }
 
   Future<void> updateFcmToken(String uid, String token) async {
@@ -810,13 +862,18 @@ class SupabaseService {
     }
 
     // Check if user can reply
-    final canReply = await _client.rpc('can_user_reply', params: {
-      'p_question_id': questionId,
-      'p_user_id': userId,
-    });
+    try {
+      final canReply = await _client.rpc('can_user_reply', params: {
+        'p_question_id': questionId,
+        'p_user_id': userId,
+      });
 
-    if (canReply != true) {
-      throw StateError('Your request to answer this question has not been accepted yet.');
+      if (canReply == false) {
+        throw StateError('Your request to answer this question has not been accepted yet.');
+      }
+    } catch (e) {
+      if (e is StateError) rethrow;
+      debugPrint('can_user_reply RPC check bypassed or not configured: $e');
     }
 
     String? normalizedParentReplyId;

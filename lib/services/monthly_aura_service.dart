@@ -1,8 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'supabase_service.dart';
-
 class MonthlyAuraService {
   MonthlyAuraService._internal();
   static final MonthlyAuraService instance = MonthlyAuraService._internal();
@@ -43,49 +41,30 @@ class MonthlyAuraService {
     return lastDayOfMonth.day - now.day;
   }
 
-  /// Checks if a new month has started and resets all users' Aura if needed.
-  /// Returns [true] if a monthly reset was performed.
+  /// Checks if a new month has started for UI display/tracking purposes.
+  /// No database reset is performed as all-time aura remains persistent,
+  /// and period scores are dynamically queried via timeframe parameters.
   Future<bool> checkAndResetMonthlyAuraIfNeeded() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final lastResetMonth = prefs.getString(_keyLastResetMonth);
       final activeMonthKey = currentMonthKey;
 
-      if (lastResetMonth == null) {
-        // First initialization - store current month
-        await prefs.setString(_keyLastResetMonth, activeMonthKey);
-        return false;
-      }
-
       if (lastResetMonth != activeMonthKey) {
-        debugPrint(
-          '🗓️ Month boundary detected! Previous: $lastResetMonth -> Current: $activeMonthKey. Resetting Aura...',
-        );
-        await forceResetMonthlyAura();
+        await prefs.setString(_keyLastResetMonth, activeMonthKey);
         return true;
       }
 
       return false;
     } catch (e) {
-      debugPrint('Error checking monthly aura reset: $e');
+      debugPrint('Error checking monthly aura status: $e');
       return false;
     }
   }
 
-  /// Force resets all users' Aura in the database and updates local tracking.
+  /// Deprecated: Aura in users table represents total All-Time Aura.
+  /// Monthly and Weekly scores are calculated directly from public.aura_ledger.
   Future<void> forceResetMonthlyAura() async {
-    try {
-      // 1. Reset all users' aura in Supabase
-      await SupabaseService.instance.resetAllUsersMonthlyAura();
-
-      // 2. Update SharedPreferences with current month key
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_keyLastResetMonth, currentMonthKey);
-
-      debugPrint('✅ Monthly Aura Reset completed successfully.');
-    } catch (e) {
-      debugPrint('Failed to execute monthly aura reset: $e');
-      rethrow;
-    }
+    debugPrint('forceResetMonthlyAura ignored: persistent aura model active.');
   }
 }

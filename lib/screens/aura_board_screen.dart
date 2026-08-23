@@ -29,13 +29,6 @@ class _AuraBoardScreenState extends State<AuraBoardScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final wasReset =
-          await MonthlyAuraService.instance.checkAndResetMonthlyAuraIfNeeded();
-      if (wasReset && mounted) {
-        context.read<UsersProvider>().refreshUsers();
-      }
-    });
   }
 
   @override
@@ -231,28 +224,20 @@ class _AuraBoardScreenState extends State<AuraBoardScreen> {
   }
 
   Future<List<UserModel>> _loadRankedUsers() async {
-    final usersP = context.read<UsersProvider>();
     final currentUser = context.read<AuthProvider>().currentUserOrNull;
+    final collegeFilter = _isGlobal ? null : currentUser?.college;
 
     try {
-      final List<UserModel> ranked;
       if (_timeframe == 'Weekly') {
-        ranked = await SupabaseService.instance.getWeeklyAuraLeaderboard();
+        return await SupabaseService.instance
+            .getWeeklyAuraLeaderboard(college: collegeFilter);
       } else if (_timeframe == 'Monthly') {
-        ranked = await SupabaseService.instance.getMonthlyAuraLeaderboard();
+        return await SupabaseService.instance
+            .getMonthlyAuraLeaderboard(college: collegeFilter);
       } else {
-        await usersP.fetchUsers();
-        ranked = List<UserModel>.from(usersP.users);
-        ranked.sort((a, b) => b.aura.compareTo(a.aura));
+        return await SupabaseService.instance
+            .getAllTimeAuraLeaderboard(college: collegeFilter);
       }
-
-      if (!_isGlobal) {
-        return ranked
-            .where((u) => u.college == (currentUser?.college ?? ''))
-            .toList();
-      }
-
-      return ranked;
     } catch (e) {
       debugPrint('Leaderboard fetch failed: $e');
       return currentUser != null ? [currentUser.copyWith(aura: 0)] : [];

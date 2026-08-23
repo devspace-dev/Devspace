@@ -6,7 +6,6 @@ import '../models/comment_model.dart';
 import '../models/post_model.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
-import '../services/backend_api_service.dart';
 import '../services/storage_service.dart';
 import '../services/supabase_service.dart';
 
@@ -98,7 +97,7 @@ class PostsProvider extends ChangeNotifier {
     required int limit,
     required int offset,
   }) {
-    return BackendApiService.instance.getPosts(
+    return SupabaseService.instance.getPosts(
       limit: limit,
       offset: offset,
     );

@@ -693,12 +693,6 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
           subtitle: 'Confirm mission management routes are working.',
           onTap: _checkChallengesRoute,
         ),
-        _SystemActionTile(
-          icon: Icons.restore_rounded,
-          title: 'Reset Monthly Leaderboard Aura',
-          subtitle: 'Force reset all users\' Aura points to 0 for a new monthly season.',
-          onTap: _resetMonthlyAura,
-        ),
       ],
     );
   }

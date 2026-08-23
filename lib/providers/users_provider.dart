@@ -6,6 +6,15 @@ import '../services/auth_service.dart';
 import '../services/supabase_service.dart';
 
 class UsersProvider extends ChangeNotifier {
+  UsersProvider() {
+    _authSub = AuthService.instance.authStateChanges.listen((user) {
+      if (user != null) {
+        updateUserInList(user);
+      }
+    });
+  }
+
+  StreamSubscription<UserModel?>? _authSub;
   List<UserModel> _users = [];
   bool _isLoading = false;
   bool _isLoadingMore = false;
@@ -15,6 +24,12 @@ class UsersProvider extends ChangeNotifier {
   final Map<String, String?> _followErrors = {};
   static const int _pageSize = 20;
 
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    super.dispose();
+  }
+
   List<UserModel> get users => List.unmodifiable(_users);
   bool get isLoading => _isLoading;
   bool get isLoadingMore => _isLoadingMore;
@@ -22,6 +37,14 @@ class UsersProvider extends ChangeNotifier {
   String? get error => _error;
   bool isFollowUpdating(String userId) => _followUpdating[userId] ?? false;
   String? followError(String userId) => _followErrors[userId];
+
+  void updateUserInList(UserModel updatedUser) {
+    final index = _users.indexWhere((u) => u.id == updatedUser.id);
+    if (index != -1) {
+      _users[index] = updatedUser;
+      notifyListeners();
+    }
+  }
 
   Future<void> fetchUsers({String? query}) async {
     _isLoading = true;
@@ -327,10 +350,5 @@ class UsersProvider extends ChangeNotifier {
           ),
         )
         .toList();
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
   }
 }
