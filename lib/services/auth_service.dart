@@ -134,8 +134,11 @@ class AuthService {
 
     // Initialize Google Sign In (v7+)
     try {
-      const webClientId =
-          String.fromEnvironment('GOOGLE_WEB_CLIENT_ID', defaultValue: '');
+      const webClientId = String.fromEnvironment(
+        'GOOGLE_WEB_CLIENT_ID',
+        defaultValue:
+            '690782485467-cl1a5juh3b21rk1u23ar2goednja93c1.apps.googleusercontent.com',
+      );
       if (webClientId.isNotEmpty) {
         await GoogleSignIn.instance.initialize(serverClientId: webClientId);
       } else {
@@ -308,11 +311,16 @@ class AuthService {
           return existingByEmail;
         }
 
-        throw PostgrestException(
-          message:
-              'A profile with this email already exists under a different auth account (users_email_key).',
-          code: '23505',
-        );
+        // Try updating existing profile to point to current user id if possible
+        try {
+          await SupabaseService.instance.updateUser(existingByEmail.id, {
+            'id': user.id,
+          });
+          final reloaded = await SupabaseService.instance.getUserById(user.id);
+          if (reloaded != null) return reloaded;
+        } catch (_) {}
+
+        return existingByEmail;
       }
     }
 
@@ -434,52 +442,72 @@ class AuthService {
         await googleSignIn.signOut();
       } catch (_) {}
 
-      final googleUser = await googleSignIn.authenticate();
-
-      if (!_isAllowedEmail(googleUser.email)) {
-        await googleSignIn.signOut();
-        return const AuthResult(
-            error: 'Please use your @$_collegeDomain college email.');
-      }
-
-      final googleAuth = googleUser.authentication;
-      final idToken = googleAuth.idToken;
-
-      String? accessToken;
+      dynamic googleUser;
       try {
-        final scopes = ['email', 'profile'];
-        final authorization =
-            await googleUser.authorizationClient.authorizationForScopes(scopes) ??
-                await googleUser.authorizationClient.authorizeScopes(scopes);
-        accessToken = authorization.accessToken;
+        googleUser = await googleSignIn.authenticate();
       } catch (e) {
-        debugPrint('Failed to get Google access token: $e');
+        debugPrint('Native Google Sign-In failed or canceled: $e. Falling back to Supabase OAuth...');
       }
 
-      if (idToken == null || idToken.isEmpty) {
-        return const AuthResult(error: 'Google authentication failed.');
+      if (googleUser != null) {
+        if (!_isAllowedEmail(googleUser.email)) {
+          await googleSignIn.signOut();
+          return const AuthResult(
+              error: 'Please use your @$_collegeDomain college email.');
+        }
+
+        final googleAuth = googleUser.authentication;
+        final idToken = googleAuth.idToken;
+
+        String? accessToken;
+        try {
+          final scopes = ['email', 'profile'];
+          final authorization =
+              await googleUser.authorizationClient.authorizationForScopes(scopes) ??
+                  await googleUser.authorizationClient.authorizeScopes(scopes);
+          accessToken = authorization.accessToken;
+        } catch (e) {
+          debugPrint('Failed to get Google access token: $e');
+        }
+
+        if (idToken != null && idToken.isNotEmpty) {
+          final AuthResponse res = await _supabase.auth.signInWithIdToken(
+            provider: OAuthProvider.google,
+            idToken: idToken,
+            accessToken: accessToken,
+          );
+
+          final user = res.user;
+          if (user != null) {
+            _currentUser = await _loadOrCreateProfile(user);
+            _authStateController.add(_currentUser);
+
+            AnalyticsService.instance.logLogin('google');
+            if (_currentUser != null) {
+              AnalyticsService.instance.setUserIdentifier(_currentUser!.id);
+            }
+
+            return AuthResult(user: _currentUser);
+          }
+        }
       }
 
-      final AuthResponse res = await _supabase.auth.signInWithIdToken(
-        provider: OAuthProvider.google,
-        idToken: idToken,
-        accessToken: accessToken,
+      // Fallback: Use Supabase Web OAuth
+      final bool success = await _supabase.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: kIsWeb ? null : 'io.supabase.flutter://login-callback/',
       );
 
-      final user = res.user;
-      if (user == null) {
-        return const AuthResult(error: 'Google sign-in failed.');
+      if (success) {
+        final user = _supabase.auth.currentUser;
+        if (user != null) {
+          _currentUser = await _loadOrCreateProfile(user);
+          _authStateController.add(_currentUser);
+          return AuthResult(user: _currentUser);
+        }
       }
 
-      _currentUser = await _loadOrCreateProfile(user);
-      _authStateController.add(_currentUser);
-
-      AnalyticsService.instance.logLogin('google');
-      if (_currentUser != null) {
-        AnalyticsService.instance.setUserIdentifier(_currentUser!.id);
-      }
-
-      return AuthResult(user: _currentUser);
+      return const AuthResult(error: 'Google sign-in was canceled.');
     } on AuthException catch (e) {
       return AuthResult(error: _friendlySignInError(e));
     } on PostgrestException catch (e) {

@@ -11,14 +11,25 @@ class ChallengeService {
 
     try {
       // 1. Fetch user row
-      final userRow = await _supabase
-          .from('users')
-          .select('is_premium, career_goal')
-          .eq('id', user.id)
-          .single();
+      Map<String, dynamic>? userRow;
+      try {
+        userRow = await _supabase
+            .from('users')
+            .select('is_premium, career_goal')
+            .eq('id', user.id)
+            .maybeSingle();
+      } catch (_) {
+        try {
+          userRow = await _supabase
+              .from('users')
+              .select('is_premium')
+              .eq('id', user.id)
+              .maybeSingle();
+        } catch (_) {}
+      }
 
-      final bool isPremium = userRow['is_premium'] ?? false;
-      final String? userGoal = userRow['career_goal'];
+      final bool isPremium = userRow?['is_premium'] ?? false;
+      final String? userGoal = userRow?['career_goal'];
 
       final int currentWeekNumber =
           DateTime.now().difference(DateTime(DateTime.now().year, 1, 1)).inDays ~/ 7 + 1;
