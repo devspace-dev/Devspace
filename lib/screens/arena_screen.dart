@@ -347,25 +347,6 @@ class _ArenaScreenState extends State<ArenaScreen> {
                   ],
                 ),
               ),
-              // Rank badge (#2)
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.isDark(context)
-                      ? const Color(0xFF451A03)
-                      : const Color(0xFFFFF7ED),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '#2',
-                  style: GoogleFonts.plusJakartaSans(
-                    color: const Color(0xFFFB923C),
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 18),

@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../data/practice_questions.dart';
+import '../services/supabase_service.dart';
 import 'auth_provider.dart';
 
 class PracticeProvider extends ChangeNotifier {
@@ -10,6 +10,7 @@ class PracticeProvider extends ChangeNotifier {
   final Set<String> _completedQuestionIds = {};
   final Set<String> _syncedQuestionIds = {};
   int _selectedSectionIndex = 0;
+  String _selectedTechStack = 'All';
   bool _isLoading = true;
 
   PracticeProvider() {
@@ -19,24 +20,13 @@ class PracticeProvider extends ChangeNotifier {
   Set<String> get completedQuestionIds => Set.unmodifiable(_completedQuestionIds);
   Set<String> get syncedQuestionIds => Set.unmodifiable(_syncedQuestionIds);
   int get selectedSectionIndex => _selectedSectionIndex;
+  String get selectedTechStack => _selectedTechStack;
   bool get isLoading => _isLoading;
 
   int get totalCompletedCount => _completedQuestionIds.length;
 
   int getAuraForQuestion(String questionId) {
-    try {
-      final question = practiceQuestionsData.firstWhere(
-        (q) => q.id == questionId,
-        orElse: () => practiceQuestionsData.first,
-      );
-      final levelInfo = PracticeLevelData.levels.firstWhere(
-        (l) => l['index'] == question.levelIndex,
-        orElse: () => PracticeLevelData.levels.first,
-      );
-      return (levelInfo['auraPerQuestion'] as int? ?? 10);
-    } catch (_) {
-      return 10;
-    }
+    return 5;
   }
 
   int get totalAuraEarned {
@@ -105,6 +95,13 @@ class PracticeProvider extends ChangeNotifier {
     }
   }
 
+  void setSelectedTechStack(String techStack) {
+    if (_selectedTechStack != techStack) {
+      _selectedTechStack = techStack;
+      notifyListeners();
+    }
+  }
+
   bool isQuestionCompleted(String id) {
     return _completedQuestionIds.contains(id);
   }
@@ -147,22 +144,26 @@ class PracticeProvider extends ChangeNotifier {
     final bool isNewCompletion = !_completedQuestionIds.contains(questionId);
     if (isNewCompletion) {
       _completedQuestionIds.add(questionId);
+      await _saveProgress();
 
-      final auraReward = getAuraForQuestion(questionId);
       if (authProvider != null && authProvider.currentUserOrNull != null) {
         _syncedQuestionIds.add(questionId);
-        authProvider.addAura(auraReward);
+        final result = await SupabaseService.instance.submitPracticeCompletion(questionId);
+        if (result != null && result['aura'] != null) {
+          final int serverAura = (result['aura'] as num).toInt();
+          authProvider.updateLocalAura(serverAura);
+        }
       }
-
-      await _saveProgress();
       notifyListeners();
     } else if (!_syncedQuestionIds.contains(questionId) &&
         authProvider != null &&
         authProvider.currentUserOrNull != null) {
-      // Catch unsynced existing completion
-      final auraReward = getAuraForQuestion(questionId);
       _syncedQuestionIds.add(questionId);
-      authProvider.addAura(auraReward);
+      final result = await SupabaseService.instance.submitPracticeCompletion(questionId);
+      if (result != null && result['aura'] != null) {
+        final int serverAura = (result['aura'] as num).toInt();
+        authProvider.updateLocalAura(serverAura);
+      }
       await _saveProgress();
       notifyListeners();
     }

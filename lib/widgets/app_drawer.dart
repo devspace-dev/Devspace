@@ -386,6 +386,47 @@ class _DevSpaceDrawerState extends State<DevSpaceDrawer> {
                       );
                     },
                   ),
+                  _DrawerTile(
+                    icon: Icons.logout_rounded,
+                    iconColor: Colors.redAccent,
+                    title: 'Log Out',
+                    onTap: () async {
+                      Navigator.pop(context);
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          backgroundColor: AppColors.bg2For(context),
+                          title: Text(
+                            'Sign out?',
+                            style: TextStyle(color: AppColors.textFor(context)),
+                          ),
+                          content: Text(
+                            'You will return to the login screen on this device.',
+                            style: TextStyle(color: AppColors.text2For(context)),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('Cancel'),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.redAccent),
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('Sign out'),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (confirm == true && context.mounted) {
+                        await context.read<AuthProvider>().signOut();
+                        if (context.mounted) {
+                          Navigator.of(context).popUntil((route) => route.isFirst);
+                        }
+                      }
+                    },
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     'DevSpace v1.0.0 · Student Builders',

@@ -43,11 +43,15 @@ class _PracticeMapScreenState extends State<PracticeMapScreen>
   Widget build(BuildContext context) {
     final practiceProvider = context.watch<PracticeProvider>();
     final currentSectionIndex = practiceProvider.selectedSectionIndex;
+    final selectedTechStack = practiceProvider.selectedTechStack;
     final levelInfo = PracticeLevelData.levels[currentSectionIndex];
     final Color themeColor = Color(levelInfo['color'] as int);
     final String levelName = levelInfo['name'] as String;
-    final questions = PracticeLevelData.getQuestionsForLevel(currentSectionIndex);
-    final completedCount = practiceProvider.getCompletedCountForSection(currentSectionIndex);
+    final questions = PracticeLevelData.getQuestionsForLevel(
+      currentSectionIndex,
+      techStack: selectedTechStack,
+    );
+    final completedCount = questions.where((q) => practiceProvider.isQuestionCompleted(q.id)).length;
 
     return Scaffold(
       backgroundColor: AppColors.bgFor(context),
@@ -59,6 +63,9 @@ class _PracticeMapScreenState extends State<PracticeMapScreen>
 
             // ── Section Selector Tabs (Noob, Easy, Medium, Hard) ─────────────
             _buildSectionTabs(context, practiceProvider),
+
+            // ── Tech Stack Selector Chips (All Stacks, Frontend, Backend, Mobile, DevOps, DSA) ──
+            _buildTechStackSelector(context, practiceProvider),
 
             // ── Main Map Canvas ─────────────────────────────────────────────
             Expanded(
@@ -112,7 +119,7 @@ class _PracticeMapScreenState extends State<PracticeMapScreen>
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'SECTION ${currentSectionIndex + 1}: $levelName',
+                                        'SECTION ${currentSectionIndex + 1}: $levelName${selectedTechStack != 'All' ? ' • $selectedTechStack' : ''}',
                                         style: GoogleFonts.plusJakartaSans(
                                           fontSize: 11,
                                           fontWeight: FontWeight.w900,
@@ -153,7 +160,7 @@ class _PracticeMapScreenState extends State<PracticeMapScreen>
                                 Column(
                                   children: [
                                     Text(
-                                      '$completedCount/20',
+                                      '$completedCount/${questions.length}',
                                       style: GoogleFonts.plusJakartaSans(
                                         fontSize: 15,
                                         fontWeight: FontWeight.w900,
@@ -175,41 +182,84 @@ class _PracticeMapScreenState extends State<PracticeMapScreen>
                           ),
                         ),
 
-                        // Candy Crush / Duolingo Level Path
-                        SliverPadding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 10),
-                          sliver: SliverList(
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) {
-                                final q = questions[index];
-                                final bool isUnlocked = practiceProvider
-                                    .isQuestionUnlocked(q.levelIndex, q.questionNumber);
-                                final bool isCompleted = practiceProvider
-                                    .isQuestionCompleted(q.id);
-                                final bool isNextUnlocked = index < questions.length - 1 &&
-                                    practiceProvider.isQuestionUnlocked(
-                                        questions[index + 1].levelIndex,
-                                        questions[index + 1].questionNumber);
+                        // Empty State if no questions match filter
+                        if (questions.isEmpty)
+                          SliverToBoxAdapter(
+                            child: Container(
+                              margin: const EdgeInsets.all(24),
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                color: AppColors.bg2For(context),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: AppColors.borderFor(context)),
+                              ),
+                              child: Column(
+                                children: [
+                                  Icon(Icons.filter_alt_off_rounded,
+                                      size: 40, color: AppColors.text3For(context)),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'No $selectedTechStack questions in $levelName section',
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.textFor(context),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Try selecting another section or "All Stacks" to practice!',
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 12,
+                                      color: AppColors.text3For(context),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        else
+                          // Level Path
+                          SliverPadding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 10),
+                            sliver: SliverList(
+                              delegate: SliverChildBuilderDelegate(
+                                (context, index) {
+                                  final q = questions[index];
+                                  final bool isUnlocked = selectedTechStack != 'All'
+                                      ? practiceProvider.isSectionUnlocked(q.levelIndex)
+                                      : practiceProvider.isQuestionUnlocked(
+                                          q.levelIndex, q.questionNumber);
+                                  final bool isCompleted = practiceProvider
+                                      .isQuestionCompleted(q.id);
+                                  final bool isNextUnlocked = index < questions.length - 1 &&
+                                      (selectedTechStack != 'All'
+                                          ? practiceProvider.isSectionUnlocked(questions[index + 1].levelIndex)
+                                          : practiceProvider.isQuestionUnlocked(
+                                              questions[index + 1].levelIndex,
+                                              questions[index + 1].questionNumber));
 
-                                final double curveOffset = _getCurveOffset(index);
+                                  final double curveOffset = _getCurveOffset(index);
 
-                                return _buildPathNodeRow(
-                                  context: context,
-                                  question: q,
-                                  index: index,
-                                  totalQuestions: questions.length,
-                                  isUnlocked: isUnlocked,
-                                  isCompleted: isCompleted,
-                                  isNextUnlocked: isNextUnlocked,
-                                  curveOffset: curveOffset,
-                                  themeColor: themeColor,
-                                );
-                              },
-                              childCount: questions.length,
+                                  return _buildPathNodeRow(
+                                    context: context,
+                                    question: q,
+                                    index: index,
+                                    totalQuestions: questions.length,
+                                    isUnlocked: isUnlocked,
+                                    isCompleted: isCompleted,
+                                    isNextUnlocked: isNextUnlocked,
+                                    curveOffset: curveOffset,
+                                    themeColor: themeColor,
+                                  );
+                                },
+                                childCount: questions.length,
+                              ),
                             ),
                           ),
-                        ),
                         const SliverToBoxAdapter(child: SizedBox(height: 40)),
                       ],
                     ),
@@ -435,6 +485,92 @@ class _PracticeMapScreenState extends State<PracticeMapScreen>
         }),
       ),
     );
+  }
+
+  Widget _buildTechStackSelector(
+      BuildContext context, PracticeProvider practiceProvider) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        child: Row(
+          children: PracticeLevelData.availableTechStacks.map((stack) {
+            final isSelected = practiceProvider.selectedTechStack == stack;
+            final IconData iconData = _getTechStackIcon(stack);
+
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  practiceProvider.setSelectedTechStack(stack);
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppColors.primary
+                        : AppColors.bg2For(context),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isSelected
+                          ? AppColors.primary
+                          : AppColors.borderFor(context),
+                      width: isSelected ? 1.5 : 1.0,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        iconData,
+                        size: 13,
+                        color: isSelected
+                            ? Colors.white
+                            : AppColors.text3For(context),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        stack == 'All' ? 'All Stacks' : stack,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          fontWeight:
+                              isSelected ? FontWeight.w800 : FontWeight.w600,
+                          color: isSelected
+                              ? Colors.white
+                              : AppColors.text2For(context),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  IconData _getTechStackIcon(String stack) {
+    switch (stack) {
+      case 'All':
+        return Icons.layers_rounded;
+      case 'Frontend':
+        return Icons.code_rounded;
+      case 'Backend':
+        return Icons.dns_rounded;
+      case 'Mobile':
+        return Icons.smartphone_rounded;
+      case 'DevOps & Tools':
+        return Icons.terminal_rounded;
+      case 'DSA & Logic':
+        return Icons.account_tree_rounded;
+      default:
+        return Icons.grid_view_rounded;
+    }
   }
 
   // ══════════════════════════════════════════════════════════════════════════
