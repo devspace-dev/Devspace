@@ -326,16 +326,32 @@ class SupabaseService {
     await _client.from('users').update(data).eq('id', uid);
   }
 
-  /// Resets every user's aura to 0 for a fresh monthly leaderboard season
+  /// Submits practice completion to server-side RPC for secure aura calculation and idempotency
+  Future<Map<String, dynamic>?> submitPracticeCompletion(String questionId) async {
+    try {
+      final response = await _client.rpc(
+        'submit_practice_completion',
+        params: {
+          'p_question_id': questionId,
+          'p_aura_reward': 5,
+        },
+      );
+      if (response is Map) {
+        return Map<String, dynamic>.from(response);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error submitting practice completion RPC: $e');
+      return null;
+    }
+  }
+
+  /// Calls server-side monthly reset RPC (protected)
   Future<void> resetAllUsersMonthlyAura() async {
     try {
-      await _client
-          .from('users')
-          .update({'aura': 0})
-          .neq('id', '00000000-0000-0000-0000-000000000000');
+      await _client.rpc('perform_monthly_aura_reset');
     } catch (e) {
-      debugPrint('Error executing resetAllUsersMonthlyAura: $e');
-      rethrow;
+      debugPrint('Error executing perform_monthly_aura_reset: $e');
     }
   }
 
@@ -458,6 +474,20 @@ class SupabaseService {
     // Or just delete from public.users and let the user know they are unsubscribed
     await _client.from('users').delete().eq('id', user.id);
     await _client.auth.signOut();
+  }
+
+  Future<List<UserModel>> getLeaderboard({int limit = 50}) async {
+    try {
+      final data = await _client
+          .from('mv_leaderboard_rankings')
+          .select()
+          .order('aura', ascending: false)
+          .limit(limit);
+      return (data as List).map((d) => UserModel.fromJson(d)).toList();
+    } catch (e) {
+      debugPrint('Leaderboard view query fallback to users table: $e');
+      return getUsers(limit: limit);
+    }
   }
 
   Future<List<UserModel>> getUsers({

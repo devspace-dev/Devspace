@@ -7,13 +7,11 @@ class MonthlyAuraService {
 
   static const String _keyLastResetMonth = 'devspace_last_aura_reset_month';
 
-  /// Returns the current month key string in 'YYYY-MM' format (e.g. '2026-08')
   String get currentMonthKey {
     final now = DateTime.now();
     return '${now.year}-${now.month.toString().padLeft(2, '0')}';
   }
 
-  /// Returns readable month season name (e.g., "August 2026 Season")
   String get currentSeasonName {
     final now = DateTime.now();
     const months = [
@@ -34,7 +32,6 @@ class MonthlyAuraService {
     return '$monthName ${now.year} Season';
   }
 
-  /// Calculates number of days remaining until the end of the current month
   int get daysRemainingInMonth {
     final now = DateTime.now();
     final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
@@ -50,6 +47,11 @@ class MonthlyAuraService {
       final lastResetMonth = prefs.getString(_keyLastResetMonth);
       final activeMonthKey = currentMonthKey;
 
+      if (lastResetMonth == null) {
+        await prefs.setString(_keyLastResetMonth, activeMonthKey);
+        return false;
+      }
+
       if (lastResetMonth != activeMonthKey) {
         await prefs.setString(_keyLastResetMonth, activeMonthKey);
         return true;
@@ -62,9 +64,18 @@ class MonthlyAuraService {
     }
   }
 
-  /// Deprecated: Aura in users table represents total All-Time Aura.
-  /// Monthly and Weekly scores are calculated directly from public.aura_ledger.
+  /// Reset monthly aura status
   Future<void> forceResetMonthlyAura() async {
-    debugPrint('forceResetMonthlyAura ignored: persistent aura model active.');
+    try {
+      await SupabaseService.instance.resetAllUsersMonthlyAura();
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_keyLastResetMonth, currentMonthKey);
+
+      debugPrint('✅ Monthly Aura Reset completed successfully.');
+    } catch (e) {
+      debugPrint('Failed to execute monthly aura reset: $e');
+      rethrow;
+    }
   }
 }

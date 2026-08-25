@@ -29,14 +29,18 @@ class AuthProvider extends ChangeNotifier {
     return user;
   }
 
+  void updateLocalAura(int newAura) {
+    final user = currentUserOrNull;
+    if (user != null && user.aura != newAura) {
+      _currentUser = user.copyWith(aura: newAura);
+      notifyListeners();
+    }
+  }
+
   void addAura(int points) {
-    final updatedUser = currentUser.copyWith(aura: currentUser.aura + points);
-    _currentUser = updatedUser;
-    notifyListeners();
-    unawaited(SupabaseService.instance.updateUser(
-      updatedUser.id,
-      {'aura': updatedUser.aura},
-    ));
+    final user = currentUserOrNull;
+    if (user == null) return;
+    updateLocalAura(user.aura + points);
   }
 
   void updateBuilding(String building) {
