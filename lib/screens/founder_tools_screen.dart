@@ -1567,43 +1567,8 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
     }
   }
 
-  Future<void> _resetMonthlyAura() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Reset Monthly Aura?'),
-        content: const Text(
-          'This will reset every user\'s Aura points to 0 for a new monthly season. Proceed?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Reset Aura'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      try {
-        await MonthlyAuraService.instance.forceResetMonthlyAura();
-        if (mounted) {
-          await context.read<UsersProvider>().refreshUsers();
-          _showSnack('Monthly Aura reset executed successfully!');
-        }
-      } catch (e) {
-        if (mounted) {
-          _showSnack('Failed to reset monthly aura: $e');
-        }
-      }
-    }
-  }
-
   Future<void> _syncHackathons() async {
+
     try {
       _showSnack('Starting hackathon synchronization from Devpost, Devfolio, and Unstop...');
       final results = await BackendApiService.instance.syncDevpostHackathons();

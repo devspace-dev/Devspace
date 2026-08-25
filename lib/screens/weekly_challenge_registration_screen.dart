@@ -6,7 +6,6 @@ import '../providers/premium_provider.dart';
 import '../providers/auth_provider.dart';
 import 'career_goal_onboarding_screen.dart';
 import 'explore_premium_screen.dart';
-import '../services/razorpay_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_ui_kit.dart';
 import '../widgets/info_block.dart';
@@ -25,58 +24,23 @@ class _WeeklyChallengeRegistrationScreenState
   bool _isProcessingPayment = false;
   Timer? _countdownTimer;
   Duration _timeLeft = const Duration(days: 2, hours: 14, minutes: 30);
-  late RazorpayService _razorpayService;
 
   @override
   void initState() {
     super.initState();
-    _razorpayService = RazorpayService();
-    _razorpayService.onPaymentSuccess = _handlePaymentSuccess;
-    _razorpayService.onPaymentError = _handlePaymentError;
   }
 
   @override
   void dispose() {
     _countdownTimer?.cancel();
-    _razorpayService.dispose();
     super.dispose();
   }
 
-  void _handlePaymentSuccess(dynamic response) async {
-    if (!mounted) return;
-
-    final premium = context.read<PremiumProvider>();
-    final success = await premium.activatePremium();
-
-    if (success) {
-      setState(() {
-        _showPaymentSuccess = true;
-        _isProcessingPayment = false;
-      });
-      _startTimer();
-    } else {
-      setState(() => _isProcessingPayment = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Enrollment failed')),
-        );
-      }
-    }
-  }
-
-  void _handlePaymentError(dynamic response) {
-    if (!mounted) return;
-    setState(() => _isProcessingPayment = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Payment cancelled or failed.')),
-    );
-  }
-
-  void _startTimer() {
+  void _startCountdown() {
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_timeLeft.inSeconds > 0) {
         setState(() {
-          _timeLeft -= const Duration(seconds: 1);
+          _timeLeft = _timeLeft - const Duration(seconds: 1);
         });
       } else {
         _countdownTimer?.cancel();
@@ -92,7 +56,7 @@ class _WeeklyChallengeRegistrationScreenState
     return '$days : $hours : $minutes : $seconds';
   }
 
-  Future<void> _handlePayment() async {
+  Future<void> _handleEnrollment() async {
     final user = context.read<AuthProvider>().currentUserOrNull;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -103,13 +67,17 @@ class _WeeklyChallengeRegistrationScreenState
 
     setState(() => _isProcessingPayment = true);
 
-    _razorpayService.openCheckout(
-      amountInPaise: 4900,
-      name: 'DevSpace',
-      description: 'Weekly Coding Challenge',
-      email: user.email,
-      contact: '9876543210',
-    );
+    final premium = context.read<PremiumProvider>();
+    final success = await premium.activatePremium();
+
+    if (!mounted) return;
+    setState(() {
+      _isProcessingPayment = false;
+      if (success) {
+        _showPaymentSuccess = true;
+        _startCountdown();
+      }
+    });
   }
 
   @override
@@ -184,17 +152,17 @@ class _WeeklyChallengeRegistrationScreenState
         ),
         const SizedBox(height: 12),
         InfoBlock(
-          title: 'Refund Policy',
+          title: 'Rules & Guidelines',
           child: Text(
-            'Registration fee is non-refundable once the challenge window starts. Ensure you have a stable internet connection.',
+            'Challenge registration is free for all registered student builders. Ensure you have a stable internet connection during submission.',
             style: TextStyle(fontSize: 13, color: AppColors.text3For(context), height: 1.5),
           ),
         ),
         const SizedBox(height: 40),
         AppButton(
-          onPressed: _handlePayment,
+          onPressed: _handleEnrollment,
           isLoading: _isProcessingPayment,
-          child: const Text('Enroll Now (₹49)'),
+          child: const Text('Enroll Now (Free)'),
         ),
       ],
     );

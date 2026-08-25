@@ -72,20 +72,9 @@ class MonthlyAuraService {
     }
   }
 
-  /// Force resets all users' Aura in the database and updates local tracking.
+  /// Deprecated: Aura in users table represents total All-Time Aura.
+  /// Monthly and Weekly scores are calculated directly from public.aura_ledger.
   Future<void> forceResetMonthlyAura() async {
-    try {
-      // 1. Reset all users' aura in Supabase
-      await SupabaseService.instance.resetAllUsersMonthlyAura();
-
-      // 2. Update SharedPreferences with current month key
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_keyLastResetMonth, currentMonthKey);
-
-      debugPrint('✅ Monthly Aura Reset completed successfully.');
-    } catch (e) {
-      debugPrint('Failed to execute monthly aura reset: $e');
-      rethrow;
-    }
+    debugPrint('forceResetMonthlyAura ignored: persistent aura model active.');
   }
 }

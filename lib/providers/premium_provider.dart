@@ -45,7 +45,7 @@ class PremiumProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> activatePremium() async {
+  Future<bool> activatePremium({String paymentId = '', String orderId = ''}) async {
     final user = _supabase.auth.currentUser;
     if (user == null) return false;
 
@@ -53,10 +53,18 @@ class PremiumProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _supabase.from('users').update({
-        'is_premium': true,
-        'career_goal_selected': false,
-      }).eq('id', user.id);
+      try {
+        await _supabase.rpc('activate_user_premium', params: {
+          'p_payment_id': paymentId,
+          'p_order_id': orderId,
+        });
+      } catch (rpcError) {
+        // Fallback for legacy DB schema before migration
+        await _supabase.from('users').update({
+          'is_premium': true,
+          'career_goal_selected': false,
+        }).eq('id', user.id);
+      }
 
       _isPremium = true;
       _careerGoalSelected = false;
@@ -69,6 +77,7 @@ class PremiumProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
 
   Future<bool> saveCareerGoal(String goalId) async {
     final user = _supabase.auth.currentUser;

@@ -95,8 +95,8 @@ class _WaitingForOpponentScreenState extends State<WaitingForOpponentScreen> {
                   ),
                 )
                 .animate(onPlay: (c) => c.repeat())
-                .scale(begin: const Offset(0.5, 0.5), end: const Offset(1.5, 1.5), duration: 2.seconds)
-                .fadeOut(duration: 2.seconds),
+                .scale(begin: const Offset(0.5, 0.5), end: const Offset(1.5, 1.5), duration: const Duration(seconds: 2))
+                .fadeOut(duration: const Duration(seconds: 2)),
 
                 CircleAvatar(
                   radius: 40,
@@ -116,7 +116,7 @@ class _WaitingForOpponentScreenState extends State<WaitingForOpponentScreen> {
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
-            ).animate(onPlay: (c) => c.repeat(reverse: true)).fadeIn(duration: 1.seconds).fadeOut(duration: 1.seconds),
+            ).animate(onPlay: (c) => c.repeat(reverse: true)).fadeIn(duration: const Duration(seconds: 1)).fadeOut(duration: const Duration(seconds: 1)),
             const SizedBox(height: 12),
             const Text(
               'Challenge sent! Waiting for them to accept.',
