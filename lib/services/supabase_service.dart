@@ -10,8 +10,8 @@ import '../models/question_pull_request_model.dart';
 import '../models/conversation_model.dart';
 import '../models/message_model.dart';
 import '../models/aura_ledger_model.dart';
-import 'calling_service.dart';
 import 'github_service.dart';
+
 
 /// SQL Schema for Supabase (Run this in Supabase SQL Editor):
 ///
@@ -239,9 +239,6 @@ class SupabaseService {
     // Handled in main.dart initialization
   }
 
-  void initCalling(String userId) {
-    CallingService.instance.init(userId);
-  }
 
   // ══════════════════════════════════════════════════════════════════════════
   // USERS

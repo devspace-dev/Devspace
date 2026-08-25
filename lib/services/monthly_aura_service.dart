@@ -61,10 +61,6 @@ class MonthlyAuraService {
       return false;
     }
   }
-
-  /// Deprecated: Aura in users table represents total All-Time Aura.
-  /// Monthly and Weekly scores are calculated directly from public.aura_ledger.
-  Future<void> forceResetMonthlyAura() async {
-    debugPrint('forceResetMonthlyAura ignored: persistent aura model active.');
-  }
 }
+
+

@@ -360,34 +360,14 @@ class _DuelScreenState extends State<DuelScreen> {
         : 0.0;
 
     final bool iWon = _myScore >= _opponentScore;
-    int baseAura = iWon ? 15 : -5;
-    int accuracyBonus = myAccuracy > 80 ? 10 : 0;
-    int speedPenalty = iWon ? 0 : -5;
-    int netAura = baseAura + accuracyBonus + speedPenalty;
 
-    if (netAura > 0) {
-      Supabase.instance.client.rpc('award_aura', params: {
-        'p_user_id': me.id,
-        'p_action': 'arena_duel',
-        'p_points': netAura,
-        'p_reference_type': 'arena',
-        'p_reference_id': widget.matchId,
-        'p_metadata': {'mode': widget.mode, 'score': _myScore, 'won': iWon}
-      }).catchError((_) {});
+    // Use authoritative server-side match resolution RPC
+    Supabase.instance.client.rpc('resolve_arena_match', params: {
+      'p_match_id': widget.matchId,
+      'p_my_score': _myScore,
+      'p_mode': widget.mode,
+    }).catchError((_) {});
 
-      if ((widget.mode.toUpperCase() == 'TEAM DUELS' || widget.mode.toUpperCase() == 'TEAM BATTLE') &&
-          _teammate != null &&
-          !_teammate!.id.startsWith('fallback_')) {
-        Supabase.instance.client.rpc('award_aura', params: {
-          'p_user_id': _teammate!.id,
-          'p_action': 'arena_duel',
-          'p_points': netAura,
-          'p_reference_type': 'arena',
-          'p_reference_id': widget.matchId,
-          'p_metadata': {'mode': widget.mode, 'score': _myScore, 'won': iWon, 'role': 'teammate'}
-        }).catchError((_) {});
-      }
-    }
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(

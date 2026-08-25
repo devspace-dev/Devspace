@@ -31,7 +31,6 @@
         "path_provider",
         "permission_handler",
         "provider",
-        "razorpay_flutter",
         "safe_device",
         "share_plus",
         "shared_preferences",
@@ -360,14 +359,6 @@
       ]
     },
     {
-      "name": "razorpay_flutter",
-      "version": "1.4.4",
-      "dependencies": [
-        "eventify",
-        "flutter"
-      ]
-    },
-    {
       "name": "firebase_crashlytics",
       "version": "5.1.0",
       "dependencies": [
@@ -499,7 +490,7 @@
     },
     {
       "name": "meta",
-      "version": "1.17.0",
+      "version": "1.18.0",
       "dependencies": []
     },
     {
@@ -610,7 +601,7 @@
     },
     {
       "name": "matcher",
-      "version": "0.12.17",
+      "version": "0.12.19",
       "dependencies": [
         "async",
         "meta",
@@ -621,7 +612,7 @@
     },
     {
       "name": "test_api",
-      "version": "0.7.7",
+      "version": "0.7.11",
       "dependencies": [
         "async",
         "boolean_selector",
@@ -1177,11 +1168,6 @@
       ]
     },
     {
-      "name": "eventify",
-      "version": "1.0.1",
-      "dependencies": []
-    },
-    {
       "name": "firebase_crashlytics_platform_interface",
       "version": "3.8.19",
       "dependencies": [
@@ -1365,14 +1351,14 @@
     },
     {
       "name": "material_color_utilities",
-      "version": "0.11.1",
+      "version": "0.13.0",
       "dependencies": [
         "collection"
       ]
     },
     {
       "name": "characters",
-      "version": "1.4.0",
+      "version": "1.4.1",
       "dependencies": []
     },
     {
