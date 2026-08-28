@@ -327,13 +327,13 @@ class SupabaseService {
   }
 
   /// Submits practice completion to server-side RPC for secure aura calculation and idempotency
-  Future<Map<String, dynamic>?> submitPracticeCompletion(String questionId) async {
+  Future<Map<String, dynamic>?> submitPracticeCompletion(String questionId, {int auraReward = 5}) async {
     try {
       final response = await _client.rpc(
         'submit_practice_completion',
         params: {
           'p_question_id': questionId,
-          'p_aura_reward': 5,
+          'p_aura_reward': auraReward,
         },
       );
       if (response is Map) {

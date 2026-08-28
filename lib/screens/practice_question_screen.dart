@@ -339,7 +339,7 @@ class _PracticeQuestionScreenState extends State<PracticeQuestionScreen> {
                                 const SizedBox(width: 8),
                                 Text(
                                   _isCorrect
-                                      ? 'Correct! (+5 Aura)'
+                                      ? 'Correct! (+${practiceProvider.getAuraForQuestion(widget.question.id)} Aura)'
                                       : 'Incorrect! (+0 Aura)',
                                   style: GoogleFonts.plusJakartaSans(
                                     fontSize: 15,
@@ -479,12 +479,15 @@ class _PracticeQuestionScreenState extends State<PracticeQuestionScreen> {
     if (correct) {
       HapticFeedback.heavyImpact();
       final authProvider = context.read<AuthProvider>();
+      final screenHeight = MediaQuery.of(context).size.height;
       final isNewCompletion = await practiceProvider.completeQuestion(
         widget.question.id,
         authProvider: authProvider,
       );
 
       if (!mounted) return;
+
+      final auraEarned = practiceProvider.getAuraForQuestion(widget.question.id);
 
       if (isNewCompletion) {
         // ignore: use_build_context_synchronously
@@ -495,7 +498,7 @@ class _PracticeQuestionScreenState extends State<PracticeQuestionScreen> {
                 const Icon(Icons.bolt_rounded, color: Color(0xFFFFD300)),
                 const SizedBox(width: 8),
                 Text(
-                  '+5 Aura Points Added!',
+                  '+$auraEarned Aura Points Added!',
                   style: GoogleFonts.plusJakartaSans(
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
@@ -506,6 +509,11 @@ class _PracticeQuestionScreenState extends State<PracticeQuestionScreen> {
             duration: const Duration(seconds: 2),
             backgroundColor: const Color(0xFF1E1E24),
             behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.only(
+              bottom: screenHeight - 160,
+              left: 16,
+              right: 16,
+            ),
           ),
         );
       }
@@ -536,6 +544,11 @@ class _PracticeQuestionScreenState extends State<PracticeQuestionScreen> {
           duration: const Duration(seconds: 2),
           backgroundColor: const Color(0xFF1E1E24),
           behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.only(
+            bottom: MediaQuery.of(context).size.height - 160,
+            left: 16,
+            right: 16,
+          ),
         ),
       );
     }

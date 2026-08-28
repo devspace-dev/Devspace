@@ -1128,7 +1128,7 @@ class PracticeLevelData {
       'tagline': 'Perfect for beginners. Focus on fundamentals.',
       'color': 0xFF32D74B, // Green
       'accent': 0xFF00E676,
-      'xp': '120 XP',
+      'xp': '100 XP',
       'icon': 0, // Battery / Eco
       'auraPerQuestion': 5,
     },
@@ -1138,9 +1138,9 @@ class PracticeLevelData {
       'tagline': 'Step up the challenge. Intermediate data structures.',
       'color': 0xFFFFD300, // Yellow
       'accent': 0xFFFFAB00,
-      'xp': '250 XP',
+      'xp': '200 XP',
       'icon': 1, // Lightning
-      'auraPerQuestion': 5,
+      'auraPerQuestion': 10,
     },
     {
       'index': 2,
@@ -1148,9 +1148,9 @@ class PracticeLevelData {
       'tagline': 'Advanced algorithms and complex logic.',
       'color': 0xFFFF9F00, // Orange
       'accent': 0xFFFF375F,
-      'xp': '500 XP',
+      'xp': '300 XP',
       'icon': 2, // Flame
-      'auraPerQuestion': 5,
+      'auraPerQuestion': 15,
     },
     {
       'index': 3,
@@ -1158,9 +1158,9 @@ class PracticeLevelData {
       'tagline': 'The ultimate test. Competitive programming level.',
       'color': 0xFFBF5AF2, // Purple
       'accent': 0xFFD500F9,
-      'xp': '1000+ XP',
+      'xp': '400 XP',
       'icon': 3, // Infinity
-      'auraPerQuestion': 5,
+      'auraPerQuestion': 20,
     },
   ];
 

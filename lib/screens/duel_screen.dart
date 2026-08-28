@@ -427,18 +427,30 @@ class _DuelScreenState extends State<DuelScreen> {
           .updateArenaScore(widget.matchId, widget.isPlayer1, _myScore);
       _showStatusMessage('You answered correctly! +15');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Correct! +15 points'),
+        SnackBar(
+          content: const Text('Correct! +15 points'),
           backgroundColor: Colors.green,
-          duration: Duration(milliseconds: 400),
+          duration: const Duration(milliseconds: 600),
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.only(
+            bottom: MediaQuery.of(context).size.height - 160,
+            left: 20,
+            right: 20,
+          ),
         ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Incorrect.'),
+        SnackBar(
+          content: const Text('Incorrect.'),
           backgroundColor: Colors.redAccent,
-          duration: Duration(milliseconds: 400),
+          duration: const Duration(milliseconds: 600),
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.only(
+            bottom: MediaQuery.of(context).size.height - 160,
+            left: 20,
+            right: 20,
+          ),
         ),
       );
     }

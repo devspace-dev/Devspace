@@ -26,6 +26,10 @@ class PracticeProvider extends ChangeNotifier {
   int get totalCompletedCount => _completedQuestionIds.length;
 
   int getAuraForQuestion(String questionId) {
+    if (questionId.startsWith('noob_')) return 5;  // Easy Level: +5 points
+    if (questionId.startsWith('easy_')) return 10; // Medium Level: +10 points
+    if (questionId.startsWith('med_')) return 15;  // Hard Level: +15 points
+    if (questionId.startsWith('hard_')) return 20; // Ultra Level: +20 points
     return 5;
   }
 
@@ -142,13 +146,15 @@ class PracticeProvider extends ChangeNotifier {
 
   Future<bool> completeQuestion(String questionId, {AuthProvider? authProvider}) async {
     final bool isNewCompletion = !_completedQuestionIds.contains(questionId);
+    final int auraReward = getAuraForQuestion(questionId);
     if (isNewCompletion) {
       _completedQuestionIds.add(questionId);
       await _saveProgress();
 
       if (authProvider != null && authProvider.currentUserOrNull != null) {
         _syncedQuestionIds.add(questionId);
-        final result = await SupabaseService.instance.submitPracticeCompletion(questionId);
+        final result = await SupabaseService.instance
+            .submitPracticeCompletion(questionId, auraReward: auraReward);
         if (result != null && result['aura'] != null) {
           final int serverAura = (result['aura'] as num).toInt();
           authProvider.updateLocalAura(serverAura);
@@ -159,7 +165,8 @@ class PracticeProvider extends ChangeNotifier {
         authProvider != null &&
         authProvider.currentUserOrNull != null) {
       _syncedQuestionIds.add(questionId);
-      final result = await SupabaseService.instance.submitPracticeCompletion(questionId);
+      final result = await SupabaseService.instance
+          .submitPracticeCompletion(questionId, auraReward: auraReward);
       if (result != null && result['aura'] != null) {
         final int serverAura = (result['aura'] as num).toInt();
         authProvider.updateLocalAura(serverAura);
