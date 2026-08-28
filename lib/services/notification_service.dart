@@ -21,6 +21,9 @@ class NotificationService {
   Stream<String?> get notificationResponseStream =>
       _notificationStreamController.stream;
 
+  StreamSubscription<RemoteMessage>? _onMessageOpenedAppSub;
+  StreamSubscription<RemoteMessage>? _onMessageSub;
+
   static const _channel = AndroidNotificationChannel(
     'devspace_high',
     'DevSpace Notifications',
@@ -49,6 +52,10 @@ class NotificationService {
       // 1. Firebase Messaging Setup
       final fcm = FirebaseMessaging.instance;
 
+      // Cancel previous listeners if re-initializing for a different or same user
+      await _onMessageOpenedAppSub?.cancel();
+      await _onMessageSub?.cancel();
+
       // Request permissions (especially for iOS)
       await fcm.requestPermission(
         alert: true,
@@ -72,7 +79,8 @@ class NotificationService {
           _firebaseMessagingBackgroundHandler);
 
       // Handle notification taps when app is in background or closed
-      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      _onMessageOpenedAppSub =
+          FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
         _handleFcmMessageTap(message);
       });
 
@@ -82,7 +90,7 @@ class NotificationService {
         }
       });
 
-      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      _onMessageSub = FirebaseMessaging.onMessage.listen((RemoteMessage message) {
         final isDbNotification = message.data.containsKey('from_uid') ||
             (message.data['type'] != null &&
                 [

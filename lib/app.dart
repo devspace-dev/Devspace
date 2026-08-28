@@ -19,7 +19,6 @@ import 'screens/aura_board_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/daily_challenge_screen.dart';
 import 'screens/messages_screen.dart';
-import 'screens/weekly_challenge_pricing_screen.dart';
 import 'screens/question_detail_screen.dart';
 import 'screens/duel_screen.dart';
 import 'providers/auth_provider.dart';
@@ -39,7 +38,6 @@ import 'screens/tier_up_celebration_screen.dart';
 import 'services/app_review_service.dart';
 import 'services/supabase_service.dart';
 import 'widgets/app_drawer.dart';
-// Calling feature deferred to future update
 
 final GlobalKey<HomeScreenState> homeScreenKey = GlobalKey<HomeScreenState>();
 
@@ -50,162 +48,6 @@ class DevSpaceApp extends StatefulWidget {
   State<DevSpaceApp> createState() => _DevSpaceAppState();
 }
 
-class CupFab extends StatefulWidget {
-  final VoidCallback onDaily;
-  final VoidCallback onWeekly;
-
-  const CupFab({
-    super.key,
-    required this.onDaily,
-    required this.onWeekly,
-  });
-
-  @override
-  State<CupFab> createState() => _CupFabState();
-}
-
-class _CupFabState extends State<CupFab> {
-  bool _open = false;
-
-  void _toggle() {
-    setState(() => _open = !_open);
-  }
-
-  void _fireAction(VoidCallback action) {
-    setState(() => _open = false);
-    action();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.fastOutSlowIn,
-          width: 58,
-          height: _open ? 116 : 0,
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: AppColors.bg2For(context).withValues(alpha: 0.95),
-            borderRadius: BorderRadius.circular(30),
-            border: Border.all(
-              color: AppColors.primary.withValues(alpha: 0.3),
-              width: 1.5,
-            ),
-            boxShadow: _open
-                ? [
-                    BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.15),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ]
-                : [],
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: SingleChildScrollView(
-            physics: const NeverScrollableScrollPhysics(),
-            child: Column(
-              children: [
-                const SizedBox(height: 8),
-                _CupOption(
-                  icon: Icons.today_rounded,
-                  visible: _open,
-                  onTap: () => _fireAction(widget.onDaily),
-                ),
-                const SizedBox(height: 8),
-                _CupOption(
-                  icon: Icons.code_rounded,
-                  visible: _open,
-                  onTap: () => _fireAction(widget.onWeekly),
-                ),
-                const SizedBox(height: 8),
-              ],
-            ),
-          ),
-        ),
-        GestureDetector(
-          onTap: _toggle,
-          child: AnimatedRotation(
-            turns: _open ? 1 : 0,
-            duration: const Duration(milliseconds: 500),
-            curve: Curves.fastOutSlowIn,
-            child: Container(
-              width: 58,
-              height: 58,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF0A84FF), Color(0xFF5E5CE6)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.35),
-                    blurRadius: 12,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.emoji_events_rounded,
-                size: 28,
-                color: Colors.white,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _CupOption extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool visible;
-
-  const _CupOption({
-    required this.icon,
-    required this.onTap,
-    required this.visible,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedOpacity(
-      opacity: visible ? 1 : 0,
-      duration: const Duration(milliseconds: 260),
-      child: Transform.translate(
-        offset: Offset(0, visible ? 0 : 10),
-        child: SizedBox(
-          width: double.infinity,
-          child: Material(
-            color: Colors.transparent,
-            shape: const CircleBorder(),
-            child: InkWell(
-              customBorder: const CircleBorder(),
-              onTap: visible ? onTap : null,
-              child: Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.bg2For(context),
-                  border: Border.all(color: AppColors.borderFor(context)),
-                ),
-                child: Icon(icon, color: AppColors.primary, size: 20),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _DevSpaceAppState extends State<DevSpaceApp> {
   int _tab = 0;

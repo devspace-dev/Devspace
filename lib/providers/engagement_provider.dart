@@ -5,9 +5,11 @@ import '../models/aura_summary_model.dart';
 import '../models/daily_challenge_model.dart';
 import '../models/event_access_model.dart';
 import '../models/aura_ledger_model.dart';
+import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/supabase_service.dart';
 import '../services/backend_api_service.dart';
+
 
 typedef AuraSummaryLoader = Future<AuraSummaryModel> Function();
 typedef EligibleEventsLoader = Future<List<EventAccessModel>> Function();
@@ -189,12 +191,16 @@ class EngagementProvider extends ChangeNotifier {
     _isLoading = true;
     _error = null;
 
+    UserModel? currentUser;
+    try {
+      currentUser = AuthService.instance.currentUser;
+    } catch (_) {}
+
     // Initialize default tech stack from user profile if not already set
-    if (_selectedDailyTechStack == null) {
-      final user = AuthService.instance.currentUser;
-      if (user != null && user.stack.isNotEmpty) {
-        _selectedDailyTechStack = user.stack.first;
-      }
+    if (_selectedDailyTechStack == null &&
+        currentUser != null &&
+        currentUser.stack.isNotEmpty) {
+      _selectedDailyTechStack = currentUser.stack.first;
     }
 
     notifyListeners();
@@ -206,8 +212,8 @@ class EngagementProvider extends ChangeNotifier {
         debugPrint('Failed to refresh user streak in fetchOverview: $streakError');
       }
 
-      final user = AuthService.instance.currentUser;
-      final uid = user?.id;
+      final uid = currentUser?.id;
+
 
       final results = await Future.wait([
         _OverviewLoadResult.guard(_auraSummaryLoader),
@@ -275,6 +281,10 @@ class EngagementProvider extends ChangeNotifier {
 
       failures.removeWhere((f) => f.toString().contains('No authenticated session'));
 
+      try {
+        await _refreshCurrentUser();
+      } catch (_) {}
+
       final hasAnyOverviewData = _auraSummary != null ||
           _dailyChallenge != null ||
           _events.isNotEmpty ||
@@ -301,11 +311,12 @@ class EngagementProvider extends ChangeNotifier {
   }) async {
     if (_isSubmittingChallenge) return false;
 
-    if (submissionText.trim().isEmpty) {
-      _error = 'Select one answer before submitting.';
+    if (submissionText.trim().isEmpty && submissionLink.trim().isEmpty) {
+      _error = 'Add your solution text or a link before submitting.';
       notifyListeners();
       return false;
     }
+
 
     _isSubmittingChallenge = true;
     _error = null;

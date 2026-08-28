@@ -25,8 +25,9 @@ export const submitCompletion = async (req, res) => {
 
   try {
     const { data, error } = await supabase.rpc('complete_daily_challenge', {
-      p_submission_text: submissionText,
-      p_submission_link: submissionLink
+      p_submission_text: submissionText || '',
+      p_submission_link: submissionLink || '',
+      p_user_id: req.user.id,
     });
 
     if (error) return res.status(400).json({ error: error.message });
@@ -35,3 +36,4 @@ export const submitCompletion = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+

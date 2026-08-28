@@ -11,10 +11,12 @@ void main() {
       auraSummaryLoader: () async => _summary(),
       eligibleEventsLoader: () async => [_event(unlocked: true)],
       dailyChallengeLoader: ({techStack}) async => _challenge(),
+      weeklyFreeChallengeLoader: ({techStack}) async => [],
       refreshCurrentUser: () async {
         refreshCalls += 1;
       },
     );
+
 
     await provider.fetchOverview();
 
@@ -62,6 +64,7 @@ void main() {
         challengeLoads += 1;
         return _challenge(completed: challengeLoads > 0);
       },
+      weeklyFreeChallengeLoader: ({techStack}) async => [],
       dailyChallengeSubmitter: ({
         required submissionText,
         required submissionLink,
@@ -75,6 +78,7 @@ void main() {
         refreshCalls += 1;
       },
     );
+
 
     final success = await provider.submitDailyChallenge(
       submissionText: 'Built the solution',

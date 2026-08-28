@@ -10,11 +10,14 @@ void main() {
         home: LoginScreen(onSuccess: _noop),
       ),
     );
+    await tester.pump(const Duration(milliseconds: 1000));
 
     expect(find.text('Welcome\nBack'), findsOneWidget);
     expect(find.text('Sign In'), findsOneWidget);
     expect(find.text('Continue with Google'), findsOneWidget);
   });
+
+
 
   test('user model splits legacy academic text into year and branch', () {
     final user = UserModel.fromJson({

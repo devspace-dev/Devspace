@@ -45,10 +45,14 @@ Upgrade the app backend for launch-ready gamification and gated engagement witho
 - [x] Push notification delivery and tap routing for Arena Duel Invites across background, closed, and foreground app states
 - [x] Added Burger Sidebar (Drawer) featuring Resources for You & quick navigation; removed Currently Building from onboarding and profile screens
 - [x] Executed systematic codebase cleanup pass: purged 14 orphaned files (legacy mocks, deprecated screens/models/widgets), fixed unused imports and variables, optimized type checks, and updated unit test expectations to match current MVP Aura structure
+- [x] Database Column & RLS Hardening: Enforced `BEFORE UPDATE` trigger on `public.users` protecting admin, aura, streaks, and premium state; created Storage RLS policies for avatar overwrites
+- [x] Server-Side RPC Migration: Implemented `activate_user_premium` and `resolve_arena_match` RPCs; revoked public execute on `award_aura`
+- [x] Backend Controller & Middleware Fix: Resolved `maybeSingle()` null crashes and passed `p_user_id` to `complete_daily_challenge`
+- [x] FCM Stream Memory Leak Fix: Stored and canceled `FirebaseMessaging` subscriptions in NotificationService
+- [x] Dead Code & Stale Features Purge: Removed deferred calling screens/service, unused StoryReel widget, obsolete pricing screen, and 11 root scratch scripts; verified all 20 unit tests pass with 0 failures
 ## In Progress
-- [ ] Feed migration from stream-only loading to explicit paginated API consumption
-- [ ] Stronger regression coverage for new backend rules
 - [ ] Pre-production verification across release config, notifications, privacy surface, and network-failure handling
+
 
 ## Next
 1. Test rate limits, duplicate-prevention, and streak reset behavior on real devices
