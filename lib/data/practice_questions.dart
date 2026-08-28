@@ -9,6 +9,7 @@ class PracticeQuestion {
   final int correctIndex;
   final String explanation;
   final String hint;
+  final String techStack;
 
   const PracticeQuestion({
     required this.id,
@@ -21,6 +22,7 @@ class PracticeQuestion {
     required this.correctIndex,
     required this.explanation,
     required this.hint,
+    this.techStack = 'DSA & Logic',
   });
 }
 
@@ -38,6 +40,7 @@ final List<PracticeQuestion> practiceQuestionsData = [
     correctIndex: 1,
     explanation: 'Flutter is an open-source UI toolkit created by Google that uses the Dart programming language.',
     hint: 'It was created by Google and starts with the letter "D".',
+    techStack: 'Mobile',
   ),
   PracticeQuestion(
     id: 'noob_2',
@@ -61,6 +64,7 @@ final List<PracticeQuestion> practiceQuestionsData = [
     correctIndex: 2,
     explanation: 'HTML (HyperText Markup Language) is a markup language for Web pages, not an operating system.',
     hint: 'Look for something used to format text and web pages.',
+    techStack: 'DevOps & Tools',
   ),
   PracticeQuestion(
     id: 'noob_4',
@@ -88,6 +92,7 @@ final List<PracticeQuestion> practiceQuestionsData = [
     correctIndex: 0,
     explanation: 'HTML stands for Hyper Text Markup Language. It is the standard markup language for documents designed to be displayed in a web browser.',
     hint: 'Hyper... Text... Markup...',
+    techStack: 'Frontend',
   ),
   PracticeQuestion(
     id: 'noob_6',
@@ -99,6 +104,7 @@ final List<PracticeQuestion> practiceQuestionsData = [
     correctIndex: 2,
     explanation: '<h1> defines the most important / largest heading in HTML, while <h6> defines the least important / smallest heading.',
     hint: 'Heading number 1 is the top level.',
+    techStack: 'Frontend',
   ),
   PracticeQuestion(
     id: 'noob_7',
@@ -176,6 +182,7 @@ final List<PracticeQuestion> practiceQuestionsData = [
     correctIndex: 2,
     explanation: 'In CSS, the `color` property specifies the color of text.',
     hint: 'Just "color".',
+    techStack: 'Frontend',
   ),
   PracticeQuestion(
     id: 'noob_14',
@@ -215,6 +222,7 @@ final List<PracticeQuestion> practiceQuestionsData = [
     correctIndex: 2,
     explanation: '`git clone <url>` creates a local copy of a remote repository.',
     hint: 'You clone a repository.',
+    techStack: 'DevOps & Tools',
   ),
   PracticeQuestion(
     id: 'noob_17',
@@ -284,6 +292,7 @@ final List<PracticeQuestion> practiceQuestionsData = [
     correctIndex: 2,
     explanation: 'GET requests are used to retrieve resource data from a server.',
     hint: 'You "GET" data.',
+    techStack: 'Backend',
   ),
   PracticeQuestion(
     id: 'easy_2',
@@ -317,6 +326,7 @@ final List<PracticeQuestion> practiceQuestionsData = [
     correctIndex: 2,
     explanation: 'The `SELECT` statement in SQL queries data from one or more database tables.',
     hint: 'You SELECT records.',
+    techStack: 'Backend',
   ),
   PracticeQuestion(
     id: 'easy_5',
@@ -344,6 +354,7 @@ final List<PracticeQuestion> practiceQuestionsData = [
     correctIndex: 1,
     explanation: 'In Dart, `final` variables can only be set once.',
     hint: 'It is the final value.',
+    techStack: 'Mobile',
   ),
   PracticeQuestion(
     id: 'easy_7',
@@ -393,6 +404,7 @@ final List<PracticeQuestion> practiceQuestionsData = [
     correctIndex: 1,
     explanation: 'The `Text` widget displays a string of text with single style in Flutter.',
     hint: 'Widget named Text.',
+    techStack: 'Mobile',
   ),
   PracticeQuestion(
     id: 'easy_11',
@@ -1100,6 +1112,15 @@ final List<PracticeQuestion> practiceQuestionsData = [
 ];
 
 class PracticeLevelData {
+  static const List<String> availableTechStacks = [
+    'All',
+    'Frontend',
+    'Backend',
+    'Mobile',
+    'DevOps & Tools',
+    'DSA & Logic',
+  ];
+
   static const List<Map<String, dynamic>> levels = [
     {
       'index': 0,
@@ -1107,9 +1128,9 @@ class PracticeLevelData {
       'tagline': 'Perfect for beginners. Focus on fundamentals.',
       'color': 0xFF32D74B, // Green
       'accent': 0xFF00E676,
-      'xp': '120 XP',
+      'xp': '100 XP',
       'icon': 0, // Battery / Eco
-      'auraPerQuestion': 10,
+      'auraPerQuestion': 5,
     },
     {
       'index': 1,
@@ -1117,9 +1138,9 @@ class PracticeLevelData {
       'tagline': 'Step up the challenge. Intermediate data structures.',
       'color': 0xFFFFD300, // Yellow
       'accent': 0xFFFFAB00,
-      'xp': '250 XP',
+      'xp': '200 XP',
       'icon': 1, // Lightning
-      'auraPerQuestion': 15,
+      'auraPerQuestion': 10,
     },
     {
       'index': 2,
@@ -1127,9 +1148,9 @@ class PracticeLevelData {
       'tagline': 'Advanced algorithms and complex logic.',
       'color': 0xFFFF9F00, // Orange
       'accent': 0xFFFF375F,
-      'xp': '500 XP',
+      'xp': '300 XP',
       'icon': 2, // Flame
-      'auraPerQuestion': 20,
+      'auraPerQuestion': 15,
     },
     {
       'index': 3,
@@ -1137,15 +1158,18 @@ class PracticeLevelData {
       'tagline': 'The ultimate test. Competitive programming level.',
       'color': 0xFFBF5AF2, // Purple
       'accent': 0xFFD500F9,
-      'xp': '1000+ XP',
+      'xp': '400 XP',
       'icon': 3, // Infinity
-      'auraPerQuestion': 25,
+      'auraPerQuestion': 20,
     },
   ];
 
-  static List<PracticeQuestion> getQuestionsForLevel(int levelIndex) {
-    return practiceQuestionsData
-        .where((q) => q.levelIndex == levelIndex)
-        .toList();
+  static List<PracticeQuestion> getQuestionsForLevel(int levelIndex, {String? techStack}) {
+    final questions = practiceQuestionsData
+        .where((q) => q.levelIndex == levelIndex);
+    if (techStack == null || techStack == 'All') {
+      return questions.toList();
+    }
+    return questions.where((q) => q.techStack == techStack).toList();
   }
 }

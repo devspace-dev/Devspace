@@ -67,26 +67,54 @@ class _PracticeQuestionScreenState extends State<PracticeQuestionScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Flexible(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: themeColor.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                  color: themeColor.withValues(alpha: 0.4)),
-                            ),
-                            child: Text(
-                              'Question ${widget.question.questionNumber} of 20',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w900,
-                                color: themeColor,
-                                letterSpacing: 0.8,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: themeColor.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                        color: themeColor.withValues(alpha: 0.4)),
+                                  ),
+                                  child: Text(
+                                    'Q${widget.question.questionNumber} of 20',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w900,
+                                      color: themeColor,
+                                      letterSpacing: 0.8,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: AppColors.bg2For(context),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                      color: AppColors.borderFor(context)),
+                                ),
+                                child: Text(
+                                  widget.question.techStack,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.text2For(context),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -182,12 +210,12 @@ class _PracticeQuestionScreenState extends State<PracticeQuestionScreen> {
                       Color textColor = AppColors.textFor(context);
 
                       if (_hasSubmitted) {
-                        if (isCorrectOption) {
+                        if (_isCorrect && isCorrectOption) {
                           optionBorderColor = const Color(0xFF00E676);
                           optionBgColor =
                               const Color(0xFF00E676).withValues(alpha: 0.12);
                           textColor = const Color(0xFF00E676);
-                        } else if (isSelected && !isCorrectOption) {
+                        } else if (isSelected && !_isCorrect) {
                           optionBorderColor = const Color(0xFFFF1744);
                           optionBgColor =
                               const Color(0xFFFF1744).withValues(alpha: 0.12);
@@ -216,7 +244,7 @@ class _PracticeQuestionScreenState extends State<PracticeQuestionScreen> {
                             borderRadius: BorderRadius.circular(18),
                             border: Border.all(
                               color: optionBorderColor,
-                              width: isSelected || (_hasSubmitted && isCorrectOption)
+                              width: isSelected || (_hasSubmitted && (_isCorrect ? isCorrectOption : isSelected))
                                   ? 2
                                   : 1,
                             ),
@@ -228,11 +256,11 @@ class _PracticeQuestionScreenState extends State<PracticeQuestionScreen> {
                                 height: 28,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: isSelected
+                                  color: isSelected || (_hasSubmitted && _isCorrect && isCorrectOption)
                                       ? optionBorderColor
                                       : Colors.transparent,
                                   border: Border.all(
-                                    color: isSelected
+                                    color: isSelected || (_hasSubmitted && _isCorrect && isCorrectOption)
                                         ? optionBorderColor
                                         : AppColors.borderFor(context),
                                     width: 1.5,
@@ -242,7 +270,7 @@ class _PracticeQuestionScreenState extends State<PracticeQuestionScreen> {
                                   child: isSelected
                                       ? Icon(
                                           _hasSubmitted
-                                              ? (isCorrectOption
+                                              ? (_isCorrect
                                                   ? Icons.check
                                                   : Icons.close)
                                               : Icons.check,
@@ -302,7 +330,7 @@ class _PracticeQuestionScreenState extends State<PracticeQuestionScreen> {
                                 Icon(
                                   _isCorrect
                                       ? Icons.check_circle_rounded
-                                      : Icons.info_outline_rounded,
+                                      : Icons.cancel_rounded,
                                   color: _isCorrect
                                       ? const Color(0xFF00E676)
                                       : const Color(0xFFFF1744),
@@ -311,8 +339,8 @@ class _PracticeQuestionScreenState extends State<PracticeQuestionScreen> {
                                 const SizedBox(width: 8),
                                 Text(
                                   _isCorrect
-                                      ? 'Correct! Excellent job!'
-                                      : 'Not quite right. Try again!',
+                                      ? 'Correct! (+${practiceProvider.getAuraForQuestion(widget.question.id)} Aura)'
+                                      : 'Incorrect! (+0 Aura)',
                                   style: GoogleFonts.plusJakartaSans(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w900,
@@ -325,7 +353,9 @@ class _PracticeQuestionScreenState extends State<PracticeQuestionScreen> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              widget.question.explanation,
+                              _isCorrect
+                                  ? widget.question.explanation
+                                  : 'That answer is incorrect (+0 points awarded). Tap "Try Again" to pick another answer!',
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 13,
                                 height: 1.4,
@@ -352,8 +382,10 @@ class _PracticeQuestionScreenState extends State<PracticeQuestionScreen> {
                       ? null
                       : () => _handleSubmit(context, practiceProvider, themeColor),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _hasSubmitted && _isCorrect
-                        ? const Color(0xFF00E676)
+                    backgroundColor: _hasSubmitted
+                        ? (_isCorrect
+                            ? const Color(0xFF00E676)
+                            : const Color(0xFFFF1744))
                         : themeColor,
                     disabledBackgroundColor:
                         AppColors.borderFor(context).withValues(alpha: 0.4),
@@ -424,9 +456,15 @@ class _PracticeQuestionScreenState extends State<PracticeQuestionScreen> {
       BuildContext context, PracticeProvider practiceProvider, Color themeColor) async {
     if (_selectedOptionIndex == null) return;
 
-    // If already correctly answered and user taps "Continue Next Question":
-    if (_hasSubmitted && _isCorrect) {
-      _navigateToNextQuestion(context, practiceProvider);
+    if (_hasSubmitted) {
+      if (_isCorrect) {
+        _navigateToNextQuestion(context, practiceProvider);
+      } else {
+        setState(() {
+          _hasSubmitted = false;
+          _selectedOptionIndex = null;
+        });
+      }
       return;
     }
 
@@ -441,6 +479,7 @@ class _PracticeQuestionScreenState extends State<PracticeQuestionScreen> {
     if (correct) {
       HapticFeedback.heavyImpact();
       final authProvider = context.read<AuthProvider>();
+      final screenHeight = MediaQuery.of(context).size.height;
       final isNewCompletion = await practiceProvider.completeQuestion(
         widget.question.id,
         authProvider: authProvider,
@@ -448,7 +487,8 @@ class _PracticeQuestionScreenState extends State<PracticeQuestionScreen> {
 
       if (!mounted) return;
 
-      final auraReward = PracticeLevelData.levels[widget.question.levelIndex]['auraPerQuestion'] as int? ?? 10;
+      final auraEarned = practiceProvider.getAuraForQuestion(widget.question.id);
+
       if (isNewCompletion) {
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
@@ -458,7 +498,7 @@ class _PracticeQuestionScreenState extends State<PracticeQuestionScreen> {
                 const Icon(Icons.bolt_rounded, color: Color(0xFFFFD300)),
                 const SizedBox(width: 8),
                 Text(
-                  '+$auraReward Aura Points Added!',
+                  '+$auraEarned Aura Points Added!',
                   style: GoogleFonts.plusJakartaSans(
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
@@ -469,6 +509,11 @@ class _PracticeQuestionScreenState extends State<PracticeQuestionScreen> {
             duration: const Duration(seconds: 2),
             backgroundColor: const Color(0xFF1E1E24),
             behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.only(
+              bottom: screenHeight - 160,
+              left: 16,
+              right: 16,
+            ),
           ),
         );
       }
@@ -480,6 +525,32 @@ class _PracticeQuestionScreenState extends State<PracticeQuestionScreen> {
       }
     } else {
       HapticFeedback.vibrate();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.close_rounded, color: Color(0xFFFF1744)),
+              const SizedBox(width: 8),
+              Text(
+                'Incorrect! +0 Aura Points',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          duration: const Duration(seconds: 2),
+          backgroundColor: const Color(0xFF1E1E24),
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.only(
+            bottom: MediaQuery.of(context).size.height - 160,
+            left: 16,
+            right: 16,
+          ),
+        ),
+      );
     }
   }
 

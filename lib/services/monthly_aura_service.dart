@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'supabase_service.dart';
 
 class MonthlyAuraService {
   MonthlyAuraService._internal();
@@ -7,13 +8,11 @@ class MonthlyAuraService {
 
   static const String _keyLastResetMonth = 'devspace_last_aura_reset_month';
 
-  /// Returns the current month key string in 'YYYY-MM' format (e.g. '2026-08')
   String get currentMonthKey {
     final now = DateTime.now();
     return '${now.year}-${now.month.toString().padLeft(2, '0')}';
   }
 
-  /// Returns readable month season name (e.g., "August 2026 Season")
   String get currentSeasonName {
     final now = DateTime.now();
     const months = [
@@ -34,7 +33,6 @@ class MonthlyAuraService {
     return '$monthName ${now.year} Season';
   }
 
-  /// Calculates number of days remaining until the end of the current month
   int get daysRemainingInMonth {
     final now = DateTime.now();
     final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
@@ -50,6 +48,11 @@ class MonthlyAuraService {
       final lastResetMonth = prefs.getString(_keyLastResetMonth);
       final activeMonthKey = currentMonthKey;
 
+      if (lastResetMonth == null) {
+        await prefs.setString(_keyLastResetMonth, activeMonthKey);
+        return false;
+      }
+
       if (lastResetMonth != activeMonthKey) {
         await prefs.setString(_keyLastResetMonth, activeMonthKey);
         return true;
@@ -59,6 +62,21 @@ class MonthlyAuraService {
     } catch (e) {
       debugPrint('Error checking monthly aura status: $e');
       return false;
+    }
+  }
+
+  /// Reset monthly aura status
+  Future<void> forceResetMonthlyAura() async {
+    try {
+      await SupabaseService.instance.resetAllUsersMonthlyAura();
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_keyLastResetMonth, currentMonthKey);
+
+      debugPrint('✅ Monthly Aura Reset completed successfully.');
+    } catch (e) {
+      debugPrint('Failed to execute monthly aura reset: $e');
+      rethrow;
     }
   }
 }

@@ -89,6 +89,12 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
                 : 'Wrong answer. +$awardedPoints Aura for attempting. Mission locked until tomorrow.',
           ),
           backgroundColor: solved ? Colors.green : Colors.orange,
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.only(
+            bottom: MediaQuery.of(context).size.height - 160,
+            left: 16,
+            right: 16,
+          ),
         ),
       );
       return;

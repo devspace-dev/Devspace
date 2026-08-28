@@ -677,6 +677,20 @@ class AuthService {
         unawaited(SupabaseService.instance.syncGitHubAura(user.id, trimmedGithub));
       }
 
+      // Synchronize identity metadata with Supabase Auth user record
+      try {
+        await _supabase.auth.updateUser(
+          UserAttributes(
+            data: {
+              'display_name': trimmedName,
+              'avatar_url': nextAvatar,
+            },
+          ),
+        );
+      } catch (e) {
+        debugPrint('Auth identity sync notice: $e');
+      }
+
       final refreshedUser = await SupabaseService.instance.getUserById(user.id);
       if (refreshedUser == null) {
         return const AuthResult(error: 'Failed to refresh updated profile.');

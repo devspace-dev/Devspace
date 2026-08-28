@@ -29,6 +29,38 @@ class _ArenaScreenState extends State<ArenaScreen> {
 
   final List<Map<String, dynamic>> _arenaCategories = [
     {
+      'name': 'Practice',
+      'icon': Icons.fitness_center_rounded,
+      'color': const Color(0xFF00E676), // Bright Emerald Green
+      'score': 'Levels',
+      'cards': [
+        {
+          'title': 'Daily Mission',
+          'subtitle':
+              'Attempt a daily logical question and get some aura boost.',
+          'mode': 'DAILY MISSION',
+          'activePlayers': 'Available',
+          'icon': Icons.emoji_events_rounded,
+          'duration': '24 Hrs',
+          'difficulty': 'Daily',
+          'reward': '+100 Aura',
+          'tag': 'Daily',
+        },
+        {
+          'title': 'Practice Track',
+          'subtitle':
+              'Easy → Medium → Hard → Ultra. Practice questions at your own pace.',
+          'mode': 'PRACTICE MODE',
+          'activePlayers': 'Untimed',
+          'icon': Icons.route_rounded,
+          'duration': 'Untimed',
+          'difficulty': '4 Levels',
+          'reward': 'Level Map',
+          'tag': 'Practice',
+        },
+      ]
+    },
+    {
       'name': 'Combat',
       'icon': Icons.bolt_rounded,
       'color': const Color(0xFFFFD300), // Bright Yellow/Orange Accent
@@ -66,46 +98,6 @@ class _ArenaScreenState extends State<ArenaScreen> {
           'difficulty': 'Co-op',
           'reward': '+40 Aura',
           'tag': 'Squads',
-        },
-      ]
-    },
-    {
-      'name': 'Daily Challenge',
-      'icon': Icons.calendar_today_outlined,
-      'color': const Color(0xFFFF375F), // Bright Pink
-      'score': '750',
-      'cards': [
-        {
-          'title': 'Daily Mission',
-          'subtitle':
-              'Attempt a daily logical question and get some aura boost.',
-          'mode': 'DAILY MISSION',
-          'activePlayers': 'Available',
-          'icon': Icons.emoji_events_rounded,
-          'duration': '24 Hrs',
-          'difficulty': 'Daily',
-          'reward': '+100 Aura',
-          'tag': 'Daily',
-        },
-      ]
-    },
-    {
-      'name': 'Practice',
-      'icon': Icons.fitness_center_rounded,
-      'color': const Color(0xFF00E676), // Bright Emerald Green
-      'score': 'Levels',
-      'cards': [
-        {
-          'title': 'Practice Track',
-          'subtitle':
-              'Easy → Medium → Hard → Ultra. Practice questions at your own pace.',
-          'mode': 'PRACTICE MODE',
-          'activePlayers': 'Untimed',
-          'icon': Icons.route_rounded,
-          'duration': 'Untimed',
-          'difficulty': '4 Levels',
-          'reward': 'Level Map',
-          'tag': 'Practice',
         },
       ]
     },
@@ -183,15 +175,34 @@ class _ArenaScreenState extends State<ArenaScreen> {
                 _buildOptionCards(context),
                 const SizedBox(height: 20),
 
-                if (_selectedCategoryIndex == 2) ...[
-                  // Practice Mode Tab Selected: Display Sharpen Your Skills Level Cards
+                if (_selectedCategoryIndex == 0) ...[
+                  // Practice Mode Tab Selected (Index 0: Daily Mission merged + Practice levels)
+                  _buildLiveGameCard(
+                    context,
+                    categoryName: 'PRACTICE',
+                    title: 'Daily Mission',
+                    subtitle:
+                        'Attempt a daily logical question and get some aura boost.',
+                    accentColor: const Color(0xFFFF375F),
+                    activePlayers: 'Available',
+                    cardIcon: Icons.emoji_events_rounded,
+                    duration: '24 Hrs',
+                    difficulty: 'Daily',
+                    reward: '+100 Aura',
+                    tag: 'Daily',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const DailyChallengeScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
                   _buildSharpenYourSkillsSection(context),
                 ] else ...[
-                  // Combat or Daily Challenge Tab Selected
-                  _buildPracticeHeroCard(context),
-                  const SizedBox(height: 28),
-
-                  // 4. "Live Now" Section Header
+                  // Combat Tab Selected (Index 1 - Last)
                   Text(
                     'Live Now',
                     style: GoogleFonts.plusJakartaSans(
@@ -202,7 +213,7 @@ class _ArenaScreenState extends State<ArenaScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // 5. Duel Cards list for the selected category wrapped in Column
+                  // Duel Cards list for Combat category wrapped in Column
                   Column(
                     children: cards.asMap().entries.map((entry) {
                       final index = entry.key;
@@ -220,32 +231,16 @@ class _ArenaScreenState extends State<ArenaScreen> {
                         reward: card['reward'] as String,
                         tag: card['tag'] as String,
                         onTap: () {
-                          if (card['mode'] == 'PRACTICE MODE') {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const PracticeMapScreen(),
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => DuelModeLandingScreen(
+                                category: categoryName,
+                                mode: card['mode'] as String,
+                                color: categoryColor,
                               ),
-                            );
-                          } else if (card['mode'] == 'DAILY MISSION') {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const DailyChallengeScreen(),
-                              ),
-                            );
-                          } else {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => DuelModeLandingScreen(
-                                  category: categoryName,
-                                  mode: card['mode'] as String,
-                                  color: categoryColor,
-                                ),
-                              ),
-                            );
-                          }
+                            ),
+                          );
                         },
                       )
                       .animate(key: ValueKey('${_selectedCategoryIndex}_$index'))
@@ -345,25 +340,6 @@ class _ArenaScreenState extends State<ArenaScreen> {
                       ),
                     ),
                   ],
-                ),
-              ),
-              // Rank badge (#2)
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.isDark(context)
-                      ? const Color(0xFF451A03)
-                      : const Color(0xFFFFF7ED),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '#2',
-                  style: GoogleFonts.plusJakartaSans(
-                    color: const Color(0xFFFB923C),
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
                 ),
               ),
             ],
@@ -626,15 +602,15 @@ class _ArenaScreenState extends State<ArenaScreen> {
           dynamicScore = history.where((e) {
             return e.action == 'arena_duel';
           }).fold(0, (sum, e) => sum + e.points);
-        } else if (name == 'Daily Challenge') {
-          dynamicScore = history.where((e) {
+        } else if (name == 'Practice') {
+          final practicePts = context.watch<PracticeProvider>().totalAuraEarned;
+          final missionPts = history.where((e) {
             return e.action == 'daily_challenge' ||
                 e.action == 'daily_mission_attempt' ||
                 e.action == 'mission_solved' ||
                 e.action == 'mission_attempted';
           }).fold(0, (sum, e) => sum + e.points);
-        } else if (name == 'Practice') {
-          dynamicScore = context.watch<PracticeProvider>().totalAuraEarned;
+          dynamicScore = practicePts + missionPts;
         }
 
         return Expanded(
@@ -950,175 +926,5 @@ class _ArenaScreenState extends State<ArenaScreen> {
     );
   }
 
-  Widget _buildPracticeHeroCard(BuildContext context) {
-    final practiceProvider = context.watch<PracticeProvider>();
-    final completedCount = practiceProvider.totalCompletedCount;
 
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.mediumImpact();
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const PracticeMapScreen(),
-          ),
-        );
-      },
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [
-              Color(0xFF00E676),
-              Color(0xFF00B0FF),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF00E676).withValues(alpha: 0.3),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Flexible(
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.25),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.spa_rounded,
-                            color: Colors.white, size: 13),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            'UNTIMED PRACTICE MODE',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white,
-                              letterSpacing: 0.5,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.25),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    '$completedCount / 80 Solved',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                    ),
-                    maxLines: 1,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Practice Track',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Noob → Easy → Medium → Hard\n20 Questions per level section',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white.withValues(alpha: 0.9),
-                          height: 1.3,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white,
-                  ),
-                  child: const Icon(
-                    Icons.map_rounded,
-                    color: Color(0xFF00E676),
-                    size: 28,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Center(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'EXPLORE LEVEL MAP',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w900,
-                        color: const Color(0xFF00897B),
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    const Icon(
-                      Icons.arrow_forward_rounded,
-                      size: 16,
-                      color: Color(0xFF00897B),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
