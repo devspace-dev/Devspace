@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
@@ -127,10 +128,10 @@ class OpportunityDetailScreen extends StatelessWidget {
             if (hasBanner)
               _isLogoUrl(opportunity.bannerUrl)
                   ? _buildLogoBanner(context, opportunity.bannerUrl!, isDark)
-                  : Image.network(
-                      opportunity.bannerUrl!,
+                  : CachedNetworkImage(
+                      imageUrl: opportunity.bannerUrl!,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => _buildDefaultBanner(context, primaryColor),
+                      errorWidget: (context, url, error) => _buildDefaultBanner(context, primaryColor),
                     )
             else
               _buildDefaultBanner(context, primaryColor),
@@ -664,10 +665,10 @@ class OpportunityDetailScreen extends StatelessWidget {
           Positioned.fill(
             child: Opacity(
               opacity: 0.12,
-              child: Image.network(
-                logoUrl,
+              child: CachedNetworkImage(
+                imageUrl: logoUrl,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const SizedBox(),
+                errorWidget: (_, __, ___) => const SizedBox(),
               ),
             ),
           ),
@@ -682,10 +683,10 @@ class OpportunityDetailScreen extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.all(28.0),
-            child: Image.network(
-              logoUrl,
+            child: CachedNetworkImage(
+              imageUrl: logoUrl,
               fit: BoxFit.contain,
-              errorBuilder: (context, url, error) => const Icon(
+              errorWidget: (context, url, error) => const Icon(
                 Icons.image_outlined,
                 color: Colors.grey,
                 size: 48,

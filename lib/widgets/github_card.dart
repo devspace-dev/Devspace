@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../services/github_service.dart';
 import '../theme/app_colors.dart';
@@ -84,12 +85,12 @@ class _GitHubCardState extends State<GitHubCard> {
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: AppColors.border),
                       ),
-                      child: Image.network(
-                        'https://cdn-icons-png.flaticon.com/512/25/25231.png',
+                      child: CachedNetworkImage(
+                        imageUrl: 'https://cdn-icons-png.flaticon.com/512/25/25231.png',
                         width: 18,
                         height: 18,
                         color: AppColors.text,
-                        errorBuilder: (_, __, ___) => const Icon(
+                        errorWidget: (_, __, ___) => const Icon(
                           Icons.code_rounded,
                           size: 18,
                           color: AppColors.text2,
