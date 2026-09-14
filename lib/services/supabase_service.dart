@@ -268,6 +268,57 @@ class SupabaseService {
     return data == null ? null : UserModel.fromJson(data);
   }
 
+  /// Full premium/career-goal fields for [userId]. Throws on failure —
+  /// callers pair this with [fetchBasicPremiumStatus] as a fallback, mirroring
+  /// pre-migration schemas that only have `is_premium`.
+  Future<Map<String, dynamic>?> fetchFullPremiumStatus(String userId) {
+    return _client
+        .from('users')
+        .select('career_goal, career_goal_selected, is_premium')
+        .eq('id', userId)
+        .maybeSingle();
+  }
+
+  /// Just the `is_premium` column for [userId], for schemas predating the
+  /// career-goal columns.
+  Future<Map<String, dynamic>?> fetchBasicPremiumStatus(String userId) {
+    return _client
+        .from('users')
+        .select('is_premium')
+        .eq('id', userId)
+        .maybeSingle();
+  }
+
+  /// Activates premium for [userId] via RPC, falling back to a direct
+  /// column update for legacy DB schemas where the RPC doesn't exist yet.
+  Future<void> activatePremium({
+    required String userId,
+    String paymentId = '',
+    String orderId = '',
+  }) async {
+    try {
+      await _client.rpc('activate_user_premium', params: {
+        'p_payment_id': paymentId,
+        'p_order_id': orderId,
+      });
+    } catch (rpcError) {
+      await _client.from('users').update({
+        'is_premium': true,
+        'career_goal_selected': false,
+      }).eq('id', userId);
+    }
+  }
+
+  Future<void> saveCareerGoal({
+    required String userId,
+    required String goalId,
+  }) async {
+    await _client.from('users').update({
+      'career_goal': goalId,
+      'career_goal_selected': true,
+    }).eq('id', userId);
+  }
+
   Future<void> createUser({
     required String id,
     required String name,
@@ -1517,6 +1568,32 @@ class SupabaseService {
     await _client.from('duel_requests').update({'status': status}).eq('id', requestId);
   }
 
+  /// Marks the arena_matches row for an accepted duel request as 'playing',
+  /// creating it if it doesn't exist yet (e.g. the challenger's client
+  /// hasn't pre-created it).
+  Future<void> acceptDuelRequestMatch({
+    required String matchId,
+    required String mode,
+    required String player1Id,
+    required String player2Id,
+  }) async {
+    final response = await _client
+        .from('arena_matches')
+        .update({'status': 'playing'})
+        .eq('id', matchId)
+        .select();
+
+    if (response.isEmpty) {
+      await _client.from('arena_matches').insert({
+        'id': matchId,
+        'mode': mode,
+        'player1_id': player1Id,
+        'player2_id': player2Id,
+        'status': 'playing',
+      });
+    }
+  }
+
   Future<Map<String, dynamic>?> getDuelRequest(String requestId) async {
     try {
       final response = await _client
@@ -1747,5 +1824,17 @@ class SupabaseService {
 
   Future<void> finishArenaMatch(String matchId) async {
      await _client.from('arena_matches').update({'status': 'finished'}).eq('id', matchId);
+  }
+
+  Future<Map<String, dynamic>?> getArenaMatchScores(String matchId) async {
+    return await _client
+        .from('arena_matches')
+        .select('player1_score, player2_score')
+        .eq('id', matchId)
+        .maybeSingle();
+  }
+
+  Future<void> deleteArenaMatch(String matchId) async {
+    await _client.from('arena_matches').delete().eq('id', matchId);
   }
 }

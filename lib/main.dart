@@ -16,7 +16,6 @@ import 'providers/auth_provider.dart';
 import 'providers/posts_provider.dart';
 import 'providers/questions_provider.dart';
 import 'providers/users_provider.dart';
-import 'providers/aura_provider.dart';
 import 'providers/notifications_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/engagement_provider.dart';
@@ -136,10 +135,7 @@ class _AppBootstrapperState extends State<AppBootstrapper> {
             final supabaseUrl = runtimeConfig.supabaseUrl;
             final supabaseAnonKey = runtimeConfig.supabaseAnonKey;
 
-            if (supabaseUrl == null ||
-                supabaseUrl.isEmpty ||
-                supabaseAnonKey == null ||
-                supabaseAnonKey.isEmpty) {
+            if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
               bootstrapErrorLocal =
                   'Missing Supabase runtime config. Run with SUPABASE_URL and SUPABASE_ANON_KEY using --dart-define.';
             } else if (!supabaseUrl.startsWith('https://')) {
@@ -240,7 +236,6 @@ class DevSpaceRoot extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => PostsProvider()),
         ChangeNotifierProvider(create: (_) => QuestionsProvider()),
         ChangeNotifierProvider(create: (_) => UsersProvider()),
-        ChangeNotifierProvider(create: (_) => AuraProvider()),
         ChangeNotifierProvider(create: (_) => NotificationsProvider()),
         ChangeNotifierProvider(create: (_) => EngagementProvider()),
         ChangeNotifierProvider(create: (_) => MessagesProvider()),

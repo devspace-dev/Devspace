@@ -111,7 +111,7 @@ class _MatchmakingScreenState extends State<MatchmakingScreen>
         _controller.stop();
         _matchSubscription?.unsubscribe();
         try {
-          await Supabase.instance.client.from('arena_matches').delete().eq('id', newMatchId);
+          await SupabaseService.instance.deleteArenaMatch(newMatchId);
         } catch(_) {}
       }
     });
@@ -172,7 +172,7 @@ class _MatchmakingScreenState extends State<MatchmakingScreen>
     }
     if (!_matchFound && _createdMatchId != null) {
       final matchToDelete = _createdMatchId!;
-      Supabase.instance.client.from('arena_matches').delete().eq('id', matchToDelete).then((_) {}).catchError((_) {});
+      SupabaseService.instance.deleteArenaMatch(matchToDelete).then((_) {}).catchError((_) {});
     }
     super.dispose();
   }

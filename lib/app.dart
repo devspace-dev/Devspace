@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'providers/posts_provider.dart';
 import 'providers/questions_provider.dart';
 import 'providers/users_provider.dart';
@@ -273,23 +272,12 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
                     final me = context.read<AuthProvider>().currentUserOrNull;
                     if (me != null) {
                       try {
-                        final response = await Supabase.instance.client
-                            .from('arena_matches')
-                            .update({'status': 'playing'})
-                            .eq('id', request['id'].toString())
-                            .select();
-
-                        if (response.isEmpty) {
-                          await Supabase.instance.client
-                              .from('arena_matches')
-                              .insert({
-                            'id': request['id'].toString(),
-                            'mode': request['mode'].toString(),
-                            'player1_id': request['sender_id'].toString(),
-                            'player2_id': me.id,
-                            'status': 'playing'
-                          });
-                        }
+                        await SupabaseService.instance.acceptDuelRequestMatch(
+                          matchId: request['id'].toString(),
+                          mode: request['mode'].toString(),
+                          player1Id: request['sender_id'].toString(),
+                          player2Id: me.id,
+                        );
                       } catch (e) {
                         debugPrint('Failed to initialize arena match row: $e');
                       }
