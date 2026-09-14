@@ -37,61 +37,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     final authP = context.watch<AuthProvider>();
     final currentUser = authP.currentUserOrNull;
 
-    // Define mock notifications matching Screen 7 if real notifications are empty
-    final mockNotifications = [
-      NotificationModel(
-        id: 'mock_1',
-        toUid: currentUser?.id ?? '',
-        fromUid: 'user_arjun',
-        type: 'like',
-        message: 'Arjun liked your project',
-        read: false,
-        createdAt: DateTime.now().subtract(const Duration(minutes: 2)),
-        payload: {'senderName': 'Arjun', 'senderAvatar': 'A'},
-      ),
-      NotificationModel(
-        id: 'mock_2',
-        toUid: currentUser?.id ?? '',
-        fromUid: 'user_priya',
-        type: 'comment',
-        message: 'Priya commented on your project',
-        read: false,
-        createdAt: DateTime.now().subtract(const Duration(hours: 1)),
-        payload: {'senderName': 'Priya', 'senderAvatar': 'P'},
-      ),
-      NotificationModel(
-        id: 'mock_3',
-        toUid: currentUser?.id ?? '',
-        fromUid: 'system',
-        type: 'announcement',
-        message: 'Google Summer of Code 2025 is closing in 3 days',
-        read: true,
-        createdAt: DateTime.now().subtract(const Duration(hours: 3)),
-        payload: {'senderName': 'GSoC', 'senderAvatar': 'G'},
-      ),
-      NotificationModel(
-        id: 'mock_4',
-        toUid: currentUser?.id ?? '',
-        fromUid: 'user_umang',
-        type: 'follow',
-        message: 'Umang started following you',
-        read: true,
-        createdAt: DateTime.now().subtract(const Duration(days: 1)),
-        payload: {'senderName': 'Umang', 'senderAvatar': 'U'},
-      ),
-      NotificationModel(
-        id: 'mock_5',
-        toUid: currentUser?.id ?? '',
-        fromUid: 'user_hack',
-        type: 'activity',
-        message: 'Hack India 2025 registered you',
-        read: true,
-        createdAt: DateTime.now().subtract(const Duration(days: 2)),
-        payload: {'senderName': 'Hack India', 'senderAvatar': 'H'},
-      ),
-    ];
-
-    final displayList = realNotifications.isNotEmpty ? realNotifications : mockNotifications;
+    final displayList = realNotifications;
 
     // Filter items for tabs
     final allNotifications = displayList;
