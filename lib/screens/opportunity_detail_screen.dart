@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../models/event_access_model.dart';
 import '../theme/app_colors.dart';
+import '../utils/opportunity_banner.dart';
 import '../widgets/app_ui_kit.dart';
 
 class OpportunityDetailScreen extends StatelessWidget {
@@ -87,7 +88,9 @@ class OpportunityDetailScreen extends StatelessWidget {
   }
 
   Widget _buildAppBar(BuildContext context, Color primaryColor) {
-    final hasBanner = opportunity.bannerUrl != null && opportunity.bannerUrl!.trim().isNotEmpty;
+    final hasBanner = opportunity.bannerUrl != null &&
+        opportunity.bannerUrl!.trim().isNotEmpty &&
+        !isPlaceholderPhotoUrl(opportunity.bannerUrl);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return SliverAppBar(
       expandedHeight: 250,

@@ -10,6 +10,7 @@ import '../models/event_access_model.dart';
 import '../providers/engagement_provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
+import '../utils/opportunity_banner.dart';
 import '../widgets/app_state_widgets.dart';
 import 'opportunity_detail_screen.dart';
 
@@ -158,9 +159,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                 margin: const EdgeInsets.only(top: 6, right: 12),
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? AppColors.bg2Dark
-                      : const Color(0xFFF1F3F5),
+                  color: AppColors.bg3For(context),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -203,13 +202,15 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
   }
 
   Widget _buildSearchHeader(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Container(
         decoration: BoxDecoration(
-          color: isDark ? AppColors.bg2Dark : const Color(0xFFF5F5F7),
-          borderRadius: BorderRadius.circular(16),
+          color: AppColors.bg2For(context),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: AppColors.borderFor(context).withValues(alpha: 0.9),
+          ),
         ),
         child: TextField(
           controller: _searchController,
@@ -253,7 +254,6 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
   }
 
   Widget _buildCategorySelector(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return SizedBox(
       height: 50,
       child: ListView.builder(
@@ -275,20 +275,14 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
               margin: const EdgeInsets.only(right: 8),
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
               decoration: BoxDecoration(
-                color: isSelected
-                    ? AppColors.primary
-                    : (isDark ? AppColors.bg3Dark : const Color(0xFFF1F3F5)),
-                borderRadius: BorderRadius.circular(12),
+                color: isSelected ? AppColors.primary : AppColors.bg3For(context),
+                borderRadius: BorderRadius.circular(100),
               ),
               alignment: Alignment.center,
               child: Text(
                 cat,
                 style: GoogleFonts.plusJakartaSans(
-                  color: isSelected
-                      ? Colors.white
-                      : (isDark
-                          ? AppColors.text2Dark
-                          : const Color(0xFF495057)),
+                  color: isSelected ? Colors.white : AppColors.text2For(context),
                   fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                   fontSize: 13,
                 ),
@@ -636,21 +630,18 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
         date: '24',
         title: 'Hack India 2025',
         mode: 'Hybrid',
-        bannerUrl: 'https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?w=800&auto=format&fit=crop',
       ),
       const _MockHackathon(
         month: 'MAY',
         date: '30',
         title: 'Build with AI',
         mode: 'Online',
-        bannerUrl: 'https://images.unsplash.com/photo-1677442136019-21780efad99a?w=800&auto=format&fit=crop',
       ),
       const _MockHackathon(
         month: 'JUN',
         date: '07',
         title: 'DevBattle 3.0',
         mode: 'Online',
-        bannerUrl: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&auto=format&fit=crop',
       ),
     ];
 
@@ -691,7 +682,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                   itemCount: mockHackathons.length,
                   itemBuilder: (context, idx) {
                     final mock = mockHackathons[idx];
-                    return _buildHackathonCard(context, mock.month, mock.date, mock.title, mock.mode, isDark, mock.bannerUrl, null);
+                    return _buildHackathonCard(context, mock.month, mock.date, mock.title, mock.mode, isDark, null, null);
                   },
                 ),
         ),
@@ -701,22 +692,40 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
   }
 
   Widget _buildHackathonCard(BuildContext context, String month, String date, String title, String mode, bool isDark, String? bannerUrl, EventAccessModel? realHack) {
-    final String displayBannerUrl;
-    if (bannerUrl != null && bannerUrl.isNotEmpty) {
-      displayBannerUrl = bannerUrl;
+    const double bannerHeight = 92;
+    final isLogo = _isLogoUrl(bannerUrl);
+    final hasPhoto = bannerUrl != null &&
+        bannerUrl.isNotEmpty &&
+        !isLogo &&
+        !isPlaceholderPhotoUrl(bannerUrl);
+
+    Widget flatBanner() => _buildFlatBanner(
+          seed: title,
+          label: title,
+          height: bannerHeight,
+        );
+
+    final Widget banner;
+    if (isLogo) {
+      banner = _buildLogoBanner(context, bannerUrl!, bannerHeight, isDark);
+    } else if (hasPhoto) {
+      banner = CachedNetworkImage(
+        imageUrl: bannerUrl,
+        height: bannerHeight,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        placeholder: (context, url) => Container(
+          height: bannerHeight,
+          color: AppColors.bg3For(context),
+        ),
+        errorWidget: (context, url, error) => flatBanner(),
+      );
     } else {
-      final hash = title.hashCode.abs();
-      final fallbacks = [
-        'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&auto=format&fit=crop',
-        'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop',
-        'https://images.unsplash.com/photo-1563089145-599997674d42?w=800&auto=format&fit=crop',
-        'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&auto=format&fit=crop',
-        'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop',
-      ];
-      displayBannerUrl = fallbacks[hash % fallbacks.length];
+      banner = flatBanner();
     }
 
-    final isLogo = _isLogoUrl(displayBannerUrl);
+    final modeLower = mode.toLowerCase();
+    final isOnline = modeLower.contains('online') || modeLower.contains('remote');
 
     return GestureDetector(
       onTap: () {
@@ -730,22 +739,15 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
         }
       },
       child: Container(
-        width: 180,
+        width: 190,
         margin: const EdgeInsets.only(right: 12),
         decoration: BoxDecoration(
-          color: isDark ? AppColors.bg2Dark : Colors.white,
+          color: AppColors.bg2For(context),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: AppColors.borderFor(context).withValues(alpha: 0.8),
+            color: AppColors.borderFor(context).withValues(alpha: 0.9),
             width: 1.0,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: isDark ? Colors.black.withValues(alpha: 0.25) : Colors.black.withValues(alpha: 0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(18),
@@ -754,42 +756,15 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
             children: [
               Stack(
                 children: [
-                  if (isLogo) ...[
-                    _buildLogoBanner(context, displayBannerUrl, 95, isDark),
-                  ] else ...[
-                    CachedNetworkImage(
-                      imageUrl: displayBannerUrl,
-                      height: 95,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        height: 95,
-                        color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF1F3F5),
-                        child: const Center(
-                          child: SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        ),
-                      ),
-                      errorWidget: (context, url, error) => _buildGradientBanner(
-                        context: context,
-                        title: title,
-                        type: 'HACKATHON',
-                        height: 95,
-                        isDark: isDark,
-                      ),
-                    ),
-                  ],
+                  banner,
                   Positioned(
                     top: 8,
                     left: 8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                       decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.8),
-                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -799,16 +774,16 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 9,
                               fontWeight: FontWeight.w800,
-                              color: Colors.white,
+                              color: AppColors.primary,
                               letterSpacing: 0.5,
                             ),
                           ),
                           Text(
                             date,
                             style: GoogleFonts.plusJakartaSans(
-                              fontSize: 13,
+                              fontSize: 15,
                               fontWeight: FontWeight.w900,
-                              color: AppColors.primary,
+                              color: const Color(0xFF16151A),
                               height: 1.0,
                             ),
                           ),
@@ -837,13 +812,20 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                         ),
                       ),
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
+                          Icon(
+                            isOnline
+                                ? Icons.language_rounded
+                                : Icons.location_on_outlined,
+                            size: 13,
+                            color: AppColors.text3For(context),
+                          ),
+                          const SizedBox(width: 4),
                           Expanded(
                             child: Text(
                               mode,
                               style: GoogleFonts.plusJakartaSans(
-                                fontSize: 10.5,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.text3For(context),
                               ),
@@ -1006,31 +988,20 @@ class _OpportunityCardState extends State<_OpportunityCard> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isLocked = widget.item.requiredAura > widget.myAura;
-    final bannerUrl = widget.item.bannerUrl;
-    final isLogoUrl = _isLogoUrl(bannerUrl);
-    final hasBanner = bannerUrl != null && bannerUrl.trim().isNotEmpty && !isLogoUrl;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.bg2Dark : Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        color: AppColors.bg2For(context),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isLocked 
-              ? (isDark ? const Color(0xFF2C2C2E) : Colors.grey.shade200)
-              : AppColors.borderFor(context).withValues(alpha: 0.8),
-          width: isLocked ? 1.0 : 1.2,
+          color: AppColors.borderFor(context)
+              .withValues(alpha: isLocked ? 0.5 : 0.9),
+          width: 1.0,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: isDark ? Colors.black.withValues(alpha: 0.35) : Colors.black.withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
@@ -1044,185 +1015,7 @@ class _OpportunityCardState extends State<_OpportunityCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (isLogoUrl) ...[
-                  Stack(
-                    children: [
-                      _buildLogoBanner(context, bannerUrl!, 120, isDark),
-                      // Type overlay badge
-                      Positioned(
-                        top: 12,
-                        left: 12,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            widget.item.type.toUpperCase(),
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white,
-                              letterSpacing: 0.8,
-                            ),
-                          ),
-                        ),
-                      ),
-                      if (isLocked)
-                        Positioned(
-                          top: 12,
-                          right: 12,
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: const BoxDecoration(
-                              color: Colors.black87,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.lock_rounded,
-                              size: 16,
-                              color: Color(0xFFFFD60A),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ] else if (hasBanner) ...[
-                  Stack(
-                    children: [
-                      CachedNetworkImage(
-                        imageUrl: bannerUrl,
-                        height: 150,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(
-                          height: 150,
-                          color: isDark ? AppColors.bg3Dark : const Color(0xFFF1F3F5),
-                          child: const Center(
-                            child: SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(strokeWidth: 2.5),
-                            ),
-                          ),
-                        ),
-                        errorWidget: (context, url, error) => _buildGradientBanner(
-                          context: context,
-                          title: widget.item.title,
-                          type: widget.item.type,
-                          height: 150,
-                          isDark: isDark,
-                        ),
-                      ),
-                      // Top gradient overlay for text readability
-                      Positioned.fill(
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Colors.black.withValues(alpha: 0.45),
-                                Colors.transparent,
-                                Colors.black.withValues(alpha: 0.1),
-                              ],
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                            ),
-                          ),
-                        ),
-                      ),
-                      // Type overlay badge
-                      Positioned(
-                        top: 12,
-                        left: 12,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            widget.item.type.toUpperCase(),
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white,
-                              letterSpacing: 0.8,
-                            ),
-                          ),
-                        ),
-                      ),
-                      if (isLocked)
-                        Positioned(
-                          top: 12,
-                          right: 12,
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: const BoxDecoration(
-                              color: Colors.black87,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.lock_rounded,
-                              size: 16,
-                              color: Color(0xFFFFD60A),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ] else ...[
-                  // If there is no banner, show a beautiful dynamic tech gradient banner
-                  Stack(
-                    children: [
-                      _buildGradientBanner(
-                        context: context,
-                        title: widget.item.title,
-                        type: widget.item.type,
-                        height: 120,
-                        isDark: isDark,
-                      ),
-                      // Type overlay badge
-                      Positioned(
-                        top: 12,
-                        left: 12,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            widget.item.type.toUpperCase(),
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white,
-                              letterSpacing: 0.8,
-                            ),
-                          ),
-                        ),
-                      ),
-                      if (isLocked)
-                        Positioned(
-                          top: 12,
-                          right: 12,
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: const BoxDecoration(
-                              color: Colors.black87,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.lock_rounded,
-                              size: 16,
-                              color: Color(0xFFFFD60A),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ],
+                _buildHero(context, isDark, isLocked),
                 Padding(
                   padding: const EdgeInsets.all(20),
                   child: Column(
@@ -1247,18 +1040,6 @@ class _OpportunityCardState extends State<_OpportunityCard> {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                if (!hasBanner) ...[
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    widget.item.type.toUpperCase(),
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.primary,
-                                      letterSpacing: 0.8,
-                                    ),
-                                  ),
-                                ],
                               ],
                             ),
                           ),
@@ -1356,12 +1137,10 @@ class _OpportunityCardState extends State<_OpportunityCard> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text(
-                                    '⚡',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: isLocked ? Colors.grey : AppColors.primary,
-                                    ),
+                                  Icon(
+                                    Icons.bolt_rounded,
+                                    size: 14,
+                                    color: isLocked ? Colors.grey : AppColors.primary,
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
@@ -1393,6 +1172,85 @@ class _OpportunityCardState extends State<_OpportunityCard> {
           ),
         ),
       ),
+    );
+  }
+
+  static const double _heroHeight = 128;
+
+  Widget _buildHero(BuildContext context, bool isDark, bool isLocked) {
+    final bannerUrl = widget.item.bannerUrl;
+    final isLogo = _isLogoUrl(bannerUrl);
+    final hasPhoto = bannerUrl != null &&
+        bannerUrl.trim().isNotEmpty &&
+        !isLogo &&
+        !isPlaceholderPhotoUrl(bannerUrl);
+
+    Widget flatBanner() => _buildFlatBanner(
+          seed: widget.item.title,
+          label: widget.item.organizer ?? widget.item.title,
+          height: _heroHeight,
+        );
+
+    final Widget background;
+    if (isLogo) {
+      background = _buildLogoBanner(context, bannerUrl!, _heroHeight, isDark);
+    } else if (hasPhoto) {
+      background = CachedNetworkImage(
+        imageUrl: bannerUrl,
+        height: _heroHeight,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        placeholder: (context, url) => Container(
+          height: _heroHeight,
+          color: AppColors.bg3For(context),
+        ),
+        errorWidget: (context, url, error) => flatBanner(),
+      );
+    } else {
+      background = flatBanner();
+    }
+
+    return Stack(
+      children: [
+        background,
+        Positioned(
+          top: 12,
+          left: 12,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              widget.item.type.toUpperCase(),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+                letterSpacing: 0.8,
+              ),
+            ),
+          ),
+        ),
+        if (isLocked)
+          Positioned(
+            top: 12,
+            right: 12,
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: const BoxDecoration(
+                color: Colors.black87,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.lock_rounded,
+                size: 16,
+                color: Color(0xFFFFD60A),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -1533,85 +1391,77 @@ class _MockHackathon {
   final String date;
   final String title;
   final String mode;
-  final String? bannerUrl;
 
   const _MockHackathon({
     required this.month,
     required this.date,
     required this.title,
     required this.mode,
-    this.bannerUrl,
   });
 }
 
-class TechPatternPainter extends CustomPainter {
-  final Color color;
-  TechPatternPainter({required this.color});
+// Flat banner used whenever an opportunity has no usable image. The colour is
+// picked from a small palette by seed, so a given item always looks the same.
+const _bannerPalette = [
+  Color(0xFFFF7A33), // ember orange
+  Color(0xFF3F63E8), // blue
+  Color(0xFF2FA85C), // green
+  Color(0xFFE5484D), // coral
+  Color(0xFF0E9AA7), // teal
+  Color(0xFF2B3A55), // navy
+];
 
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1.0
-      ..style = PaintingStyle.stroke;
-
-    const spacing = 12.0;
-    for (double x = 0.0; x < size.width; x += spacing) {
-      for (double y = 0.0; y < size.height; y += spacing) {
-        canvas.drawCircle(Offset(x, y), 0.8, paint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant TechPatternPainter oldDelegate) => false;
+String _monogram(String text) {
+  final match = RegExp(r'[A-Za-z0-9]').firstMatch(text);
+  return match != null ? match.group(0)!.toUpperCase() : '#';
 }
 
-Widget _buildGradientBanner({
-  required BuildContext context,
-  required String title,
-  required String type,
+Widget _bannerCircle(double size, double alpha) {
+  return Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(
+      color: Colors.white.withValues(alpha: alpha),
+      shape: BoxShape.circle,
+    ),
+  );
+}
+
+Widget _buildFlatBanner({
+  required String seed,
+  required String label,
   required double height,
-  required bool isDark,
 }) {
-  final hash = title.hashCode.abs();
-  final gradients = [
-    [const Color(0xFF6366F1), const Color(0xFFA855F7)], // Indigo to Purple
-    [const Color(0xFFEC4899), const Color(0xFF8B5CF6)], // Pink to Violet
-    [const Color(0xFF3B82F6), const Color(0xFF2DD4BF)], // Blue to Teal
-    [const Color(0xFFF43F5E), const Color(0xFFFB7185)], // Rose
-    [const Color(0xFF10B981), const Color(0xFF059669)], // Emerald
-    [const Color(0xFFF59E0B), const Color(0xFFD97706)], // Amber
-  ];
-  final selectedGradient = gradients[hash % gradients.length];
-  final overlayColor = Colors.white.withValues(alpha: 0.08);
+  final color = _bannerPalette[seed.hashCode.abs() % _bannerPalette.length];
 
   return Container(
     height: height,
     width: double.infinity,
-    decoration: BoxDecoration(
-      gradient: LinearGradient(
-        colors: selectedGradient,
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ),
-    ),
+    color: color,
     child: Stack(
       children: [
-        Positioned.fill(
-          child: CustomPaint(
-            painter: TechPatternPainter(color: overlayColor),
-          ),
+        Positioned(
+          right: -28,
+          top: -28,
+          child: _bannerCircle(height * 1.1, 0.10),
         ),
         Positioned(
-          right: -30,
-          top: -30,
-          child: Container(
-            width: height * 1.2,
-            height: height * 1.2,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
+          left: -24,
+          bottom: -40,
+          child: _bannerCircle(height * 0.75, 0.08),
+        ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Padding(
+            padding: const EdgeInsets.only(right: 24),
+            child: Text(
+              _monogram(label.isNotEmpty ? label : seed),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: height * 0.5,
+                fontWeight: FontWeight.w800,
+                height: 1.0,
+                color: Colors.white.withValues(alpha: 0.9),
+              ),
             ),
           ),
         ),
