@@ -58,7 +58,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
               sliverContent = _buildErrorState(
                   context, provider.error!, provider.fetchOverview);
             } else {
-              final mergedEvents = _getMergedEvents(provider.events);
+              final mergedEvents = provider.events;
 
               // Filter logic
               final filtered = mergedEvents.where((e) {
@@ -294,99 +294,6 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
     );
   }
 
-  List<EventAccessModel> _getMergedEvents(List<EventAccessModel> serverEvents) {
-    final screenshotMocks = [
-      const EventAccessModel(
-        id: 'mlsa_opp',
-        title: 'Microsoft Learn Student Ambassadors',
-        description:
-            'Be a leader in your community, build technical skills, and share technology with peers. As a Student Ambassador, you will get access to Microsoft resources, Azure credits, mentorship from industry experts, and a global network of student leaders. You will host workshops, build communities, and gain hands-on experience with cutting-edge tech.\n\nBenefits include free Microsoft certification exams, exclusive swags, and invitations to regional summits.',
-        requiredAura: 0,
-        link: 'https://mvp.microsoft.com/studentambassadors',
-        type: 'Ambassador',
-        unlocked: true,
-        locked: false,
-        organizer: 'Microsoft',
-        location: 'Worldwide',
-        date: 'Applications close in 5 days',
-        bannerUrl:
-            'https://images.unsplash.com/photo-1625014020903-e329f58a4990?w=800&auto=format&fit=crop',
-      ),
-      const EventAccessModel(
-        id: 'nasa_opp',
-        title: 'NASA Internships Fall 2025',
-        description:
-            'NASA Internships are competitive awards to support educational opportunities that provide unique NASA-related research and operational experiences. Interns work under the guidance of NASA mentors on real projects, ranging from aerospace engineering and astrophysics to software development and earth sciences.\n\nThis is an unparalleled opportunity to contribute directly to space exploration missions, learn from world-renowned scientists, and build a stellar network in the space tech industry.',
-        requiredAura: 0,
-        link: 'https://intern.nasa.gov/',
-        type: 'Internship',
-        unlocked: true,
-        locked: false,
-        organizer: 'NASA',
-        location: 'On-site',
-        date: 'Applications close in 12 days',
-        bannerUrl:
-            'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop',
-      ),
-      const EventAccessModel(
-        id: 'postman_opp',
-        title: 'Postman Student Expert Program',
-        description:
-            'Postman Student Experts are student leaders who teach their peers about APIs and Postman. Through this self-paced program, you\'ll learn the essentials of API design, testing, and documentation using Postman.\n\nOnce certified, you\'ll unlock access to exclusive Postman swags, invitations to developer events, and resources to host API workshops on your campus. Boost your developer profile and gain official recognition from Postman.',
-        requiredAura: 0,
-        link: 'https://www.postman.com/student-program/student-expert/',
-        type: 'Program',
-        unlocked: true,
-        locked: false,
-        organizer: 'Postman',
-        location: 'Remote',
-        date: 'Applications close in 7 days',
-        bannerUrl:
-            'https://images.unsplash.com/photo-1618401471353-b98aedd07871?w=800&auto=format&fit=crop',
-      ),
-      const EventAccessModel(
-        id: 'mlh_opp',
-        title: 'MLH Fellowship',
-        description:
-            'A remote internship alternative for software developers to build open-source projects. The MLH Fellowship is a 12-week program where students collaborate with maintainers on major open-source projects (like React, Jest, and Dask) used by millions.\n\nYou\'ll receive an educational stipend, participate in daily standups, receive code reviews, and learn from senior engineers. Perfect for building a strong portfolio and starting your career in open source.',
-        requiredAura: 0,
-        link: 'https://fellowship.mlh.io/',
-        type: 'Fellowship',
-        unlocked: true,
-        locked: false,
-        organizer: 'MLH',
-        location: 'Remote',
-        date: 'Applications close in 15 days',
-        bannerUrl:
-            'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop',
-      ),
-      const EventAccessModel(
-        id: 'gsoc_opp',
-        title: 'Google Summer of Code 2025',
-        description:
-            'Google Summer of Code is a global program focused on bringing new contributors into open source software development. GSoC contributors work on a 12+ week programming project with an open source organization under the guidance of mentors.\n\nContributors learn about open source culture, get paid a stipend based on their location, and receive invaluable feedback on their code. It is one of the most prestigious open-source initiatives worldwide.',
-        requiredAura: 0,
-        link: 'https://summerofcode.withgoogle.com/',
-        type: 'Program',
-        unlocked: true,
-        locked: false,
-        organizer: 'Google',
-        location: 'Remote',
-        date: 'Applications close in 20 days',
-        bannerUrl:
-            'https://images.unsplash.com/photo-1572021335469-31706a17aaef?w=800&auto=format&fit=crop',
-      ),
-    ];
-
-    final merged = List<EventAccessModel>.from(serverEvents);
-    for (final mock in screenshotMocks) {
-      if (!merged
-          .any((e) => e.title.toLowerCase() == mock.title.toLowerCase())) {
-        merged.add(mock);
-      }
-    }
-    return merged;
-  }
 
   List<String> _getTagsForOpportunity(EventAccessModel item) {
     final title = item.title.toLowerCase();
@@ -622,28 +529,18 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
     );
   }
 
+  bool _isPastEvent(EventAccessModel e) {
+    final end = DateTime.tryParse(e.endDate ?? '') ?? DateTime.tryParse(e.date ?? '');
+    if (end == null) return false;
+    final now = DateTime.now();
+    return end.isBefore(DateTime(now.year, now.month, now.day));
+  }
+
   Widget _buildUpcomingHackathonsSection(BuildContext context, List<EventAccessModel> events, bool isDark) {
-    final realHackathons = events.where((e) => e.type.toLowerCase() == 'hackathon').toList();
-    final mockHackathons = [
-      const _MockHackathon(
-        month: 'MAY',
-        date: '24',
-        title: 'Hack India 2025',
-        mode: 'Hybrid',
-      ),
-      const _MockHackathon(
-        month: 'MAY',
-        date: '30',
-        title: 'Build with AI',
-        mode: 'Online',
-      ),
-      const _MockHackathon(
-        month: 'JUN',
-        date: '07',
-        title: 'DevBattle 3.0',
-        mode: 'Online',
-      ),
-    ];
+    final upcoming = events
+        .where((e) => e.type.toLowerCase() == 'hackathon' && !_isPastEvent(e))
+        .toList();
+    if (upcoming.isEmpty) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -663,28 +560,25 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
         const SizedBox(height: 12),
         SizedBox(
           height: 185,
-          child: realHackathons.isNotEmpty
-              ? ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  itemCount: realHackathons.length,
-                  itemBuilder: (context, idx) {
-                    final hack = realHackathons[idx];
-                    final parsedDate = _parseHackathonDate(hack.date, idx);
-                    final m = parsedDate['month'] ?? 'MAY';
-                    final d = parsedDate['day'] ?? '24';
-                    return _buildHackathonCard(context, m, d, hack.title, hack.location ?? 'Online', isDark, hack.bannerUrl, hack);
-                  },
-                )
-              : ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  itemCount: mockHackathons.length,
-                  itemBuilder: (context, idx) {
-                    final mock = mockHackathons[idx];
-                    return _buildHackathonCard(context, mock.month, mock.date, mock.title, mock.mode, isDark, null, null);
-                  },
-                ),
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            itemCount: upcoming.length,
+            itemBuilder: (context, idx) {
+              final hack = upcoming[idx];
+              final parsedDate = _parseHackathonDate(hack.date);
+              return _buildHackathonCard(
+                context,
+                parsedDate?['month'] ?? 'TBA',
+                parsedDate?['day'] ?? '--',
+                hack.title,
+                hack.location ?? 'Online',
+                isDark,
+                hack.bannerUrl,
+                hack,
+              );
+            },
+          ),
         ),
         const SizedBox(height: 24),
       ],
@@ -851,31 +745,18 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
     );
   }
 
-  Map<String, String> _parseHackathonDate(String? dateStr, [int index = 0]) {
-    if (dateStr == null || dateStr.trim().isEmpty) {
-      final now = DateTime.now();
-      final futureDate = now.add(Duration(days: index * 4 + 3));
+  // Returns the real month/day for a hackathon, or null when the date can't be
+  // read (the card then shows "TBA" instead of an invented date).
+  Map<String, String>? _parseHackathonDate(String? dateStr) {
+    if (dateStr == null || dateStr.trim().isEmpty) return null;
+
+    final parsedDate = DateTime.tryParse(dateStr);
+    if (parsedDate != null) {
       return {
-        'month': _getMonthAbbreviation(futureDate.month),
-        'day': futureDate.day.toString(),
+        'month': _getMonthAbbreviation(parsedDate.month),
+        'day': parsedDate.day.toString(),
       };
     }
-
-    try {
-      final parsedDate = DateTime.tryParse(dateStr);
-      if (parsedDate != null) {
-        var targetDate = parsedDate;
-        final now = DateTime.now();
-        if (targetDate.isBefore(now.add(const Duration(seconds: 1))) || 
-            (targetDate.year == now.year && targetDate.month == now.month && targetDate.day == now.day)) {
-          targetDate = now.add(Duration(days: index * 4 + 3));
-        }
-        return {
-          'month': _getMonthAbbreviation(targetDate.month),
-          'day': targetDate.day.toString(),
-        };
-      }
-    } catch (_) {}
 
     final cleaned = dateStr.replaceAll(RegExp(r'[,:\-\/]'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
     final parts = cleaned.split(' ');
@@ -891,7 +772,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
       if (monthIndex == -1) {
         monthIndex = fullMonths.indexOf(partLower);
       }
-      
+
       if (monthIndex != -1) {
         foundMonth = months[monthIndex].toUpperCase();
         if (i > 0) {
@@ -911,33 +792,17 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
       }
     }
 
-    if (foundMonth != null && foundDay != null) {
-      return {'month': foundMonth, 'day': foundDay};
-    }
-
-    if (foundMonth != null) {
+    if (foundMonth == null) return null;
+    if (foundDay == null) {
       for (final part in parts) {
         if (RegExp(r'^\d+$').hasMatch(part)) {
           foundDay = part;
           break;
         }
       }
-      return {'month': foundMonth, 'day': foundDay ?? '1'};
     }
-
-    for (final part in parts) {
-      if (RegExp(r'^\d+$').hasMatch(part) && part.length <= 2) {
-        foundDay = part;
-        break;
-      }
-    }
-
-    final now = DateTime.now();
-    final futureDate = now.add(Duration(days: index * 4 + 3));
-    return {
-      'month': foundMonth ?? _getMonthAbbreviation(futureDate.month),
-      'day': foundDay ?? futureDate.day.toString(),
-    };
+    if (foundDay == null) return null;
+    return {'month': foundMonth, 'day': foundDay};
   }
 
   String _getMonthAbbreviation(int monthIndex) {
@@ -1384,20 +1249,6 @@ class _OpportunityCardState extends State<_OpportunityCard> {
       ],
     );
   }
-}
-
-class _MockHackathon {
-  final String month;
-  final String date;
-  final String title;
-  final String mode;
-
-  const _MockHackathon({
-    required this.month,
-    required this.date,
-    required this.title,
-    required this.mode,
-  });
 }
 
 // Flat banner used whenever an opportunity has no usable image. The colour is
