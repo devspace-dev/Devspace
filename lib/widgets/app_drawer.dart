@@ -12,6 +12,7 @@ import '../screens/learning_roadmap_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/practice_map_screen.dart';
+import '../screens/roadmap_directory_screen.dart';
 import '../theme/app_colors.dart';
 import 'user_avatar.dart';
 
@@ -268,6 +269,59 @@ class _DevSpaceDrawerState extends State<DevSpaceDrawer> {
                         ),
                       ),
                     ),
+
+                  const SizedBox(height: 8),
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const RoadmapDirectoryScreen(),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 10, horizontal: 12),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.travel_explore_rounded,
+                              size: 16,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Browse all roadmaps (roadmap.sh)',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                            const Icon(
+                              Icons.chevron_right_rounded,
+                              size: 16,
+                              color: AppColors.primary,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
 
                   const SizedBox(height: 16),
                   Divider(

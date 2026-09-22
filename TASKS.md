@@ -39,6 +39,7 @@ Upgrade the app backend for launch-ready gamification and gated engagement witho
 - [x] Redesigned upcoming hackathons card with Unsplash banners and distinct dates
 - [x] Opportunities UI polish (no logic changes): replaced random stock/Unsplash photos on hackathon and opportunity cards with consistent flat designed banners, unified the three different card hero styles into one, and moved the screen to shared theme tokens; added a render test
 - [x] Opportunities: removed built-in fake opportunities (Microsoft/NASA/Postman/MLH/Google) and fake hackathons from the feed, and stopped inventing future dates for hackathons (cards show real dates or "TBA"; past hackathons drop out of "Upcoming")
+- [x] Added a searchable roadmap directory (~90 roadmap.sh roadmaps, filterable by stack/category) linked from a new "Browse all roadmaps" entry in the drawer's Resources for you section; opens roadmap.sh in-app via url_launcher's inAppWebView (no new dependency). Links only, no reproduced content — roadmap.sh's license doesn't permit republishing their roadmap content, only linking to it. Existing 4 curated resource cards untouched.
 - [x] Removed floating trophy button (CupFab) from home screen and linked Daily Mission card in Arena to Daily Challenge Screen
 - [x] Implemented 2v2 Team Duels gameplay scoring, pooled team points, divided reward distributions, and live activity feeds
 - [x] Redesigned the Opportunities Detail Page to adopt the premium Warm Orange app theme, replacing outdated pink/purple styles with glassmorphic cards
