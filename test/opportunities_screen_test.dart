@@ -29,13 +29,14 @@ EventAccessModel _event({
   String? bannerUrl,
   int requiredAura = 0,
   String? date,
+  String? link,
 }) {
   return EventAccessModel(
     id: id,
     title: title,
     description: 'A short description for $title.',
     requiredAura: requiredAura,
-    link: 'https://example.com/$id',
+    link: link ?? 'https://example.com/$id',
     type: type,
     unlocked: requiredAura == 0,
     locked: requiredAura > 0,
@@ -139,5 +140,48 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Upcoming Hackathons'), findsNothing);
+  });
+
+  testWidgets('international (Devpost) hackathons are hidden', (tester) async {
+    await _pumpScreen(tester, [
+      _event(
+        id: 'in',
+        title: 'Bengaluru Build Day',
+        type: 'Hackathon',
+        link: 'https://bengaluru-build-day.devfolio.co',
+      ),
+      _event(
+        id: 'intl',
+        title: 'Global Online Jam',
+        type: 'Hackathon',
+        link: 'https://global-online-jam.devpost.com/',
+      ),
+    ]);
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Bengaluru Build Day'), findsWidgets);
+    expect(find.text('Global Online Jam'), findsNothing);
+    expect(find.text('1 opportunity'), findsOneWidget);
+  });
+
+  testWidgets('shows a result count and See all opens the Hackathons filter',
+      (tester) async {
+    await _pumpScreen(tester, [
+      _event(id: 'h1', title: 'Campus Hack', type: 'Hackathon'),
+      _event(id: 'i1', title: 'Backend Internship', type: 'Internship'),
+    ]);
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('2 opportunities'), findsOneWidget);
+    expect(find.text('Backend Internship'), findsOneWidget);
+
+    await tester.tap(find.text('See all'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('1 opportunity'), findsOneWidget);
+    expect(find.text('Backend Internship'), findsNothing);
+    // Already on the Hackathons filter, so the link is no longer offered.
+    expect(find.text('See all'), findsNothing);
   });
 }

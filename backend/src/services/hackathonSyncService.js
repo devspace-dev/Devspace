@@ -1,76 +1,26 @@
 import { supabase } from '../config/supabase.js';
 
-function parseDevpostDate(dateStr) {
-  if (!dateStr) return null;
-  const parts = dateStr.split('-');
-  const targetStr = parts.length > 1 ? parts[1].trim() : dateStr.trim();
-  const parsed = Date.parse(targetStr);
-  if (!isNaN(parsed)) {
-    return new Date(parsed).toISOString();
-  }
-  const currentYear = new Date().getFullYear();
-  const fallbackParsed = Date.parse(`${targetStr}, ${currentYear}`);
-  if (!isNaN(fallbackParsed)) {
-    return new Date(fallbackParsed).toISOString();
-  }
-  return null;
+// DevSpace only lists hackathons in India.
+// - Devpost is a global feed with no country data, so it is not synced.
+// - Devfolio and Unstop are India-focused; we still drop the odd non-India
+//   event using the country signals each one exposes.
+const INDIAN_TIMEZONES = new Set(['Asia/Kolkata', 'Asia/Calcutta']);
+
+export function isIndianDevfolioHackathon(hack) {
+  return INDIAN_TIMEZONES.has(hack?.timezone);
 }
 
-async function fetchDevpost() {
-  const hackathons = [];
-  try {
-    console.log('Fetching from Devpost API...');
-    const response = await fetch('https://devpost.com/api/hackathons');
-    if (!response.ok) {
-      throw new Error(`Devpost API returned status ${response.status}`);
-    }
-    const json = await response.json();
-    const items = json.hackathons || [];
-    for (const hack of items) {
-      const title = hack.title || '';
-      const link = hack.url || '';
-      if (!title || !link) continue;
+export function isIndianUnstopHackathon(hack) {
+  // Online events on Unstop (an India-only platform) are Indian-organised.
+  if (hack?.region === 'online') return true;
+  return hack?.address_with_country_logo?.country?.name === 'India';
+}
 
-      let bannerUrl = hack.thumbnail_url || '';
-      if (bannerUrl) {
-        if (bannerUrl.includes('medium_square')) {
-          bannerUrl = bannerUrl.replace('medium_square', 'original');
-        }
-        if (bannerUrl.startsWith('//')) {
-          bannerUrl = 'https:' + bannerUrl;
-        }
-      }
-      if (!bannerUrl) {
-        bannerUrl = 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?q=80&w=1000';
-      }
-
-      const organizer = hack.organization_name || 'Devpost Sponsor';
-      const dateText = hack.submission_period_dates || '';
-      const locationText = hack.displayed_location?.location || 'Online';
-      
-      const themesList = (hack.themes || []).map(t => t.name).join(', ');
-      const description = `Themes: ${themesList || 'General Hackathon'}. Check out this exciting hackathon from Devpost! Time left to submit: ${hack.time_left_to_submission || 'Open'}.`;
-
-      let endDate = null;
-      if (dateText) {
-        endDate = parseDevpostDate(dateText);
-      }
-
-      hackathons.push({
-        title,
-        link,
-        banner_url: bannerUrl,
-        organizer,
-        date: dateText,
-        location: locationText,
-        description,
-        end_date: endDate
-      });
-    }
-  } catch (e) {
-    console.error('Error fetching Devpost hackathons:', e);
-  }
-  return hackathons;
+export function unstopLocationText(hack) {
+  if (hack?.region === 'online') return 'Online';
+  const addr = hack?.address_with_country_logo;
+  const place = [addr?.city, addr?.state].filter(Boolean).join(', ');
+  return place || 'In-person';
 }
 
 async function fetchDevfolio() {
@@ -103,6 +53,7 @@ async function fetchDevfolio() {
       const title = hack.name || '';
       const slug = hack.slug || '';
       if (!title || !slug) continue;
+      if (!isIndianDevfolioHackathon(hack)) continue;
 
       const link = `https://${slug}.devfolio.co`;
 
@@ -138,8 +89,6 @@ async function fetchDevfolio() {
             bannerUrl = `https://assets.devfolio.co/${bannerUrl}`;
           }
         }
-      } else {
-        bannerUrl = 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?q=80&w=1000';
       }
 
       const organizer = 'Devfolio';
@@ -195,11 +144,12 @@ async function fetchUnstop() {
       const title = hack.title || '';
       const publicUrl = hack.public_url || '';
       if (!title || !publicUrl) continue;
+      if (!isIndianUnstopHackathon(hack)) continue;
 
       const link = hack.seo_url || `https://unstop.com/${publicUrl}`;
-      const bannerUrl = hack.logoUrl2 || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=1000';
+      const bannerUrl = hack.logoUrl2 || '';
       const organizer = hack.organisation?.name || 'Unstop';
-      const locationText = hack.region || 'Online';
+      const locationText = unstopLocationText(hack);
       
       let rawDesc = hack.details ? hack.details.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() : '';
       if (rawDesc.length > 250) {
@@ -357,17 +307,58 @@ async function cleanExpiredEvents() {
   return 0;
 }
 
+async function removeNonIndianEvents() {
+  // Devpost hackathons were synced before the India-only rule; remove them.
+  try {
+    const { data: rows, error } = await supabase
+      .from('events')
+      .select('id')
+      .eq('type', 'hackathon')
+      .ilike('link', '%devpost.com%');
+
+    if (error) {
+      console.error('Error fetching non-India (Devpost) events:', error);
+      return 0;
+    }
+    if (!rows || rows.length === 0) return 0;
+
+    const ids = rows.map(r => r.id);
+
+    const { error: userEventsDeleteError } = await supabase
+      .from('user_events')
+      .delete()
+      .in('event_id', ids);
+    if (userEventsDeleteError) {
+      console.error('Error deleting user_events for non-India events:', userEventsDeleteError);
+    }
+
+    const { error: eventsDeleteError } = await supabase
+      .from('events')
+      .delete()
+      .in('id', ids);
+    if (eventsDeleteError) {
+      console.error('Error deleting non-India events:', eventsDeleteError);
+      return 0;
+    }
+
+    console.log(`Removed ${ids.length} non-India (Devpost) hackathons.`);
+    return ids.length;
+  } catch (e) {
+    console.error('Exception removing non-India hackathons:', e);
+  }
+  return 0;
+}
+
 export const syncAllHackathons = async () => {
   console.log('Starting unified hackathon synchronization...');
   
-  const [devpostHacks, devfolioHacks, unstopHacks] = await Promise.all([
-    fetchDevpost(),
+  const [devfolioHacks, unstopHacks] = await Promise.all([
     fetchDevfolio(),
     fetchUnstop()
   ]);
 
-  const allHacks = [...devpostHacks, ...devfolioHacks, ...unstopHacks];
-  console.log(`Total active hackathons fetched: ${allHacks.length} (Devpost: ${devpostHacks.length}, Devfolio: ${devfolioHacks.length}, Unstop: ${unstopHacks.length})`);
+  const allHacks = [...devfolioHacks, ...unstopHacks];
+  console.log(`Total active India hackathons fetched: ${allHacks.length} (Devfolio: ${devfolioHacks.length}, Unstop: ${unstopHacks.length})`);
 
   let newCount = 0;
   let updatedCount = 0;
@@ -381,7 +372,7 @@ export const syncAllHackathons = async () => {
     }
   }
 
-  const deletedCount = await cleanExpiredEvents();
+  const deletedCount = (await cleanExpiredEvents()) + (await removeNonIndianEvents());
 
   console.log(`Synchronization summary: ${newCount} inserted, ${updatedCount} updated, ${deletedCount} expired deleted.`);
   return {
@@ -390,7 +381,6 @@ export const syncAllHackathons = async () => {
     deletedCount,
     totalFetched: allHacks.length,
     breakdown: {
-      devpost: devpostHacks.length,
       devfolio: devfolioHacks.length,
       unstop: unstopHacks.length
     }

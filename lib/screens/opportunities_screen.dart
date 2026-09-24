@@ -10,6 +10,7 @@ import '../models/event_access_model.dart';
 import '../providers/engagement_provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
+import '../utils/hackathon_region.dart';
 import '../utils/opportunity_banner.dart';
 import '../widgets/app_state_widgets.dart';
 import 'opportunity_detail_screen.dart';
@@ -50,6 +51,10 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
       body: SafeArea(
         child: Consumer<EngagementProvider>(
           builder: (context, provider, _) {
+            // India-only: hide legacy international (Devpost) hackathon rows.
+            final events =
+                provider.events.where((e) => !isNonIndianHackathon(e)).toList();
+            int? resultCount;
             Widget sliverContent;
 
             if (provider.isLoading && provider.events.isEmpty) {
@@ -58,7 +63,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
               sliverContent = _buildErrorState(
                   context, provider.error!, provider.fetchOverview);
             } else {
-              final mergedEvents = provider.events;
+              final mergedEvents = events;
 
               // Filter logic
               final filtered = mergedEvents.where((e) {
@@ -72,6 +77,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                       (e.organizer?.toLowerCase() ?? '').contains(query);
                   if (!matchesTitle && !matchesDesc && !matchesOrg)
                     return false;
+                  }
                 }
 
                 // 2. Category Pill Filter
@@ -97,6 +103,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                 return true;
               }).toList();
 
+              resultCount = filtered.length;
               if (filtered.isEmpty) {
                 sliverContent = _buildEmptyState();
               } else {
@@ -109,7 +116,6 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                         return _OpportunityCard(
                           item: item,
                           myAura: myAura,
-                          tags: _getTagsForOpportunity(item),
                           brandLogo: _buildBrandLogo(item.organizer ?? '', item.bannerUrl),
                         )
                             .animate()
@@ -133,9 +139,13 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                   SliverToBoxAdapter(child: _buildHeader(context, canPop)),
                   SliverToBoxAdapter(child: _buildSearchHeader(context)),
                   SliverToBoxAdapter(child: _buildCategorySelector(context)),
-                  const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                  const SliverToBoxAdapter(child: SizedBox(height: 8)),
                   if (_searchQuery.isEmpty && (_selectedCategory == 'All' || _selectedCategory == 'Hackathons'))
-                    SliverToBoxAdapter(child: _buildUpcomingHackathonsSection(context, provider.events, isDark)),
+                    SliverToBoxAdapter(child: _buildUpcomingHackathonsSection(context, events, isDark)),
+                  if (resultCount != null)
+                    SliverToBoxAdapter(
+                      child: _buildResultCount(context, resultCount),
+                    ),
                   sliverContent,
                 ],
               ),
@@ -175,11 +185,11 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Explore\nOpportunities',
+                  'Explore Opportunities',
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 32,
+                    fontSize: 26,
                     fontWeight: FontWeight.w800,
-                    height: 1.15,
+                    height: 1.2,
                     color: AppColors.textFor(context),
                   ),
                 ),
@@ -294,40 +304,6 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
     );
   }
 
-
-  List<String> _getTagsForOpportunity(EventAccessModel item) {
-    final title = item.title.toLowerCase();
-    final organizer = item.organizer?.toLowerCase() ?? '';
-
-    if (organizer.contains('microsoft') || title.contains('microsoft')) {
-      return ['Worldwide', 'Volunteer', 'Perks', 'Swags', 'Certificate'];
-    } else if (organizer.contains('nasa') || title.contains('nasa')) {
-      return ['On-site', 'Paid', 'Stipend'];
-    } else if (organizer.contains('postman') || title.contains('postman')) {
-      return ['Remote', 'Stipend'];
-    } else if (organizer.contains('google') || title.contains('google')) {
-      return ['Remote', 'Stipend', 'Certificate'];
-    } else if (organizer.contains('mlh') || title.contains('mlh')) {
-      return ['Remote', 'Stipend', 'Fellowship'];
-    }
-
-    final List<String> tags = [];
-    if (item.location != null && item.location!.isNotEmpty) {
-      tags.add(item.location!);
-    } else {
-      tags.add('Remote');
-    }
-
-    if (item.requiredAura > 0) {
-      tags.add('Aura Required');
-    }
-
-    if (item.type.isNotEmpty) {
-      tags.add(item.type);
-    }
-
-    return tags;
-  }
 
   Widget _buildBrandLogo(String organizer, String? bannerUrl) {
     final name = organizer.toLowerCase();
@@ -476,15 +452,21 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
       );
     }
 
-    // Default letter avatar
-    return CircleAvatar(
-      radius: 22,
-      backgroundColor: Colors.orange.shade50,
+    // Default monogram avatar (colour picked from the shared palette by name).
+    final avatarColor = _bannerPalette[organizer.hashCode.abs() % _bannerPalette.length];
+    return Container(
+      width: 44,
+      height: 44,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: avatarColor.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Text(
-        organizer.isNotEmpty ? organizer[0].toUpperCase() : 'O',
-        style: const TextStyle(
-          color: AppColors.primary,
-          fontWeight: FontWeight.bold,
+        _monogram(organizer.isNotEmpty ? organizer : 'O'),
+        style: GoogleFonts.plusJakartaSans(
+          color: avatarColor,
+          fontWeight: FontWeight.w800,
           fontSize: 18,
         ),
       ),
@@ -547,14 +529,35 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Text(
-            'Upcoming Hackathons',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textFor(context),
-              letterSpacing: -0.4,
-            ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Upcoming Hackathons',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textFor(context),
+                    letterSpacing: -0.4,
+                  ),
+                ),
+              ),
+              if (_selectedCategory != 'Hackathons')
+                GestureDetector(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    setState(() => _selectedCategory = 'Hackathons');
+                  },
+                  child: Text(
+                    'See all',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
         const SizedBox(height: 12),
@@ -566,7 +569,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
             itemCount: upcoming.length,
             itemBuilder: (context, idx) {
               final hack = upcoming[idx];
-              final parsedDate = _parseHackathonDate(hack.date);
+              final parsedDate = _parseHackathonDate(hack.date, hack.endDate);
               return _buildHackathonCard(
                 context,
                 parsedDate?['month'] ?? 'TBA',
@@ -747,10 +750,14 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
 
   // Returns the real month/day for a hackathon, or null when the date can't be
   // read (the card then shows "TBA" instead of an invented date).
-  Map<String, String>? _parseHackathonDate(String? dateStr) {
-    if (dateStr == null || dateStr.trim().isEmpty) return null;
+  Map<String, String>? _parseHackathonDate(String? dateStr, [String? endDateStr]) {
+    String? raw = dateStr?.trim();
+    if ((raw == null || raw.isEmpty) && endDateStr != null && endDateStr.trim().isNotEmpty) {
+      raw = endDateStr.trim();
+    }
+    if (raw == null || raw.isEmpty) return null;
 
-    final parsedDate = DateTime.tryParse(dateStr);
+    final parsedDate = DateTime.tryParse(raw);
     if (parsedDate != null) {
       return {
         'month': _getMonthAbbreviation(parsedDate.month),
@@ -758,7 +765,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
       };
     }
 
-    final cleaned = dateStr.replaceAll(RegExp(r'[,:\-\/]'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+    final cleaned = raw.replaceAll(RegExp(r'[,:\-\/]'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
     final parts = cleaned.split(' ');
     final months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
     final fullMonths = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
@@ -792,6 +799,16 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
       }
     }
 
+    if (foundMonth == null && endDateStr != null && endDateStr.trim().isNotEmpty && endDateStr != raw) {
+      final parsedEnd = DateTime.tryParse(endDateStr.trim());
+      if (parsedEnd != null) {
+        return {
+          'month': _getMonthAbbreviation(parsedEnd.month),
+          'day': parsedEnd.day.toString(),
+        };
+      }
+    }
+
     if (foundMonth == null) return null;
     if (foundDay == null) {
       for (final part in parts) {
@@ -813,6 +830,20 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
     return 'MAY';
   }
 
+  Widget _buildResultCount(BuildContext context, int count) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+      child: Text(
+        count == 1 ? '1 opportunity' : '$count opportunities',
+        style: GoogleFonts.plusJakartaSans(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w700,
+          color: AppColors.text3For(context),
+        ),
+      ),
+    );
+  }
+
   Widget _buildEmptyState() {
     return SliverToBoxAdapter(
       child: Padding(
@@ -832,13 +863,11 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
 class _OpportunityCard extends StatefulWidget {
   final EventAccessModel item;
   final int myAura;
-  final List<String> tags;
   final Widget brandLogo;
 
   const _OpportunityCard({
     required this.item,
     required this.myAura,
-    required this.tags,
     required this.brandLogo,
   });
 
@@ -849,16 +878,31 @@ class _OpportunityCard extends StatefulWidget {
 class _OpportunityCardState extends State<_OpportunityCard> {
   bool _isSaved = false;
 
+  static const double _photoHeight = 120;
+
+  // A real event image (not a logo, not a stock placeholder), if there is one.
+  String? get _photoUrl {
+    final url = widget.item.bannerUrl;
+    if (url == null || url.trim().isEmpty) return null;
+    if (_isLogoUrl(url) || isPlaceholderPhotoUrl(url)) return null;
+    return url;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isLocked = widget.item.requiredAura > widget.myAura;
+    final item = widget.item;
+    final isLocked = item.requiredAura > widget.myAura;
+    final photoUrl = _photoUrl;
+    final location = item.location?.trim() ?? '';
+    final typeLabel = item.type.isEmpty
+        ? 'Opportunity'
+        : item.type[0].toUpperCase() + item.type.substring(1);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: AppColors.bg2For(context),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: AppColors.borderFor(context)
               .withValues(alpha: isLocked ? 0.5 : 0.9),
@@ -866,28 +910,28 @@ class _OpportunityCardState extends State<_OpportunityCard> {
         ),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) =>
-                    OpportunityDetailScreen(opportunity: widget.item),
+                builder: (context) => OpportunityDetailScreen(opportunity: item),
               ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildHero(context, isDark, isLocked),
+                if (photoUrl != null) _buildPhoto(photoUrl),
                 Padding(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Header Row: Organizer & Logo & Bookmark
+                      // Logo + title/organizer + bookmark
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           widget.brandLogo,
                           const SizedBox(width: 12),
@@ -896,137 +940,126 @@ class _OpportunityCardState extends State<_OpportunityCard> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  widget.item.organizer ?? 'Opportunity',
+                                  item.title,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                   style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.text3For(context),
+                                    fontSize: 15.5,
+                                    fontWeight: FontWeight.w800,
+                                    height: 1.25,
+                                    color: isLocked
+                                        ? AppColors.text3For(context)
+                                        : AppColors.textFor(context),
                                   ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  item.organizer ?? 'Opportunity',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.text3For(context),
+                                  ),
                                 ),
                               ],
                             ),
                           ),
-                          IconButton(
-                            onPressed: () {
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () {
                               HapticFeedback.mediumImpact();
-                              setState(() {
-                                _isSaved = !_isSaved;
-                              });
+                              setState(() => _isSaved = !_isSaved);
                             },
-                            icon: Icon(
+                            child: Icon(
                               _isSaved
                                   ? Icons.bookmark_rounded
                                   : Icons.bookmark_border_rounded,
                               color: _isSaved
                                   ? AppColors.primary
                                   : AppColors.text3For(context),
-                              size: 24,
+                              size: 22,
                             ),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
 
-                      // Opportunity Title
-                      Text(
-                        widget.item.title,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          height: 1.3,
-                          color: isLocked
-                              ? AppColors.text3For(context)
-                              : AppColors.textFor(context),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-
-                      // Description snippet
-                      if (widget.item.description.isNotEmpty) ...[
+                      if (item.description.isNotEmpty) ...[
+                        const SizedBox(height: 12),
                         Text(
-                          widget.item.description,
+                          item.description,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.plusJakartaSans(
-                            fontSize: 13,
+                            fontSize: 12.5,
                             color: AppColors.text2For(context),
-                            height: 1.4,
+                            height: 1.45,
                           ),
                         ),
-                        const SizedBox(height: 16),
                       ],
 
-                      // Tags wrap
+                      const SizedBox(height: 14),
                       Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: widget.tags
-                            .map((tag) => _buildTag(context, tag))
-                            .toList(),
-                      ),
-                      const SizedBox(height: 20),
-
-                      const Divider(height: 1, thickness: 0.8),
-                      const SizedBox(height: 16),
-
-                      // Footer: Close Date & Aura Requirement
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        spacing: 8,
+                        runSpacing: 8,
                         children: [
-                          Expanded(
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.calendar_today_rounded,
-                                  size: 14,
-                                  color: AppColors.text3For(context),
-                                ),
-                                const SizedBox(width: 6),
-                                Expanded(child: _buildCloseDateText(context, widget.item.date)),
-                              ],
-                            ),
+                          _buildMetaChip(
+                            context,
+                            icon: Icons.local_offer_outlined,
+                            label: typeLabel,
+                            color: _typeColor(item.type),
+                            tinted: true,
                           ),
-                          if (widget.item.requiredAura > 0)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: isLocked 
-                                    ? AppColors.bg3For(context)
-                                    : AppColors.primary.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.bolt_rounded,
-                                    size: 14,
-                                    color: isLocked ? Colors.grey : AppColors.primary,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '${widget.item.requiredAura} Aura',
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w800,
-                                      color: isLocked 
-                                          ? AppColors.text3For(context)
-                                          : AppColors.primary,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                          if (location.isNotEmpty)
+                            _buildMetaChip(
+                              context,
+                              icon: location.toLowerCase().contains('online')
+                                  ? Icons.language_rounded
+                                  : Icons.location_on_outlined,
+                              label: location,
+                            ),
+                          if (item.requiredAura > 0)
+                            _buildMetaChip(
+                              context,
+                              icon: isLocked
+                                  ? Icons.lock_rounded
+                                  : Icons.bolt_rounded,
+                              label: '${item.requiredAura} Aura',
+                              color: isLocked
+                                  ? AppColors.text3For(context)
+                                  : AppColors.primary,
+                              tinted: !isLocked,
                             ),
                         ],
                       ),
 
-                      // Lock progress if locked
+                      const SizedBox(height: 14),
+                      Divider(
+                        height: 1,
+                        thickness: 0.8,
+                        color: AppColors.borderFor(context).withValues(alpha: 0.7),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Deadline
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.schedule_rounded,
+                            size: 15,
+                            color: AppColors.text3For(context),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: _buildCloseDateText(
+                                context, item.date, item.endDate),
+                          ),
+                        ],
+                      ),
+
                       if (isLocked) ...[
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 14),
                         _buildLockProgress(context),
                       ],
                     ],
@@ -1040,106 +1073,124 @@ class _OpportunityCardState extends State<_OpportunityCard> {
     );
   }
 
-  static const double _heroHeight = 128;
-
-  Widget _buildHero(BuildContext context, bool isDark, bool isLocked) {
-    final bannerUrl = widget.item.bannerUrl;
-    final isLogo = _isLogoUrl(bannerUrl);
-    final hasPhoto = bannerUrl != null &&
-        bannerUrl.trim().isNotEmpty &&
-        !isLogo &&
-        !isPlaceholderPhotoUrl(bannerUrl);
-
-    Widget flatBanner() => _buildFlatBanner(
+  Widget _buildPhoto(String url) {
+    Widget fallback() => _buildFlatBanner(
           seed: widget.item.title,
           label: widget.item.organizer ?? widget.item.title,
-          height: _heroHeight,
+          height: _photoHeight,
         );
 
-    final Widget background;
-    if (isLogo) {
-      background = _buildLogoBanner(context, bannerUrl!, _heroHeight, isDark);
-    } else if (hasPhoto) {
-      background = CachedNetworkImage(
-        imageUrl: bannerUrl,
-        height: _heroHeight,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        placeholder: (context, url) => Container(
-          height: _heroHeight,
-          color: AppColors.bg3For(context),
-        ),
-        errorWidget: (context, url, error) => flatBanner(),
-      );
-    } else {
-      background = flatBanner();
+    return CachedNetworkImage(
+      imageUrl: url,
+      height: _photoHeight,
+      width: double.infinity,
+      fit: BoxFit.cover,
+      placeholder: (context, _) => Container(
+        height: _photoHeight,
+        color: AppColors.bg3For(context),
+      ),
+      errorWidget: (context, _, __) => fallback(),
+    );
+  }
+
+  Widget _buildMetaChip(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    Color? color,
+    bool tinted = false,
+  }) {
+    final fg = color ?? AppColors.text2For(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: tinted ? fg.withValues(alpha: 0.12) : AppColors.bg3For(context),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: fg),
+          const SizedBox(width: 5),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: fg,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCloseDateText(BuildContext context, String? dateStr, [String? endDateStr]) {
+    final lowerDate = (dateStr ?? '').trim().toLowerCase();
+
+    // 1. If endDate is available, calculate precise countdown
+    if (endDateStr != null && endDateStr.trim().isNotEmpty) {
+      final parsedEnd = DateTime.tryParse(endDateStr.trim());
+      if (parsedEnd != null) {
+        final diff = parsedEnd.difference(DateTime.now());
+        if (diff.isNegative) {
+          return Text(
+            'Event concluded',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12,
+              color: AppColors.text3For(context),
+              fontWeight: FontWeight.w500,
+            ),
+          );
+        } else if (diff.inDays > 0) {
+          return RichText(
+            text: TextSpan(
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12,
+                color: AppColors.text3For(context),
+                fontWeight: FontWeight.w500,
+              ),
+              children: [
+                const TextSpan(text: 'Applications close in '),
+                TextSpan(
+                  text: '${diff.inDays} ${diff.inDays == 1 ? "day" : "days"}',
+                  style: const TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          );
+        } else if (diff.inHours > 0) {
+          return RichText(
+            text: TextSpan(
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12,
+                color: AppColors.text3For(context),
+                fontWeight: FontWeight.w500,
+              ),
+              children: [
+                const TextSpan(text: 'Closes in '),
+                TextSpan(
+                  text: '${diff.inHours} hours',
+                  style: const TextStyle(
+                    color: Colors.amber,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+      }
     }
 
-    return Stack(
-      children: [
-        background,
-        Positioned(
-          top: 12,
-          left: 12,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.6),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              widget.item.type.toUpperCase(),
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                color: Colors.white,
-                letterSpacing: 0.8,
-              ),
-            ),
-          ),
-        ),
-        if (isLocked)
-          Positioned(
-            top: 12,
-            right: 12,
-            child: Container(
-              padding: const EdgeInsets.all(6),
-              decoration: const BoxDecoration(
-                color: Colors.black87,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.lock_rounded,
-                size: 16,
-                color: Color(0xFFFFD60A),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildTag(BuildContext context, String text) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF1F3F5),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        text,
-        style: GoogleFonts.plusJakartaSans(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: isDark ? AppColors.text2Dark : const Color(0xFF495057),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCloseDateText(BuildContext context, String? dateStr) {
-    if (dateStr == null || dateStr.isEmpty) {
+    if (dateStr == null || dateStr.trim().isEmpty) {
       return Text(
         'Applications close soon',
         style: GoogleFonts.plusJakartaSans(
@@ -1150,9 +1201,8 @@ class _OpportunityCardState extends State<_OpportunityCard> {
       );
     }
 
-    final lower = dateStr.toLowerCase();
-    if (lower.contains('close in') || lower.contains('closes in')) {
-      final match = RegExp(r'(\d+\s+days?)').firstMatch(lower);
+    if (lowerDate.contains('close in') || lowerDate.contains('closes in')) {
+      final match = RegExp(r'(\d+\s+days?)').firstMatch(lowerDate);
       if (match != null) {
         final daysText = match.group(1)!;
         final parts = dateStr.split(daysText);
@@ -1179,7 +1229,7 @@ class _OpportunityCardState extends State<_OpportunityCard> {
       }
     }
 
-    final daysOnly = int.tryParse(dateStr);
+    final daysOnly = int.tryParse(dateStr.trim());
     if (daysOnly != null) {
       return RichText(
         text: TextSpan(
@@ -1202,6 +1252,7 @@ class _OpportunityCardState extends State<_OpportunityCard> {
       );
     }
 
+    final prefix = lowerDate.startsWith('closes') ? '' : 'Date: ';
     return RichText(
       text: TextSpan(
         style: GoogleFonts.plusJakartaSans(
@@ -1210,9 +1261,9 @@ class _OpportunityCardState extends State<_OpportunityCard> {
           fontWeight: FontWeight.w500,
         ),
         children: [
-          const TextSpan(text: 'Applications close in '),
+          if (prefix.isNotEmpty) TextSpan(text: prefix),
           TextSpan(
-            text: dateStr,
+            text: dateStr.trim(),
             style: const TextStyle(
               color: AppColors.primary,
               fontWeight: FontWeight.bold,
@@ -1259,8 +1310,25 @@ const _bannerPalette = [
   Color(0xFF2FA85C), // green
   Color(0xFFE5484D), // coral
   Color(0xFF0E9AA7), // teal
-  Color(0xFF2B3A55), // navy
+  Color(0xFF64748B), // slate
 ];
+
+Color _typeColor(String type) {
+  switch (type.toLowerCase()) {
+    case 'hackathon':
+      return const Color(0xFFFF7A33);
+    case 'internship':
+      return const Color(0xFF3F63E8);
+    case 'scholarship':
+      return const Color(0xFF2FA85C);
+    case 'fellowship':
+    case 'ambassador':
+    case 'program':
+      return const Color(0xFF0E9AA7);
+    default:
+      return const Color(0xFF6B7280);
+  }
+}
 
 String _monogram(String text) {
   final match = RegExp(r'[A-Za-z0-9]').firstMatch(text);
