@@ -25,6 +25,9 @@ class _PracticeQuestionScreenState extends State<PracticeQuestionScreen> {
   int? _selectedOptionIndex;
   bool _hasSubmitted = false;
   bool _isCorrect = false;
+  // Once true, this question's aura is forfeited for good — they get one
+  // chance at the points, but can still retry the question itself.
+  bool _everAnsweredWrong = false;
 
   @override
   Widget build(BuildContext context) {
@@ -122,23 +125,34 @@ class _PracticeQuestionScreenState extends State<PracticeQuestionScreen> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFFD300).withValues(alpha: 0.12),
+                            color: (_everAnsweredWrong
+                                    ? AppColors.text3For(context)
+                                    : const Color(0xFFFFD300))
+                                .withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
-                                color: const Color(0xFFFFD300).withValues(alpha: 0.3)),
+                                color: (_everAnsweredWrong
+                                        ? AppColors.text3For(context)
+                                        : const Color(0xFFFFD300))
+                                    .withValues(alpha: 0.3)),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.bolt_rounded,
-                                  color: Color(0xFFFFD300), size: 14),
+                              Icon(Icons.bolt_rounded,
+                                  color: _everAnsweredWrong
+                                      ? AppColors.text3For(context)
+                                      : const Color(0xFFFFD300),
+                                  size: 14),
                               const SizedBox(width: 2),
                               Text(
-                                '+$auraReward Aura',
+                                _everAnsweredWrong ? '+0 Aura' : '+$auraReward Aura',
                                 style: GoogleFonts.plusJakartaSans(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w800,
-                                  color: const Color(0xFFFFD300),
+                                  color: _everAnsweredWrong
+                                      ? AppColors.text3For(context)
+                                      : const Color(0xFFFFD300),
                                 ),
                               ),
                             ],
@@ -339,7 +353,9 @@ class _PracticeQuestionScreenState extends State<PracticeQuestionScreen> {
                                 const SizedBox(width: 8),
                                 Text(
                                   _isCorrect
-                                      ? 'Correct! (+${practiceProvider.getAuraForQuestion(widget.question.id)} Aura)'
+                                      ? (_everAnsweredWrong
+                                          ? 'Correct! (+0 Aura — already missed once)'
+                                          : 'Correct! (+${practiceProvider.getAuraForQuestion(widget.question.id)} Aura)')
                                       : 'Incorrect! (+0 Aura)',
                                   style: GoogleFonts.plusJakartaSans(
                                     fontSize: 15,
@@ -474,6 +490,7 @@ class _PracticeQuestionScreenState extends State<PracticeQuestionScreen> {
     setState(() {
       _hasSubmitted = true;
       _isCorrect = correct;
+      if (!correct) _everAnsweredWrong = true;
     });
 
     if (correct) {
@@ -483,11 +500,14 @@ class _PracticeQuestionScreenState extends State<PracticeQuestionScreen> {
       final isNewCompletion = await practiceProvider.completeQuestion(
         widget.question.id,
         authProvider: authProvider,
+        awardAura: !_everAnsweredWrong,
       );
 
       if (!mounted) return;
 
-      final auraEarned = practiceProvider.getAuraForQuestion(widget.question.id);
+      final auraEarned = _everAnsweredWrong
+          ? 0
+          : practiceProvider.getAuraForQuestion(widget.question.id);
 
       if (isNewCompletion) {
         // ignore: use_build_context_synchronously

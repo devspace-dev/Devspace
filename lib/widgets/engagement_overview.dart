@@ -651,43 +651,47 @@ class _RgbOutlineCardState extends State<_RgbOutlineCard>
   Widget build(BuildContext context) {
     const radius = 18.0;
 
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, _) {
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(1.4),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(radius),
-            gradient: SweepGradient(
-              transform: GradientRotation(_controller.value * math.pi * 2),
-              colors: const [
-                Color(0xFFFF4D6D),
-                Color(0xFFFFD166),
-                Color(0xFF06D6A0),
-                Color(0xFF00D1FF),
-                Color(0xFF8B5CF6),
-                Color(0xFFFF4D6D),
+    // Isolates the continuous 60fps gradient-rotation repaint to this
+    // widget's own layer, so it doesn't force sibling/ancestor repaints.
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(1.4),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(radius),
+              gradient: SweepGradient(
+                transform: GradientRotation(_controller.value * math.pi * 2),
+                colors: const [
+                  Color(0xFFFF4D6D),
+                  Color(0xFFFFD166),
+                  Color(0xFF06D6A0),
+                  Color(0xFF00D1FF),
+                  Color(0xFF8B5CF6),
+                  Color(0xFFFF4D6D),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.18),
+                  blurRadius: 20,
+                  spreadRadius: 1,
+                ),
               ],
             ),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.18),
-                blurRadius: 20,
-                spreadRadius: 1,
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.bg2For(context),
+                borderRadius: BorderRadius.circular(radius - 1),
               ),
-            ],
-          ),
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.bg2For(context),
-              borderRadius: BorderRadius.circular(radius - 1),
+              child: widget.child,
             ),
-            child: widget.child,
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }

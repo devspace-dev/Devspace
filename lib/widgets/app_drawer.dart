@@ -3,15 +3,15 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
-import '../models/roadmap_model.dart';
+import '../data/roadmap_directory.dart';
 import '../providers/auth_provider.dart';
 import '../screens/aura_board_screen.dart';
 import '../screens/daily_challenge_screen.dart';
 import '../screens/founder_tools_screen.dart';
-import '../screens/learning_roadmap_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/practice_map_screen.dart';
+import '../screens/roadmap_directory_screen.dart';
 import '../theme/app_colors.dart';
 import 'user_avatar.dart';
 
@@ -23,15 +23,9 @@ class DevSpaceDrawer extends StatefulWidget {
 }
 
 class _DevSpaceDrawerState extends State<DevSpaceDrawer> {
-  bool _showAllResources = false;
-
   @override
   Widget build(BuildContext context) {
     final me = context.watch<AuthProvider>().currentUserOrNull;
-
-    final visibleRoadmaps = _showAllResources
-        ? kLearningRoadmaps
-        : kLearningRoadmaps.take(2).toList();
 
     return Drawer(
       backgroundColor: AppColors.bgFor(context),
@@ -131,7 +125,7 @@ class _DevSpaceDrawerState extends State<DevSpaceDrawer> {
               child: ListView(
                 padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                 children: [
-                  // --- Resources For You Section ---
+                  // --- Roadmaps Section ---
                   Padding(
                     padding: const EdgeInsets.only(left: 8, top: 8, bottom: 10),
                     child: Row(
@@ -143,7 +137,7 @@ class _DevSpaceDrawerState extends State<DevSpaceDrawer> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'Resources for you',
+                          'Roadmaps',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 13,
                             fontWeight: FontWeight.w800,
@@ -155,119 +149,86 @@ class _DevSpaceDrawerState extends State<DevSpaceDrawer> {
                     ),
                   ),
 
-                  ...visibleRoadmaps.map((roadmap) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Material(
-                        color: AppColors.bg2For(context),
-                        borderRadius: BorderRadius.circular(14),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(14),
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            Navigator.pop(context);
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    LearningRoadmapScreen(roadmap: roadmap),
-                              ),
-                            );
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: roadmap.color.withValues(alpha: 0.12),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    roadmap.icon,
-                                    color: roadmap.color,
-                                    size: 18,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        roadmap.title,
-                                        style: GoogleFonts.plusJakartaSans(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w800,
-                                          color: AppColors.textFor(context),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        roadmap.subtitle,
-                                        style: GoogleFonts.plusJakartaSans(
-                                          fontSize: 11,
-                                          color: AppColors.text3For(context),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Icon(
-                                  Icons.chevron_right_rounded,
-                                  color: AppColors.text4For(context),
-                                  size: 18,
-                                ),
-                              ],
-                            ),
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(18),
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const RoadmapDirectoryScreen(),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(18),
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              AppColors.primary.withValues(alpha: 0.16),
+                              AppColors.primary.withValues(alpha: 0.04),
+                            ],
+                          ),
+                          border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.25),
                           ),
                         ),
-                      ),
-                    );
-                  }),
-
-                  if (kLearningRoadmaps.length > 2)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(12),
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            setState(() {
-                              _showAllResources = !_showAllResources;
-                            });
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                                vertical: 8, horizontal: 12),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  _showAllResources ? 'Show Less' : 'Show More',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                Icon(
-                                  _showAllResources
-                                      ? Icons.keyboard_arrow_up_rounded
-                                      : Icons.keyboard_arrow_down_rounded,
-                                  size: 18,
-                                  color: AppColors.primary,
-                                ),
-                              ],
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.16),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.travel_explore_rounded,
+                                color: AppColors.primary,
+                                size: 22,
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Explore Roadmaps',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.textFor(context),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    '${kRoadmapDirectory.length}+ guides from roadmap.sh — search by stack',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 11.5,
+                                      color: AppColors.text3For(context),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(
+                              Icons.chevron_right_rounded,
+                              color: AppColors.primary,
+                              size: 20,
+                            ),
+                          ],
                         ),
                       ),
                     ),
+                  ),
 
                   const SizedBox(height: 16),
                   Divider(

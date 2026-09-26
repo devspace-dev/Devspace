@@ -40,6 +40,9 @@ class _DuelScreenState extends State<DuelScreen> {
   DuelPhase _phase = DuelPhase.countdown;
   int _countdown = 3;
   late int _timeRemaining;
+  // Mirrors _timeRemaining for the timer display only, so the 1s countdown
+  // tick doesn't force a full-screen rebuild via setState every second.
+  final ValueNotifier<int> _timeRemainingNotifier = ValueNotifier<int>(0);
   Timer? _timer;
   Timer? _scoreSyncTimer;
   RealtimeChannel? _matchSubscription;
@@ -77,6 +80,7 @@ class _DuelScreenState extends State<DuelScreen> {
     } else {
       _timeRemaining = 45;
     }
+    _timeRemainingNotifier.value = _timeRemaining;
 
     if (modeUpper == 'REFLEX MODE' || modeUpper == 'REFLEX' || modeUpper == 'TEAM DUELS' || modeUpper == 'TEAM BATTLE') {
       _questions.addAll(reflexQuestions.toList()..shuffle());
@@ -216,6 +220,7 @@ class _DuelScreenState extends State<DuelScreen> {
     _timer?.cancel();
     _scoreSyncTimer?.cancel();
     _matchSubscription?.unsubscribe();
+    _timeRemainingNotifier.dispose();
     _answerController.dispose();
     _answerFocus.dispose();
     super.dispose();
@@ -247,11 +252,8 @@ class _DuelScreenState extends State<DuelScreen> {
         return;
       }
       try {
-        final matchData = await Supabase.instance.client
-            .from('arena_matches')
-            .select('player1_score, player2_score')
-            .eq('id', widget.matchId)
-            .maybeSingle();
+        final matchData =
+            await SupabaseService.instance.getArenaMatchScores(widget.matchId);
         if (matchData != null && mounted && _phase == DuelPhase.playing) {
           final newOppScore = widget.isPlayer1
               ? (matchData['player2_score'] as num?)?.toInt() ?? _opponentScore
@@ -278,22 +280,25 @@ class _DuelScreenState extends State<DuelScreen> {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
       if (_timeRemaining > 0) {
-        setState(() {
-          _timeRemaining--;
-          
-          final isMockOpponent = widget.opponent.id == 'solo' || widget.opponent.handle == 'challenger';
-          if (isMockOpponent) {
-            if (_timeRemaining % 8 == 0 && _timeRemaining > 0) {
-              if (DateTime.now().millisecond % 10 < 6) {
-                _opponentPlayerScore += 15;
-                _opponentScore = _opponentPlayerScore + _opponentTeammateScore;
-                SupabaseService.instance
-                    .updateArenaScore(widget.matchId, !widget.isPlayer1, _opponentScore);
-                _showStatusMessage('${widget.opponent.name} scored! +15');
-              }
+        // Decrement without setState: the timer display listens to
+        // _timeRemainingNotifier directly, so a plain per-second tick no
+        // longer forces a full-screen rebuild.
+        _timeRemaining--;
+        _timeRemainingNotifier.value = _timeRemaining;
+
+        final isMockOpponent = widget.opponent.id == 'solo' || widget.opponent.handle == 'challenger';
+        if (isMockOpponent) {
+          if (_timeRemaining % 8 == 0 && _timeRemaining > 0) {
+            if (DateTime.now().millisecond % 10 < 6) {
+              _opponentPlayerScore += 15;
+              _opponentScore = _opponentPlayerScore + _opponentTeammateScore;
+              SupabaseService.instance
+                  .updateArenaScore(widget.matchId, !widget.isPlayer1, _opponentScore);
+              // Rebuilds the score display too, since it shares this setState.
+              _showStatusMessage('${widget.opponent.name} scored! +15');
             }
           }
-        });
+        }
         _myScoreTimeline.add(_myScore);
         _opponentScoreTimeline.add(_opponentScore);
       } else {
@@ -314,11 +319,8 @@ class _DuelScreenState extends State<DuelScreen> {
     }
 
     try {
-      final matchData = await Supabase.instance.client
-          .from('arena_matches')
-          .select('player1_score, player2_score')
-          .eq('id', widget.matchId)
-          .maybeSingle();
+      final matchData =
+          await SupabaseService.instance.getArenaMatchScores(widget.matchId);
       if (matchData != null) {
         final finalOppScore = widget.isPlayer1
             ? (matchData['player2_score'] as num?)?.toInt() ?? _opponentScore
@@ -637,12 +639,15 @@ class _DuelScreenState extends State<DuelScreen> {
                         const Icon(Icons.timer_rounded,
                             color: Colors.cyanAccent, size: 16),
                         const SizedBox(width: 6),
-                        Text(
-                           _formatTime(_timeRemaining),
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.cyanAccent,
+                        ValueListenableBuilder<int>(
+                          valueListenable: _timeRemainingNotifier,
+                          builder: (context, timeRemaining, _) => Text(
+                            _formatTime(timeRemaining),
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.cyanAccent,
+                            ),
                           ),
                         ),
                       ],

@@ -39,7 +39,6 @@ class _ArenaScreenState extends State<ArenaScreen> {
           'subtitle':
               'Attempt a daily logical question and get some aura boost.',
           'mode': 'DAILY MISSION',
-          'activePlayers': 'Available',
           'icon': Icons.emoji_events_rounded,
           'duration': '24 Hrs',
           'difficulty': 'Daily',
@@ -51,7 +50,6 @@ class _ArenaScreenState extends State<ArenaScreen> {
           'subtitle':
               'Easy → Medium → Hard → Ultra. Practice questions at your own pace.',
           'mode': 'PRACTICE MODE',
-          'activePlayers': 'Untimed',
           'icon': Icons.route_rounded,
           'duration': 'Untimed',
           'difficulty': '4 Levels',
@@ -70,7 +68,6 @@ class _ArenaScreenState extends State<ArenaScreen> {
           'title': 'Reflex Mode',
           'subtitle': 'Quick code. Quick hands.\nFastest fingers win.',
           'mode': 'REFLEX MODE',
-          'activePlayers': '125 playing',
           'icon': Icons.bolt_rounded,
           'duration': '1 Min',
           'difficulty': 'Medium',
@@ -81,23 +78,11 @@ class _ArenaScreenState extends State<ArenaScreen> {
           'title': 'Code Combat',
           'subtitle': 'Be the first to answer each technical question.',
           'mode': 'CODE COMBAT',
-          'activePlayers': '42 playing',
           'icon': Icons.terminal_rounded,
           'duration': '1 Min',
           'difficulty': 'Hard',
           'reward': '+50 Aura',
           'tag': 'Ranked',
-        },
-        {
-          'title': 'Team Duels',
-          'subtitle': 'Team up with your friends and compete together.',
-          'mode': 'TEAM DUELS',
-          'activePlayers': '0 playing',
-          'icon': Icons.groups_rounded,
-          'duration': '2 Min',
-          'difficulty': 'Co-op',
-          'reward': '+40 Aura',
-          'tag': 'Squads',
         },
       ]
     },
@@ -184,7 +169,6 @@ class _ArenaScreenState extends State<ArenaScreen> {
                     subtitle:
                         'Attempt a daily logical question and get some aura boost.',
                     accentColor: const Color(0xFFFF375F),
-                    activePlayers: 'Available',
                     cardIcon: Icons.emoji_events_rounded,
                     duration: '24 Hrs',
                     difficulty: 'Daily',
@@ -224,7 +208,6 @@ class _ArenaScreenState extends State<ArenaScreen> {
                         title: card['title'] as String,
                         subtitle: card['subtitle'] as String,
                         accentColor: categoryColor,
-                        activePlayers: card['activePlayers'] as String,
                         cardIcon: card['icon'] as IconData,
                         duration: card['duration'] as String,
                         difficulty: card['difficulty'] as String,
@@ -368,17 +351,6 @@ class _ArenaScreenState extends State<ArenaScreen> {
                 child: _buildProfileStat(
                   label: 'Daily Streak',
                   value: '${me.currentStreak}',
-                ),
-              ),
-              Container(
-                width: 1,
-                height: 30,
-                color: AppColors.borderFor(context).withValues(alpha: 0.5),
-              ),
-              Expanded(
-                child: _buildProfileStat(
-                  label: 'Rank',
-                  value: 'Top 1%',
                 ),
               ),
             ],
@@ -586,6 +558,7 @@ class _ArenaScreenState extends State<ArenaScreen> {
   Widget _buildOptionCards(BuildContext context) {
     final engagement = context.watch<EngagementProvider>();
     final history = engagement.auraHistory;
+    final scoreReady = !engagement.isLoading || history.isNotEmpty;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -684,14 +657,29 @@ class _ArenaScreenState extends State<ArenaScreen> {
                             color: Colors.black,
                           ),
                           const SizedBox(width: 4),
-                          Text(
-                            dynamicScore.toString(),
-                            style: GoogleFonts.plusJakartaSans(
-                              color: Colors.black,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
+                          scoreReady
+                              ? Text(
+                                  dynamicScore.toString(),
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: Colors.black,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                )
+                              : SizedBox(
+                                  width: 10,
+                                  height: 9,
+                                  child: Center(
+                                    child: SizedBox(
+                                      width: 8,
+                                      height: 8,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 1.4,
+                                        color: Colors.black.withValues(alpha: 0.6),
+                                      ),
+                                    ),
+                                  ),
+                                ),
                         ],
                       ),
                     )
@@ -726,7 +714,6 @@ class _ArenaScreenState extends State<ArenaScreen> {
     required String title,
     required String subtitle,
     required Color accentColor,
-    required String activePlayers,
     required IconData cardIcon,
     required String duration,
     required String difficulty,

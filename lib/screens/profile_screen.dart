@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -120,12 +121,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     ClipOval(
                       child: user.isImageAvatar
-                          ? Image.network(
-                              StorageService.instance.resolvePublicUrl(user.avatar),
+                          ? CachedNetworkImage(
+                              imageUrl: StorageService.instance.resolvePublicUrl(user.avatar),
                               width: 220,
                               height: 220,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => _AvatarPreviewFallback(user: user),
+                              errorWidget: (_, __, ___) => _AvatarPreviewFallback(user: user),
                             )
                           : _AvatarPreviewFallback(user: user),
                     ),

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../models/comment_model.dart';
 import '../models/post_model.dart';
 import '../models/user_model.dart';
+import '../services/analytics_service.dart';
 import '../services/auth_service.dart';
 import '../services/storage_service.dart';
 import '../services/supabase_service.dart';
@@ -232,7 +233,7 @@ class PostsProvider extends ChangeNotifier {
         }
       }
 
-      await SupabaseService.instance.createPost(
+      final newPostId = await SupabaseService.instance.createPost(
         userId: userId,
         content: trimmedContent,
         tags: normalizedTags,
@@ -241,6 +242,14 @@ class PostsProvider extends ChangeNotifier {
         documentName: docName,
         quotePostId: quotePostId,
       );
+      final postType = quotePostId != null
+          ? 'quote'
+          : uploadedImageUrl.isNotEmpty
+              ? 'image'
+              : uploadedDocUrl.isNotEmpty
+                  ? 'document'
+                  : 'text';
+      AnalyticsService.instance.logPostCreated(newPostId, postType);
       await refreshFeed();
       return PostCreateResult(
         success: true,
@@ -319,6 +328,7 @@ class PostsProvider extends ChangeNotifier {
     try {
       if (nextIsLiked) {
         await SupabaseService.instance.likePost(postId, userId);
+        AnalyticsService.instance.logPostLiked(postId);
       } else {
         await SupabaseService.instance.unlikePost(postId, userId);
       }

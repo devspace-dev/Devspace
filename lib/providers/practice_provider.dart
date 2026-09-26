@@ -6,9 +6,14 @@ import 'auth_provider.dart';
 class PracticeProvider extends ChangeNotifier {
   static const String _completedKey = 'practice_completed_ids';
   static const String _syncedKey = 'practice_synced_ids';
+  static const String _forfeitedAuraKey = 'practice_forfeited_aura_ids';
 
   final Set<String> _completedQuestionIds = {};
   final Set<String> _syncedQuestionIds = {};
+  // Questions completed after at least one wrong attempt: aura for these is
+  // permanently forfeited, even though the question itself still counts as
+  // solved and unlocks the next one.
+  final Set<String> _forfeitedAuraQuestionIds = {};
   int _selectedSectionIndex = 0;
   String _selectedTechStack = 'All';
   bool _isLoading = true;
@@ -36,10 +41,16 @@ class PracticeProvider extends ChangeNotifier {
   int get totalAuraEarned {
     int aura = 0;
     for (final id in _completedQuestionIds) {
+      if (_forfeitedAuraQuestionIds.contains(id)) continue;
       aura += getAuraForQuestion(id);
     }
     return aura;
   }
+
+  /// True once a question has been answered incorrectly at least once —
+  /// aura for it is forfeited even after it's eventually solved.
+  bool isAuraForfeited(String questionId) =>
+      _forfeitedAuraQuestionIds.contains(questionId);
 
   Future<void> _loadProgress() async {
     try {
@@ -51,6 +62,10 @@ class PracticeProvider extends ChangeNotifier {
       final savedSynced = prefs.getStringList(_syncedKey);
       if (savedSynced != null) {
         _syncedQuestionIds.addAll(savedSynced);
+      }
+      final savedForfeited = prefs.getStringList(_forfeitedAuraKey);
+      if (savedForfeited != null) {
+        _forfeitedAuraQuestionIds.addAll(savedForfeited);
       }
     } catch (e) {
       debugPrint('Error loading practice progress: $e');
@@ -65,31 +80,43 @@ class PracticeProvider extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setStringList(_completedKey, _completedQuestionIds.toList());
       await prefs.setStringList(_syncedKey, _syncedQuestionIds.toList());
+      await prefs.setStringList(_forfeitedAuraKey, _forfeitedAuraQuestionIds.toList());
     } catch (e) {
       debugPrint('Error saving practice progress: $e');
     }
   }
 
-  /// Syncs any completed practice questions that haven't been credited to user's main Aura yet.
+  /// Syncs any completed practice questions that haven't been credited to
+  /// the user's server-side Aura yet (e.g. completed while offline). Calls
+  /// the same server RPC completeQuestion uses, so the leaderboard actually
+  /// reflects it — a purely local aura bump here would be lost the next
+  /// time the user's real aura is fetched from the server.
   Future<void> syncUnsyncedQuestions(AuthProvider? authProvider) async {
     if (authProvider == null || authProvider.currentUserOrNull == null) return;
 
-    int totalToSync = 0;
-    final List<String> newSynced = [];
+    final unsynced = _completedQuestionIds
+        .where((id) => !_syncedQuestionIds.contains(id))
+        .toList();
+    if (unsynced.isEmpty) return;
 
-    for (final id in _completedQuestionIds) {
-      if (!_syncedQuestionIds.contains(id)) {
-        totalToSync += getAuraForQuestion(id);
-        newSynced.add(id);
+    int? lastServerAura;
+    for (final id in unsynced) {
+      final auraReward =
+          _forfeitedAuraQuestionIds.contains(id) ? 0 : getAuraForQuestion(id);
+      final result = await SupabaseService.instance
+          .submitPracticeCompletion(id, auraReward: auraReward);
+      if (result == null) continue; // retry on the next sync pass
+      _syncedQuestionIds.add(id);
+      if (result['aura'] != null) {
+        lastServerAura = (result['aura'] as num).toInt();
       }
     }
 
-    if (totalToSync > 0) {
-      _syncedQuestionIds.addAll(newSynced);
-      authProvider.addAura(totalToSync);
-      await _saveProgress();
-      notifyListeners();
+    if (lastServerAura != null) {
+      authProvider.updateLocalAura(lastServerAura);
     }
+    await _saveProgress();
+    notifyListeners();
   }
 
   void setSelectedSection(int index) {
@@ -144,9 +171,24 @@ class PracticeProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> completeQuestion(String questionId, {AuthProvider? authProvider}) async {
+  /// Marks [questionId] solved. [awardAura] should be false when the user
+  /// got it wrong at least once before answering correctly — the question
+  /// still counts as completed (and unlocks the next one), but aura for it
+  /// is forfeited for good: one chance at the points, unlimited chances at
+  /// the question itself.
+  Future<bool> completeQuestion(
+    String questionId, {
+    AuthProvider? authProvider,
+    bool awardAura = true,
+  }) async {
     final bool isNewCompletion = !_completedQuestionIds.contains(questionId);
-    final int auraReward = getAuraForQuestion(questionId);
+
+    if (isNewCompletion && !awardAura) {
+      _forfeitedAuraQuestionIds.add(questionId);
+    }
+    final bool isForfeited = _forfeitedAuraQuestionIds.contains(questionId);
+    final int auraReward = isForfeited ? 0 : getAuraForQuestion(questionId);
+
     if (isNewCompletion) {
       _completedQuestionIds.add(questionId);
       await _saveProgress();
@@ -185,6 +227,7 @@ class PracticeProvider extends ChangeNotifier {
   Future<void> resetProgress() async {
     _completedQuestionIds.clear();
     _syncedQuestionIds.clear();
+    _forfeitedAuraQuestionIds.clear();
     await _saveProgress();
     notifyListeners();
   }

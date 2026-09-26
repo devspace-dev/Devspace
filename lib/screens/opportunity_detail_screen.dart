@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
@@ -7,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../models/event_access_model.dart';
 import '../theme/app_colors.dart';
+import '../utils/opportunity_banner.dart';
 import '../widgets/app_ui_kit.dart';
 
 class OpportunityDetailScreen extends StatelessWidget {
@@ -86,7 +88,9 @@ class OpportunityDetailScreen extends StatelessWidget {
   }
 
   Widget _buildAppBar(BuildContext context, Color primaryColor) {
-    final hasBanner = opportunity.bannerUrl != null && opportunity.bannerUrl!.trim().isNotEmpty;
+    final hasBanner = opportunity.bannerUrl != null &&
+        opportunity.bannerUrl!.trim().isNotEmpty &&
+        !isPlaceholderPhotoUrl(opportunity.bannerUrl);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return SliverAppBar(
       expandedHeight: 250,
@@ -127,10 +131,10 @@ class OpportunityDetailScreen extends StatelessWidget {
             if (hasBanner)
               _isLogoUrl(opportunity.bannerUrl)
                   ? _buildLogoBanner(context, opportunity.bannerUrl!, isDark)
-                  : Image.network(
-                      opportunity.bannerUrl!,
+                  : CachedNetworkImage(
+                      imageUrl: opportunity.bannerUrl!,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => _buildDefaultBanner(context, primaryColor),
+                      errorWidget: (context, url, error) => _buildDefaultBanner(context, primaryColor),
                     )
             else
               _buildDefaultBanner(context, primaryColor),
@@ -398,11 +402,12 @@ class OpportunityDetailScreen extends StatelessWidget {
   }
 
   Widget _buildMetaCards(BuildContext context, Color primaryColor) {
+    final timeLeft = _getTimeLeft(opportunity);
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       crossAxisCount: 2,
-      childAspectRatio: 2.3,
+      childAspectRatio: 2.0,
       mainAxisSpacing: 12,
       crossAxisSpacing: 12,
       children: [
@@ -418,10 +423,13 @@ class OpportunityDetailScreen extends StatelessWidget {
           value: opportunity.location ?? 'Remote',
           color: primaryColor,
         ),
-        const _MetaItem(
-          icon: Icons.emoji_events_rounded,
-          label: 'REWARD',
-          value: 'Swags & Certs',
+        // Real data only: time left when we know the end date, else the type.
+        _MetaItem(
+          icon: timeLeft != null
+              ? Icons.timer_outlined
+              : Icons.local_offer_outlined,
+          label: timeLeft != null ? 'TIME LEFT' : 'TYPE',
+          value: timeLeft ?? opportunity.type,
           color: Colors.amber,
         ),
         _MetaItem(
@@ -664,10 +672,10 @@ class OpportunityDetailScreen extends StatelessWidget {
           Positioned.fill(
             child: Opacity(
               opacity: 0.12,
-              child: Image.network(
-                logoUrl,
+              child: CachedNetworkImage(
+                imageUrl: logoUrl,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const SizedBox(),
+                errorWidget: (_, __, ___) => const SizedBox(),
               ),
             ),
           ),
@@ -682,10 +690,10 @@ class OpportunityDetailScreen extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.all(28.0),
-            child: Image.network(
-              logoUrl,
+            child: CachedNetworkImage(
+              imageUrl: logoUrl,
               fit: BoxFit.contain,
-              errorBuilder: (context, url, error) => const Icon(
+              errorWidget: (context, url, error) => const Icon(
                 Icons.image_outlined,
                 color: Colors.grey,
                 size: 48,
@@ -697,20 +705,31 @@ class OpportunityDetailScreen extends StatelessWidget {
     );
   }
 
+  // The tile is labelled DEADLINE, so prefer the real end date over the
+  // free-text date range; fall back to the text, then "TBA".
   String _getFriendlyDeadline(EventAccessModel opportunity) {
+    final parsed = DateTime.tryParse(opportunity.endDate ?? '')?.toLocal();
+    if (parsed != null) {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return '${months[parsed.month - 1]} ${parsed.day}, ${parsed.year}';
+    }
     if (opportunity.date != null && opportunity.date!.trim().isNotEmpty) {
       return opportunity.date!;
     }
-    if (opportunity.endDate != null && opportunity.endDate!.trim().isNotEmpty) {
-      try {
-        final parsed = DateTime.tryParse(opportunity.endDate!);
-        if (parsed != null) {
-          final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-          return '${months[parsed.month - 1]} ${parsed.day}, ${parsed.year}';
-        }
-      } catch (_) {}
-    }
     return 'TBA';
+  }
+
+  String? _getTimeLeft(EventAccessModel opportunity) {
+    final end = DateTime.tryParse(opportunity.endDate ?? '')?.toLocal();
+    if (end == null) return null;
+    final now = DateTime.now();
+    final days = DateTime(end.year, end.month, end.day)
+        .difference(DateTime(now.year, now.month, now.day))
+        .inDays;
+    if (days < 0) return 'Ended';
+    if (days == 0) return 'Closes today';
+    if (days == 1) return 'Closes tomorrow';
+    return '$days days left';
   }
 }
 
@@ -767,12 +786,13 @@ class _MetaItem extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   value,
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.plusJakartaSans(
                     color: AppColors.textFor(context),
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
+                    height: 1.2,
                   ),
                 ),
               ],

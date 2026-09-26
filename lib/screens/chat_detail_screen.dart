@@ -15,6 +15,7 @@ import '../models/user_model.dart';
 import '../theme/app_colors.dart';
 import '../widgets/user_avatar.dart';
 import '../services/storage_service.dart';
+import '../widgets/app_state_widgets.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'profile_screen.dart';
@@ -376,8 +377,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 }
 
                 if (!snap.hasData) {
-                  return const Center(
-                      child: CircularProgressIndicator.adaptive());
+                  return const AppLoadingState(
+                    title: 'Loading messages',
+                    message: 'Fetching your conversation...',
+                  );
                 }
 
                 final messages = snap.data!;
@@ -653,7 +656,7 @@ class _OptionItem extends StatelessWidget {
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           shape: BoxShape.circle,
         ),
         child: Icon(icon, color: color),
@@ -716,7 +719,7 @@ class _MessageBubble extends StatelessWidget {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 5,
                     offset: const Offset(0, 2),
                   ),
@@ -747,7 +750,7 @@ class _MessageBubble extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 10,
                           color: isMe
-                              ? Colors.white.withOpacity(0.7)
+                              ? Colors.white.withValues(alpha: 0.7)
                               : AppColors.text3For(context),
                           fontWeight: FontWeight.w500,
                         ),
@@ -761,7 +764,7 @@ class _MessageBubble extends StatelessWidget {
                           size: 14,
                           color: message.isRead
                               ? Colors.cyanAccent
-                              : Colors.white.withOpacity(0.7),
+                              : Colors.white.withValues(alpha: 0.7),
                         ),
                       ],
                     ],
@@ -843,7 +846,7 @@ class _TypingIndicatorState extends State<_TypingIndicator>
                 height: 6,
                 margin: const EdgeInsets.symmetric(horizontal: 2),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.3 + (value * 0.7)),
+                  color: AppColors.primary.withValues(alpha: 0.3 + (value * 0.7)),
                   shape: BoxShape.circle,
                 ),
               );

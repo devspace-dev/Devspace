@@ -28,13 +28,17 @@ class PostCard extends StatefulWidget {
 }
 
 class _PostCardState extends State<PostCard> {
-  bool _showComments = false;
+  // Drives the comments toggle via ValueListenableBuilder instead of
+  // setState, so opening/closing comments doesn't rebuild the whole card
+  // (header, image, tags) — only the toggle icon and comments section do.
+  final ValueNotifier<bool> _showCommentsNotifier = ValueNotifier<bool>(false);
   final _commentCtrl = TextEditingController();
   CommentModel? _replyingTo;
 
   @override
   void dispose() {
     _commentCtrl.dispose();
+    _showCommentsNotifier.dispose();
     super.dispose();
   }
 
@@ -303,27 +307,30 @@ class _PostCardState extends State<PostCard> {
                     },
                   ),
                   const SizedBox(width: 12),
-                  _ActionBtn(
-                    icon: Icons.chat_bubble_outline_rounded,
-                    activeIcon: Icons.chat_bubble_rounded,
-                    count: post.comments,
-                    active: _showComments,
-                    label: 'Comment',
-                    activeColor: AppColors.textFor(context),
-                    onTap: () {
-                      HapticFeedback.lightImpact();
-                      final nextShowComments = !_showComments;
-                      setState(() => _showComments = nextShowComments);
-                      if (nextShowComments) {
-                        context.read<PostsProvider>().fetchComments(post.id).then((_) {
-                          if (mounted) {
-                            final comments = context.read<PostsProvider>().commentsForPost(post.id);
-                            final userIds = comments.map((c) => c.userId).toList();
-                            context.read<UsersProvider>().fetchAndCacheUsers(userIds);
-                          }
-                        });
-                      }
-                    },
+                  ValueListenableBuilder<bool>(
+                    valueListenable: _showCommentsNotifier,
+                    builder: (context, showComments, _) => _ActionBtn(
+                      icon: Icons.chat_bubble_outline_rounded,
+                      activeIcon: Icons.chat_bubble_rounded,
+                      count: post.comments,
+                      active: showComments,
+                      label: 'Comment',
+                      activeColor: AppColors.textFor(context),
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        final nextShowComments = !showComments;
+                        _showCommentsNotifier.value = nextShowComments;
+                        if (nextShowComments) {
+                          context.read<PostsProvider>().fetchComments(post.id).then((_) {
+                            if (mounted) {
+                              final comments = context.read<PostsProvider>().commentsForPost(post.id);
+                              final userIds = comments.map((c) => c.userId).toList();
+                              context.read<UsersProvider>().fetchAndCacheUsers(userIds);
+                            }
+                          });
+                        }
+                      },
+                    ),
                   ),
                   const SizedBox(width: 12),
                   _ActionBtn(
@@ -363,8 +370,11 @@ class _PostCardState extends State<PostCard> {
                 ],
               ),
             ),
-            if (_showComments) ...[
-              Container(
+            ValueListenableBuilder<bool>(
+              valueListenable: _showCommentsNotifier,
+              builder: (context, showComments, _) {
+                if (!showComments) return const SizedBox.shrink();
+                return Container(
                 margin: const EdgeInsets.only(top: 14),
                 padding: const EdgeInsets.only(top: 14),
                 decoration: BoxDecoration(
@@ -491,8 +501,9 @@ class _PostCardState extends State<PostCard> {
                     ],
                   ],
                 ),
-              ).animate().fadeIn(duration: 200.ms),
-            ],
+              ).animate().fadeIn(duration: 200.ms);
+              },
+            ),
           ],
         ),
       ),
@@ -965,7 +976,7 @@ class _QuotedPostPreviewState extends State<_QuotedPostPreview> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: AppColors.bg3For(context).withOpacity(0.3),
+          color: AppColors.bg3For(context).withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.borderFor(context), width: 0.8),
         ),
@@ -1216,7 +1227,7 @@ class _PostDocumentPreview extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.bg2For(context),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.borderFor(context).withOpacity(0.5)),
+          border: Border.all(color: AppColors.borderFor(context).withValues(alpha: 0.5)),
         ),
         child: Row(
           children: [

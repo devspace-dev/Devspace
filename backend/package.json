@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "main": "src/index.js",
   "type": "module",
+  "scripts": {
+    "test": "node --test test/hackathonFilters.test.js"
+  },
   "dependencies": {
     "@google/generative-ai": "^0.3.0",
     "@supabase/supabase-js": "^2.39.0",

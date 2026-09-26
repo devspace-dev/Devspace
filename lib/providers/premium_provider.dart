@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../services/supabase_service.dart';
+
 class PremiumProvider extends ChangeNotifier {
   final _supabase = Supabase.instance.client;
+  final _service = SupabaseService.instance;
 
   bool _isPremium = false;
   String? _careerGoal;
@@ -26,11 +29,7 @@ class PremiumProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await _supabase
-          .from('users')
-          .select('career_goal, career_goal_selected, is_premium')
-          .eq('id', user.id)
-          .maybeSingle();
+      final response = await _service.fetchFullPremiumStatus(user.id);
 
       if (response != null) {
         _isPremium = response['is_premium'] ?? false;
@@ -39,11 +38,7 @@ class PremiumProvider extends ChangeNotifier {
       }
     } catch (e) {
       try {
-        final basicResponse = await _supabase
-            .from('users')
-            .select('is_premium')
-            .eq('id', user.id)
-            .maybeSingle();
+        final basicResponse = await _service.fetchBasicPremiumStatus(user.id);
         if (basicResponse != null) {
           _isPremium = basicResponse['is_premium'] ?? false;
         }
@@ -62,18 +57,11 @@ class PremiumProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      try {
-        await _supabase.rpc('activate_user_premium', params: {
-          'p_payment_id': paymentId,
-          'p_order_id': orderId,
-        });
-      } catch (rpcError) {
-        // Fallback for legacy DB schema before migration
-        await _supabase.from('users').update({
-          'is_premium': true,
-          'career_goal_selected': false,
-        }).eq('id', user.id);
-      }
+      await _service.activatePremium(
+        userId: user.id,
+        paymentId: paymentId,
+        orderId: orderId,
+      );
 
       _isPremium = true;
       _careerGoalSelected = false;
@@ -96,10 +84,7 @@ class PremiumProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _supabase.from('users').update({
-        'career_goal': goalId,
-        'career_goal_selected': true,
-      }).eq('id', user.id);
+      await _service.saveCareerGoal(userId: user.id, goalId: goalId);
 
       _careerGoal = goalId;
       _careerGoalSelected = true;

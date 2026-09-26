@@ -133,7 +133,12 @@ class UsersProvider extends ChangeNotifier {
   Future<UserModel?> getUser(String id) async {
     final existing = getUserById(id);
     if (existing != null) return existing;
-    return await SupabaseService.instance.getUserById(id);
+    final fetched = await SupabaseService.instance.getUserById(id);
+    if (fetched != null && getUserById(id) == null) {
+      _users.add(fetched);
+      notifyListeners();
+    }
+    return fetched;
   }
 
   Future<void> fetchAndCacheUsers(List<String> ids) async {
