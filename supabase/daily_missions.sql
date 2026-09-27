@@ -337,7 +337,7 @@ begin
 
   is_answer_correct := normalized_answer = normalized_correct_answer;
   awarded_points := case
-    when is_answer_correct then coalesce(mission_row.points_reward, 20)
+    when is_answer_correct then 20
     else 5
   end;
 

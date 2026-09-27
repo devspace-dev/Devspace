@@ -6,8 +6,8 @@ import 'package:provider/provider.dart';
 import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/users_provider.dart';
-import '../services/supabase_service.dart';
 import '../services/monthly_aura_service.dart';
+import '../services/supabase_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_ui_kit.dart';
 import '../widgets/user_avatar.dart';
@@ -21,15 +21,17 @@ class AuraBoardScreen extends StatefulWidget {
 }
 
 class _AuraBoardScreenState extends State<AuraBoardScreen> {
-  String _timeframe = 'All Time'; // 'Weekly', 'Monthly' or 'All Time'
+  // Two leaderboard boards:
+  // 1. 'Monthly' (starts from 0 every month and resets at the end of the month)
+  // 2. 'All Time' (stores total points earned across all time)
+  String _boardType = 'Monthly';
+
+  // Two scope sections in both leaderboards:
+  // true -> 'Global', false -> 'College'
   bool _isGlobal = true;
+
   Future<List<UserModel>>? _rankingFuture;
   int _lastUsersCount = -1;
-
-  @override
-  void initState() {
-    super.initState();
-  }
 
   @override
   void didChangeDependencies() {
@@ -39,6 +41,30 @@ class _AuraBoardScreenState extends State<AuraBoardScreen> {
       _lastUsersCount = usersCount;
       _rankingFuture = _loadRankedUsers();
     }
+  }
+
+  Future<List<UserModel>> _loadRankedUsers() async {
+    final currentUser = context.read<AuthProvider>().currentUserOrNull;
+    final collegeFilter = _isGlobal ? null : currentUser?.college;
+
+    try {
+      if (_boardType == 'Monthly') {
+        return await SupabaseService.instance
+            .getMonthlyAuraLeaderboard(college: collegeFilter);
+      } else {
+        return await SupabaseService.instance
+            .getAllTimeAuraLeaderboard(college: collegeFilter);
+      }
+    } catch (e) {
+      debugPrint('Leaderboard fetch failed: $e');
+      return currentUser != null ? [currentUser.copyWith(aura: 0)] : [];
+    }
+  }
+
+  void _refreshLeaderboard() {
+    setState(() {
+      _rankingFuture = _loadRankedUsers();
+    });
   }
 
   @override
@@ -59,61 +85,75 @@ class _AuraBoardScreenState extends State<AuraBoardScreen> {
       body: AppGradientBackground(
         child: SafeArea(
           bottom: false,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(0, 0, 0, 100),
-            physics: const BouncingScrollPhysics(),
-            children: [
-              // Header
-              _buildHeader(context, canPop),
-              _buildMonthlyResetBanner(context),
-              FutureBuilder<List<UserModel>>(
-                future: _rankingFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState != ConnectionState.done) {
-                    return const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(40),
-                        child: CircularProgressIndicator.adaptive(),
-                      ),
-                    );
-                  }
-
-                  final ranked = snapshot.data ?? const <UserModel>[];
-                  final top3 = ranked.take(3).toList();
-                  final remaining = ranked.skip(3).toList();
-
-                  if (ranked.isEmpty) {
-                    return Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Text(
-                        'No aura activity found for this timeframe yet.',
-                        style: TextStyle(
-                          color: AppColors.text3For(context),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    );
-                  }
-
-                  return Column(
-                    children: [
-                      _buildPodium(context, top3),
-                      const SizedBox(height: 24),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Column(
-                          children: remaining.map((u) {
-                            final index = ranked.indexOf(u);
-                            final isMe = u.id == currentUser?.id;
-                            return _buildRankItem(context, u, index, isMe);
-                          }).toList(),
-                        ),
-                      ),
-                    ],
-                  );
-                },
+          child: RefreshIndicator.adaptive(
+            color: AppColors.primary,
+            onRefresh: () async {
+              _refreshLeaderboard();
+              await _rankingFuture;
+            },
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(0, 0, 0, 100),
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
               ),
-            ],
+              children: [
+                _buildHeader(context, canPop),
+                _buildBoardInfoBanner(context),
+                FutureBuilder<List<UserModel>>(
+                  future: _rankingFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState != ConnectionState.done) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(40),
+                          child: CircularProgressIndicator.adaptive(),
+                        ),
+                      );
+                    }
+
+                    final ranked = snapshot.data ?? const <UserModel>[];
+                    final top3 = ranked.take(3).toList();
+                    final remaining = ranked.skip(3).toList();
+
+                    if (ranked.isEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          _isGlobal
+                              ? 'No builders found yet.'
+                              : 'No builders found for your college yet.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: AppColors.text3For(context),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      );
+                    }
+
+                    return Column(
+                      children: [
+                        // Top 3 Podium displayed in both Monthly and All Time leaderboards
+                        // and across both Global and College sections
+                        _buildPodium(context, top3),
+                        const SizedBox(height: 24),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Column(
+                            children: remaining.asMap().entries.map((entry) {
+                              final rankIndex = entry.key + 3; // 0-based index (rank 4 is index 3)
+                              final u = entry.value;
+                              final isMe = u.id == currentUser?.id;
+                              return _buildRankItem(context, u, rankIndex, isMe);
+                            }).toList(),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -122,98 +162,87 @@ class _AuraBoardScreenState extends State<AuraBoardScreen> {
 
   Widget _buildHeader(BuildContext context, bool isPushed) {
     final currentUser = context.watch<AuthProvider>().currentUserOrNull;
+    final collegeName = (currentUser?.college.trim().isNotEmpty ?? false)
+        ? currentUser!.college
+        : 'My College';
+
     return Padding(
       padding: EdgeInsets.fromLTRB(20, isPushed ? 10 : 20, 20, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                    _isGlobal
-                        ? 'Global Leaderboard'
-                        : '${currentUser?.college ?? "My College"} Rank',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.textFor(context),
-                      letterSpacing: -0.5,
-                    )),
-              ),
-              _buildScopeToggle(),
-            ],
+          Text(
+            _isGlobal ? 'Global Leaderboard' : '$collegeName Leaderboard',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textFor(context),
+              letterSpacing: -0.5,
+            ),
           ),
-          const SizedBox(height: 16),
-          _buildTimeframeToggle(),
+          const SizedBox(height: 14),
+          // 1. Board Selector: Monthly vs All Time
+          _buildBoardTypeToggle(context),
+          const SizedBox(height: 10),
+          // 2. Scope Selector: Global vs College (present in both Monthly & All Time)
+          _buildScopeSectionToggle(context, collegeName),
         ],
       ),
     );
   }
 
-  Widget _buildScopeToggle() {
+  Widget _buildBoardTypeToggle(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: AppColors.bg3For(context),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _ScopeIcon(
-            icon: Icons.public,
-            isSelected: _isGlobal,
-            onTap: () => setState(() {
-              _isGlobal = true;
-              _rankingFuture = _loadRankedUsers();
-            }),
-          ),
-          _ScopeIcon(
-            icon: Icons.school,
-            isSelected: !_isGlobal,
-            onTap: () => setState(() {
-              _isGlobal = false;
-              _rankingFuture = _loadRankedUsers();
-            }),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTimeframeToggle() {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: AppColors.bg3For(context),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: ['Weekly', 'Monthly', 'All Time'].map((t) {
-          final isSelected = _timeframe == t;
-          return GestureDetector(
-            onTap: () => setState(() {
-              _timeframe = t;
-              _rankingFuture = _loadRankedUsers();
-            }),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? AppColors.primary
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                t,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: isSelected
-                      ? Colors.white
-                      : AppColors.text3For(context),
+        children: ['Monthly', 'All Time'].map((board) {
+          final isSelected = _boardType == board;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () {
+                if (_boardType == board) return;
+                setState(() {
+                  _boardType = board;
+                  _rankingFuture = _loadRankedUsers();
+                });
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppColors.primary : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      board == 'Monthly'
+                          ? Icons.calendar_month_rounded
+                          : Icons.emoji_events_rounded,
+                      size: 15,
+                      color: isSelected
+                          ? Colors.white
+                          : AppColors.text3For(context),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      board == 'Monthly'
+                          ? 'Monthly Board'
+                          : 'All Time Board',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: isSelected
+                            ? Colors.white
+                            : AppColors.text3For(context),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -223,34 +252,246 @@ class _AuraBoardScreenState extends State<AuraBoardScreen> {
     );
   }
 
-  Future<List<UserModel>> _loadRankedUsers() async {
-    final currentUser = context.read<AuthProvider>().currentUserOrNull;
-    final collegeFilter = _isGlobal ? null : currentUser?.college;
+  Widget _buildScopeSectionToggle(BuildContext context, String collegeName) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.bg3For(context),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                if (_isGlobal) return;
+                setState(() {
+                  _isGlobal = true;
+                  _rankingFuture = _loadRankedUsers();
+                });
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(vertical: 9),
+                decoration: BoxDecoration(
+                  color: _isGlobal
+                      ? AppColors.bg2For(context)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                  border: _isGlobal
+                      ? Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.4),
+                        )
+                      : null,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.public_rounded,
+                      size: 15,
+                      color: _isGlobal
+                          ? AppColors.primary
+                          : AppColors.text3For(context),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Global',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: _isGlobal
+                            ? AppColors.textFor(context)
+                            : AppColors.text3For(context),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                if (!_isGlobal) return;
+                setState(() {
+                  _isGlobal = false;
+                  _rankingFuture = _loadRankedUsers();
+                });
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(vertical: 9),
+                decoration: BoxDecoration(
+                  color: !_isGlobal
+                      ? AppColors.bg2For(context)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                  border: !_isGlobal
+                      ? Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.4),
+                        )
+                      : null,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.school_rounded,
+                      size: 15,
+                      color: !_isGlobal
+                          ? AppColors.primary
+                          : AppColors.text3For(context),
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        'College',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: !_isGlobal
+                              ? AppColors.textFor(context)
+                              : AppColors.text3For(context),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-    try {
-      if (_timeframe == 'Weekly') {
-        return await SupabaseService.instance
-            .getWeeklyAuraLeaderboard(college: collegeFilter);
-      } else if (_timeframe == 'Monthly') {
-        return await SupabaseService.instance
-            .getMonthlyAuraLeaderboard(college: collegeFilter);
-      } else {
-        return await SupabaseService.instance
-            .getAllTimeAuraLeaderboard(college: collegeFilter);
-      }
-    } catch (e) {
-      debugPrint('Leaderboard fetch failed: $e');
-      return currentUser != null ? [currentUser.copyWith(aura: 0)] : [];
-    }
+  Widget _buildBoardInfoBanner(BuildContext context) {
+    final seasonName = MonthlyAuraService.instance.currentSeasonName;
+    final daysLeft = MonthlyAuraService.instance.daysRemainingInMonth;
+    final isMonthly = _boardType == 'Monthly';
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 6, 20, 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.primary.withValues(alpha: 0.15),
+            const Color(0xFF7C3AED).withValues(alpha: 0.10),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  isMonthly
+                      ? Icons.event_repeat_rounded
+                      : Icons.workspace_premium_rounded,
+                  color: AppColors.primary,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            isMonthly
+                                ? seasonName
+                                : 'All-Time Hall of Builders',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.textFor(context),
+                            ),
+                          ),
+                        ),
+                        if (isMonthly)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '$daysLeft days left',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.amber[800],
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      isMonthly
+                          ? 'Starts at 0 every month & resets at month end. Only stores Aura earned this month!'
+                          : 'Cumulative Aura points earned across all time.',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.text3For(context),
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _ScoringRulePill(
+                label: 'Practice Q&A: +5 / +10 / +15 / +20',
+              ),
+              _ScoringRulePill(
+                label: 'Daily Mission: +20 Solved • +5 Attempt',
+              ),
+              _ScoringRulePill(
+                label: 'Arena Combat',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildPodium(BuildContext context, List<UserModel> top3) {
     if (top3.isEmpty) return const SizedBox.shrink();
 
     final podiumOrder = <int>[];
-    if (top3.length > 1) podiumOrder.add(1);
-    podiumOrder.add(0);
-    if (top3.length > 2) podiumOrder.add(2);
+    if (top3.length > 1) podiumOrder.add(1); // 2nd Place (Left)
+    podiumOrder.add(0); // 1st Place (Center)
+    if (top3.length > 2) podiumOrder.add(2); // 3rd Place (Right)
 
     return Container(
       height: 280,
@@ -288,7 +529,7 @@ class _AuraBoardScreenState extends State<AuraBoardScreen> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    user.name.split(' ')[0],
+                    user.name.split(' ').first,
                     style: GoogleFonts.plusJakartaSans(
                       fontWeight: FontWeight.w800,
                       fontSize: 14,
@@ -364,13 +605,16 @@ class _AuraBoardScreenState extends State<AuraBoardScreen> {
                     Row(
                       children: [
                         Flexible(
-                          child: Text(u.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.inter(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 13,
-                                  color: AppColors.textFor(context))),
+                          child: Text(
+                            u.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                              color: AppColors.textFor(context),
+                            ),
+                          ),
                         ),
                         if (u.roles.isNotEmpty) ...[
                           const SizedBox(width: 6),
@@ -394,11 +638,14 @@ class _AuraBoardScreenState extends State<AuraBoardScreen> {
                         ],
                       ],
                     ),
-                    Text('@${u.handle}',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.text3For(context))),
+                    Text(
+                      '@${u.handle}',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.text3For(context),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -422,90 +669,31 @@ class _AuraBoardScreenState extends State<AuraBoardScreen> {
     ).animate().fadeIn(delay: (index % 10 * 50).ms).slideX(
         begin: 0.1, curve: Curves.easeOutQuad);
   }
+}
 
-  Widget _buildMonthlyResetBanner(BuildContext context) {
-    final seasonName = MonthlyAuraService.instance.currentSeasonName;
-    final daysLeft = MonthlyAuraService.instance.daysRemainingInMonth;
+class _ScoringRulePill extends StatelessWidget {
+  final String label;
 
+  const _ScoringRulePill({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 10, 20, 16),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.primary.withValues(alpha: 0.15),
-            const Color(0xFF7C3AED).withValues(alpha: 0.10),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
+        color: AppColors.bg2For(context).withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.3),
+          color: AppColors.primary.withValues(alpha: 0.25),
         ),
       ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.2),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.event_repeat_rounded,
-              color: AppColors.primary,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      seasonName,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.textFor(context),
-                      ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '$daysLeft days left',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.amber[800],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Aura resets to 0 at month end so a new builder can reach #1!',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.text3For(context),
-                    height: 1.3,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+      child: Text(
+        label,
+        style: GoogleFonts.plusJakartaSans(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: AppColors.text2For(context),
+        ),
       ),
     );
   }
@@ -554,37 +742,6 @@ class _PodiumBase extends StatelessWidget {
             fontWeight: FontWeight.w900,
             color: Colors.white,
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ScopeIcon extends StatelessWidget {
-  final IconData icon;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _ScopeIcon({
-    required this.icon,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(
-          icon,
-          size: 18,
-          color: isSelected ? Colors.white : AppColors.text3For(context),
         ),
       ),
     );

@@ -1251,14 +1251,6 @@ begin
   )
   returning id into new_post_id;
 
-  perform public.award_aura(
-    actor_id,
-    'create_post',
-    10,
-    'post',
-    new_post_id::text
-  );
-
   return new_post_id;
 end;
 $$;
@@ -1285,11 +1277,6 @@ begin
   from public.posts
   where id = p_post_id;
 
-  -- Removed restriction: Users can now like their own posts
-  -- if post_owner_id = actor_id then
-  --   raise exception 'You cannot like your own post';
-  -- end if;
-
   perform public.register_rate_limited_action('like_post', 120, 3600, p_post_id::text);
 
   insert into public.likes(post_id, user_id)
@@ -1301,18 +1288,6 @@ begin
   end if;
 
   perform public.sync_post_like_count(p_post_id);
-
-  if post_owner_id != actor_id then
-    perform public.award_aura(
-    post_owner_id,
-    'receive_like',
-    2,
-    'post_like',
-    p_post_id::text,
-    actor_id,
-    jsonb_build_object('postId', p_post_id)
-  );
-  end if;
 
   return jsonb_build_object('liked', true);
 end;
@@ -1330,18 +1305,11 @@ set search_path = public
 as $$
 declare
   v_actor_id uuid;
-  v_post_owner_id uuid;
-  v_points integer := 2; -- Points awarded for 'receive_like'
 begin
   v_actor_id := auth.uid();
   if v_actor_id is null then
     raise exception 'Authentication required';
   end if;
-
-  -- Get post owner to know whose aura to subtract from
-  select user_id into v_post_owner_id
-  from public.posts
-  where id = p_post_id;
 
   -- Delete the like
   delete from public.likes
@@ -1350,25 +1318,7 @@ begin
 
   -- If a like was actually removed
   if found then
-    -- Update post like count
     perform public.sync_post_like_count(p_post_id);
-
-    -- Reverse aura if the liker is not the owner
-    if v_post_owner_id is not null and v_post_owner_id != v_actor_id then
-      -- Subtract points from owner
-      update public.users
-      set aura = greatest(0, aura - v_points),
-          aura_points = greatest(0, coalesce(aura_points, 0) - v_points)
-      where id = v_post_owner_id;
-
-      -- Remove the ledger entry so it can be re-awarded if they like again
-      delete from public.aura_ledger
-      where user_id = v_post_owner_id
-        and action = 'receive_like'
-        AND reference_type = 'post_like'
-        and reference_id = p_post_id::text
-        and (source_user_id = v_actor_id or actor_id = v_actor_id);
-    end if;
   end if;
 
   return jsonb_build_object('liked', false);
@@ -1408,14 +1358,6 @@ begin
   returning id into new_comment_id;
 
   perform public.sync_post_comment_count(p_post_id);
-
-  perform public.award_aura(
-    actor_id,
-    'create_comment',
-    3,
-    'comment',
-    new_comment_id::text
-  );
 
   return new_comment_id;
 end;

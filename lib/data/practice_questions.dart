@@ -1109,7 +1109,7 @@ class PracticeLevelData {
       'accent': 0xFF00E676,
       'xp': '120 XP',
       'icon': 0, // Battery / Eco
-      'auraPerQuestion': 10,
+      'auraPerQuestion': 5,
     },
     {
       'index': 1,
@@ -1119,7 +1119,7 @@ class PracticeLevelData {
       'accent': 0xFFFFAB00,
       'xp': '250 XP',
       'icon': 1, // Lightning
-      'auraPerQuestion': 15,
+      'auraPerQuestion': 10,
     },
     {
       'index': 2,
@@ -1129,7 +1129,7 @@ class PracticeLevelData {
       'accent': 0xFFFF375F,
       'xp': '500 XP',
       'icon': 2, // Flame
-      'auraPerQuestion': 20,
+      'auraPerQuestion': 15,
     },
     {
       'index': 3,
@@ -1139,7 +1139,7 @@ class PracticeLevelData {
       'accent': 0xFFD500F9,
       'xp': '1000+ XP',
       'icon': 3, // Infinity
-      'auraPerQuestion': 25,
+      'auraPerQuestion': 20,
     },
   ];
 

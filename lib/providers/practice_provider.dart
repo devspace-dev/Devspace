@@ -33,9 +33,9 @@ class PracticeProvider extends ChangeNotifier {
         (l) => l['index'] == question.levelIndex,
         orElse: () => PracticeLevelData.levels.first,
       );
-      return (levelInfo['auraPerQuestion'] as int? ?? 10);
+      return (levelInfo['auraPerQuestion'] as int? ?? 5);
     } catch (_) {
-      return 10;
+      return 5;
     }
   }
 
@@ -80,19 +80,17 @@ class PracticeProvider extends ChangeNotifier {
   Future<void> syncUnsyncedQuestions(AuthProvider? authProvider) async {
     if (authProvider == null || authProvider.currentUserOrNull == null) return;
 
-    int totalToSync = 0;
-    final List<String> newSynced = [];
-
+    bool hasChanges = false;
     for (final id in _completedQuestionIds) {
       if (!_syncedQuestionIds.contains(id)) {
-        totalToSync += getAuraForQuestion(id);
-        newSynced.add(id);
+        final points = getAuraForQuestion(id);
+        _syncedQuestionIds.add(id);
+        authProvider.addAura(points, questionId: id);
+        hasChanges = true;
       }
     }
 
-    if (totalToSync > 0) {
-      _syncedQuestionIds.addAll(newSynced);
-      authProvider.addAura(totalToSync);
+    if (hasChanges) {
       await _saveProgress();
       notifyListeners();
     }
@@ -151,7 +149,7 @@ class PracticeProvider extends ChangeNotifier {
       final auraReward = getAuraForQuestion(questionId);
       if (authProvider != null && authProvider.currentUserOrNull != null) {
         _syncedQuestionIds.add(questionId);
-        authProvider.addAura(auraReward);
+        authProvider.addAura(auraReward, questionId: questionId);
       }
 
       await _saveProgress();
@@ -162,7 +160,7 @@ class PracticeProvider extends ChangeNotifier {
       // Catch unsynced existing completion
       final auraReward = getAuraForQuestion(questionId);
       _syncedQuestionIds.add(questionId);
-      authProvider.addAura(auraReward);
+      authProvider.addAura(auraReward, questionId: questionId);
       await _saveProgress();
       notifyListeners();
     }

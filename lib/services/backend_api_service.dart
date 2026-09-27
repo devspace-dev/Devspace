@@ -900,7 +900,7 @@ class BackendApiService {
               .single();
           
           final isCorrect = (challenge['correct_answer']?.toString() ?? '').trim() == submissionText.trim();
-          final points = isCorrect ? ((challenge['points_reward'] as num?)?.toInt() ?? 20) : 5;
+          final points = isCorrect ? 20 : 5;
 
           await _client.from('user_challenges').upsert({
             'user_id': uid,
@@ -914,9 +914,9 @@ class BackendApiService {
           // Award Aura
           await _client.rpc('award_aura', params: {
             'p_user_id': uid,
-            'p_action': isCorrect ? 'challenge_solved' : 'challenge_attempted',
+            'p_action': isCorrect ? 'complete_daily_mission' : 'attempt_daily_mission',
             'p_points': points,
-            'p_reference_type': 'challenge',
+            'p_reference_type': 'daily_mission',
             'p_reference_id': realId,
           });
 
@@ -1012,11 +1012,10 @@ class BackendApiService {
       final missionData = todayMission['mission'] as Map<String, dynamic>;
       final missionId = missionData['id'];
       final correctAnswer = (missionData['correct_answer']?.toString() ?? '').trim();
-      final pointsReward = (missionData['points_reward'] as num?)?.toInt() ?? 20;
 
       final isCorrect = correctAnswer.isEmpty || 
           correctAnswer.toLowerCase() == submissionText.trim().toLowerCase();
-      final points = isCorrect ? pointsReward : 5;
+      final points = isCorrect ? 20 : 5;
       
       final today = DateTime.now().toIso8601String().split('T').first;
 
@@ -1047,9 +1046,9 @@ class BackendApiService {
       try {
         await _client.rpc('award_aura', params: {
           'p_user_id': uid,
-          'p_action': isCorrect ? 'mission_solved' : 'mission_attempted',
+          'p_action': isCorrect ? 'complete_daily_mission' : 'attempt_daily_mission',
           'p_points': points,
-          'p_reference_type': 'mission',
+          'p_reference_type': 'daily_mission',
           'p_reference_id': missionId,
         });
       } catch (auraError) {

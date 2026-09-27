@@ -22,8 +22,11 @@ subprojects {
 subprojects {
     val fixNamespace: Project.() -> Unit = {
         extensions.findByName("android")?.let { android ->
-            if (android is com.android.build.gradle.BaseExtension && android.namespace == null) {
-                android.namespace = "com.example.${project.name.replace("-", "_")}"
+            if (android is com.android.build.gradle.BaseExtension) {
+                if (android.namespace == null) {
+                    android.namespace = "com.example.${project.name.replace("-", "_")}"
+                }
+                android.ndkVersion = "28.2.13676358"
             }
         }
     }
