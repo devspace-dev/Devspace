@@ -43,22 +43,24 @@ class AuraLedgerModel {
 
   String get description {
     switch (action) {
-      case 'daily_challenge':
-        return 'Solved Daily Mission';
-      case 'daily_mission_attempt':
-        return 'Attempted Daily Mission';
-      case 'create_post':
-        return 'Created a Post';
-      case 'add_comment':
-        return 'Commented on a Post';
-      case 'post_like':
-        return 'Received a Like';
-      case 'question_upvote':
-        return 'Question was Upvoted';
+      case 'practice_question':
+      case 'qa_solution':
+      case 'answer_accepted':
       case 'solve_question':
-        return 'Solved a Question';
-      case 'onboarding':
-        return 'Welcome Bonus';
+        return 'Solved Q&A / Practice Question';
+      case 'complete_daily_mission':
+      case 'complete_daily_challenge':
+      case 'daily_challenge':
+      case 'mission_solved':
+      case 'challenge_solved':
+        return 'Solved Daily Mission (+20)';
+      case 'attempt_daily_mission':
+      case 'daily_mission_attempt':
+      case 'mission_attempted':
+      case 'challenge_attempted':
+        return 'Attempted Daily Mission (+5)';
+      case 'arena_duel':
+        return 'Arena Combat Victory';
       default:
         return action.replaceAll('_', ' ').capitalize();
     }

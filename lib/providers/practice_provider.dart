@@ -105,10 +105,13 @@ class PracticeProvider extends ChangeNotifier {
           _forfeitedAuraQuestionIds.contains(id) ? 0 : getAuraForQuestion(id);
       final result = await SupabaseService.instance
           .submitPracticeCompletion(id, auraReward: auraReward);
-      if (result == null) continue; // retry on the next sync pass
-      _syncedQuestionIds.add(id);
-      if (result['aura'] != null) {
-        lastServerAura = (result['aura'] as num).toInt();
+      if (result == null) {
+        authProvider.addAura(auraReward, questionId: id);
+      } else {
+        _syncedQuestionIds.add(id);
+        if (result['aura'] != null) {
+          lastServerAura = (result['aura'] as num).toInt();
+        }
       }
     }
 
@@ -200,6 +203,8 @@ class PracticeProvider extends ChangeNotifier {
         if (result != null && result['aura'] != null) {
           final int serverAura = (result['aura'] as num).toInt();
           authProvider.updateLocalAura(serverAura);
+        } else {
+          authProvider.addAura(auraReward, questionId: questionId);
         }
       }
       notifyListeners();
@@ -212,6 +217,8 @@ class PracticeProvider extends ChangeNotifier {
       if (result != null && result['aura'] != null) {
         final int serverAura = (result['aura'] as num).toInt();
         authProvider.updateLocalAura(serverAura);
+      } else {
+        authProvider.addAura(auraReward, questionId: questionId);
       }
       await _saveProgress();
       notifyListeners();
