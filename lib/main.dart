@@ -20,7 +20,6 @@ import 'providers/notifications_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/engagement_provider.dart';
 import 'providers/messages_provider.dart';
-import 'providers/premium_provider.dart';
 import 'providers/practice_provider.dart';
 import 'screens/profile_setup_screen.dart';
 import 'screens/splash_screen.dart';
@@ -239,7 +238,6 @@ class DevSpaceRoot extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => NotificationsProvider()),
         ChangeNotifierProvider(create: (_) => EngagementProvider()),
         ChangeNotifierProvider(create: (_) => MessagesProvider()),
-        ChangeNotifierProvider(create: (_) => PremiumProvider()),
         ChangeNotifierProvider(create: (_) => PracticeProvider()),
       ],
       child: Consumer<ThemeProvider>(

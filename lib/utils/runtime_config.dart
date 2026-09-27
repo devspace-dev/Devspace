@@ -1,7 +1,4 @@
-import 'dart:convert';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+// Runtime configuration resolved from compile-time --dart-define values.
 
 class RuntimeConfig {
   RuntimeConfig._({
@@ -23,33 +20,18 @@ class RuntimeConfig {
   }
 
   static Future<RuntimeConfig> load() async {
-    String? url;
-    String? key;
+    // Resolved exclusively from compile-time --dart-define or --dart-define-from-file=.env.local.json
+    const definedUrl = String.fromEnvironment(
+      'SUPABASE_URL',
+      defaultValue: '',
+    );
+    const definedKey = String.fromEnvironment(
+      'SUPABASE_ANON_KEY',
+      defaultValue: '',
+    );
 
-    // 1. Try loading from .env.local.json asset
-    try {
-      final content = await rootBundle.loadString('.env.local.json');
-      final json = jsonDecode(content) as Map<String, dynamic>;
-      url = json['SUPABASE_URL'] as String?;
-      key = json['SUPABASE_ANON_KEY'] as String?;
-    } catch (e) {
-      if (kDebugMode) debugPrint('Note: .env.local.json asset not found or empty: $e');
-    }
-
-    // 2. Try loading from .env file (handled by flutter_dotenv using rootBundle)
-    if (url == null || key == null || url.isEmpty || key.isEmpty) {
-      try {
-        await dotenv.load(fileName: ".env");
-        url = (url == null || url.isEmpty) ? dotenv.env['SUPABASE_URL'] : url;
-        key = (key == null || key.isEmpty) ? dotenv.env['SUPABASE_ANON_KEY'] : key;
-      } catch (e) {
-        if (kDebugMode) debugPrint('Warning: .env file not found or failed to load: $e');
-      }
-    }
-
-    // 3. Try from environment variables (--dart-define)
-    url ??= const String.fromEnvironment('SUPABASE_URL', defaultValue: '');
-    key ??= const String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: '');
+    String url = definedUrl.trim();
+    String key = definedKey.trim();
 
     return _instance = RuntimeConfig._(
       supabaseUrl: url,

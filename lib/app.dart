@@ -12,11 +12,8 @@ import 'providers/notifications_provider.dart';
 import 'providers/engagement_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/explore_screen.dart';
-import 'screens/people_screen.dart';
 import 'screens/arena_screen.dart';
-import 'screens/aura_board_screen.dart';
 import 'screens/profile_screen.dart';
-import 'screens/daily_challenge_screen.dart';
 import 'screens/messages_screen.dart';
 import 'screens/question_detail_screen.dart';
 import 'screens/duel_screen.dart';
@@ -30,7 +27,6 @@ import 'theme/app_colors.dart';
 import 'widgets/bottom_nav.dart';
 import 'widgets/glass_container.dart';
 import 'widgets/compose_box.dart';
-import 'providers/premium_provider.dart';
 import 'models/notification_model.dart';
 import 'utils/devspace_ui_helper.dart';
 import 'screens/tier_up_celebration_screen.dart';
@@ -50,7 +46,6 @@ class DevSpaceApp extends StatefulWidget {
 
 class _DevSpaceAppState extends State<DevSpaceApp> {
   int _tab = 0;
-  bool _isUIVisible = true;
   late final PageController _pageController;
   StreamSubscription<String?>? _notificationSubscription;
   String? _lastInitializedUid;
@@ -196,7 +191,6 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
 
         context.read<MessagesProvider>().init(user.id);
         context.read<EngagementProvider>().fetchOverview();
-        context.read<PremiumProvider>().loadUserPremiumStatus();
         _setupDuelRequestsListener(user.id);
       } catch (e) {
         debugPrint('Provider initialization failed: $e');
@@ -344,6 +338,8 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
   void dispose() {
     _pageController.dispose();
     _notificationSubscription?.cancel();
+    _duelRequestsSubscription?.unsubscribe();
+    _duelRequestsSubscription = null;
     super.dispose();
   }
 
@@ -686,9 +682,10 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
 
   @override
   Widget build(BuildContext context) {
-    final me = context.watch<AuthProvider>().currentUserOrNull;
-    final unreadCount = context.watch<NotificationsProvider>().unreadCount;
-    final unreadMessages = context.watch<MessagesProvider>().totalUnreadCount;
+    final unreadCount =
+        context.select<NotificationsProvider, int>((p) => p.unreadCount);
+    final unreadMessages =
+        context.select<MessagesProvider, int>((p) => p.totalUnreadCount);
 
     final List<Widget> screens = [
       HomeScreen(key: homeScreenKey),
@@ -696,8 +693,6 @@ class _DevSpaceAppState extends State<DevSpaceApp> {
       const ExploreScreen(),
       const ProfileScreen(),
     ];
-
-    final isHome = _tab == 0;
 
     return Scaffold(
       backgroundColor: AppColors.bgFor(context),

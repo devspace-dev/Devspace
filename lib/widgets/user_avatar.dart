@@ -106,11 +106,14 @@ class _AvatarImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cachePx = (size * 3).round().clamp(64, 512);
     return CachedNetworkImage(
       imageUrl: StorageService.instance.resolvePublicUrl(avatar),
       fit: BoxFit.cover,
       width: size,
       height: size,
+      memCacheWidth: cachePx,
+      memCacheHeight: cachePx,
       placeholder: (context, url) => SkeletonLoader(width: size, height: size, borderRadius: size / 2),
       errorWidget: (_, __, ___) => _fallback(),
     );

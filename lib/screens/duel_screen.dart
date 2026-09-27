@@ -361,8 +361,6 @@ class _DuelScreenState extends State<DuelScreen> {
         ? (oppCorrect / oppQuestionsAnswered) * 100
         : 0.0;
 
-    final bool iWon = _myScore >= _opponentScore;
-
     // Use authoritative server-side match resolution RPC
     Supabase.instance.client.rpc('resolve_arena_match', params: {
       'p_match_id': widget.matchId,

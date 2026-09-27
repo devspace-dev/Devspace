@@ -75,7 +75,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                       e.description.toLowerCase().contains(query);
                   final matchesOrg =
                       (e.organizer?.toLowerCase() ?? '').contains(query);
-                  if (!matchesTitle && !matchesDesc && !matchesOrg)
+                  if (!matchesTitle && !matchesDesc && !matchesOrg) {
                     return false;
                   }
                 }
