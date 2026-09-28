@@ -37,17 +37,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  void addAura(int points, {String? questionId}) {
-    final user = currentUserOrNull;
-    if (user == null) return;
-    updateLocalAura(user.aura + points);
-    unawaited(SupabaseService.instance.awardPracticeAura(
-      userId: user.id,
-      points: points,
-      questionId: questionId ?? 'practice_${DateTime.now().millisecondsSinceEpoch}',
-    ));
-  }
-
   void updateBuilding(String building) {
     final updatedUser = currentUser.copyWith(building: building);
     _currentUser = updatedUser;

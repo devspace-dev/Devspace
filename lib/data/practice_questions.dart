@@ -1,7 +1,7 @@
 class PracticeQuestion {
   final String id;
-  final int levelIndex; // 0: Noob, 1: Easy, 2: Medium, 3: Hard
-  final String levelName; // "Noob", "Easy", "Medium", "Hard"
+  final int levelIndex; // 0: Easy (noob_), 1: Medium (easy_), 2: Hard (med_), 3: Ultra (hard_)
+  final String _rawLevelName;
   final int questionNumber; // 1..20
   final String question;
   final String? codeSnippet;
@@ -14,7 +14,7 @@ class PracticeQuestion {
   const PracticeQuestion({
     required this.id,
     required this.levelIndex,
-    required this.levelName,
+    required String levelName,
     required this.questionNumber,
     required this.question,
     this.codeSnippet,
@@ -23,7 +23,22 @@ class PracticeQuestion {
     required this.explanation,
     required this.hint,
     this.techStack = 'DSA & Logic',
-  });
+  }) : _rawLevelName = levelName;
+
+  String get levelName {
+    switch (levelIndex) {
+      case 0:
+        return 'Easy';
+      case 1:
+        return 'Medium';
+      case 2:
+        return 'Hard';
+      case 3:
+        return 'Ultra';
+      default:
+        return _rawLevelName;
+    }
+  }
 }
 
 final List<PracticeQuestion> practiceQuestionsData = [
@@ -1101,9 +1116,9 @@ final List<PracticeQuestion> practiceQuestionsData = [
   PracticeQuestion(
     id: 'hard_20',
     levelIndex: 3,
-    levelName: 'Hard',
+    levelName: 'Ultra',
     questionNumber: 20,
-    question: 'Congratulations on reaching Question 20 of Hard! What is the term for a recursive function that makes its recursive call as its last operation?',
+    question: 'Congratulations on reaching Question 20 of Ultra! What is the term for a recursive function that makes its recursive call as its last operation?',
     options: ['Head Recursion', 'Tail Recursion', 'Nested Recursion', 'Mutual Recursion'],
     correctIndex: 1,
     explanation: 'Tail Recursion occurs when the recursive call is the final action in a function. Compilers can optimize this by reusing the current stack frame.',

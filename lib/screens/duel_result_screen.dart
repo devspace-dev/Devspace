@@ -15,6 +15,7 @@ class DuelResultScreen extends StatefulWidget {
   final int opponentQuestionsAnswered;
   final double myAccuracy;
   final double opponentAccuracy;
+  final int? myPointsAwarded;
   final List<int>? myScoreTimeline;
   final List<int>? opponentScoreTimeline;
   final UserModel? teammate;
@@ -31,6 +32,7 @@ class DuelResultScreen extends StatefulWidget {
     required this.opponentQuestionsAnswered,
     required this.myAccuracy,
     required this.opponentAccuracy,
+    this.myPointsAwarded,
     this.myScoreTimeline,
     this.opponentScoreTimeline,
     this.teammate,
@@ -45,23 +47,22 @@ class _DuelResultScreenState extends State<DuelResultScreen> {
   late final PageController _pageController;
   int _currentPage = 0;
 
-  String get _myChangeStr {
-    final bool iWon = widget.myScore >= widget.opponentScore;
-    int myBase = iWon ? 15 : -5;
-    int myAccBonus = widget.myAccuracy > 80 ? 10 : 0;
-    int mySpeedPen = iWon ? 0 : -5;
-    int myNet = myBase + myAccBonus + mySpeedPen;
-    return myNet >= 0 ? "+$myNet" : "$myNet";
+  int get _myEarnedPoints {
+    if (widget.myPointsAwarded != null) {
+      return widget.myPointsAwarded!;
+    }
+    final bool iQualify = widget.myScore >= widget.opponentScore && widget.myScore > 0;
+    return iQualify ? (widget.myScore ~/ 15) * 5 : 0;
   }
 
-  String get _oppChangeStr {
-    final bool iWon = widget.myScore >= widget.opponentScore;
-    int oppBase = !iWon ? 15 : -5;
-    int oppAccBonus = widget.opponentAccuracy > 80 ? 10 : 0;
-    int oppSpeedPen = !iWon ? 0 : -5;
-    int oppNet = oppBase + oppAccBonus + oppSpeedPen;
-    return oppNet >= 0 ? "+$oppNet" : "$oppNet";
+  int get _oppEarnedPoints {
+    final bool oppQualifies = widget.opponentScore >= widget.myScore && widget.opponentScore > 0;
+    return oppQualifies ? (widget.opponentScore ~/ 15) * 5 : 0;
   }
+
+  String get _myChangeStr => '+$_myEarnedPoints';
+
+  String get _oppChangeStr => '+$_oppEarnedPoints';
 
   @override
   void initState() {
@@ -826,11 +827,9 @@ class _DuelResultScreenState extends State<DuelResultScreen> {
   }
 
   Widget _buildAuraBreakdownCard(bool iWon) {
-    int baseAura = iWon ? 15 : -5;
-    int accuracyBonus = widget.myAccuracy > 80 ? 10 : 0;
-    int speedPenalty = iWon ? 0 : -5;
-    int netAura = baseAura + accuracyBonus + speedPenalty;
-    final myChange = netAura >= 0 ? "+$netAura" : "$netAura";
+    final int myCorrect = widget.myScore ~/ 15;
+    final int netAura = _myEarnedPoints;
+    final String myChange = '+$netAura';
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -841,11 +840,17 @@ class _DuelResultScreenState extends State<DuelResultScreen> {
       ),
       child: Column(
         children: [
-          _buildBreakdownRow("Match Outcome", baseAura >= 0 ? "+$baseAura" : "$baseAura", baseAura >= 0),
+          _buildBreakdownRow(
+            'Match Outcome',
+            iWon ? 'Qualified (Winner / Tie)' : 'Defeat (+0 Aura)',
+            iWon,
+          ),
           const SizedBox(height: 10),
-          _buildBreakdownRow("Accuracy Bonus (>80%)", accuracyBonus > 0 ? "+$accuracyBonus" : "+0", accuracyBonus > 0),
-          const SizedBox(height: 10),
-          _buildBreakdownRow("Speed Defect Penalty", speedPenalty < 0 ? "$speedPenalty" : "+0", speedPenalty >= 0),
+          _buildBreakdownRow(
+            'Correct Answers ($myCorrect × +5 Aura)',
+            iWon ? '+${myCorrect * 5}' : '+0',
+            iWon && myCorrect > 0,
+          ),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
             child: Divider(color: Colors.white10),

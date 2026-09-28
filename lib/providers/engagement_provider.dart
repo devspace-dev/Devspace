@@ -323,26 +323,36 @@ class EngagementProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _dailyChallengeSubmitter(
+      final result = await _dailyChallengeSubmitter(
         submissionText: submissionText,
         submissionLink: submissionLink,
       );
 
-      // Optimistic update for real-time feel
+      final bool isCorrect =
+          result['isCorrect'] == true || result['is_correct'] == true;
+      final int awardedPoints = ((result['pointsAwarded'] ??
+              result['points_awarded'] ??
+              (isCorrect ? 20 : 5)) as num)
+          .toInt();
+      final int? serverAura = (result['aura'] as num?)?.toInt();
+
       if (_auraSummary != null) {
-        final currentStreak = _auraSummary!.currentStreak + 1;
+        final currentStreak = isCorrect
+            ? _auraSummary!.currentStreak + 1
+            : _auraSummary!.currentStreak;
         final longestStreak = currentStreak > _auraSummary!.longestStreak
             ? currentStreak
             : _auraSummary!.longestStreak;
 
         _auraSummary = AuraSummaryModel(
           userId: _auraSummary!.userId,
-          auraPoints:
-              _auraSummary!.auraPoints + (_dailyChallenge?.pointsReward ?? 0),
+          auraPoints: serverAura ?? (_auraSummary!.auraPoints + awardedPoints),
           level: _auraSummary!.level,
           currentStreak: currentStreak,
           longestStreak: longestStreak,
-          lastChallengeCompletedOn: DateTime.now(),
+          lastChallengeCompletedOn: isCorrect
+              ? DateTime.now()
+              : _auraSummary!.lastChallengeCompletedOn,
           badges: _auraSummary!.badges,
         );
         notifyListeners();

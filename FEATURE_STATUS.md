@@ -14,9 +14,8 @@
 - Likes and follows with stabilized interaction state
 - Basic 1:1 direct messaging with unread state and message notifications
 - Sign-out from profile
-- Aura feedback for post and comment contribution
 - Profile viewing for self and others
-- Aura leaderboard
+- Arena-only Aura system & synchronized Monthly / All-Time leaderboard (`practice_question`, `complete_daily_mission`, `attempt_daily_mission`, `arena_duel`) with server-enforced rewards and 100% `users.aura == aura_ledger` parity
 - Backend aura ledger, level mapping, and streak tracking
 - Event gating model with eligible vs locked access
 - Daily challenge tables and completion RPC flow
@@ -32,9 +31,9 @@
 - Implemented 2v2 Team Duels gameplay simulation, including pooled scores, split aura rewards, activity logging, and stacked avatars
 - Redesigned Opportunities Detail Page with glassmorphism layouts, clean metadata rows, and premium Warm Orange theme integration
 - Push notification delivery and tap routing for Arena Duel Invites across background, closed, and foreground app states
+- Native Google Sign-In on Android + PKCE deep-link OAuth fallback
 
 ## Partial
-- Google sign-in is visible but intentionally disabled
 - GitHub profile card is useful scaffold, not a finished identity system
 - Notifications plumbing exists, but there is no full inbox/product flow beyond activity and message alerts
 - Automated coverage exists, but it is still light for a production beta

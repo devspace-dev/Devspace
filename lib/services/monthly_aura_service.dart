@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'supabase_service.dart';
 
 class MonthlyAuraService {
   MonthlyAuraService._internal();
@@ -65,17 +64,15 @@ class MonthlyAuraService {
     }
   }
 
-  /// Reset monthly aura status
+  /// Reset monthly aura local tracking state
   Future<void> forceResetMonthlyAura() async {
     try {
-      await SupabaseService.instance.resetAllUsersMonthlyAura();
-
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_keyLastResetMonth, currentMonthKey);
 
-      debugPrint('✅ Monthly Aura Reset completed successfully.');
+      debugPrint('✅ Monthly Aura tracking updated.');
     } catch (e) {
-      debugPrint('Failed to execute monthly aura reset: $e');
+      debugPrint('Failed to update monthly aura tracking: $e');
       rethrow;
     }
   }

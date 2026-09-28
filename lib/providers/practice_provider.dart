@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/auth_service.dart';
 import '../services/supabase_service.dart';
 import 'auth_provider.dart';
 
@@ -87,27 +88,21 @@ class PracticeProvider extends ChangeNotifier {
   }
 
   /// Syncs any completed practice questions that haven't been credited to
-  /// the user's server-side Aura yet (e.g. completed while offline). Calls
-  /// the same server RPC completeQuestion uses, so the leaderboard actually
-  /// reflects it — a purely local aura bump here would be lost the next
-  /// time the user's real aura is fetched from the server.
+  /// the user's server-side Aura yet (e.g. completed while offline).
   Future<void> syncUnsyncedQuestions(AuthProvider? authProvider) async {
     if (authProvider == null || authProvider.currentUserOrNull == null) return;
 
     final unsynced = _completedQuestionIds
-        .where((id) => !_syncedQuestionIds.contains(id))
+        .where((id) =>
+            !_syncedQuestionIds.contains(id) &&
+            !_forfeitedAuraQuestionIds.contains(id))
         .toList();
     if (unsynced.isEmpty) return;
 
     int? lastServerAura;
     for (final id in unsynced) {
-      final auraReward =
-          _forfeitedAuraQuestionIds.contains(id) ? 0 : getAuraForQuestion(id);
-      final result = await SupabaseService.instance
-          .submitPracticeCompletion(id, auraReward: auraReward);
-      if (result == null) {
-        authProvider.addAura(auraReward, questionId: id);
-      } else {
+      final result = await SupabaseService.instance.submitPracticeCompletion(id);
+      if (result != null) {
         _syncedQuestionIds.add(id);
         if (result['aura'] != null) {
           lastServerAura = (result['aura'] as num).toInt();
@@ -117,6 +112,7 @@ class PracticeProvider extends ChangeNotifier {
 
     if (lastServerAura != null) {
       authProvider.updateLocalAura(lastServerAura);
+      await AuthService.instance.refreshCurrentUser();
     }
     await _saveProgress();
     notifyListeners();
@@ -141,7 +137,7 @@ class PracticeProvider extends ChangeNotifier {
   }
 
   bool isSectionUnlocked(int levelIndex) {
-    if (levelIndex == 0) return true; // Noob is always unlocked
+    if (levelIndex == 0) return true; // Easy (noob_) is always unlocked
     // Level X is unlocked if previous level's 20th question is completed
     final prevLevelLastQId = '${_getLevelPrefix(levelIndex - 1)}_20';
     return _completedQuestionIds.contains(prevLevelLastQId);
@@ -177,8 +173,7 @@ class PracticeProvider extends ChangeNotifier {
   /// Marks [questionId] solved. [awardAura] should be false when the user
   /// got it wrong at least once before answering correctly — the question
   /// still counts as completed (and unlocks the next one), but aura for it
-  /// is forfeited for good: one chance at the points, unlimited chances at
-  /// the question itself.
+  /// is forfeited for good (0 for wrong answers).
   Future<bool> completeQuestion(
     String questionId, {
     AuthProvider? authProvider,
@@ -190,35 +185,40 @@ class PracticeProvider extends ChangeNotifier {
       _forfeitedAuraQuestionIds.add(questionId);
     }
     final bool isForfeited = _forfeitedAuraQuestionIds.contains(questionId);
-    final int auraReward = isForfeited ? 0 : getAuraForQuestion(questionId);
 
     if (isNewCompletion) {
       _completedQuestionIds.add(questionId);
       await _saveProgress();
 
-      if (authProvider != null && authProvider.currentUserOrNull != null) {
-        _syncedQuestionIds.add(questionId);
-        final result = await SupabaseService.instance
-            .submitPracticeCompletion(questionId, auraReward: auraReward);
-        if (result != null && result['aura'] != null) {
-          final int serverAura = (result['aura'] as num).toInt();
-          authProvider.updateLocalAura(serverAura);
-        } else {
-          authProvider.addAura(auraReward, questionId: questionId);
+      if (!isForfeited &&
+          authProvider != null &&
+          authProvider.currentUserOrNull != null) {
+        final result =
+            await SupabaseService.instance.submitPracticeCompletion(questionId);
+        if (result != null) {
+          _syncedQuestionIds.add(questionId);
+          if (result['aura'] != null) {
+            final int serverAura = (result['aura'] as num).toInt();
+            authProvider.updateLocalAura(serverAura);
+          }
+          await AuthService.instance.refreshCurrentUser();
+          await _saveProgress();
         }
       }
       notifyListeners();
-    } else if (!_syncedQuestionIds.contains(questionId) &&
+    } else if (!isForfeited &&
+        !_syncedQuestionIds.contains(questionId) &&
         authProvider != null &&
         authProvider.currentUserOrNull != null) {
-      _syncedQuestionIds.add(questionId);
-      final result = await SupabaseService.instance
-          .submitPracticeCompletion(questionId, auraReward: auraReward);
-      if (result != null && result['aura'] != null) {
-        final int serverAura = (result['aura'] as num).toInt();
-        authProvider.updateLocalAura(serverAura);
-      } else {
-        authProvider.addAura(auraReward, questionId: questionId);
+      final result =
+          await SupabaseService.instance.submitPracticeCompletion(questionId);
+      if (result != null) {
+        _syncedQuestionIds.add(questionId);
+        if (result['aura'] != null) {
+          final int serverAura = (result['aura'] as num).toInt();
+          authProvider.updateLocalAura(serverAura);
+        }
+        await AuthService.instance.refreshCurrentUser();
       }
       await _saveProgress();
       notifyListeners();
