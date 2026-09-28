@@ -34,6 +34,7 @@ class StorageService {
     if (picked == null) return null;
 
     if (crop) {
+      if (!context.mounted) return null;
       final croppedFile = await ImageCropper().cropImage(
         sourcePath: picked.path,
         maxWidth: maxWidth?.toInt(),
@@ -123,7 +124,11 @@ class StorageService {
 
   // ── Upload post image ────────────────────────────
   Future<String> uploadPostImage(String postId, File file) async {
-    final path = 'posts/$postId.jpg';
+    final uid = _supabase.auth.currentUser?.id;
+    if (uid == null) {
+      throw StateError('Authentication required to upload post images.');
+    }
+    final path = 'posts/$uid/$postId.jpg';
     await _supabase.storage.from('images').upload(
           path,
           file,
@@ -134,7 +139,11 @@ class StorageService {
   }
 
   Future<String> uploadPostImageForDraft(File file) async {
-    final path = 'posts/${_uuid.v4()}.jpg';
+    final uid = _supabase.auth.currentUser?.id;
+    if (uid == null) {
+      throw StateError('Authentication required to upload post images.');
+    }
+    final path = 'posts/$uid/${_uuid.v4()}.jpg';
     await _supabase.storage.from('images').upload(
           path,
           file,
@@ -145,8 +154,12 @@ class StorageService {
   }
 
   Future<String> uploadPostDocument(File file, String originalName) async {
+    final uid = _supabase.auth.currentUser?.id;
+    if (uid == null) {
+      throw StateError('Authentication required to upload documents.');
+    }
     final extension = originalName.split('.').last;
-    final path = 'documents/${_uuid.v4()}.$extension';
+    final path = 'documents/$uid/${_uuid.v4()}.$extension';
     await _supabase.storage.from('documents').upload(
           path,
           file,

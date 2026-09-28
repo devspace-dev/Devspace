@@ -1055,9 +1055,20 @@ class _PostImageThumbnail extends StatelessWidget {
         imageUrl: imageUrl,
         width: double.infinity,
         fit: BoxFit.fitWidth,
+        memCacheWidth: 1080,
         placeholder: (_, __) => Container(
           color: AppColors.bg2For(context),
           height: 200,
+        ),
+        errorWidget: (_, __, ___) => Container(
+          color: AppColors.bg2For(context),
+          height: 160,
+          alignment: Alignment.center,
+          child: Icon(
+            Icons.broken_image_outlined,
+            color: AppColors.text3For(context),
+            size: 28,
+          ),
         ),
       ),
     );
@@ -1110,6 +1121,13 @@ class _PostImageViewer extends StatelessWidget {
       fit: BoxFit.contain,
       placeholder: (_, __) => const Center(
         child: CircularProgressIndicator.adaptive(),
+      ),
+      errorWidget: (_, __, ___) => const Center(
+        child: Icon(
+          Icons.broken_image_outlined,
+          color: Colors.white54,
+          size: 40,
+        ),
       ),
     );
 

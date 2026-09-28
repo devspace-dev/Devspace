@@ -7,10 +7,8 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
-import '../providers/users_provider.dart';
 import '../services/backend_api_service.dart';
 import '../services/founder_device_service.dart';
-import '../services/monthly_aura_service.dart';
 import '../services/notification_service.dart';
 import '../services/storage_service.dart';
 import '../theme/app_colors.dart';

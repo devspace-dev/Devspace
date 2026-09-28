@@ -45,7 +45,9 @@ app.*.map.json
 /android/app/release
 /android/.gradle-user-home/
 
-# Local runtime config
+# Local runtime config & agent directories
 .env.local.json
 .env.prod.json
 .env
+.gemini/
+supabase/.temp/

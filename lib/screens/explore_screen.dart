@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
 import 'opportunities_screen.dart';
 import 'people_screen.dart';
+import 'qa_screen.dart';
 
 class ExploreScreen extends StatefulWidget {
   final int initialIndex;
@@ -21,9 +22,9 @@ class _ExploreScreenState extends State<ExploreScreen>
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: 2,
+      length: 3,
       vsync: this,
-      initialIndex: widget.initialIndex.clamp(0, 1),
+      initialIndex: widget.initialIndex.clamp(0, 2),
     );
   }
 
@@ -44,7 +45,7 @@ class _ExploreScreenState extends State<ExploreScreen>
         child: Column(
           children: [
             const SizedBox(height: 12),
-            // Custom sliding segment control for Opportunities, Developers
+            // Custom sliding segment control for Opportunities, Developers, Q&A
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 20),
               padding: const EdgeInsets.all(4),
@@ -84,6 +85,7 @@ class _ExploreScreenState extends State<ExploreScreen>
                 tabs: const [
                   Tab(text: 'Opportunities'),
                   Tab(text: 'Developers'),
+                  Tab(text: 'Q&A'),
                 ],
               ),
             ),
@@ -94,6 +96,7 @@ class _ExploreScreenState extends State<ExploreScreen>
                 children: const [
                   OpportunitiesScreen(),
                   PeopleScreen(),
+                  QAScreen(),
                 ],
               ),
             ),

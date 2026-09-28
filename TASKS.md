@@ -51,13 +51,14 @@ Upgrade the app backend for launch-ready gamification and gated engagement witho
 - [x] Push notification delivery and tap routing for Arena Duel Invites across background, closed, and foreground app states
 - [x] Added Burger Sidebar (Drawer) featuring Resources for You & quick navigation; removed Currently Building from onboarding and profile screens
 - [x] Executed systematic codebase cleanup pass: purged 14 orphaned files (legacy mocks, deprecated screens/models/widgets), fixed unused imports and variables, optimized type checks, and updated unit test expectations to match current MVP Aura structure
-- [x] Database Column & RLS Hardening: Enforced `BEFORE UPDATE` trigger on `public.users` protecting admin, aura, streaks, and premium state; created Storage RLS policies for avatar overwrites
-- [x] Server-Side RPC Migration: Implemented `activate_user_premium` and `resolve_arena_match` RPCs; revoked public execute on `award_aura`
+- [x] Database Column & RLS Hardening: Enforced `BEFORE UPDATE` trigger on `public.users` protecting admin, aura, and streaks; reconciled all 21 live tables' RLS policies and user-scoped Storage RLS policies (`posts/<uid>/%`, `documents/<uid>/%`, `profiles/<uid>.*`, `covers/<uid>.*`) into canonical `supabase/devspace_schema.sql`
+- [x] Server-Side RPC & Security Teardown: Implemented `resolve_arena_match` RPC; revoked public execute on `award_aura`; completely tore down the orphaned premium feature (`activate_user_premium` RPC, `premium_questions` table, `is_premium`/`career_goal` columns, and 7 unreachable premium Dart files)
 - [x] Backend Controller & Middleware Fix: Resolved `maybeSingle()` null crashes and passed `p_user_id` to `complete_daily_challenge`
 - [x] FCM Stream Memory Leak Fix: Stored and canceled `FirebaseMessaging` subscriptions in NotificationService
-- [x] Dead Code & Stale Features Purge: Removed deferred calling screens/service, unused StoryReel widget, obsolete pricing screen, and 11 root scratch scripts; verified all 20 unit tests pass with 0 failures
+- [x] Beta-Readiness Codebase & Dependency Audit: Removed 20 total dead/orphaned Dart files and 6 unused dependencies from `pubspec.yaml`, hardened Storage MIME/size validation (`StorageService`), URL schemes (`https://` / `http://`), PostgREST `.or()` filter escaping (`Sanitizer`), and resolved all analyzer warnings (`0 errors, 0 warnings`, `28 / 28` tests passing)
+
 ## In Progress
-- [ ] Pre-production verification across release config, notifications, privacy surface, and network-failure handling
+- [ ] Pre-production verification across release build smoke checks and network-failure handling
 
 
 ## Next

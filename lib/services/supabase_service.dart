@@ -10,6 +10,7 @@ import '../models/question_pull_request_model.dart';
 import '../models/conversation_model.dart';
 import '../models/message_model.dart';
 import '../models/aura_ledger_model.dart';
+import '../utils/sanitizer.dart';
 
 
 /// SQL Schema for Supabase (Run this in Supabase SQL Editor):
@@ -267,57 +268,6 @@ class SupabaseService {
     return data == null ? null : UserModel.fromJson(data);
   }
 
-  /// Full premium/career-goal fields for [userId]. Throws on failure —
-  /// callers pair this with [fetchBasicPremiumStatus] as a fallback, mirroring
-  /// pre-migration schemas that only have `is_premium`.
-  Future<Map<String, dynamic>?> fetchFullPremiumStatus(String userId) {
-    return _client
-        .from('users')
-        .select('career_goal, career_goal_selected, is_premium')
-        .eq('id', userId)
-        .maybeSingle();
-  }
-
-  /// Just the `is_premium` column for [userId], for schemas predating the
-  /// career-goal columns.
-  Future<Map<String, dynamic>?> fetchBasicPremiumStatus(String userId) {
-    return _client
-        .from('users')
-        .select('is_premium')
-        .eq('id', userId)
-        .maybeSingle();
-  }
-
-  /// Activates premium for [userId] via RPC, falling back to a direct
-  /// column update for legacy DB schemas where the RPC doesn't exist yet.
-  Future<void> activatePremium({
-    required String userId,
-    String paymentId = '',
-    String orderId = '',
-  }) async {
-    try {
-      await _client.rpc('activate_user_premium', params: {
-        'p_payment_id': paymentId,
-        'p_order_id': orderId,
-      });
-    } catch (rpcError) {
-      await _client.from('users').update({
-        'is_premium': true,
-        'career_goal_selected': false,
-      }).eq('id', userId);
-    }
-  }
-
-  Future<void> saveCareerGoal({
-    required String userId,
-    required String goalId,
-  }) async {
-    await _client.from('users').update({
-      'career_goal': goalId,
-      'career_goal_selected': true,
-    }).eq('id', userId);
-  }
-
   Future<void> createUser({
     required String id,
     required String name,
@@ -335,12 +285,18 @@ class SupabaseService {
     String githubHandle = '',
     bool profileCompleted = false,
   }) async {
+    final safeName = Sanitizer.sanitize(name, maxLength: 80);
+    final safeHandle = Sanitizer.sanitizeHandle(handle);
+    final safeBio = Sanitizer.sanitize(bio, maxLength: 500);
+    final safeBuilding = Sanitizer.sanitize(building, maxLength: 160);
+    final safeCollege = Sanitizer.sanitize(college, maxLength: 120);
+
     // 1. Insert core fields first (These MUST exist)
     await _client.from('users').upsert({
       'id': id,
-      'name': name,
+      'name': safeName,
       'email': email.toLowerCase(),
-      'handle': handle,
+      'handle': safeHandle,
       'avatar': avatar,
       'created_at': DateTime.now().toIso8601String(),
     });
@@ -354,12 +310,12 @@ class SupabaseService {
         'role': roles,
         'year': year,
         'branch': branch,
-        'building': building,
+        'building': safeBuilding,
         'stack': stack,
         'followers': 0,
         'following': 0,
-        'bio': bio,
-        'college': college,
+        'bio': safeBio,
+        'college': safeCollege,
         'github_handle': githubHandle,
         'profile_completed': profileCompleted,
       }).eq('id', id);
@@ -435,28 +391,10 @@ class SupabaseService {
           'p_reference_type': 'practice_qa',
           'p_reference_id': questionId,
         });
-        return;
       } catch (e) {
         debugPrint('award_aura RPC fallback for practice question: $e');
       }
     }
-
-    try {
-      await _client.from('aura_ledger').insert({
-        'user_id': userId,
-        'action': 'practice_question',
-        'points': points,
-        'reference_type': 'practice_qa',
-        'reference_id': questionId,
-      });
-    } catch (_) {}
-
-    try {
-      final current = await getUserById(userId);
-      if (current != null) {
-        await updateUser(userId, {'aura': current.aura + points});
-      }
-    } catch (_) {}
   }
 
   /// Calls server-side monthly reset RPC (protected)
@@ -604,7 +542,15 @@ class SupabaseService {
     var request = _client.from('users').select();
 
     if (query != null && query.isNotEmpty) {
-      request = request.or('name.ilike.%$query%,handle.ilike.%$query%,branch.ilike.%$query%,building.ilike.%$query%');
+      final safeQuery = Sanitizer.sanitize(query, maxLength: 80)
+          .replaceFirst(RegExp(r'^@+'), '')
+          .replaceAll(RegExp(r'[,()%\\"\{\}]'), '')
+          .trim();
+      if (safeQuery.isNotEmpty) {
+        request = request.or(
+          'name.ilike.%$safeQuery%,handle.ilike.%$safeQuery%,branch.ilike.%$safeQuery%,building.ilike.%$safeQuery%,stack.cs.{"$safeQuery"}',
+        );
+      }
     }
 
     final from = offset;
@@ -717,13 +663,22 @@ class SupabaseService {
     String? documentName,
     String? quotePostId,
   }) async {
+    final safeContent = Sanitizer.sanitize(content, maxLength: 5000);
+    final safeTags = tags
+        .map((t) => Sanitizer.sanitize(t, maxLength: 40))
+        .where((t) => t.isNotEmpty)
+        .take(10)
+        .toList();
+    final safeDocumentName = documentName == null
+        ? ''
+        : Sanitizer.sanitize(documentName, maxLength: 120);
     final normalizedQuotePostId = _normalizeOptionalUuid(quotePostId);
     final params = <String, dynamic>{
-      'p_content': content,
-      'p_tags': tags,
+      'p_content': safeContent,
+      'p_tags': safeTags,
       'p_image_url': imageUrl ?? '',
       'p_document_url': documentUrl ?? '',
-      'p_document_name': documentName ?? '',
+      'p_document_name': safeDocumentName,
     };
     if (normalizedQuotePostId != null) {
       params['p_quote_post_id'] = normalizedQuotePostId;
@@ -739,8 +694,8 @@ class SupabaseService {
       if (e is PostgrestException && e.code == 'PGRST202') {
         // Fallback for older schema without document support
         final fallbackParams = <String, dynamic>{
-          'p_content': content,
-          'p_tags': tags,
+          'p_content': safeContent,
+          'p_tags': safeTags,
           'p_image_url': imageUrl ?? '',
         };
         if (normalizedQuotePostId != null) {
@@ -801,7 +756,7 @@ class SupabaseService {
 
   Future<void> updatePost(String postId, String content) async {
     await _client.from('posts').update({
-      'content': content,
+      'content': Sanitizer.sanitize(content, maxLength: 5000),
     }).eq('id', postId);
   }
 
@@ -959,13 +914,20 @@ class SupabaseService {
     required String body,
     required List<String> tags,
   }) async {
+    final safeTitle = Sanitizer.sanitize(title, maxLength: 250);
+    final safeBody = Sanitizer.sanitize(body, maxLength: 8000);
+    final safeTags = tags
+        .map((t) => Sanitizer.sanitize(t, maxLength: 40))
+        .where((t) => t.isNotEmpty)
+        .take(10)
+        .toList();
     final data = await _client
         .from('questions')
         .insert({
           'user_id': userId,
-          'title': title,
-          'body': body,
-          'tags': tags,
+          'title': safeTitle,
+          'body': safeBody,
+          'tags': safeTags,
           'upvotes_count': 0,
           'replies_count': 0,
         })
@@ -981,7 +943,8 @@ class SupabaseService {
         .from('question_replies')
         .select()
         .eq('question_id', questionId)
-        .order('created_at', ascending: true);
+        .order('created_at', ascending: true)
+        .limit(200);
     return (data as List).map((d) => QuestionReplyModel.fromJson(d)).toList();
   }
 
@@ -992,7 +955,7 @@ class SupabaseService {
     String? parentReplyId,
     String? replyingToUserId,
   }) async {
-    final trimmed = content.trim();
+    final trimmed = Sanitizer.sanitize(content, maxLength: 5000);
     if (trimmed.isEmpty) {
       throw StateError('Reply cannot be empty.');
     }
@@ -1056,12 +1019,13 @@ class SupabaseService {
     required String userId,
     required String message,
   }) async {
+    final safeMessage = Sanitizer.sanitize(message, maxLength: 5000);
     // 1. Submit the PR
     await _client.from('question_pull_requests').upsert(
       {
         'question_id': questionId,
         'user_id': userId,
-        'message': message,
+        'message': safeMessage,
         'status': 'pending',
       },
       onConflict: 'question_id,user_id',
@@ -1290,7 +1254,8 @@ class SupabaseService {
         .from('comments')
         .select()
         .eq('post_id', postId)
-        .order('created_at', ascending: true);
+        .order('created_at', ascending: true)
+        .limit(200);
     return (data as List).map((d) => CommentModel.fromJson(d)).toList();
   }
 
@@ -1301,7 +1266,7 @@ class SupabaseService {
     String? parentCommentId,
     String? replyingToUserId,
   }) async {
-    final trimmed = content.trim();
+    final trimmed = Sanitizer.sanitize(content, maxLength: 2000);
     if (trimmed.isEmpty) {
       throw StateError('Comment cannot be empty.');
     }
@@ -1365,6 +1330,7 @@ class SupabaseService {
         .stream(primaryKey: ['id'])
         .eq('conversation_id', conversationId)
         .order('created_at', ascending: false)
+        .limit(100)
         .map((list) => list.map((d) => MessageModel.fromJson(d)).toList());
   }
 
@@ -1397,7 +1363,7 @@ class SupabaseService {
     required String senderId,
     required String content,
   }) async {
-    final trimmed = content.trim();
+    final trimmed = Sanitizer.sanitize(content, maxLength: 2000);
     if (trimmed.isEmpty) return;
 
     if (_client.auth.currentUser?.id != senderId) {
@@ -1481,7 +1447,8 @@ class SupabaseService {
         .from('aura_ledger')
         .select()
         .eq('user_id', userId)
-        .order('created_at', ascending: false);
+        .order('created_at', ascending: false)
+        .limit(100);
     return (data as List)
         .map((d) => AuraLedgerModel.fromJson(d))
         .where((item) => allowedLeaderboardActions.contains(item.action))
