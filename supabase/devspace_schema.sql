@@ -817,10 +817,6 @@ begin
   set solved_reply_id = p_reply_id
   where id = p_question_id;
 
-  update public.users
-  set aura = aura + 20
-  where id = reply_owner_id;
-
   return p_reply_id;
 end;
 $$;
@@ -1140,6 +1136,10 @@ security definer
 set search_path = public
 as $$
 begin
+  if p_points is null or p_points <= 0 then
+    return false;
+  end if;
+
   insert into public.aura_ledger(
     user_id,
     action,
@@ -1163,7 +1163,7 @@ begin
   if found then
     update public.users
     set aura_points = coalesce(aura_points, 0) + p_points,
-        aura = aura + p_points
+        aura = coalesce(aura, 0) + p_points
     where id = p_user_id;
     return true;
   end if;
@@ -1172,7 +1172,8 @@ begin
 end;
 $$;
 
-grant execute on function public.award_aura(uuid, text, integer, text, text, uuid, jsonb) to authenticated;
+revoke all on function public.award_aura(uuid, text, integer, text, text, uuid, jsonb) from public, anon, authenticated;
+grant execute on function public.award_aura(uuid, text, integer, text, text, uuid, jsonb) to service_role;
 
 create or replace function public.sync_post_like_count(p_post_id uuid)
 returns void
@@ -1540,134 +1541,6 @@ $$;
 
 grant execute on function public.assign_daily_challenge(text) to authenticated;
 
-create or replace function public.complete_daily_challenge(
-  p_submission_text text default '',
-  p_submission_link text default ''
-)
-returns jsonb
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  actor_id uuid;
-  today_utc date;
-  assignment_row public.user_challenges%rowtype;
-  reward_points integer;
-  previous_completion date;
-  next_streak integer;
-  next_longest integer;
-  bonus_points integer := 0;
-  awarded_badge boolean := false;
-begin
-  actor_id := auth.uid();
-  if actor_id is null then
-    raise exception 'Authentication required';
-  end if;
-
-  today_utc := timezone('utc'::text, now())::date;
-
-  select *
-  into assignment_row
-  from public.user_challenges
-  where user_id = actor_id
-    and assigned_date = today_utc
-  limit 1;
-
-  if assignment_row.id is null then
-    raise exception 'No daily challenge assigned for today';
-  end if;
-
-  if assignment_row.completed then
-    raise exception 'Challenge already completed for today';
-  end if;
-
-  if coalesce(trim(p_submission_text), '') = '' and coalesce(trim(p_submission_link), '') = '' then
-    raise exception 'Submission text or link is required';
-  end if;
-
-  select points_reward
-  into reward_points
-  from public.challenges
-  where id = assignment_row.challenge_id;
-
-  update public.user_challenges
-  set completed = true,
-      completed_at = timezone('utc'::text, now()),
-      submission_text = coalesce(trim(p_submission_text), ''),
-      submission_link = coalesce(trim(p_submission_link), '')
-  where id = assignment_row.id;
-
-  perform public.award_aura(
-    actor_id,
-    'complete_daily_challenge',
-    coalesce(reward_points, 20),
-    'daily_challenge',
-    assignment_row.id::text
-  );
-
-  select last_challenge_completed_on
-  into previous_completion
-  from public.users
-  where id = actor_id;
-
-  if previous_completion = today_utc - 1 then
-    select coalesce(current_streak, 0) + 1, greatest(coalesce(longest_streak, 0), coalesce(current_streak, 0) + 1)
-    into next_streak, next_longest
-    from public.users
-    where id = actor_id;
-  else
-    next_streak := 1;
-    select greatest(coalesce(longest_streak, 0), 1)
-    into next_longest
-    from public.users
-    where id = actor_id;
-  end if;
-
-  update public.users
-  set current_streak = next_streak,
-      longest_streak = next_longest,
-      last_challenge_completed_on = today_utc
-  where id = actor_id;
-
-  if next_streak = 3 then
-    bonus_points := 10;
-    perform public.award_aura(
-      actor_id,
-      'three_day_streak_bonus',
-      bonus_points,
-      'streak_bonus',
-      today_utc::text
-    );
-  elsif next_streak = 7 then
-    bonus_points := 25;
-    perform public.award_aura(
-      actor_id,
-      'seven_day_streak_bonus',
-      bonus_points,
-      'streak_bonus',
-      today_utc::text
-    );
-
-    insert into public.user_badges(user_id, badge_key, badge_name)
-    values (actor_id, 'seven_day_streak', '7 Day Streak')
-    on conflict (user_id, badge_key) do nothing;
-
-    awarded_badge := true;
-  end if;
-
-  return jsonb_build_object(
-    'completed', true,
-    'currentStreak', next_streak,
-    'longestStreak', next_longest,
-    'bonusPoints', bonus_points,
-    'badgeAwarded', awarded_badge
-  );
-end;
-$$;
-
-grant execute on function public.complete_daily_challenge(text, text) to authenticated;
-
 create or replace function public.refresh_user_streak_if_needed()
 returns jsonb
 language plpgsql
@@ -1804,16 +1677,7 @@ begin
   set solved_reply_id = p_reply_id
   where id = p_question_id;
 
-  perform public.award_aura(
-    reply_owner_id,
-    'answer_accepted',
-    15,
-    'accepted_answer',
-    p_reply_id::text,
-    question_owner_id,
-    jsonb_build_object('questionId', p_question_id)
-  );
-
+  -- Rule 4: Q&A does NOT award aura.
   return p_reply_id;
 end;
 $$;
@@ -3100,10 +2964,9 @@ drop policy if exists "Users can read own practice completions" on public.user_p
 create policy "Users can read own practice completions" on public.user_practice_completions
   for select to authenticated using (auth.uid() = user_id);
 
--- Atomic RPC Function for Practice Completion & Score Awarding
+-- Atomic RPC Function for Practice Completion & Score Awarding (Rule 2)
 create or replace function public.submit_practice_completion(
-  p_question_id text,
-  p_aura_reward integer default 5
+  p_question_id text
 )
 returns jsonb
 language plpgsql
@@ -3112,8 +2975,10 @@ set search_path = public
 as $$
 declare
   v_user_id uuid;
+  v_question_id text;
   v_already_completed boolean;
   v_valid_reward integer;
+  v_awarded boolean := false;
   v_new_aura bigint;
 begin
   v_user_id := auth.uid();
@@ -3121,36 +2986,48 @@ begin
     raise exception 'Not authenticated';
   end if;
 
+  v_question_id := trim(coalesce(p_question_id, ''));
+  if v_question_id = '' then
+    raise exception 'Question ID is required';
+  end if;
+
+  -- Server-side prefix mapping: noob_=5, easy_=10, med_=15, hard_=20
   v_valid_reward := case
-    when coalesce(p_aura_reward, 0) <= 0 then 0
-    when p_aura_reward in (5, 10, 15, 20) then p_aura_reward
-    when p_aura_reward <= 5 then 5
-    when p_aura_reward <= 10 then 10
-    when p_aura_reward <= 15 then 15
-    else 20
+    when v_question_id like 'noob_%' then 5
+    when v_question_id like 'easy_%' then 10
+    when v_question_id like 'med_%' then 15
+    when v_question_id like 'hard_%' then 20
+    else 0
   end;
 
-  -- Check if already completed (idempotency check)
+  if v_valid_reward <= 0 then
+    raise exception 'Invalid practice question ID prefix: %', v_question_id;
+  end if;
+
   select exists (
-    select 1 from public.user_practice_completions
-    where user_id = v_user_id and question_id = p_question_id
+    select 1
+    from public.user_practice_completions
+    where user_id = v_user_id
+      and question_id = v_question_id
   ) into v_already_completed;
 
   if not v_already_completed then
-    -- Record completion
     insert into public.user_practice_completions (user_id, question_id)
-    values (v_user_id, p_question_id)
+    values (v_user_id, v_question_id)
     on conflict (user_id, question_id) do nothing;
 
-    -- Award aura via aura_ledger + users.aura update
-    if v_valid_reward > 0 then
-      perform public.award_aura(
+    if found then
+      v_awarded := public.award_aura(
         v_user_id,
         'practice_question',
         v_valid_reward,
         'practice_qa',
-        p_question_id
+        v_question_id,
+        null,
+        jsonb_build_object('question_id', v_question_id, 'points', v_valid_reward)
       );
+    else
+      v_already_completed := true;
     end if;
   end if;
 
@@ -3160,14 +3037,19 @@ begin
 
   return jsonb_build_object(
     'already_completed', v_already_completed,
+    'awarded', v_awarded,
+    'points_awarded', case when v_awarded then v_valid_reward else 0 end,
     'aura', coalesce(v_new_aura, 0)
   );
 end;
 $$;
 
+revoke all on function public.submit_practice_completion(text) from public, anon;
+grant execute on function public.submit_practice_completion(text) to authenticated, service_role;
+
 
 -- ══════════════════════════════════════════════════════════════════════════
--- 2. MONTHLY AURA RESET & SERVER-SIDE IDEMPOTENCY GUARD
+-- 2. SYSTEM SETTINGS TABLE
 -- ══════════════════════════════════════════════════════════════════════════
 
 create table if not exists public.system_settings (
@@ -3180,41 +3062,6 @@ alter table public.system_settings enable row level security;
 drop policy if exists "System settings viewable by authenticated" on public.system_settings;
 create policy "System settings viewable by authenticated" on public.system_settings
   for select to authenticated using (true);
-
--- Server-side Monthly Reset RPC (Idempotent)
-create or replace function public.perform_monthly_aura_reset()
-returns void
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_current_month text;
-  v_last_reset text;
-begin
-  v_current_month := to_char(now(), 'YYYY-MM');
-
-  select value into v_last_reset
-  from public.system_settings
-  where key = 'last_monthly_aura_reset_key';
-
-  -- Idempotency check: if already reset for this month, do nothing
-  if v_last_reset = v_current_month then
-    return;
-  end if;
-
-  -- Reset monthly aura for all users
-  update public.users set aura_points = 0;
-
-  -- Record reset month
-  insert into public.system_settings (key, value, updated_at)
-  values ('last_monthly_aura_reset_key', v_current_month, now())
-  on conflict (key) do update set value = EXCLUDED.value, updated_at = EXCLUDED.updated_at;
-end;
-$$;
-
--- Revoke direct client execution from authenticated/anon roles
-revoke execute on function public.perform_monthly_aura_reset() from authenticated, anon;
 
 
 -- ══════════════════════════════════════════════════════════════════════════
@@ -3249,25 +3096,6 @@ create trigger tr_check_post_rate_limit
   before insert on public.posts
   for each row
   execute function public.check_post_rate_limit();
-
-
--- ══════════════════════════════════════════════════════════════════════════
--- 4. LEADERBOARD PERFORMANCE MATERIALIZED VIEW
--- ══════════════════════════════════════════════════════════════════════════
-
-create materialized view if not exists public.mv_leaderboard_rankings as
-select
-  id,
-  name,
-  handle,
-  avatar,
-  college,
-  aura,
-  aura_points,
-  row_number() over (order by coalesce(aura, 0) desc) as global_rank
-from public.users;
-
-create unique index if not exists idx_mv_leaderboard_id on public.mv_leaderboard_rankings(id);
 
 
 -- ==============================================================================
@@ -3438,13 +3266,12 @@ create policy "Users can delete own profile photos"
   );
 
 
--- 4. SERVICE ROLE COMPATIBLE DAILY CHALLENGE COMPLETION
--- Allow both direct user calls (using auth.uid()) and backend service role calls (passing p_user_id).
+-- 4. DAILY MISSION SUBMISSION & ADMIN REVIEW RPCS (Rule 1)
+-- Correct = +20 ('complete_daily_mission'), Attempt (wrong) = +5 ('attempt_daily_mission'). Zero streak bonus aura.
 
-create or replace function public.complete_daily_challenge(
+create or replace function public.submit_daily_mission(
   p_submission_text text default '',
-  p_submission_link text default '',
-  p_user_id uuid default null
+  p_submission_link text default ''
 )
 returns jsonb
 language plpgsql
@@ -3453,287 +3280,335 @@ set search_path = public
 as $$
 declare
   actor_id uuid;
-  today_utc date;
-  assignment_row public.user_challenges%rowtype;
-  reward_points integer;
+  today_local date;
+  assignment_row public.user_missions%rowtype;
+  mission_row public.daily_missions%rowtype;
+  is_correct boolean := false;
+  reward_points integer := 5;
+  action_name text := 'attempt_daily_mission';
   previous_completion date;
   next_streak integer;
   next_longest integer;
-  bonus_points integer := 0;
-  awarded_badge boolean := false;
-begin
-  -- Resolve actor: allow explicit user ID if called by service role, otherwise use auth.uid()
-  if current_user = 'service_role' or auth.role() = 'service_role' then
-    actor_id := coalesce(p_user_id, auth.uid());
-  else
-    actor_id := auth.uid();
-  end if;
-
-  if actor_id is null then
-    raise exception 'Authentication required';
-  end if;
-
-  today_utc := timezone('utc'::text, now())::date;
-
-  select *
-  into assignment_row
-  from public.user_challenges
-  where user_id = actor_id
-    and assigned_date = today_utc
-  limit 1;
-
-  if assignment_row.id is null then
-    raise exception 'No daily challenge assigned for today';
-  end if;
-
-  if assignment_row.completed then
-    raise exception 'Challenge already completed for today';
-  end if;
-
-  if coalesce(trim(p_submission_text), '') = '' and coalesce(trim(p_submission_link), '') = '' then
-    raise exception 'Submission text or link is required';
-  end if;
-
-  select points_reward
-  into reward_points
-  from public.challenges
-  where id = assignment_row.challenge_id;
-
-  reward_points := coalesce(reward_points, 10);
-
-  update public.user_challenges
-  set completed = true,
-      submission_text = coalesce(trim(p_submission_text), ''),
-      submission_link = coalesce(trim(p_submission_link), ''),
-      completed_at = timezone('utc'::text, now())
-  where id = assignment_row.id;
-
-  select last_challenge_completed_on, current_streak, longest_streak
-  into previous_completion, next_streak, next_longest
-  from public.users
-  where id = actor_id;
-
-  next_streak := coalesce(next_streak, 0);
-  next_longest := coalesce(next_longest, 0);
-
-  if previous_completion is null then
-    next_streak := 1;
-  elsif previous_completion = today_utc then
-    -- Already completed today, maintain streak
-  elsif previous_completion = (today_utc - interval '1 day')::date then
-    next_streak := next_streak + 1;
-  else
-    next_streak := 1;
-  end if;
-
-  if next_streak > next_longest then
-    next_longest := next_streak;
-  end if;
-
-  -- Apply streak bonus
-  if next_streak = 7 then
-    bonus_points := 10;
-  elsif next_streak = 30 then
-    bonus_points := 25;
-  end if;
-
-  update public.users
-  set current_streak = next_streak,
-      longest_streak = next_longest,
-      last_challenge_completed_on = today_utc
-  where id = actor_id;
-
-  -- Award baseline challenge points
-  perform public.award_aura(
-    actor_id,
-    'complete_daily_challenge',
-    reward_points,
-    'daily_challenge',
-    assignment_row.challenge_id::text,
-    null,
-    jsonb_build_object('streak', next_streak)
-  );
-
-  -- Award bonus points if milestone reached
-  if bonus_points > 0 then
-    perform public.award_aura(
-      actor_id,
-      'challenge_streak_bonus',
-      bonus_points,
-      'daily_challenge_streak',
-      assignment_row.challenge_id::text,
-      null,
-      jsonb_build_object('streak', next_streak)
-    );
-  end if;
-
-  return jsonb_build_object(
-    'completed', true,
-    'points_awarded', reward_points + bonus_points,
-    'current_streak', next_streak,
-    'longest_streak', next_longest,
-    'bonus_points', bonus_points
-  );
-end;
-$$;
-
-grant execute on function public.complete_daily_challenge(text, text, uuid) to authenticated;
-grant execute on function public.complete_daily_challenge(text, text, uuid) to service_role;
-
-
-
-
-
--- 6. ATOMIC ARENA MATCH RESOLUTION RPC
--- Authoritatively resolves duels and distributes aura rewards without client spoofing.
-
-create or replace function public.resolve_arena_match(
-  p_match_id text,
-  p_my_score integer,
-  p_mode text
-)
-returns jsonb
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  actor_id uuid;
-  match_row public.arena_matches%rowtype;
-  is_player1 boolean;
-  opp_id uuid;
-  opp_score integer;
-  i_won boolean;
-  base_points integer;
+  v_awarded boolean := false;
+  v_new_aura bigint;
 begin
   actor_id := auth.uid();
   if actor_id is null then
     raise exception 'Authentication required';
   end if;
 
-  select *
-  into match_row
-  from public.arena_matches
-  where id::text = p_match_id
-  limit 1;
-
-  if match_row.id is null then
-    return jsonb_build_object('success', true, 'awarded', false);
+  if coalesce(trim(p_submission_text), '') = '' and coalesce(trim(p_submission_link), '') = '' then
+    raise exception 'Submission text or link is required';
   end if;
 
-  is_player1 := (match_row.player1_id = actor_id);
-  if is_player1 then
-    opp_id := match_row.player2_id;
-    opp_score := coalesce(match_row.player2_score, 0);
-    update public.arena_matches
-    set player1_score = p_my_score
-    where id = match_row.id;
+  today_local := (timezone('Asia/Kolkata', now()))::date;
+
+  select * into assignment_row
+  from public.user_missions
+  where user_id = actor_id and assigned_date = today_local
+  for update;
+
+  if assignment_row.id is null then
+    raise exception 'No daily mission assigned for today';
+  end if;
+
+  if assignment_row.completed then
+    raise exception 'Mission already completed for today';
+  end if;
+
+  select * into mission_row
+  from public.daily_missions
+  where id = assignment_row.mission_id;
+
+  if mission_row.correct_answer is not null and trim(mission_row.correct_answer) <> '' then
+    if lower(trim(p_submission_text)) = lower(trim(mission_row.correct_answer)) then
+      is_correct := true;
+      reward_points := 20;
+      action_name := 'complete_daily_mission';
+    else
+      is_correct := false;
+      reward_points := 5;
+      action_name := 'attempt_daily_mission';
+    end if;
   else
-    opp_id := match_row.player1_id;
-    opp_score := coalesce(match_row.player1_score, 0);
-    update public.arena_matches
-    set player2_score = p_my_score
-    where id = match_row.id;
+    is_correct := true;
+    reward_points := 20;
+    action_name := 'complete_daily_mission';
   end if;
 
-  i_won := (p_my_score >= opp_score);
-  base_points := case when i_won then 15 else 0 end;
+  update public.user_missions
+  set completed = true,
+      completed_at = timezone('utc'::text, now()),
+      submission_text = coalesce(trim(p_submission_text), ''),
+      submission_link = coalesce(trim(p_submission_link), ''),
+      review_status = case when is_correct then 'approved' else 'rejected' end,
+      reviewed_at = timezone('utc'::text, now())
+  where id = assignment_row.id;
 
-  if base_points > 0 then
+  v_awarded := public.award_aura(
+    actor_id,
+    action_name,
+    reward_points,
+    'daily_mission',
+    assignment_row.id::text,
+    null,
+    jsonb_build_object(
+      'mission_id', assignment_row.mission_id,
+      'is_correct', is_correct,
+      'assigned_date', today_local
+    )
+  );
+
+  select last_challenge_completed_on, coalesce(current_streak, 0), coalesce(longest_streak, 0)
+  into previous_completion, next_streak, next_longest
+  from public.users
+  where id = actor_id;
+
+  if previous_completion = today_local - 1 then
+    next_streak := next_streak + 1;
+    next_longest := greatest(next_longest, next_streak);
+  elsif previous_completion = today_local then
+    next_longest := greatest(next_longest, next_streak);
+  else
+    next_streak := 1;
+    next_longest := greatest(next_longest, 1);
+  end if;
+
+  update public.users
+  set current_streak = next_streak,
+      longest_streak = next_longest,
+      last_challenge_completed_on = today_local
+  where id = actor_id;
+
+  if next_streak = 7 then
+    insert into public.user_badges(user_id, badge_key, badge_name)
+    values (actor_id, 'seven_day_streak', '7 Day Streak')
+    on conflict (user_id, badge_key) do nothing;
+  end if;
+
+  select coalesce(aura, 0) into v_new_aura
+  from public.users
+  where id = actor_id;
+
+  return jsonb_build_object(
+    'completed', true,
+    'isCorrect', is_correct,
+    'pointsAwarded', case when v_awarded then reward_points else 0 end,
+    'currentStreak', next_streak,
+    'longestStreak', next_longest,
+    'bonusPoints', 0,
+    'aura', coalesce(v_new_aura, 0)
+  );
+end;
+$$;
+
+revoke all on function public.submit_daily_mission(text, text) from public, anon;
+grant execute on function public.submit_daily_mission(text, text) to authenticated, service_role;
+
+create or replace function public.review_daily_mission(
+  p_user_mission_id uuid,
+  p_approve boolean
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  actor_is_admin boolean := false;
+  v_row public.user_missions%rowtype;
+  v_existing_points integer := 0;
+  v_delta integer := 0;
+begin
+  select coalesce(is_admin, false) into actor_is_admin
+  from public.users
+  where id = auth.uid();
+
+  if not actor_is_admin and current_user not in ('postgres', 'supabase_admin', 'service_role') then
+    raise exception 'Admin access required';
+  end if;
+
+  select * into v_row
+  from public.user_missions
+  where id = p_user_mission_id
+  for update;
+
+  if v_row.id is null then
+    raise exception 'Mission submission not found';
+  end if;
+
+  update public.user_missions
+  set review_status = case when p_approve then 'approved' else 'rejected' end,
+      reviewed_at = timezone('utc'::text, now())
+  where id = p_user_mission_id;
+
+  if p_approve then
+    select coalesce(sum(points), 0) into v_existing_points
+    from public.aura_ledger
+    where user_id = v_row.user_id
+      and reference_type = 'daily_mission'
+      and reference_id = v_row.id::text
+      and action in ('attempt_daily_mission', 'complete_daily_mission', 'mission_solved');
+
+    v_delta := greatest(20 - v_existing_points, 0);
+
+    if v_delta > 0 then
+      perform public.award_aura(
+        v_row.user_id,
+        'complete_daily_mission',
+        v_delta,
+        'daily_mission',
+        v_row.id::text,
+        auth.uid(),
+        jsonb_build_object('approved_by_admin', true, 'previous_points', v_existing_points)
+      );
+    end if;
+  end if;
+
+  return jsonb_build_object(
+    'success', true,
+    'status', case when p_approve then 'approved' else 'rejected' end,
+    'points_added', v_delta
+  );
+end;
+$$;
+
+revoke all on function public.review_daily_mission(uuid, boolean) from public, anon;
+grant execute on function public.review_daily_mission(uuid, boolean) to authenticated, service_role;
+
+
+-- 5. ATOMIC ARENA MATCH RESOLUTION RPC (Rule 3)
+-- +5 per correct answer ((stored_score / 15) * 5), awarded ONLY to the winner (or both on a tie). Loser gets 0.
+
+create or replace function public.resolve_arena_match(
+  p_match_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  actor_id uuid;
+  m public.arena_matches%rowtype;
+  p1_score integer;
+  p2_score integer;
+  p1_correct integer;
+  p2_correct integer;
+  p1_reward integer := 0;
+  p2_reward integer := 0;
+  v_winner uuid := null;
+  v_is_tie boolean := false;
+begin
+  actor_id := auth.uid();
+  if actor_id is null then
+    raise exception 'Authentication required';
+  end if;
+
+  select * into m
+  from public.arena_matches
+  where id = p_match_id
+  for update;
+
+  if m.id is null then
+    raise exception 'Match not found';
+  end if;
+
+  if actor_id <> m.player1_id and (m.player2_id is null or actor_id <> m.player2_id) then
+    raise exception 'Not a participant in this match';
+  end if;
+
+  p1_score := greatest(coalesce(m.player1_score, 0), 0);
+  p2_score := greatest(coalesce(m.player2_score, 0), 0);
+
+  p1_correct := greatest(p1_score / 15, 0);
+  p2_correct := greatest(p2_score / 15, 0);
+
+  if p1_score > p2_score then
+    v_winner := m.player1_id;
+    p1_reward := p1_correct * 5;
+    p2_reward := 0;
+  elsif p2_score > p1_score then
+    v_winner := m.player2_id;
+    p1_reward := 0;
+    p2_reward := p2_correct * 5;
+  else
+    v_winner := null;
+    v_is_tie := true;
+    p1_reward := p1_correct * 5;
+    p2_reward := p2_correct * 5;
+  end if;
+
+  if m.status <> 'completed' then
+    update public.arena_matches
+    set status = 'completed',
+        winner_id = v_winner
+    where id = p_match_id;
+  end if;
+
+  if m.player1_id is not null and p1_reward > 0 then
     perform public.award_aura(
-      actor_id,
+      m.player1_id,
       'arena_duel',
-      base_points,
-      'arena',
-      p_match_id,
-      opp_id,
-      jsonb_build_object('mode', p_mode, 'score', p_my_score, 'won', i_won)
+      p1_reward,
+      'arena_match',
+      m.id::text,
+      null,
+      jsonb_build_object(
+        'mode', m.mode,
+        'score', p1_score,
+        'correct_answers', p1_correct,
+        'result', case when v_is_tie then 'tie' else 'win' end
+      )
+    );
+  end if;
+
+  if m.player2_id is not null and p2_reward > 0 then
+    perform public.award_aura(
+      m.player2_id,
+      'arena_duel',
+      p2_reward,
+      'arena_match',
+      m.id::text,
+      null,
+      jsonb_build_object(
+        'mode', m.mode,
+        'score', p2_score,
+        'correct_answers', p2_correct,
+        'result', case when v_is_tie then 'tie' else 'win' end
+      )
     );
   end if;
 
   return jsonb_build_object(
     'success', true,
-    'won', i_won,
-    'points_awarded', base_points
+    'status', 'completed',
+    'winner_id', v_winner,
+    'is_tie', v_is_tie,
+    'player1_score', p1_score,
+    'player2_score', p2_score,
+    'player1_points_awarded', p1_reward,
+    'player2_points_awarded', p2_reward,
+    'my_points_awarded', case when actor_id = m.player1_id then p1_reward else p2_reward end
   );
 end;
 $$;
 
-grant execute on function public.resolve_arena_match(text, integer, text) to authenticated;
-grant execute on function public.resolve_arena_match(text, integer, text) to service_role;
-
-
+revoke all on function public.resolve_arena_match(uuid) from public, anon;
+grant execute on function public.resolve_arena_match(uuid) to authenticated, service_role;
 
 
 -- ==============================================================================
--- MONTHLY & ALL-TIME LEADERBOARD RPCS
+-- MONTHLY & ALL-TIME LEADERBOARD RPC (SINGLE CANONICAL SIGNATURE)
 -- ==============================================================================
--- DevSpace Leaderboard & Practice Q&A Aura RPC Script
 
--- 1. Create index for fast time-based and action-filtered ledger lookups
 CREATE INDEX IF NOT EXISTS idx_aura_ledger_created_at_user_id 
   ON public.aura_ledger (created_at DESC, user_id);
 
--- 2. Authoritative RPC for Arena Practice Mode Q&A rewards
--- Awards Easy: 5, Medium: 10, Hard: 15, Ultra: 20 when a user answers a practice question correctly
-CREATE OR REPLACE FUNCTION public.complete_practice_question(
-  p_question_id text,
-  p_points integer
-)
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_actor_id uuid;
-  v_valid_points integer;
-  v_awarded boolean;
-BEGIN
-  v_actor_id := auth.uid();
-  IF v_actor_id IS NULL THEN
-    RAISE EXCEPTION 'Authentication required';
-  END IF;
-
-  -- Enforce valid Practice Mode difficulty rewards: Easy (5), Medium (10), Hard (15), Ultra (20)
-  v_valid_points := CASE
-    WHEN p_points IN (5, 10, 15, 20) THEN p_points
-    WHEN p_points <= 5 THEN 5
-    WHEN p_points <= 10 THEN 10
-    WHEN p_points <= 15 THEN 15
-    ELSE 20
-  END;
-
-  v_awarded := public.award_aura(
-    v_actor_id,
-    'practice_question',
-    v_valid_points,
-    'practice_qa',
-    p_question_id
-  );
-
-  RETURN jsonb_build_object(
-    'success', true,
-    'awarded', v_awarded,
-    'points', v_valid_points,
-    'questionId', p_question_id
-  );
-END;
-$$;
-
-GRANT EXECUTE ON FUNCTION public.complete_practice_question(text, integer) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.complete_practice_question(text, integer) TO service_role;
-
--- 3. Stored procedure to fetch Leaderboard by board type ('monthly' or 'all_time')
--- and scope ('Global' when p_college is NULL/empty, 'College' when p_college is specified).
--- Only counts Aura from:
---   1. Q&A Solution & Arena Practice Mode (Easy: 5, Medium: 10, Hard: 15, Ultra: 20)
---   2. Daily Mission (+20 solved, +5 attempt)
---   3. Combat Section (arena_duel)
 CREATE OR REPLACE FUNCTION public.get_aura_leaderboard(
-  p_timeframe text DEFAULT 'monthly',
   p_college text DEFAULT NULL,
-  p_limit integer DEFAULT 100
+  p_limit integer DEFAULT 100,
+  p_timeframe text DEFAULT 'monthly'
 )
 RETURNS TABLE (
   id uuid,
@@ -3762,7 +3637,6 @@ DECLARE
   v_month_end timestamp with time zone;
 BEGIN
   IF p_timeframe = 'monthly' OR p_timeframe = 'weekly' THEN
-    -- Monthly board starts at 0 at the start of every calendar month and resets at the end of the month
     v_month_start := DATE_TRUNC('month', timezone('utc'::text, NOW()));
     v_month_end := v_month_start + INTERVAL '1 month';
 
@@ -3775,22 +3649,11 @@ BEGIN
       WHERE al.created_at >= v_month_start
         AND al.created_at < v_month_end
         AND al.action IN (
-          -- 1. Q&A Solution & Arena Practice Mode
           'practice_question',
-          'qa_solution',
-          'answer_accepted',
-          'solve_question',
-          -- 2. Daily Mission (+20 solved, +5 attempt)
+          'practice_complete',
           'complete_daily_mission',
           'attempt_daily_mission',
-          'complete_daily_challenge',
-          'daily_challenge',
-          'daily_mission_attempt',
           'mission_solved',
-          'mission_attempted',
-          'challenge_solved',
-          'challenge_attempted',
-          -- 3. Combat Section
           'arena_duel'
         )
       GROUP BY al.user_id
@@ -3815,10 +3678,9 @@ BEGIN
     FROM public.users u
     LEFT JOIN monthly_scores ms ON u.id = ms.user_id
     WHERE (p_college IS NULL OR p_college = '' OR u.college = p_college)
-    ORDER BY COALESCE(ms.period_aura, 0) DESC, u.aura DESC, u.created_at ASC
+    ORDER BY COALESCE(ms.period_aura, 0) DESC, u.created_at ASC
     LIMIT p_limit;
   ELSE
-    -- All-Time board stores total points earned by the user across all time
     RETURN QUERY
     WITH all_time_scores AS (
       SELECT 
@@ -3826,22 +3688,11 @@ BEGIN
         COALESCE(SUM(al.points), 0)::bigint AS total_aura
       FROM public.aura_ledger al
       WHERE al.action IN (
-        -- 1. Q&A Solution & Arena Practice Mode
         'practice_question',
-        'qa_solution',
-        'answer_accepted',
-        'solve_question',
-        -- 2. Daily Mission (+20 solved, +5 attempt)
+        'practice_complete',
         'complete_daily_mission',
         'attempt_daily_mission',
-        'complete_daily_challenge',
-        'daily_challenge',
-        'daily_mission_attempt',
         'mission_solved',
-        'mission_attempted',
-        'challenge_solved',
-        'challenge_attempted',
-        -- 3. Combat Section
         'arena_duel'
       )
       GROUP BY al.user_id
@@ -3861,19 +3712,19 @@ BEGIN
       u.github_handle,
       u.profile_completed,
       u.is_admin,
-      GREATEST(COALESCE(ats.total_aura, 0), COALESCE(u.aura, 0))::bigint AS aura,
+      COALESCE(ats.total_aura, 0)::bigint AS aura,
       u.created_at
     FROM public.users u
     LEFT JOIN all_time_scores ats ON u.id = ats.user_id
     WHERE (p_college IS NULL OR p_college = '' OR u.college = p_college)
-    ORDER BY GREATEST(COALESCE(ats.total_aura, 0), COALESCE(u.aura, 0)) DESC, u.created_at ASC
+    ORDER BY COALESCE(ats.total_aura, 0) DESC, u.created_at ASC
     LIMIT p_limit;
   END IF;
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.get_aura_leaderboard(text, text, integer) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_aura_leaderboard(text, text, integer) TO service_role;
+REVOKE ALL ON FUNCTION public.get_aura_leaderboard(text, integer, text) FROM public, anon;
+GRANT EXECUTE ON FUNCTION public.get_aura_leaderboard(text, integer, text) TO authenticated, service_role;
 
 
 -- =============================================================================

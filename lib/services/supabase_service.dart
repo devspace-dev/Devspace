@@ -330,13 +330,12 @@ class SupabaseService {
   }
 
   /// Submits practice completion to server-side RPC for secure aura calculation and idempotency
-  Future<Map<String, dynamic>?> submitPracticeCompletion(String questionId, {int auraReward = 5}) async {
+  Future<Map<String, dynamic>?> submitPracticeCompletion(String questionId) async {
     try {
       final response = await _client.rpc(
         'submit_practice_completion',
         params: {
           'p_question_id': questionId,
-          'p_aura_reward': auraReward,
         },
       );
       if (response is Map) {
@@ -350,69 +349,20 @@ class SupabaseService {
   }
 
   static const Set<String> allowedLeaderboardActions = {
-    // 1. Q&A Solution & Arena Practice Mode
     'practice_question',
-    'qa_solution',
-    'answer_accepted',
-    'solve_question',
-    // 2. Daily Mission (+20 solved, +5 attempt)
+    'practice_complete',
     'complete_daily_mission',
     'attempt_daily_mission',
-    'complete_daily_challenge',
-    'daily_challenge',
-    'daily_mission_attempt',
     'mission_solved',
-    'mission_attempted',
-    'challenge_solved',
-    'challenge_attempted',
-    // 3. Combat Section
     'arena_duel',
   };
-
-  /// Awards Aura points for answering a question correctly in Arena Practice Mode
-  /// (Easy: +5, Medium: +10, Hard: +15, Ultra: +20)
-  Future<void> awardPracticeAura({
-    required String userId,
-    required int points,
-    required String questionId,
-  }) async {
-    try {
-      await _client.rpc('complete_practice_question', params: {
-        'p_question_id': questionId,
-        'p_points': points,
-      });
-      return;
-    } catch (_) {
-      try {
-        await _client.rpc('award_aura', params: {
-          'p_user_id': userId,
-          'p_action': 'practice_question',
-          'p_points': points,
-          'p_reference_type': 'practice_qa',
-          'p_reference_id': questionId,
-        });
-      } catch (e) {
-        debugPrint('award_aura RPC fallback for practice question: $e');
-      }
-    }
-  }
-
-  /// Calls server-side monthly reset RPC (protected)
-  Future<void> resetAllUsersMonthlyAura() async {
-    try {
-      await _client.rpc('perform_monthly_aura_reset');
-    } catch (e) {
-      debugPrint('Error executing perform_monthly_aura_reset: $e');
-    }
-  }
 
   /// Legacy alias kept for compatibility — delegates to Monthly Leaderboard
   Future<List<UserModel>> getWeeklyAuraLeaderboard({String? college}) async {
     return getMonthlyAuraLeaderboard(college: college);
   }
 
-  /// Returns users ranked by Monthly Aura points (earned in the current calendar month).
-  /// Starts from 0 at the beginning of every month and resets at the end of the month.
+  /// Returns users ranked by Monthly Aura points (earned in the current UTC calendar month).
   Future<List<UserModel>> getMonthlyAuraLeaderboard({String? college}) async {
     try {
       final response = await _client.rpc(
@@ -424,47 +374,15 @@ class SupabaseService {
         },
       );
       if (response != null) {
-        final list = (response as List).map((d) => UserModel.fromJson(d)).toList();
-        if (list.isNotEmpty) return list;
+        return (response as List).map((d) => UserModel.fromJson(d)).toList();
       }
     } catch (e) {
-      debugPrint('RPC get_aura_leaderboard failed for monthly, running fallback: $e');
+      debugPrint('RPC get_aura_leaderboard failed for monthly: $e');
     }
-
-    try {
-      final now = DateTime.now();
-      final monthStart = DateTime(now.year, now.month, 1);
-      final monthEnd = DateTime(now.year, now.month + 1, 1);
-      final totals = await getAuraTotalsForPeriod(
-        start: monthStart,
-        end: monthEnd,
-        allowedActionsOnly: true,
-      );
-
-      var users = await getUsers(limit: 200);
-      if (college != null && college.isNotEmpty) {
-        users = users.where((u) => u.college == college).toList();
-      }
-
-      final monthlyUsers = users
-          .map((u) => u.copyWith(aura: totals[u.id] ?? 0))
-          .toList();
-
-      final allTimeByUserId = {for (final u in users) u.id: u.aura};
-      monthlyUsers.sort((a, b) {
-        final cmp = b.aura.compareTo(a.aura);
-        if (cmp != 0) return cmp;
-        return (allTimeByUserId[b.id] ?? 0).compareTo(allTimeByUserId[a.id] ?? 0);
-      });
-
-      return monthlyUsers.take(100).toList();
-    } catch (e) {
-      debugPrint('Error fetching monthly aura leaderboard fallback: $e');
-      return [];
-    }
+    return [];
   }
 
-  /// Returns users ranked by All-Time Aura earned across all time
+  /// Returns users ranked by All-Time Aura earned across all time in Arena
   Future<List<UserModel>> getAllTimeAuraLeaderboard({String? college}) async {
     try {
       final response = await _client.rpc(
@@ -476,34 +394,12 @@ class SupabaseService {
         },
       );
       if (response != null) {
-        final list = (response as List).map((d) => UserModel.fromJson(d)).toList();
-        if (list.isNotEmpty) return list;
+        return (response as List).map((d) => UserModel.fromJson(d)).toList();
       }
     } catch (e) {
-      debugPrint('RPC get_aura_leaderboard failed for all_time, running fallback: $e');
+      debugPrint('RPC get_aura_leaderboard failed for all_time: $e');
     }
-
-    try {
-      final totals = await getAuraTotalsForPeriod(allowedActionsOnly: true);
-      var users = await getUsers(limit: 200);
-      if (college != null && college.isNotEmpty) {
-        users = users.where((u) => u.college == college).toList();
-      }
-
-      final rankedUsers = users.map((u) {
-        final ledgerTotal = totals[u.id];
-        final effectiveAura = ledgerTotal != null && ledgerTotal > u.aura
-            ? ledgerTotal
-            : u.aura;
-        return u.copyWith(aura: effectiveAura);
-      }).toList();
-
-      rankedUsers.sort((a, b) => b.aura.compareTo(a.aura));
-      return rankedUsers.take(100).toList();
-    } catch (e) {
-      debugPrint('Error fetching all-time aura leaderboard fallback: $e');
-      return [];
-    }
+    return [];
   }
 
   Future<void> updateFcmToken(String uid, String token) async {
@@ -514,24 +410,16 @@ class SupabaseService {
     final user = _client.auth.currentUser;
     if (user == null) return;
 
-    // Call the RPC to delete from public.users and potentially trigger auth deletion
-    // Or just delete from public.users and let the user know they are unsubscribed
     await _client.from('users').delete().eq('id', user.id);
     await _client.auth.signOut();
   }
 
   Future<List<UserModel>> getLeaderboard({int limit = 50}) async {
-    try {
-      final data = await _client
-          .from('mv_leaderboard_rankings')
-          .select()
-          .order('aura', ascending: false)
-          .limit(limit);
-      return (data as List).map((d) => UserModel.fromJson(d)).toList();
-    } catch (e) {
-      debugPrint('Leaderboard view query fallback to users table: $e');
-      return getUsers(limit: limit);
+    final users = await getAllTimeAuraLeaderboard();
+    if (users.isNotEmpty) {
+      return users.take(limit).toList();
     }
+    return getUsers(limit: limit);
   }
 
   Future<List<UserModel>> getUsers({
@@ -1487,11 +1375,6 @@ class SupabaseService {
       totals.update(userId, (value) => value + points, ifAbsent: () => points);
     }
     return totals;
-  }
-
-  Future<void> syncGitHubAura(String userId, String githubHandle) async {
-    // Aura points are strictly awarded in Q&A/Practice Mode, Daily Mission, and Combat.
-    return;
   }
 
   Future<void> upvoteReply(String replyId, String userId) async {

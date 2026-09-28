@@ -10,7 +10,6 @@ import '../providers/auth_provider.dart';
 import '../providers/questions_provider.dart';
 import '../providers/users_provider.dart';
 import '../theme/app_colors.dart';
-import '../utils/constants.dart';
 import '../widgets/app_state_widgets.dart';
 import '../widgets/question_card.dart';
 import '../widgets/user_avatar.dart';
@@ -316,10 +315,9 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
       return;
     }
 
-    authP.addAura(kAuraComment);
     _replyCtrl.clear();
     messenger.showSnackBar(
-      const SnackBar(content: Text('+5 aura for helping another builder')),
+      const SnackBar(content: Text('Reply posted.')),
     );
 
     final replies = questionsP.repliesForQuestion(widget.questionId);
@@ -353,10 +351,9 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
       return;
     }
 
-    authP.addAura(kAuraComment);
     _clearInlineReplyComposer();
     messenger.showSnackBar(
-      const SnackBar(content: Text('+5 aura for helping another builder')),
+      const SnackBar(content: Text('Reply posted.')),
     );
 
     final replies = questionsP.repliesForQuestion(widget.questionId);
@@ -401,7 +398,7 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
       SnackBar(
         content: Text(
           result.success
-              ? 'Marked as solved. The reply author received +$kAuraAnswerAccepted aura.'
+              ? 'Marked as solved.'
               : (result.error ?? 'Failed to mark solved reply.'),
         ),
       ),

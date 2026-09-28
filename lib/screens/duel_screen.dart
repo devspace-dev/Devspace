@@ -366,18 +366,20 @@ class _DuelScreenState extends State<DuelScreen> {
         : 0.0;
 
     // Authoritative server-side match resolution RPC
+    int pointsAwarded = 0;
     try {
       final result = await Supabase.instance.client.rpc(
         'resolve_arena_match',
         params: {
           'p_match_id': widget.matchId,
-          'p_my_score': _myScore,
-          'p_mode': widget.mode,
         },
       );
       if (result is Map) {
-        final pointsAwarded = (result['points_awarded'] as num?)?.toInt() ?? 0;
-        if (pointsAwarded > 0) {
+        pointsAwarded = (result['points_awarded'] as num?)?.toInt() ?? 0;
+        final serverAura = (result['aura'] as num?)?.toInt();
+        if (serverAura != null) {
+          authProvider.updateLocalAura(serverAura);
+        } else if (pointsAwarded > 0) {
           authProvider.updateLocalAura(me.aura + pointsAwarded);
         }
       }
@@ -407,6 +409,7 @@ class _DuelScreenState extends State<DuelScreen> {
           opponentQuestionsAnswered: oppQuestionsAnswered,
           myAccuracy: myAccuracy,
           opponentAccuracy: oppAccuracy,
+          myPointsAwarded: pointsAwarded,
           myScoreTimeline: _myScoreTimeline,
           opponentScoreTimeline: _opponentScoreTimeline,
           teammate: _teammate,

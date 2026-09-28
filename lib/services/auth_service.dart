@@ -656,11 +656,6 @@ class AuthService {
         'avatar': nextAvatar,
       });
 
-      // Sync GitHub aura if handle changed or is new
-      if (trimmedGithub.isNotEmpty && (user.githubHandle != trimmedGithub)) {
-        unawaited(SupabaseService.instance.syncGitHubAura(user.id, trimmedGithub));
-      }
-
       // Synchronize identity metadata with Supabase Auth user record
       try {
         await _supabase.auth.updateUser(
