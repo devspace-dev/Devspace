@@ -53,5 +53,16 @@
 		<string>Devspace needs access to your photo library to choose a profile picture.</string>
 		<key>NSMicrophoneUsageDescription</key>
 		<string>Devspace needs access to your microphone for video uploads.</string>
+		<key>CFBundleURLTypes</key>
+		<array>
+			<dict>
+				<key>CFBundleTypeRole</key>
+				<string>Editor</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>io.supabase.flutter</string>
+				</array>
+			</dict>
+		</array>
 	</dict>
 </plist>

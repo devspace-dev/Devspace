@@ -40,13 +40,18 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   String? _lastMarkedIncomingMessageId;
 
   late final RealtimeChannel _channel;
+  late Stream<List<MessageModel>> _messagesStream;
   bool _isOtherUserTyping = false;
   Timer? _typingTimer;
   bool _iAmTyping = false;
+  bool _isSubmitting = false;
 
   @override
   void initState() {
     super.initState();
+    _messagesStream = context
+        .read<MessagesProvider>()
+        .messagesStream(widget.conversation.id);
     _initPresence();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -118,33 +123,39 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 
   Future<void> _sendMessage() async {
+    if (_isSubmitting) return;
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
-    final me = context.read<AuthProvider>().currentUser;
-    final provider = context.read<MessagesProvider>();
-    provider.clearConversationError(widget.conversation.id);
+    _isSubmitting = true;
+    try {
+      final me = context.read<AuthProvider>().currentUser;
+      final provider = context.read<MessagesProvider>();
+      provider.clearConversationError(widget.conversation.id);
 
-    _setTyping(false);
-    _controller.clear();
+      _setTyping(false);
+      _controller.clear();
 
-    final success = await provider.send(
-      widget.conversation.id,
-      me.id,
-      text,
-    );
-    if (!mounted) return;
-
-    if (success) {
-      _scrollToBottom();
-      return;
-    }
-
-    final error = provider.sendError(widget.conversation.id);
-    if (error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error)),
+      final success = await provider.send(
+        widget.conversation.id,
+        me.id,
+        text,
       );
+      if (!mounted) return;
+
+      if (success) {
+        _scrollToBottom();
+        return;
+      }
+
+      final error = provider.sendError(widget.conversation.id);
+      if (error != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error)),
+        );
+      }
+    } finally {
+      _isSubmitting = false;
     }
   }
 
@@ -368,9 +379,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         children: [
           Expanded(
             child: StreamBuilder<List<MessageModel>>(
-              stream: context
-                  .read<MessagesProvider>()
-                  .messagesStream(widget.conversation.id),
+              stream: _messagesStream,
               builder: (context, snap) {
                 if (snap.hasError) {
                   return _buildError(context, snap.error.toString());
@@ -501,7 +510,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             ElevatedButton.icon(
               onPressed: () {
                 HapticFeedback.lightImpact();
-                setState(() {}); // Trigger rebuild to retry stream
+                setState(() {
+                  _messagesStream = context
+                      .read<MessagesProvider>()
+                      .messagesStream(widget.conversation.id);
+                });
               },
               icon: const Icon(Icons.refresh_rounded, size: 18),
               label: const Text('Try Again'),

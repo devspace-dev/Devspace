@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'supabase_service.dart';
 import 'analytics_service.dart';
@@ -28,6 +30,7 @@ class AuthService {
   static const String _collegeDomain = 'mnit.ac.in';
   final SupabaseClient _supabase = Supabase.instance.client;
   final bool _enforceCollegeDomain = false;
+  bool _googleSignInInitialized = false;
   UserModel? _currentUser;
   StreamSubscription? _profileSub;
   final _authStateController = StreamController<UserModel?>.broadcast();
@@ -58,6 +61,38 @@ class AuthService {
     }
 
     return 'Sign-in failed: ${e.message}';
+  }
+
+  String _friendlyGoogleError(Object error) {
+    if (error is GoogleSignInException) {
+      if (error.code == GoogleSignInExceptionCode.canceled) {
+        return 'Google sign-in was cancelled.';
+      }
+      final details = '${error.code} ${error.description ?? ''}'.toLowerCase();
+      if (details.contains('canceled') || details.contains('cancelled')) {
+        return 'Google sign-in was cancelled.';
+      }
+      if (details.contains('network')) {
+        return 'Network error during Google sign-in. Check your connection and try again.';
+      }
+    }
+
+    if (error is PlatformException) {
+      final details = '${error.code} ${error.message ?? ''}'.toLowerCase();
+      if (details.contains('canceled') || details.contains('cancelled')) {
+        return 'Google sign-in was cancelled.';
+      }
+      if (details.contains('network')) {
+        return 'Network error during Google sign-in. Check your connection and try again.';
+      }
+      if (details.contains('sign_in_failed') ||
+          details.contains('developer_error') ||
+          details.contains('10')) {
+        return 'Google sign-in configuration mismatch (SHA-1 / Client ID). Please rebuild the app after updating Google Cloud Console.';
+      }
+    }
+
+    return 'Google sign-in failed: $error';
   }
 
   String _friendlyPhoneError(AuthException e) {
@@ -254,6 +289,15 @@ class AuthService {
     return 'DevSpace Student';
   }
 
+  String _initialAvatarForUser(User user, String name, String email) {
+    final metadata = user.userMetadata;
+    final photoUrl = metadata?['avatar_url'] ?? metadata?['picture'];
+    if (photoUrl is String && photoUrl.trim().startsWith('http')) {
+      return photoUrl.trim();
+    }
+    return _buildAvatar(name, email);
+  }
+
   Future<UserModel?> _loadOrCreateProfile(User user) async {
     final existing = await SupabaseService.instance.getUserById(user.id);
     if (existing != null) return existing;
@@ -268,16 +312,11 @@ class AuthService {
           return existingByEmail;
         }
 
-        // Try updating existing profile to point to current user id if possible
-        try {
-          await SupabaseService.instance.updateUser(existingByEmail.id, {
-            'id': user.id,
-          });
-          final reloaded = await SupabaseService.instance.getUserById(user.id);
-          if (reloaded != null) return reloaded;
-        } catch (_) {}
-
-        return existingByEmail;
+        // Email already belongs to a different auth user UUID that was not linked
+        await _supabase.auth.signOut();
+        throw const AuthException(
+          'This email is already registered with a password account. Please sign in with your email and password.',
+        );
       }
     }
 
@@ -291,7 +330,7 @@ class AuthService {
       name: name,
       email: email,
       handle: handle,
-      avatar: _buildAvatar(name, email),
+      avatar: _initialAvatarForUser(user, name, email),
       roles: const ['Student'],
       year: '',
       branch: '',
@@ -392,10 +431,84 @@ class AuthService {
   }
 
   Future<AuthResult> signInWithGoogle() async {
-    return const AuthResult(
-      error:
-          'Google sign-in is temporarily disabled for the beta release. Please sign in with your email and password.',
-    );
+    try {
+      final googleSignIn = GoogleSignIn.instance;
+      if (!_googleSignInInitialized) {
+        const webClientId = String.fromEnvironment(
+          'GOOGLE_WEB_CLIENT_ID',
+          defaultValue: '',
+        );
+        await googleSignIn.initialize(
+          serverClientId: webClientId.isEmpty ? null : webClientId,
+        );
+        _googleSignInInitialized = true;
+      }
+
+      // Sign out cached Google selection so the native account picker always opens
+      try {
+        await googleSignIn.signOut();
+      } catch (_) {}
+
+      final GoogleSignInAccount googleUser = await googleSignIn.authenticate(
+        scopeHint: const ['email', 'profile'],
+      );
+
+      if (!_isAllowedEmail(googleUser.email)) {
+        await googleSignIn.signOut();
+        return const AuthResult(
+          error: 'Please use your @$_collegeDomain college email.',
+        );
+      }
+
+      final googleAuth = googleUser.authentication;
+      final idToken = googleAuth.idToken;
+      if (idToken == null || idToken.isEmpty) {
+        return const AuthResult(
+          error: 'Google did not return an ID token. Please try again.',
+        );
+      }
+
+      String? accessToken;
+      try {
+        const scopes = ['email', 'profile'];
+        final authorization =
+            await googleUser.authorizationClient.authorizationForScopes(scopes) ??
+                await googleUser.authorizationClient.authorizeScopes(scopes);
+        accessToken = authorization.accessToken;
+      } catch (e) {
+        debugPrint('Optional Google access token fetch skipped: $e');
+      }
+
+      final AuthResponse res = await _supabase.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: idToken,
+        accessToken: accessToken,
+      );
+
+      final user = res.user;
+      if (user == null) {
+        return const AuthResult(error: 'Google sign-in failed.');
+      }
+
+      _currentUser = await _loadOrCreateProfile(user);
+      _authStateController.add(_currentUser);
+
+      AnalyticsService.instance.logLogin('google');
+      if (_currentUser != null) {
+        AnalyticsService.instance.setUserIdentifier(_currentUser!.id);
+      }
+
+      return AuthResult(user: _currentUser);
+    } on AuthException catch (e) {
+      return AuthResult(error: _friendlySignInError(e));
+    } on PostgrestException catch (e) {
+      return AuthResult(
+        error:
+            _friendlyDatabaseError(e) ?? 'Google sign-in failed: ${e.message}',
+      );
+    } catch (e) {
+      return AuthResult(error: _friendlyGoogleError(e));
+    }
   }
 
   Future<AuthResult> sendPhoneOtp(String phone) async {

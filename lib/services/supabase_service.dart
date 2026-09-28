@@ -543,11 +543,12 @@ class SupabaseService {
 
     if (query != null && query.isNotEmpty) {
       final safeQuery = Sanitizer.sanitize(query, maxLength: 80)
-          .replaceAll(RegExp(r'[,().%\\]'), '')
+          .replaceFirst(RegExp(r'^@+'), '')
+          .replaceAll(RegExp(r'[,()%\\"\{\}]'), '')
           .trim();
       if (safeQuery.isNotEmpty) {
         request = request.or(
-          'name.ilike.%$safeQuery%,handle.ilike.%$safeQuery%,branch.ilike.%$safeQuery%,building.ilike.%$safeQuery%',
+          'name.ilike.%$safeQuery%,handle.ilike.%$safeQuery%,branch.ilike.%$safeQuery%,building.ilike.%$safeQuery%,stack.cs.{"$safeQuery"}',
         );
       }
     }

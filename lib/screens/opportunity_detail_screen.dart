@@ -17,24 +17,42 @@ class OpportunityDetailScreen extends StatelessWidget {
   const OpportunityDetailScreen({super.key, required this.opportunity});
 
   Future<void> _handleRegister(BuildContext context) async {
-    if (opportunity.link.isEmpty) {
+    final rawLink = opportunity.link.trim();
+    if (rawLink.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Registration link not available yet.')),
       );
       return;
     }
 
-    final uri = Uri.tryParse(opportunity.link);
-    if (uri != null && await canLaunchUrl(uri)) {
-      HapticFeedback.heavyImpact();
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      await Clipboard.setData(ClipboardData(text: opportunity.link));
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Link copied to clipboard.')),
+    final normalizedLink = rawLink.contains('://') ? rawLink : 'https://$rawLink';
+    final uri = Uri.tryParse(normalizedLink);
+    final isAllowedScheme = uri != null &&
+        uri.hasAuthority &&
+        (uri.scheme.toLowerCase() == 'https' ||
+            uri.scheme.toLowerCase() == 'http');
+
+    if (isAllowedScheme) {
+      try {
+        HapticFeedback.heavyImpact();
+        final launched = await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
         );
-      }
+        if (launched) return;
+        final fallbackLaunched = await launchUrl(
+          uri,
+          mode: LaunchMode.platformDefault,
+        );
+        if (fallbackLaunched) return;
+      } catch (_) {}
+    }
+
+    await Clipboard.setData(ClipboardData(text: normalizedLink));
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Link copied to clipboard.')),
+      );
     }
   }
 

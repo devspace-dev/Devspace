@@ -3113,12 +3113,22 @@ as $$
 declare
   v_user_id uuid;
   v_already_completed boolean;
+  v_valid_reward integer;
   v_new_aura bigint;
 begin
   v_user_id := auth.uid();
   if v_user_id is null then
     raise exception 'Not authenticated';
   end if;
+
+  v_valid_reward := case
+    when coalesce(p_aura_reward, 0) <= 0 then 0
+    when p_aura_reward in (5, 10, 15, 20) then p_aura_reward
+    when p_aura_reward <= 5 then 5
+    when p_aura_reward <= 10 then 10
+    when p_aura_reward <= 15 then 15
+    else 20
+  end;
 
   -- Check if already completed (idempotency check)
   select exists (
@@ -3129,21 +3139,28 @@ begin
   if not v_already_completed then
     -- Record completion
     insert into public.user_practice_completions (user_id, question_id)
-    values (v_user_id, p_question_id);
+    values (v_user_id, p_question_id)
+    on conflict (user_id, question_id) do nothing;
 
-    -- Increment user aura server-side
-    update public.users
-    set aura = coalesce(aura, 0) + p_aura_reward,
-        updated_at = now()
-    where id = v_user_id
-    returning aura into v_new_aura;
-  else
-    select coalesce(aura, 0) into v_new_aura from public.users where id = v_user_id;
+    -- Award aura via aura_ledger + users.aura update
+    if v_valid_reward > 0 then
+      perform public.award_aura(
+        v_user_id,
+        'practice_question',
+        v_valid_reward,
+        'practice_qa',
+        p_question_id
+      );
+    end if;
   end if;
+
+  select coalesce(aura, 0) into v_new_aura
+  from public.users
+  where id = v_user_id;
 
   return jsonb_build_object(
     'already_completed', v_already_completed,
-    'aura', v_new_aura
+    'aura', coalesce(v_new_aura, 0)
   );
 end;
 $$;
@@ -3268,15 +3285,19 @@ create unique index if not exists idx_mv_leaderboard_id on public.mv_leaderboard
 create or replace function public.trg_protect_user_sensitive_columns()
 returns trigger
 language plpgsql
-security definer
+security invoker
 as $$
 declare
   is_service boolean;
 begin
-  -- Check if the executor is the service role / superuser
-  is_service := (current_user = 'service_role' or auth.role() = 'service_role');
+  -- Direct PostgREST client updates run as 'authenticated' / 'anon'.
+  -- Authoritative SECURITY DEFINER RPCs run as 'postgres' / 'supabase_admin' / 'service_role'.
+  is_service := (
+    current_user in ('postgres', 'supabase_admin', 'service_role')
+    or auth.role() = 'service_role'
+  );
 
-  -- If modified by an ordinary authenticated user, prohibit changes to sensitive columns
+  -- If modified directly by an authenticated/anon client, prohibit changes to sensitive columns
   if not is_service then
     if new.is_admin is distinct from old.is_admin then
       raise exception 'Unauthorized modification of is_admin';
@@ -3289,8 +3310,6 @@ begin
     if new.aura_points is distinct from old.aura_points then
       raise exception 'Unauthorized modification of aura_points. Use authoritative RPC functions.';
     end if;
-
-
 
     if new.current_streak is distinct from old.current_streak then
       raise exception 'Unauthorized modification of current_streak.';

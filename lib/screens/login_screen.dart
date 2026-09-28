@@ -464,7 +464,10 @@ class _LoginScreenState extends State<LoginScreen>
                                                 Navigator.of(context).pop();
                                               }
                                               widget.onSuccess();
-                                            } else {
+                                            } else if (res.error != null &&
+                                                !res.error!
+                                                    .toLowerCase()
+                                                    .contains('cancelled')) {
                                               setState(() => _error = res.error);
                                             }
                                           },

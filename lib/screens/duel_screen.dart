@@ -5,7 +5,9 @@ import 'package:provider/provider.dart';
 
 import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
+import '../providers/engagement_provider.dart';
 import '../providers/users_provider.dart';
+import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/user_avatar.dart';
 import 'duel_result_screen.dart';
@@ -344,11 +346,13 @@ class _DuelScreenState extends State<DuelScreen> {
       debugPrint('Error getting final score: $e');
     }
 
-    _showGameOver();
+    await _showGameOver();
   }
 
-  void _showGameOver() {
-    final me = context.read<AuthProvider>().currentUserOrNull;
+  Future<void> _showGameOver() async {
+    final authProvider = context.read<AuthProvider>();
+    final engagementProvider = context.read<EngagementProvider>();
+    final me = authProvider.currentUserOrNull;
     if (me == null) return;
 
     final myCorrect = _myOwnAnswersScore ~/ 15;
@@ -361,18 +365,40 @@ class _DuelScreenState extends State<DuelScreen> {
         ? (oppCorrect / oppQuestionsAnswered) * 100
         : 0.0;
 
-    // Use authoritative server-side match resolution RPC
-    Supabase.instance.client.rpc('resolve_arena_match', params: {
-      'p_match_id': widget.matchId,
-      'p_my_score': _myScore,
-      'p_mode': widget.mode,
-    }).catchError((_) {});
+    // Authoritative server-side match resolution RPC
+    try {
+      final result = await Supabase.instance.client.rpc(
+        'resolve_arena_match',
+        params: {
+          'p_match_id': widget.matchId,
+          'p_my_score': _myScore,
+          'p_mode': widget.mode,
+        },
+      );
+      if (result is Map) {
+        final pointsAwarded = (result['points_awarded'] as num?)?.toInt() ?? 0;
+        if (pointsAwarded > 0) {
+          authProvider.updateLocalAura(me.aura + pointsAwarded);
+        }
+      }
+      await AuthService.instance.refreshCurrentUser();
+      unawaited(engagementProvider.fetchOverview(forceChallengeRefresh: true));
+    } catch (e) {
+      debugPrint('Error resolving arena match: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not sync match reward: $e')),
+        );
+      }
+    }
 
+    if (!mounted) return;
+    final updatedMe = authProvider.currentUserOrNull ?? me;
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => DuelResultScreen(
-          me: me,
+          me: updatedMe,
           opponent: widget.opponent,
           myScore: _myScore,
           opponentScore: _opponentScore,
