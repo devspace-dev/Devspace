@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_service.dart';
 import '../services/supabase_service.dart';
 import 'auth_provider.dart';
+import 'engagement_provider.dart';
 
 class PracticeProvider extends ChangeNotifier {
   static const String _completedKey = 'practice_completed_ids';
@@ -177,6 +178,7 @@ class PracticeProvider extends ChangeNotifier {
   Future<bool> completeQuestion(
     String questionId, {
     AuthProvider? authProvider,
+    EngagementProvider? engagementProvider,
     bool awardAura = true,
   }) async {
     final bool isNewCompletion = !_completedQuestionIds.contains(questionId);
@@ -202,6 +204,12 @@ class PracticeProvider extends ChangeNotifier {
             authProvider.updateLocalAura(serverAura);
           }
           await AuthService.instance.refreshCurrentUser();
+          if (engagementProvider != null) {
+            await engagementProvider.fetchAuraHistory();
+          }
+          try {
+            await SupabaseService.instance.syncMyBadges();
+          } catch (_) {}
           await _saveProgress();
         }
       }
@@ -219,6 +227,9 @@ class PracticeProvider extends ChangeNotifier {
           authProvider.updateLocalAura(serverAura);
         }
         await AuthService.instance.refreshCurrentUser();
+        if (engagementProvider != null) {
+          await engagementProvider.fetchAuraHistory();
+        }
       }
       await _saveProgress();
       notifyListeners();

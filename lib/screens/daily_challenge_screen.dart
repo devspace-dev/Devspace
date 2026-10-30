@@ -4,12 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../models/daily_challenge_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/engagement_provider.dart';
 import '../theme/app_colors.dart';
+import '../core/theme/colors.dart';
+import '../core/theme/text.dart';
 import '../widgets/app_state_widgets.dart';
 import '../widgets/app_ui_kit.dart';
 
@@ -72,6 +73,15 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
     if (!mounted) return;
 
     if (success) {
+      if (mounted) {
+        try {
+          final authP = context.read<AuthProvider>();
+          if (provider.auraSummary != null) {
+            authP.updateLocalAura(provider.auraSummary!.auraPoints);
+          }
+        } catch (_) {}
+      }
+      unawaited(provider.fetchAuraHistory());
       final challenge = provider.dailyChallenge;
       final solved = challenge?.wasSolved ?? false;
       final awardedPoints =
@@ -228,12 +238,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
       centerTitle: false,
       title: Text(
         'Daily Mission',
-        style: GoogleFonts.plusJakartaSans(
-          fontWeight: FontWeight.w900,
-          fontSize: 24,
-          color: AppColors.textFor(context),
-          letterSpacing: -0.5,
-        ),
+        style: DsText.h2.copyWith(color: Ds.bone, fontSize: 22),
       ),
     );
   }
@@ -278,12 +283,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
                 ),
                 child: Text(
                   challenge.techStack.toUpperCase(),
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.primary,
-                    letterSpacing: 1.0,
-                  ),
+                  style: DsText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w700, color: Ds.aura, letterSpacing: 1.0),
                 ),
               ),
               AppBadge(
@@ -295,13 +295,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
           const SizedBox(height: 24),
           Text(
             challenge.title,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
-              color: AppColors.textFor(context),
-              letterSpacing: -0.8,
-              height: 1.2,
-            ),
+            style: DsText.h3.copyWith(fontSize: 20, color: Ds.bone),
           ),
           if (showDescription) ...[
             const SizedBox(height: 14),
@@ -370,12 +364,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
       children: [
         Text(
           'SELECT YOUR ANSWER',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 12,
-            fontWeight: FontWeight.w900,
-            color: AppColors.text3For(context),
-            letterSpacing: 1.5,
-          ),
+          style: DsText.label.copyWith(fontSize: 11, color: Ds.muted, letterSpacing: 1.5),
         ).animate().fadeIn(delay: 300.ms),
         const SizedBox(height: 16),
         ListView.separated(
@@ -448,11 +437,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
               children: [
                 Text(
                   solved ? 'Module Solved' : 'Module Attempted',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontWeight: FontWeight.w900,
-                    fontSize: 20,
-                    color: accent,
-                  ),
+                  style: DsText.h3.copyWith(fontSize: 18, color: accent),
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -476,11 +461,11 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
   Color _getDifficultyColor(String difficulty) {
     switch (difficulty.toLowerCase()) {
       case 'easy':
-        return Colors.green;
+        return Ds.mint;
       case 'medium':
-        return Colors.orange;
+        return Ds.aura;
       case 'hard':
-        return Colors.red;
+        return Ds.hot;
       default:
         return AppColors.text3;
     }
@@ -517,12 +502,7 @@ class _HeaderBadge extends StatelessWidget {
           const SizedBox(width: 10),
           Text(
             label,
-            style: GoogleFonts.plusJakartaSans(
-              color: color,
-              fontWeight: FontWeight.w900,
-              fontSize: 12,
-              letterSpacing: 0.5,
-            ),
+            style: DsText.label.copyWith(color: color, fontSize: 11, letterSpacing: 0.5),
           ),
         ],
       ),
@@ -608,12 +588,7 @@ class _MissionSolvedOverlay extends StatelessWidget {
                             Text(
                               'EXCELLENT!',
                               textAlign: TextAlign.center,
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 32,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                                letterSpacing: 2.0,
-                              ),
+                              style: DsText.h1.copyWith(fontSize: 32, color: Colors.white, letterSpacing: 1.5),
                             ),
                             const SizedBox(height: 16),
                             Container(

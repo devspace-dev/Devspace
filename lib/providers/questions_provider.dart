@@ -19,6 +19,12 @@ class QuestionActionResult {
 }
 
 class QuestionsProvider extends ChangeNotifier {
+  QuestionsProvider({List<QuestionModel>? initialQuestions}) {
+    if (initialQuestions != null) {
+      _questions = List.from(initialQuestions);
+    }
+  }
+
   List<QuestionModel> _questions = [];
   final Map<String, List<QuestionReplyModel>> _repliesByQuestion = {};
   final Map<String, bool> _replyLoading = {};
@@ -466,6 +472,9 @@ class QuestionsProvider extends ChangeNotifier {
         }).toList();
       }
       _solveErrors[questionId] = null;
+      try {
+        await SupabaseService.instance.syncMyBadges();
+      } catch (_) {}
       return const QuestionActionResult(success: true);
     } catch (e) {
       final error = 'Failed to mark solved reply: $e';

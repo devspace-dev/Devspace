@@ -3,8 +3,10 @@ import 'package:file_picker/file_picker.dart' as fp;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+
+import '../core/theme/colors.dart';
+import '../core/theme/text.dart';
 
 import '../providers/auth_provider.dart';
 import '../providers/posts_provider.dart';
@@ -113,10 +115,9 @@ class _ComposeBoxState extends State<ComposeBox> {
                 ),
                 child: Text(
                   'What\'s happening?',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.text3For(context),
+                  style: DsText.body.copyWith(
+                    fontSize: 14,
+                    color: Ds.muted,
                   ),
                 ),
               ),
@@ -294,28 +295,28 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                   onPressed: () => Navigator.pop(context),
                   child: Text(
                     'Cancel',
-                    style: GoogleFonts.plusJakartaSans(
-                      color: AppColors.textFor(context),
-                      fontWeight: FontWeight.w600,
+                    style: DsText.label.copyWith(
+                      color: Ds.muted,
                     ),
                   ),
                 ),
                 ElevatedButton(
                   onPressed: _posting ? null : _submit,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                    backgroundColor: Ds.aura,
+                    foregroundColor: Ds.onAura,
+                    padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
                     minimumSize: Size.zero,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    elevation: 0,
                   ),
                   child: _posting 
                     ? const SizedBox(
-                        width: 20, 
-                        height: 20, 
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        width: 18, 
+                        height: 18, 
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Ds.onAura),
                       )
-                    : Text('Post', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800)),
+                    : Text('POST', style: DsText.button.copyWith(fontSize: 15, color: Ds.onAura)),
                 ),
               ],
             ),
@@ -355,11 +356,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                                   controller: _textCtrl,
                                   maxLines: null,
                                   autofocus: true,
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 18, 
-                                    color: AppColors.textFor(context), 
-                                    height: 1.5,
-                                  ),
+                                  style: DsText.body.copyWith(fontSize: 16, color: Ds.bone, height: 1.5),
                                   decoration: const InputDecoration(
                                     hintText: 'Share your build journey...',
                                     filled: false,
@@ -372,11 +369,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                                 const SizedBox(height: 8),
                                 Text(
                                   '$_charCount characters',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.text3For(context),
-                                  ),
+                                  style: DsText.caption.copyWith(fontSize: 12, color: Ds.muted),
                                 ),
                               ],
                             ),
@@ -434,11 +427,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                                   _selectedDocName ?? 'Document',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                    color: AppColors.textFor(context),
-                                  ),
+                                  style: DsText.label.copyWith(fontSize: 14, color: Ds.bone),
                                 ),
                               ),
                               IconButton(
@@ -486,11 +475,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                                         children: [
                                           Text(
                                             '#$tag',
-                                            style: GoogleFonts.plusJakartaSans(
-                                              color: AppColors.primary,
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 13,
-                                            ),
+                                            style: DsText.label.copyWith(color: Ds.aura, fontSize: 12),
                                           ),
                                           const SizedBox(width: 6),
                                           const Icon(Icons.close_rounded, size: 14, color: AppColors.primary),
@@ -537,10 +522,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                             dense: true,
                             title: Text(
                               '#$tag',
-                              style: GoogleFonts.plusJakartaSans(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w700,
-                              ),
+                              style: DsText.label.copyWith(color: Ds.aura),
                             ),
                             onTap: () => _addSuggestedTag(tag),
                           );
@@ -583,11 +565,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                     if (_posting)
                        Text(
                         'Uploading...',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
-                        ),
+                        style: DsText.caption.copyWith(color: Ds.aura, fontWeight: FontWeight.w700),
                       ),
                   ],
                 ),
@@ -663,7 +641,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                 leading: const Icon(Icons.camera_alt_rounded, color: AppColors.primary),
                 title: Text(
                   'Take a photo',
-                  style: GoogleFonts.plusJakartaSans(color: AppColors.textFor(sheetContext), fontWeight: FontWeight.w600),
+                  style: DsText.label.copyWith(color: Ds.bone),
                 ),
                 onTap: () => Navigator.pop(sheetContext, true),
               ),
@@ -671,7 +649,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                 leading: const Icon(Icons.photo_library_rounded, color: AppColors.primary),
                 title: Text(
                   'Choose from gallery',
-                  style: GoogleFonts.plusJakartaSans(color: AppColors.textFor(sheetContext), fontWeight: FontWeight.w600),
+                  style: DsText.label.copyWith(color: Ds.bone),
                 ),
                 onTap: () => Navigator.pop(sheetContext, false),
               ),
@@ -721,12 +699,12 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: Text(
           'Add hashtags',
-          style: GoogleFonts.plusJakartaSans(color: AppColors.textFor(dialogContext), fontWeight: FontWeight.w800),
+          style: DsText.h3.copyWith(color: Ds.bone, fontSize: 18),
         ),
         content: TextField(
           controller: controller,
           autofocus: true,
-          style: GoogleFonts.plusJakartaSans(color: AppColors.textFor(dialogContext)),
+          style: DsText.body.copyWith(color: Ds.bone),
           decoration: InputDecoration(
             hintText: 'flutter, mnit, dev',
             hintStyle: TextStyle(color: AppColors.text3For(dialogContext)),
@@ -738,7 +716,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: AppColors.text3For(dialogContext))),
+            child: Text('Cancel', style: DsText.caption.copyWith(color: Ds.muted)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -754,7 +732,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
               backgroundColor: AppColors.primary,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            child: Text('Add', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800)),
+            child: Text('Add', style: DsText.button.copyWith(color: Ds.onAura, fontSize: 14)),
           ),
         ],
       ),

@@ -5,6 +5,9 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../data/badges_data.dart';
+import '../services/supabase_service.dart';
+import 'package:timeago/timeago.dart' as timeago;
 import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/messages_provider.dart';
@@ -38,11 +41,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   UserModel? _fetchedUser;
   bool _loading = false;
   String? _fetchError;
+  Set<String> _earnedBadgeKeys = {};
+  Map<String, DateTime?> _badgeAwardedDates = {};
+
 
   @override
   void initState() {
     super.initState();
     _fetchUserIfNeeded();
+    _loadBadges();
   }
 
   @override
@@ -51,6 +58,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (oldWidget.userId != widget.userId) {
       _fetchedUser = null;
       _fetchUserIfNeeded();
+      _loadBadges();
     }
   }
 
@@ -84,6 +92,349 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
       }
     }
+  }
+
+  Future<void> _loadBadges() async {
+    final me = context.read<AuthProvider>().currentUserOrNull;
+    final targetId = widget.userId ?? me?.id;
+    if (targetId == null) return;
+
+    final isMe = widget.userId == null || widget.userId == me?.id;
+    if (isMe) {
+      try {
+        await SupabaseService.instance.syncMyBadges(userId: targetId);
+      } catch (_) {}
+    }
+
+    try {
+      final rows = await SupabaseService.instance.getUserBadges(targetId);
+      if (mounted) {
+        setState(() {
+          _earnedBadgeKeys = rows.map((r) => r['badge_key'].toString()).toSet();
+          _badgeAwardedDates = {
+            for (final r in rows)
+              r['badge_key'].toString(): r['awarded_at'] == null
+                  ? null
+                  : DateTime.tryParse(r['awarded_at'].toString()),
+          };
+        });
+      }
+    } catch (_) {}
+  }
+
+  void _showBadgeDetailSheet(
+    BuildContext context,
+    CommunityBadgeDefinition badgeDef,
+    bool isEarned,
+    DateTime? awardedAt,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 36),
+        decoration: BoxDecoration(
+          color: AppColors.bg2For(ctx),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border.all(color: AppColors.borderFor(ctx)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.borderFor(ctx),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: isEarned
+                        ? badgeDef.accentColor.withValues(alpha: 0.15)
+                        : AppColors.bg3For(ctx),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isEarned
+                          ? badgeDef.accentColor.withValues(alpha: 0.4)
+                          : AppColors.borderFor(ctx),
+                    ),
+                  ),
+                  child: Text(
+                    badgeDef.icon,
+                    style: const TextStyle(fontSize: 32),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              badgeDef.name,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textFor(ctx),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: isEarned
+                                  ? const Color(0xFF81C784).withValues(alpha: 0.15)
+                                  : AppColors.borderFor(ctx).withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              isEarned ? 'EARNED' : 'LOCKED',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: isEarned
+                                    ? const Color(0xFF81C784)
+                                    : AppColors.text3For(ctx),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        badgeDef.description,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13,
+                          color: AppColors.text2For(ctx),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.bg3For(ctx),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.borderFor(ctx)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'REQUIREMENT',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.text3For(ctx),
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    badgeDef.rule,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textFor(ctx),
+                    ),
+                  ),
+                  if (isEarned && awardedAt != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Earned ${timeago.format(awardedAt)}',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        color: badgeDef.accentColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Center(
+              child: Text(
+                'Badges celebrate student milestones (carry 0 Aura).',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 11,
+                  color: AppColors.text3For(ctx),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBadgesSection(BuildContext context, UserModel profileUser) {
+    final earnedCount = _earnedBadgeKeys.length;
+    final totalCount = kCommunityBadges.length;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.bg2For(context),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: AppColors.borderFor(context).withValues(alpha: 0.75),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.emoji_events_rounded,
+                size: 18,
+                color: Color(0xFFFFD54F),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'BADGES & ACHIEVEMENTS',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.text3For(context),
+                  letterSpacing: 1.2,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFD54F).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: const Color(0xFFFFD54F).withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Text(
+                  '$earnedCount / $totalCount UNLOCKED',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFFFFD54F),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final itemWidth = (constraints.maxWidth - 10) / 2;
+              return Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: kCommunityBadges.map((badgeDef) {
+                  final isEarned = _earnedBadgeKeys.contains(badgeDef.key);
+                  final awardedAt = _badgeAwardedDates[badgeDef.key];
+
+                  return GestureDetector(
+                    onTap: () => _showBadgeDetailSheet(context, badgeDef, isEarned, awardedAt),
+                    child: Container(
+                      width: itemWidth,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isEarned
+                            ? badgeDef.accentColor.withValues(alpha: 0.08)
+                            : AppColors.bg3For(context).withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isEarned
+                              ? badgeDef.accentColor.withValues(alpha: 0.45)
+                              : AppColors.borderFor(context).withValues(alpha: 0.35),
+                          width: isEarned ? 1.4 : 1.0,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                badgeDef.icon,
+                                style: const TextStyle(fontSize: 22),
+                              ),
+                              const Spacer(),
+                              if (isEarned)
+                                const Icon(
+                                  Icons.check_circle_rounded,
+                                  size: 14,
+                                  color: Color(0xFF81C784),
+                                )
+                              else
+                                Icon(
+                                  Icons.lock_outline_rounded,
+                                  size: 14,
+                                  color: AppColors.text3For(context).withValues(alpha: 0.6),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            badgeDef.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: isEarned
+                                  ? AppColors.textFor(context)
+                                  : AppColors.text3For(context),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            isEarned
+                                ? (awardedAt != null
+                                    ? 'Earned ${timeago.format(awardedAt, locale: 'en_short')}'
+                                    : 'Earned')
+                                : badgeDef.rule,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 10.5,
+                              color: isEarned
+                                  ? badgeDef.accentColor
+                                  : AppColors.text3For(context).withValues(alpha: 0.8),
+                              height: 1.25,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _openProfileEditor(BuildContext context) async {
@@ -694,7 +1045,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _buildBadgesSection(context, profileUser),
+                  ),
+                  const SizedBox(height: 20),
                   Column(
                     children: [
                       if (profileUser.stack.isNotEmpty) ...[
@@ -772,7 +1128,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             color: AppColors.primary.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Icon(Icons.dynamic_feed_rounded, color: AppColors.primary, size: 20),
+                          child: const Icon(Icons.dynamic_feed_rounded, color: AppColors.primary, size: 20),
                         ),
                         const SizedBox(width: 12),
                         Text(

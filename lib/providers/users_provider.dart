@@ -6,12 +6,19 @@ import '../services/auth_service.dart';
 import '../services/supabase_service.dart';
 
 class UsersProvider extends ChangeNotifier {
-  UsersProvider() {
-    _authSub = AuthService.instance.authStateChanges.listen((user) {
-      if (user != null) {
-        updateUserInList(user);
-      }
-    });
+  UsersProvider({List<UserModel>? initialUsers}) {
+    if (initialUsers != null) {
+      _users = List.from(initialUsers);
+    }
+    try {
+      _authSub = AuthService.instance.authStateChanges.listen((user) {
+        if (user != null) {
+          updateUserInList(user);
+        }
+      });
+    } catch (_) {
+      // Safe fallback in test environments where Supabase is not initialized
+    }
   }
 
   StreamSubscription<UserModel?>? _authSub;

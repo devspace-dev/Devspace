@@ -417,6 +417,11 @@ alter table public.notifications add column if not exists message text default '
 alter table public.notifications add column if not exists title text;
 alter table public.notifications add column if not exists read boolean default false;
 alter table public.notifications add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
+alter table public.notifications add column if not exists message_id uuid references public.messages(id) on delete cascade;
+
+create unique index if not exists idx_notifications_message_id_unique
+  on public.notifications(message_id)
+  where message_id is not null;
 
 -- Remove foreign key constraint on post_id to allow storing other ID types (like duel requests)
 do $$
@@ -1829,22 +1834,17 @@ begin
 end;
 $$;
 
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public'
-      and tablename = 'user_badges'
-      and policyname = 'user_badges_select_owner'
-  ) then
-    create policy user_badges_select_owner
-      on public.user_badges
-      for select
-      to authenticated
-      using (auth.uid() = user_id);
-  end if;
-end;
-$$;
+drop policy if exists user_badges_select_owner on public.user_badges;
+drop policy if exists user_badges_select_all on public.user_badges;
+
+create policy user_badges_select_all
+  on public.user_badges
+  for select
+  to authenticated, anon
+  using (true);
+
+grant select on public.user_badges to authenticated, anon;
+grant all on public.user_badges to service_role;
 
 
 -- ==============================================================================
@@ -2529,6 +2529,46 @@ create table if not exists public.user_badges (
   unique (user_id, badge_key)
 );
 
+create table if not exists public.user_roadmap_progress (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  roadmap_id text not null,
+  node_id text not null,
+  status text not null check (status in ('in_progress', 'completed')),
+  completed_at timestamp with time zone default timezone('utc'::text, now()),
+  unique (user_id, roadmap_id, node_id)
+);
+
+create index if not exists idx_user_roadmap_progress_user
+  on public.user_roadmap_progress(user_id);
+
+create index if not exists idx_user_roadmap_progress_roadmap
+  on public.user_roadmap_progress(roadmap_id);
+
+alter table public.user_roadmap_progress enable row level security;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'user_roadmap_progress'
+      and policyname = 'user_roadmap_progress_owner_rw'
+  ) then
+    create policy user_roadmap_progress_owner_rw
+      on public.user_roadmap_progress
+      for all
+      to authenticated
+      using (auth.uid() = user_id)
+      with check (auth.uid() = user_id);
+  end if;
+end;
+$$;
+
+grant select, insert, update, delete on public.user_roadmap_progress to authenticated;
+grant all on public.user_roadmap_progress to service_role;
+revoke all on public.user_roadmap_progress from anon, public;
+
 create or replace function public.touch_updated_at()
 returns trigger
 language plpgsql
@@ -2709,6 +2749,7 @@ as $$
 declare
   recipient_id uuid;
   sender_name text;
+  snippet text;
 begin
   select participant
   into recipient_id
@@ -2727,12 +2768,33 @@ begin
   from public.users
   where id = new.sender_id;
 
-  insert into public.notifications(to_uid, from_uid, type, message)
+  snippet := trim(coalesce(new.content, ''));
+  if length(snippet) > 100 then
+    snippet := left(snippet, 97) || '...';
+  end if;
+
+  insert into public.notifications(to_uid, from_uid, type, title, message, message_id)
   values (
     recipient_id,
     new.sender_id,
     'message',
-    sender_name || ' sent you a message'
+    sender_name,
+    snippet,
+    new.id
+  )
+  on conflict (message_id) where message_id is not null do nothing;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_push_direct_message_notification on public.messages;
+create trigger trg_push_direct_message_notification
+  after insert on public.messages
+  for each row
+  execute function public.push_direct_message_notification();
+
+grant execute on function public.push_direct_message_notification() to authenticated, service_role;
 
 -- ==============================================================================
 -- ADDITIONAL RLS POLICIES FOR DIRECT CLIENT OPERATIONS (PHASE 0/1 HARDENING)
@@ -3880,3 +3942,215 @@ DROP POLICY IF EXISTS "users_delete_own_profile" ON public.users;
 CREATE POLICY "users_delete_own_profile" ON public.users
   FOR DELETE TO authenticated
   USING (auth.uid() = id);
+
+-- ==============================================================================
+-- SEARCH DEVELOPERS RPC (Patch: devsearch-01-search-developers.sql)
+-- ==============================================================================
+create or replace function public.search_developers_by_stack(
+  p_stacks text[] default null,
+  p_query text default null
+)
+returns setof public.users
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select u.*
+  from public.users u
+  left join lateral (
+    select count(*) as match_count
+    from unnest(u.stack) s
+    where p_stacks is not null
+      and cardinality(p_stacks) > 0
+      and lower(s) = any(select lower(x) from unnest(p_stacks) x)
+  ) m on true
+  where (
+    p_stacks is null
+    or cardinality(p_stacks) = 0
+    or m.match_count > 0
+  )
+  and (
+    p_query is null
+    or trim(p_query) = ''
+    or u.name ilike '%' || trim(p_query) || '%'
+    or u.handle ilike '%' || trim(p_query) || '%'
+    or u.branch ilike '%' || trim(p_query) || '%'
+    or exists (
+      select 1
+      from unnest(u.stack) s
+      where s ilike '%' || trim(p_query) || '%'
+    )
+  )
+  order by coalesce(m.match_count, 0) desc, u.aura desc;
+$$;
+
+-- Grant execute to authenticated and anon roles
+grant execute on function public.search_developers_by_stack(text[], text) to authenticated, anon;
+
+-- ==============================================================================
+-- BADGE SYSTEM SYNC RPC (Patch: badges-01-badge-system.sql)
+-- ==============================================================================
+create or replace function public.sync_my_badges(
+  p_user_id uuid default null
+)
+returns setof public.user_badges
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user_id uuid;
+  v_practice_count integer := 0;
+  v_easy_count integer := 0;
+  v_med_count integer := 0;
+  v_hard_count integer := 0;
+  v_ultra_count integer := 0;
+  v_streak integer := 0;
+  v_duel_wins integer := 0;
+  v_accepted_replies integer := 0;
+  v_is_top_10 boolean := false;
+begin
+  v_user_id := coalesce(p_user_id, auth.uid());
+  if v_user_id is null then
+    raise exception 'User ID or authenticated session required';
+  end if;
+
+  -- 1. Practice counts
+  select count(*) into v_practice_count
+  from public.user_practice_completions
+  where user_id = v_user_id;
+
+  select count(*) into v_easy_count
+  from public.user_practice_completions
+  where user_id = v_user_id and question_id like 'noob_%';
+
+  select count(*) into v_med_count
+  from public.user_practice_completions
+  where user_id = v_user_id and question_id like 'easy_%';
+
+  select count(*) into v_hard_count
+  from public.user_practice_completions
+  where user_id = v_user_id and question_id like 'med_%';
+
+  select count(*) into v_ultra_count
+  from public.user_practice_completions
+  where user_id = v_user_id and question_id like 'hard_%';
+
+  -- 2. Streak
+  select greatest(coalesce(current_streak, 0), coalesce(longest_streak, 0)) into v_streak
+  from public.users
+  where id = v_user_id;
+
+  -- 3. Arena duel wins
+  select count(*) into v_duel_wins
+  from public.arena_matches
+  where winner_id = v_user_id and status = 'completed';
+
+  -- 4. Accepted Q&A replies
+  select count(*) into v_accepted_replies
+  from public.questions q
+  where q.solved_reply_id is not null
+    and q.solved_reply_id in (
+      select r.id from public.question_replies r where r.user_id = v_user_id
+    );
+
+  -- 5. Monthly Top 10 leaderboard
+  select exists (
+    select 1
+    from public.get_aura_leaderboard(null, 10, 'monthly') lb
+    where lb.id = v_user_id
+  ) into v_is_top_10;
+
+  -- ========================================================================
+  -- AWARDS (0 AURA, ON CONFLICT DO NOTHING)
+  -- ========================================================================
+
+  -- Badge 1: First Practice Solve
+  if v_practice_count >= 1 then
+    insert into public.user_badges (user_id, badge_key, badge_name)
+    values (v_user_id, 'first_practice_solve', 'First Practice Solve')
+    on conflict (user_id, badge_key) do nothing;
+  end if;
+
+  -- Badge 2: Easy Cleared (all 10 questions)
+  if v_easy_count >= 10 then
+    insert into public.user_badges (user_id, badge_key, badge_name)
+    values (v_user_id, 'practice_easy_cleared', 'Easy Cleared')
+    on conflict (user_id, badge_key) do nothing;
+  end if;
+
+  -- Badge 3: Medium Cleared (all 10 questions)
+  if v_med_count >= 10 then
+    insert into public.user_badges (user_id, badge_key, badge_name)
+    values (v_user_id, 'practice_medium_cleared', 'Medium Cleared')
+    on conflict (user_id, badge_key) do nothing;
+  end if;
+
+  -- Badge 4: Hard Cleared (all 10 questions)
+  if v_hard_count >= 10 then
+    insert into public.user_badges (user_id, badge_key, badge_name)
+    values (v_user_id, 'practice_hard_cleared', 'Hard Cleared')
+    on conflict (user_id, badge_key) do nothing;
+  end if;
+
+  -- Badge 5: Ultra Cleared (all 10 questions)
+  if v_ultra_count >= 10 then
+    insert into public.user_badges (user_id, badge_key, badge_name)
+    values (v_user_id, 'practice_ultra_cleared', 'Ultra Cleared')
+    on conflict (user_id, badge_key) do nothing;
+  end if;
+
+  -- Badge 6: 3-Day Streak
+  if coalesce(v_streak, 0) >= 3 then
+    insert into public.user_badges (user_id, badge_key, badge_name)
+    values (v_user_id, 'streak_3_days', '3-Day Streak')
+    on conflict (user_id, badge_key) do nothing;
+  end if;
+
+  -- Badge 7: 7-Day Streak
+  if coalesce(v_streak, 0) >= 7 then
+    insert into public.user_badges (user_id, badge_key, badge_name)
+    values (v_user_id, 'streak_7_days', '7-Day Streak')
+    on conflict (user_id, badge_key) do nothing;
+  end if;
+
+  -- Badge 8: First Combat Win
+  if v_duel_wins >= 1 then
+    insert into public.user_badges (user_id, badge_key, badge_name)
+    values (v_user_id, 'first_duel_win', 'First Combat Win')
+    on conflict (user_id, badge_key) do nothing;
+  end if;
+
+  -- Badge 9: Combat Veteran (10 wins)
+  if v_duel_wins >= 10 then
+    insert into public.user_badges (user_id, badge_key, badge_name)
+    values (v_user_id, 'duel_winner_x10', 'Combat Veteran')
+    on conflict (user_id, badge_key) do nothing;
+  end if;
+
+  -- Badge 10: Solution Master
+  if v_accepted_replies >= 1 then
+    insert into public.user_badges (user_id, badge_key, badge_name)
+    values (v_user_id, 'accepted_answer', 'Solution Master')
+    on conflict (user_id, badge_key) do nothing;
+  end if;
+
+  -- Badge 11: Aura Elite (Top 10 Monthly)
+  if v_is_top_10 then
+    insert into public.user_badges (user_id, badge_key, badge_name)
+    values (v_user_id, 'top_10_aura', 'Aura Elite')
+    on conflict (user_id, badge_key) do nothing;
+  end if;
+
+  -- Return all earned badges for the user
+  return query
+  select *
+  from public.user_badges
+  where user_id = v_user_id
+  order by awarded_at asc;
+end;
+$$;
+
+revoke all on function public.sync_my_badges(uuid) from public, anon;
+grant execute on function public.sync_my_badges(uuid) to authenticated, service_role;

@@ -348,6 +348,96 @@ class SupabaseService {
     }
   }
 
+  /// Fetches the set of completed node IDs for [roadmapId] for the current user
+  Future<Set<String>> getUserRoadmapProgress(String roadmapId) async {
+    try {
+      final user = _client.auth.currentUser;
+      if (user == null) return {};
+
+      final response = await _client
+          .from('user_roadmap_progress')
+          .select('node_id')
+          .eq('user_id', user.id)
+          .eq('roadmap_id', roadmapId)
+          .eq('status', 'completed');
+
+      if (response.isNotEmpty) {
+        return response
+            .map((row) => (row as Map)['node_id']?.toString() ?? '')
+            .where((id) => id.isNotEmpty)
+            .toSet();
+      }
+      return {};
+    } catch (e) {
+      debugPrint('Error fetching user roadmap progress: $e');
+      return {};
+    }
+  }
+
+  /// Sets a roadmap node status to completed or removes it (0 Aura awarded)
+  Future<bool> setRoadmapNodeCompleted(
+    String roadmapId,
+    String nodeId,
+    bool completed,
+  ) async {
+    try {
+      final user = _client.auth.currentUser;
+      if (user == null) return false;
+
+      if (completed) {
+        await _client.from('user_roadmap_progress').upsert({
+          'user_id': user.id,
+          'roadmap_id': roadmapId,
+          'node_id': nodeId,
+          'status': 'completed',
+        }, onConflict: 'user_id,roadmap_id,node_id');
+      } else {
+        await _client
+            .from('user_roadmap_progress')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('roadmap_id', roadmapId)
+            .eq('node_id', nodeId);
+      }
+      return true;
+    } catch (e) {
+      debugPrint('Error updating roadmap node progress: $e');
+      return false;
+    }
+  }
+
+  /// Synchronizes and awards badges computed by server RPC (0 Aura)
+  Future<List<Map<String, dynamic>>> syncMyBadges({String? userId}) async {
+    try {
+      final res = await _client.rpc(
+        'sync_my_badges',
+        params: userId != null ? {'p_user_id': userId} : {},
+      );
+      if (res is List) {
+        return res.map((r) => Map<String, dynamic>.from(r as Map)).toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error syncing badges: ');
+      return [];
+    }
+  }
+
+  /// Fetches earned badges for any user (read-only)
+  Future<List<Map<String, dynamic>>> getUserBadges(String userId) async {
+    try {
+      final res = await _client
+          .from('user_badges')
+          .select()
+          .eq('user_id', userId)
+          .order('awarded_at', ascending: true);
+      return (res as List).map((r) => Map<String, dynamic>.from(r as Map)).toList();
+    } catch (e) {
+      debugPrint('Error fetching user badges: ');
+      return [];
+    }
+  }
+
   static const Set<String> allowedLeaderboardActions = {
     'practice_question',
     'practice_complete',

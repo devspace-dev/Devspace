@@ -77,40 +77,47 @@ class NotificationsProvider extends ChangeNotifier {
       'id': n.id,
     });
 
-    NotificationService.instance.showLocalNotification(
-      id: n.id,
-      title: title,
-      body: n.message,
-      payload: payload,
-    );
+    final lifecycleState = WidgetsBinding.instance.lifecycleState;
+    final isAppInForeground = lifecycleState == null ||
+        lifecycleState == AppLifecycleState.resumed;
 
-    // Show in-app popup
-    import_main.rootScaffoldMessengerKey.currentState?.showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.notifications_active_rounded, color: Colors.white, size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-                  Text(n.message, style: const TextStyle(color: Colors.white70, fontSize: 13)),
-                ],
+    if (isAppInForeground) {
+      // Show in-app SnackBar only when the app is foregrounded
+      import_main.rootScaffoldMessengerKey.currentState?.showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.notifications_active_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                    Text(n.message, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xFF1E1E1E), // AppColors.bg2 (approx)
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          duration: const Duration(seconds: 4),
+          elevation: 6,
+          margin: const EdgeInsets.only(bottom: 20, left: 16, right: 16),
         ),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: const Color(0xFF1E1E1E), // AppColors.bg2 (approx)
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        duration: const Duration(seconds: 4),
-        elevation: 6,
-        margin: const EdgeInsets.only(bottom: 20, left: 16, right: 16),
-      ),
-    );
+      );
+    } else {
+      // Show OS local notification banner only when the app is backgrounded
+      NotificationService.instance.showLocalNotification(
+        id: n.id,
+        title: title,
+        body: n.message,
+        payload: payload,
+      );
+    }
   }
 
   int get unreadCount => _notifications.where((n) => !n.read).length;

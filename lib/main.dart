@@ -11,6 +11,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'app.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_colors.dart';
+import 'core/theme/theme.dart';
+import 'core/router.dart';
 import 'models/user_model.dart';
 import 'providers/auth_provider.dart';
 import 'providers/posts_provider.dart';
@@ -22,10 +24,9 @@ import 'providers/engagement_provider.dart';
 import 'providers/messages_provider.dart';
 import 'providers/practice_provider.dart';
 import 'screens/profile_setup_screen.dart';
-import 'screens/splash_screen.dart';
+import 'features/splash/screens/splash_screen.dart';
 import 'screens/auth_intro_screen.dart';
 import 'services/auth_service.dart';
-import 'services/notification_service.dart';
 import 'services/analytics_service.dart';
 import 'utils/runtime_config.dart';
 import 'utils/secure_local_storage.dart';
@@ -84,12 +85,6 @@ class _AppBootstrapperState extends State<AppBootstrapper> {
     super.initState();
     _bootThemeMode = widget.initialThemeMode;
     _initApp();
-  }
-
-  bool get _isBootThemeDark {
-    if (_bootThemeMode == ThemeMode.dark) return true;
-    if (_bootThemeMode == ThemeMode.light) return false;
-    return PlatformDispatcher.instance.platformBrightness == Brightness.dark;
   }
 
   Future<void> _initApp() async {
@@ -198,7 +193,7 @@ class _AppBootstrapperState extends State<AppBootstrapper> {
           ? MaterialApp(
               key: const ValueKey('splash'),
               debugShowCheckedModeBanner: false,
-              theme: _isBootThemeDark ? AppTheme.dark : AppTheme.light,
+              theme: buildTheme(),
               home: const SplashScreen(),
             )
           : (_error == null
@@ -227,6 +222,15 @@ class DevSpaceRoot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (isCompromised) {
+      return MaterialApp(
+        title: 'DevSpace',
+        debugShowCheckedModeBanner: false,
+        theme: buildTheme(),
+        home: const _SecurityCompromisedScreen(),
+      );
+    }
+
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(
@@ -240,28 +244,21 @@ class DevSpaceRoot extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MessagesProvider()),
         ChangeNotifierProvider(create: (_) => PracticeProvider()),
       ],
-      child: Consumer<ThemeProvider>(
-        builder: (context, themeProvider, _) {
-          return MaterialApp(
-            title: 'DevSpace',
-            debugShowCheckedModeBanner: false,
-            scaffoldMessengerKey: rootScaffoldMessengerKey,
-            theme: AppTheme.light,
-            darkTheme: AppTheme.dark,
-            themeMode: themeProvider.themeMode,
-            navigatorObservers: [AnalyticsService.instance.observer],
-            builder: (context, child) {
-              return MediaQuery(
-                data: MediaQuery.of(context).copyWith(
-                  textScaler: MediaQuery.of(context).textScaler.clamp(
-                        minScaleFactor: 0.85,
-                        maxScaleFactor: 1.15,
-                      ),
-                ),
-                child: child!,
-              );
-            },
-            home: _Root(isCompromised: isCompromised),
+      child: MaterialApp.router(
+        title: 'DevSpace',
+        debugShowCheckedModeBanner: false,
+        scaffoldMessengerKey: rootScaffoldMessengerKey,
+        theme: buildTheme(),
+        routerConfig: router,
+        builder: (context, child) {
+          return MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: MediaQuery.of(context).textScaler.clamp(
+                    minScaleFactor: 0.85,
+                    maxScaleFactor: 1.15,
+                  ),
+            ),
+            child: child!,
           );
         },
       ),
@@ -299,8 +296,6 @@ class _Root extends StatefulWidget {
 }
 
 class _RootState extends State<_Root> {
-  String? _notificationsInitializedForUid;
-
   @override
   Widget build(BuildContext context) {
     return _buildCurrentScreen();
@@ -323,11 +318,6 @@ class _RootState extends State<_Root> {
             key: const ValueKey('login'),
             onSuccess: () {},
           );
-        }
-
-        if (_notificationsInitializedForUid != user.id) {
-          _notificationsInitializedForUid = user.id;
-          NotificationService.instance.init(user.id);
         }
 
         if (!user.profileCompleted) {
@@ -638,26 +628,26 @@ class _SecurityCompromisedScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0F0F12),
+    return const Scaffold(
+      backgroundColor: Color(0xFF0F0F12),
       body: Center(
         child: Padding(
-          padding: const EdgeInsets.all(32),
+          padding: EdgeInsets.all(32),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.security_rounded,
+              Icon(Icons.security_rounded,
                   color: Colors.redAccent, size: 64),
-              const SizedBox(height: 24),
-              const Text(
+              SizedBox(height: 24),
+              Text(
                 'Security Check Failed',
                 style: TextStyle(
                     color: Colors.white,
                     fontSize: 24,
                     fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 16),
-              const Text(
+              SizedBox(height: 16),
+              Text(
                 'DevSpace cannot run on this device because it appears to be rooted, jailbroken, or running in an unsafe environment. This is to protect your developer identity and aura points.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.white70, height: 1.5),

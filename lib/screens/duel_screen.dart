@@ -385,6 +385,7 @@ class _DuelScreenState extends State<DuelScreen> {
       }
       await AuthService.instance.refreshCurrentUser();
       unawaited(engagementProvider.fetchOverview(forceChallengeRefresh: true));
+      await engagementProvider.fetchAuraHistory();
     } catch (e) {
       debugPrint('Error resolving arena match: $e');
       if (mounted) {
