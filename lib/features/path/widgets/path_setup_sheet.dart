@@ -24,7 +24,9 @@ class PathSetupSheet extends StatefulWidget {
     BuildContext context, {
     required Roadmap roadmap,
     VoidCallback? onActivated,
+    PathProvider? provider,
   }) {
+    final effectiveProvider = provider ?? context.read<PathProvider>();
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -33,9 +35,12 @@ class PathSetupSheet extends StatefulWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
         side: BorderSide(color: Ds.border, width: 2),
       ),
-      builder: (_) => PathSetupSheet(
-        roadmap: roadmap,
-        onActivated: onActivated,
+      builder: (_) => ChangeNotifierProvider<PathProvider>.value(
+        value: effectiveProvider,
+        child: PathSetupSheet(
+          roadmap: roadmap,
+          onActivated: onActivated,
+        ),
       ),
     );
   }

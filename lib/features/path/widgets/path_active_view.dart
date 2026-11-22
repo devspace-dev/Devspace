@@ -515,6 +515,11 @@ class _PathActiveViewState extends State<PathActiveView> {
               final isDone = completed.contains(node.id);
               final isSkipped = node.isSkippedForLevel(level);
               final isNext = nextStep?.id == node.id;
+              final isUnlocked = widget.roadmap.isNodeUnlocked(
+                node: node,
+                level: level,
+                completedNodeIds: completed,
+              );
 
               return Material(
                 color: Colors.transparent,
@@ -527,7 +532,7 @@ class _PathActiveViewState extends State<PathActiveView> {
                       stageTitle: stage.title,
                     );
                   },
-                  leading: _buildNodeStatusIcon(isDone, isNext, isSkipped),
+                  leading: _buildNodeStatusIcon(isDone, isNext, isSkipped, isUnlocked),
                   title: Text(
                     node.title.toUpperCase(),
                     style: DsText.label.copyWith(
@@ -535,7 +540,7 @@ class _PathActiveViewState extends State<PathActiveView> {
                           ? Ds.mint
                           : isNext
                               ? Ds.aura
-                              : isSkipped
+                              : (isSkipped || !isUnlocked)
                                   ? Ds.muted
                                   : Ds.bone,
                     ),
@@ -543,10 +548,16 @@ class _PathActiveViewState extends State<PathActiveView> {
                   subtitle: Text(
                     isSkipped
                         ? 'Skipped based on your starting level'
-                        : '${node.estimatedHours} hours • ${node.subtopics.length} subtopics',
+                        : !isUnlocked
+                            ? '${node.estimatedHours} hours • Locked'
+                            : '${node.estimatedHours} hours • ${node.subtopics.length} subtopics',
                     style: DsText.caption,
                   ),
-                  trailing: const Icon(Icons.chevron_right, color: Ds.muted, size: 18),
+                  trailing: Icon(
+                    !isUnlocked ? Icons.lock_outline : Icons.chevron_right,
+                    color: Ds.muted,
+                    size: !isUnlocked ? 16 : 18,
+                  ),
                 ),
               );
             },
@@ -556,7 +567,7 @@ class _PathActiveViewState extends State<PathActiveView> {
     );
   }
 
-  Widget _buildNodeStatusIcon(bool isDone, bool isNext, bool isSkipped) {
+  Widget _buildNodeStatusIcon(bool isDone, bool isNext, bool isSkipped, bool isUnlocked) {
     if (isDone) {
       return const CircleAvatar(
         radius: 14,
@@ -576,6 +587,13 @@ class _PathActiveViewState extends State<PathActiveView> {
         radius: 14,
         backgroundColor: Ds.ink,
         child: Icon(Icons.fast_forward, color: Ds.muted, size: 16),
+      );
+    }
+    if (!isUnlocked) {
+      return const CircleAvatar(
+        radius: 14,
+        backgroundColor: Ds.ink,
+        child: Icon(Icons.lock_outline, color: Ds.muted, size: 15),
       );
     }
     return const CircleAvatar(

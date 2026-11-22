@@ -91,12 +91,16 @@ class _DsButtonState extends State<DsButton> {
                       widget.icon!,
                       const SizedBox(width: 8),
                     ],
-                    Text(
-                      widget.uppercase
-                          ? widget.label.toUpperCase()
-                          : widget.label,
-                      style: DsText.button.copyWith(
-                        color: enabled ? fg : Ds.muted,
+                    Flexible(
+                      child: Text(
+                        widget.uppercase
+                            ? widget.label.toUpperCase()
+                            : widget.label,
+                        style: DsText.button.copyWith(
+                          color: enabled ? fg : Ds.muted,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],

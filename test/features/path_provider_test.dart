@@ -271,6 +271,38 @@ void main() {
       expect(provider.errorMessage, contains('Could not sync node completion. Reverted.'));
     });
 
+    test('toggleNodeCompletion rejects completing locked nodes without prerequisites', () async {
+      final provider = PathProvider(
+        currentUserIdGetter: () => 'user_123',
+        userRoadmapsLoader: (userId) async => [
+          UserRoadmapSelection(
+            id: 'sel_1',
+            userId: 'user_123',
+            roadmapId: 'flutter',
+            status: 'active',
+            level: RoadmapLevel.beginner,
+            weeklyHours: 6,
+            startedAt: DateTime(2026, 11, 20),
+            updatedAt: DateTime(2026, 11, 20),
+          ),
+        ],
+        roadmapProgressLoader: (userId, roadmapId) async => {},
+      );
+
+      await provider.loadUserRoadmaps();
+      expect(provider.completedNodeIds, isEmpty);
+
+      // Attempt to complete fl_oop_patterns (which requires fl_dart_basics)
+      final ok = await provider.toggleNodeCompletion(
+        roadmapId: 'flutter',
+        nodeId: 'fl_oop_patterns',
+      );
+
+      expect(ok, isFalse);
+      expect(provider.completedNodeIds, isEmpty);
+      expect(provider.errorMessage, contains('Complete previous topic'));
+    });
+
     test('updateActiveSettings updates hours and rolls back if update fails', () async {
       var failUpdate = false;
 

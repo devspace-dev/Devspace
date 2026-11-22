@@ -90,6 +90,11 @@ class PathMapCanvas extends StatelessWidget {
                     final isDone = completed.contains(node.id);
                     final isSkipped = node.isSkippedForLevel(level);
                     final isNext = nextStep?.id == node.id;
+                    final isUnlocked = roadmap.isNodeUnlocked(
+                      node: node,
+                      level: level,
+                      completedNodeIds: completed,
+                    );
 
                     final nodeLeft = 50.0 + (sIdx * (stageWidth + stageSpacing));
                     final nodeTop = 85.0 + (nIdx * (nodeHeight + nodeSpacing));
@@ -104,6 +109,9 @@ class PathMapCanvas extends StatelessWidget {
                       titleColor = Ds.aura;
                     } else if (isSkipped) {
                       borderColor = Ds.border.withOpacity(0.5);
+                      titleColor = Ds.muted;
+                    } else if (!isUnlocked) {
+                      borderColor = Ds.border.withOpacity(0.4);
                       titleColor = Ds.muted;
                     }
 
@@ -152,6 +160,8 @@ class PathMapCanvas extends StatelessWidget {
                                     const Icon(Icons.play_circle_fill, color: Ds.aura, size: 18)
                                   else if (isSkipped)
                                     const Icon(Icons.fast_forward, color: Ds.muted, size: 18)
+                                  else if (!isUnlocked)
+                                    const Icon(Icons.lock_outline, color: Ds.muted, size: 18)
                                   else
                                     const Icon(Icons.radio_button_unchecked, color: Ds.muted, size: 18),
                                   const SizedBox(width: 8),
@@ -177,7 +187,9 @@ class PathMapCanvas extends StatelessWidget {
                                 children: [
                                   DsTag('${node.estimatedHours}H', bg: Ds.ink, fg: Ds.bone),
                                   const SizedBox(width: 6),
-                                  if (node.practiceTier != null)
+                                  if (!isUnlocked && !isDone && !isSkipped)
+                                    const DsTag('LOCKED', bg: Ds.ink, fg: Ds.muted)
+                                  else if (node.practiceTier != null)
                                     DsTag(node.practiceTier!.toUpperCase(), bg: Ds.ink, fg: Ds.aura),
                                   const Spacer(),
                                   if (isNext)

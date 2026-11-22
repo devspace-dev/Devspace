@@ -169,6 +169,28 @@ class PathProvider extends ChangeNotifier {
     return null;
   }
 
+  /// Checks whether [node] has all prerequisites satisfied to be completed.
+  bool isNodeUnlocked(RoadmapNode node) {
+    final roadmap = activeRoadmap;
+    if (roadmap == null) return true;
+    return roadmap.isNodeUnlocked(
+      node: node,
+      level: currentLevel,
+      completedNodeIds: _completedNodeIds,
+    );
+  }
+
+  /// Returns uncompleted prerequisite nodes for [node].
+  List<RoadmapNode> getUncompletedPrerequisites(RoadmapNode node) {
+    final roadmap = activeRoadmap;
+    if (roadmap == null) return [];
+    return roadmap.getUncompletedPrerequisites(
+      node: node,
+      level: currentLevel,
+      completedNodeIds: _completedNodeIds,
+    );
+  }
+
   /// Instant search filter across all curated roadmaps.
   List<Roadmap> get filteredRoadmaps {
     if (_searchQuery.trim().isEmpty) return _allRoadmaps;
@@ -416,6 +438,32 @@ class PathProvider extends ChangeNotifier {
     final wasCompleted = _completedNodeIds.contains(nodeId);
     final willComplete = !wasCompleted;
 
+    // Prerequisite check: prevent marking locked nodes as completed
+    if (willComplete) {
+      final roadmap = activeRoadmap;
+      final node = roadmap?.findNode(nodeId);
+      if (roadmap != null && node != null) {
+        final isUnlocked = roadmap.isNodeUnlocked(
+          node: node,
+          level: currentLevel,
+          completedNodeIds: _completedNodeIds,
+        );
+        if (!isUnlocked) {
+          final uncompleted = roadmap.getUncompletedPrerequisites(
+            node: node,
+            level: currentLevel,
+            completedNodeIds: _completedNodeIds,
+          );
+          final prereqNames = uncompleted.map((p) => p.title).join(', ');
+          _errorMessage = uncompleted.isNotEmpty
+              ? 'Complete previous topic ($prereqNames) first.'
+              : 'Complete previous topics first.';
+          notifyListeners();
+          return false;
+        }
+      }
+    }
+
     // 1. Optimistic local update
     if (willComplete) {
       _completedNodeIds.add(nodeId);
@@ -439,6 +487,7 @@ class PathProvider extends ChangeNotifier {
       }
       return true;
     } catch (e) {
+      debugPrint('PathProvider toggleNodeCompletion error: $e');
       // 3. Rollback on failure
       if (wasCompleted) {
         _completedNodeIds.add(nodeId);
@@ -572,7 +621,6 @@ class PathProvider extends ChangeNotifier {
         'node_id': nodeId,
         'status': 'completed',
         'completed_at': DateTime.now().toUtc().toIso8601String(),
-        'updated_at': DateTime.now().toUtc().toIso8601String(),
       }, onConflict: 'user_id,roadmap_id,node_id');
     } else {
       await client

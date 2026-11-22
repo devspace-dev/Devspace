@@ -214,6 +214,62 @@ class Roadmap {
     }
     return false;
   }
+
+  /// Finds a specific node in this roadmap by its [id].
+  RoadmapNode? findNode(String id) {
+    for (final s in stages) {
+      for (final n in s.nodes) {
+        if (n.id == id) return n;
+      }
+    }
+    return null;
+  }
+
+  /// Checks whether [node] has all prerequisites satisfied (either completed or skipped for [level]).
+  bool isNodeUnlocked({
+    required RoadmapNode node,
+    required RoadmapLevel level,
+    required Set<String> completedNodeIds,
+  }) {
+    // Already completed or skipped nodes are always unlocked
+    if (completedNodeIds.contains(node.id) || node.isSkippedForLevel(level)) {
+      return true;
+    }
+
+    if (node.prerequisites.isEmpty) return true;
+
+    for (final prereqId in node.prerequisites) {
+      final prereqNode = findNode(prereqId);
+      if (prereqNode == null) continue;
+      // If prerequisite is skipped for this level, it counts as satisfied
+      if (prereqNode.isSkippedForLevel(level)) continue;
+      // If prerequisite is not completed, this node is locked
+      if (!completedNodeIds.contains(prereqId)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /// Returns the list of uncompleted prerequisites for [node].
+  List<RoadmapNode> getUncompletedPrerequisites({
+    required RoadmapNode node,
+    required RoadmapLevel level,
+    required Set<String> completedNodeIds,
+  }) {
+    if (node.prerequisites.isEmpty) return [];
+
+    final uncompleted = <RoadmapNode>[];
+    for (final prereqId in node.prerequisites) {
+      final prereqNode = findNode(prereqId);
+      if (prereqNode == null) continue;
+      if (prereqNode.isSkippedForLevel(level)) continue;
+      if (!completedNodeIds.contains(prereqId)) {
+        uncompleted.add(prereqNode);
+      }
+    }
+    return uncompleted;
+  }
 }
 
 /// Representation of a user's selection stored in `public.user_roadmaps`.

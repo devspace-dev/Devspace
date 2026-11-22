@@ -36,7 +36,9 @@ class PathNodeDetailSheet extends StatefulWidget {
     required String roadmapId,
     required RoadmapNode node,
     required String stageTitle,
+    PathProvider? provider,
   }) {
+    final effectiveProvider = provider ?? context.read<PathProvider>();
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -45,10 +47,13 @@ class PathNodeDetailSheet extends StatefulWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
         side: BorderSide(color: Ds.border, width: 2),
       ),
-      builder: (_) => PathNodeDetailSheet(
-        roadmapId: roadmapId,
-        node: node,
-        stageTitle: stageTitle,
+      builder: (_) => ChangeNotifierProvider<PathProvider>.value(
+        value: effectiveProvider,
+        child: PathNodeDetailSheet(
+          roadmapId: roadmapId,
+          node: node,
+          stageTitle: stageTitle,
+        ),
       ),
     );
   }
@@ -107,6 +112,8 @@ class _PathNodeDetailSheetState extends State<PathNodeDetailSheet> {
   Widget build(BuildContext context) {
     final provider = context.watch<PathProvider>();
     final isCompleted = provider.completedNodeIds.contains(widget.node.id);
+    final isUnlocked = provider.isNodeUnlocked(widget.node);
+    final uncompletedPrereqs = provider.getUncompletedPrerequisites(widget.node);
     final lobby = widget.node.practiceTier;
 
     return SafeArea(
@@ -336,13 +343,48 @@ class _PathNodeDetailSheetState extends State<PathNodeDetailSheet> {
                     const SizedBox(height: 10),
                   ],
 
+                  // Prerequisite Lock Banner
+                  if (!isUnlocked && !isCompleted) ...[
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Ds.ink,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Ds.border),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.lock_outline, color: Ds.aura, size: 16),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              uncompletedPrereqs.isNotEmpty
+                                  ? 'Complete "${uncompletedPrereqs.map((p) => p.title).join(', ')}" first to unlock.'
+                                  : 'Complete previous topics first to unlock.',
+                              style: DsText.caption.copyWith(color: Ds.bone),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
                   // Mark Complete Toggle Button
-                  DsButton(
-                    label: isCompleted ? 'COMPLETED ✓' : 'MARK AS COMPLETED',
-                    kind: isCompleted ? DsButtonKind.mint : DsButtonKind.aura,
-                    loading: _isToggling,
-                    onPressed: _isToggling ? null : _toggleCompletion,
-                  ),
+                  if (!isUnlocked && !isCompleted)
+                    const DsButton(
+                      label: 'TOPIC LOCKED',
+                      kind: DsButtonKind.bone,
+                      icon: Icon(Icons.lock_outline, color: Ds.muted, size: 18),
+                      onPressed: null,
+                    )
+                  else
+                    DsButton(
+                      label: isCompleted ? 'COMPLETED ✓' : 'MARK AS COMPLETED',
+                      kind: isCompleted ? DsButtonKind.mint : DsButtonKind.aura,
+                      loading: _isToggling,
+                      onPressed: _isToggling ? null : _toggleCompletion,
+                    ),
                 ],
               ),
             ),

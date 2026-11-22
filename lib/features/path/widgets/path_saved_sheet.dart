@@ -13,7 +13,8 @@ import 'path_setup_sheet.dart';
 class PathSavedSheet extends StatelessWidget {
   const PathSavedSheet({super.key});
 
-  static Future<void> show(BuildContext context) {
+  static Future<void> show(BuildContext context, {PathProvider? provider}) {
+    final effectiveProvider = provider ?? context.read<PathProvider>();
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -22,7 +23,10 @@ class PathSavedSheet extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
         side: BorderSide(color: Ds.border, width: 2),
       ),
-      builder: (_) => const PathSavedSheet(),
+      builder: (_) => ChangeNotifierProvider<PathProvider>.value(
+        value: effectiveProvider,
+        child: const PathSavedSheet(),
+      ),
     );
   }
 

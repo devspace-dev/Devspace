@@ -424,5 +424,76 @@ void main() {
       final totalNodes = kCuratedRoadmaps.fold<int>(0, (sum, r) => sum + r.totalNodes);
       expect(totalNodes, 48); // 10 + 10 + 9 + 10 + 9
     });
+
+    test('isNodeUnlocked correctly enforces prerequisite unlocking', () {
+      final dartBasics = kFlutterRoadmap.findNode('fl_dart_basics')!;
+      final oopPatterns = kFlutterRoadmap.findNode('fl_oop_patterns')!;
+      final widgetTree = kFlutterRoadmap.findNode('fl_widget_tree')!;
+
+      // 1. First node has no prereqs -> always unlocked
+      expect(
+        kFlutterRoadmap.isNodeUnlocked(
+          node: dartBasics,
+          level: RoadmapLevel.beginner,
+          completedNodeIds: {},
+        ),
+        isTrue,
+      );
+
+      // 2. Second node requires fl_dart_basics -> locked when empty
+      expect(
+        kFlutterRoadmap.isNodeUnlocked(
+          node: oopPatterns,
+          level: RoadmapLevel.beginner,
+          completedNodeIds: {},
+        ),
+        isFalse,
+      );
+      final prereqs = kFlutterRoadmap.getUncompletedPrerequisites(
+        node: oopPatterns,
+        level: RoadmapLevel.beginner,
+        completedNodeIds: {},
+      );
+      expect(prereqs.length, 1);
+      expect(prereqs.first.id, 'fl_dart_basics');
+
+      // Unlocked once fl_dart_basics is completed
+      expect(
+        kFlutterRoadmap.isNodeUnlocked(
+          node: oopPatterns,
+          level: RoadmapLevel.beginner,
+          completedNodeIds: {'fl_dart_basics'},
+        ),
+        isTrue,
+      );
+
+      // 3. Foundation skipping: at basics level, dart_basics is skipped, so oop_patterns is unlocked
+      expect(
+        kFlutterRoadmap.isNodeUnlocked(
+          node: oopPatterns,
+          level: RoadmapLevel.basics,
+          completedNodeIds: {},
+        ),
+        isTrue,
+      );
+
+      // 4. Widget tree requires oop_patterns
+      expect(
+        kFlutterRoadmap.isNodeUnlocked(
+          node: widgetTree,
+          level: RoadmapLevel.beginner,
+          completedNodeIds: {'fl_dart_basics'},
+        ),
+        isFalse,
+      );
+      expect(
+        kFlutterRoadmap.isNodeUnlocked(
+          node: widgetTree,
+          level: RoadmapLevel.beginner,
+          completedNodeIds: {'fl_dart_basics', 'fl_oop_patterns'},
+        ),
+        isTrue,
+      );
+    });
   });
 }
