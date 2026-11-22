@@ -1836,6 +1836,9 @@ $$;
 
 drop policy if exists user_badges_select_owner on public.user_badges;
 drop policy if exists user_badges_select_all on public.user_badges;
+drop policy if exists user_badges_insert_owner on public.user_badges;
+drop policy if exists user_badges_update_owner on public.user_badges;
+drop policy if exists user_badges_delete_owner on public.user_badges;
 
 create policy user_badges_select_all
   on public.user_badges
@@ -2466,7 +2469,7 @@ create table if not exists public.events (
   created_by uuid references public.users(id) on delete set null,
   created_at timestamp with time zone default timezone('utc'::text, now()),
   updated_at timestamp with time zone default timezone('utc'::text, now()),
-  constraint events_type_check check (type in ('hackathon', 'event'))
+  constraint events_type_check check (type in ('hackathon', 'event', 'internship', 'fellowship', 'scholarship', 'grant'))
 );
 
 alter table public.events add column if not exists is_active boolean not null default true;
@@ -2529,6 +2532,12 @@ create table if not exists public.user_badges (
   unique (user_id, badge_key)
 );
 
+create index if not exists idx_user_badges_user_id
+  on public.user_badges(user_id);
+
+create index if not exists idx_user_badges_key
+  on public.user_badges(badge_key);
+
 create table if not exists public.user_roadmap_progress (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.users(id) on delete cascade,
@@ -2568,6 +2577,50 @@ $$;
 grant select, insert, update, delete on public.user_roadmap_progress to authenticated;
 grant all on public.user_roadmap_progress to service_role;
 revoke all on public.user_roadmap_progress from anon, public;
+
+-- User Roadmaps Selection Table (Stage 1 Redesign)
+create table if not exists public.user_roadmaps (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  roadmap_id text not null,
+  status text not null check (status in ('active', 'saved')),
+  level text not null check (level in ('beginner', 'basics', 'comfortable')),
+  weekly_hours int not null check (weekly_hours in (3, 6, 10)),
+  started_at timestamp with time zone default timezone('utc'::text, now()),
+  updated_at timestamp with time zone default timezone('utc'::text, now()),
+  unique (user_id, roadmap_id)
+);
+
+create index if not exists idx_user_roadmaps_user 
+  on public.user_roadmaps(user_id);
+
+create unique index if not exists idx_user_roadmaps_one_active 
+  on public.user_roadmaps(user_id) 
+  where (status = 'active');
+
+alter table public.user_roadmaps enable row level security;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'user_roadmaps'
+      and policyname = 'user_roadmaps_owner_rw'
+  ) then
+    create policy user_roadmaps_owner_rw
+      on public.user_roadmaps
+      for all
+      to authenticated
+      using (auth.uid() = user_id)
+      with check (auth.uid() = user_id);
+  end if;
+end;
+$$;
+
+grant select, insert, update, delete on public.user_roadmaps to authenticated;
+grant all on public.user_roadmaps to service_role;
+revoke all on public.user_roadmaps from anon, public;
 
 create or replace function public.touch_updated_at()
 returns trigger
@@ -3989,12 +4042,14 @@ $$;
 grant execute on function public.search_developers_by_stack(text[], text) to authenticated, anon;
 
 -- ==============================================================================
--- BADGE SYSTEM SYNC RPC (Patch: badges-01-badge-system.sql)
+-- BADGE SYSTEM SYNC RPC (Patch: badges-02-sync-and-progress.sql)
 -- ==============================================================================
+drop function if exists public.sync_my_badges(uuid);
+
 create or replace function public.sync_my_badges(
   p_user_id uuid default null
 )
-returns setof public.user_badges
+returns jsonb
 language plpgsql
 security definer
 set search_path = public
@@ -4008,149 +4063,278 @@ declare
   v_ultra_count integer := 0;
   v_streak integer := 0;
   v_duel_wins integer := 0;
-  v_accepted_replies integer := 0;
-  v_is_top_10 boolean := false;
+  v_post_count integer := 0;
+  v_follower_count integer := 0;
+
+  v_newly_awarded text[] := '{}'::text[];
+  v_earned_keys text[] := '{}'::text[];
+  v_progress jsonb;
+  v_next_badge jsonb := null;
+  v_new_key text;
 begin
   v_user_id := coalesce(p_user_id, auth.uid());
   if v_user_id is null then
     raise exception 'User ID or authenticated session required';
   end if;
 
-  -- 1. Practice counts
-  select count(*) into v_practice_count
+  if auth.role() = 'authenticated' and p_user_id is not null and p_user_id <> auth.uid() then
+    raise exception 'Forbidden: cannot sync badges for another user';
+  end if;
+
+  -- 1. Practice counts (20 questions each)
+  select
+    count(*),
+    count(*) filter (where question_id like 'noob_%'),
+    count(*) filter (where question_id like 'easy_%'),
+    count(*) filter (where question_id like 'med_%'),
+    count(*) filter (where question_id like 'hard_%')
+  into
+    v_practice_count,
+    v_easy_count,
+    v_med_count,
+    v_hard_count,
+    v_ultra_count
   from public.user_practice_completions
   where user_id = v_user_id;
 
-  select count(*) into v_easy_count
-  from public.user_practice_completions
-  where user_id = v_user_id and question_id like 'noob_%';
-
-  select count(*) into v_med_count
-  from public.user_practice_completions
-  where user_id = v_user_id and question_id like 'easy_%';
-
-  select count(*) into v_hard_count
-  from public.user_practice_completions
-  where user_id = v_user_id and question_id like 'med_%';
-
-  select count(*) into v_ultra_count
-  from public.user_practice_completions
-  where user_id = v_user_id and question_id like 'hard_%';
-
   -- 2. Streak
-  select greatest(coalesce(current_streak, 0), coalesce(longest_streak, 0)) into v_streak
+  select greatest(coalesce(current_streak, 0), coalesce(longest_streak, 0))
+  into v_streak
   from public.users
   where id = v_user_id;
+  v_streak := coalesce(v_streak, 0);
 
-  -- 3. Arena duel wins
-  select count(*) into v_duel_wins
+  -- 3. Arena duel wins (ties excluded)
+  select count(*)
+  into v_duel_wins
   from public.arena_matches
-  where winner_id = v_user_id and status = 'completed';
-
-  -- 4. Accepted Q&A replies
-  select count(*) into v_accepted_replies
-  from public.questions q
-  where q.solved_reply_id is not null
-    and q.solved_reply_id in (
-      select r.id from public.question_replies r where r.user_id = v_user_id
+  where status = 'finished'
+    and (
+      (player1_id = v_user_id and coalesce(player1_score, 0) > coalesce(player2_score, 0)) or
+      (player2_id = v_user_id and coalesce(player2_score, 0) > coalesce(player1_score, 0))
     );
 
-  -- 5. Monthly Top 10 leaderboard
-  select exists (
-    select 1
-    from public.get_aura_leaderboard(null, 10, 'monthly') lb
-    where lb.id = v_user_id
-  ) into v_is_top_10;
+  -- 4. Community posts count
+  select count(*)
+  into v_post_count
+  from public.posts
+  where user_id = v_user_id;
+
+  -- 5. Followers count
+  select count(*)
+  into v_follower_count
+  from public.follows
+  where following_id = v_user_id;
 
   -- ========================================================================
   -- AWARDS (0 AURA, ON CONFLICT DO NOTHING)
   -- ========================================================================
 
-  -- Badge 1: First Practice Solve
   if v_practice_count >= 1 then
     insert into public.user_badges (user_id, badge_key, badge_name)
-    values (v_user_id, 'first_practice_solve', 'First Practice Solve')
-    on conflict (user_id, badge_key) do nothing;
+    values (v_user_id, 'first_practice_solve', 'First Solve')
+    on conflict (user_id, badge_key) do nothing
+    returning badge_key into v_new_key;
+    if v_new_key is not null then v_newly_awarded := array_append(v_newly_awarded, v_new_key); end if;
   end if;
 
-  -- Badge 2: Easy Cleared (all 10 questions)
-  if v_easy_count >= 10 then
+  if v_easy_count >= 20 then
+    v_new_key := null;
     insert into public.user_badges (user_id, badge_key, badge_name)
     values (v_user_id, 'practice_easy_cleared', 'Easy Cleared')
-    on conflict (user_id, badge_key) do nothing;
+    on conflict (user_id, badge_key) do nothing
+    returning badge_key into v_new_key;
+    if v_new_key is not null then v_newly_awarded := array_append(v_newly_awarded, v_new_key); end if;
   end if;
 
-  -- Badge 3: Medium Cleared (all 10 questions)
-  if v_med_count >= 10 then
+  if v_med_count >= 20 then
+    v_new_key := null;
     insert into public.user_badges (user_id, badge_key, badge_name)
     values (v_user_id, 'practice_medium_cleared', 'Medium Cleared')
-    on conflict (user_id, badge_key) do nothing;
+    on conflict (user_id, badge_key) do nothing
+    returning badge_key into v_new_key;
+    if v_new_key is not null then v_newly_awarded := array_append(v_newly_awarded, v_new_key); end if;
   end if;
 
-  -- Badge 4: Hard Cleared (all 10 questions)
-  if v_hard_count >= 10 then
+  if v_hard_count >= 20 then
+    v_new_key := null;
     insert into public.user_badges (user_id, badge_key, badge_name)
     values (v_user_id, 'practice_hard_cleared', 'Hard Cleared')
-    on conflict (user_id, badge_key) do nothing;
+    on conflict (user_id, badge_key) do nothing
+    returning badge_key into v_new_key;
+    if v_new_key is not null then v_newly_awarded := array_append(v_newly_awarded, v_new_key); end if;
   end if;
 
-  -- Badge 5: Ultra Cleared (all 10 questions)
-  if v_ultra_count >= 10 then
+  if v_ultra_count >= 20 then
+    v_new_key := null;
     insert into public.user_badges (user_id, badge_key, badge_name)
     values (v_user_id, 'practice_ultra_cleared', 'Ultra Cleared')
-    on conflict (user_id, badge_key) do nothing;
+    on conflict (user_id, badge_key) do nothing
+    returning badge_key into v_new_key;
+    if v_new_key is not null then v_newly_awarded := array_append(v_newly_awarded, v_new_key); end if;
   end if;
 
-  -- Badge 6: 3-Day Streak
-  if coalesce(v_streak, 0) >= 3 then
+  if v_streak >= 3 then
+    v_new_key := null;
     insert into public.user_badges (user_id, badge_key, badge_name)
     values (v_user_id, 'streak_3_days', '3-Day Streak')
-    on conflict (user_id, badge_key) do nothing;
+    on conflict (user_id, badge_key) do nothing
+    returning badge_key into v_new_key;
+    if v_new_key is not null then v_newly_awarded := array_append(v_newly_awarded, v_new_key); end if;
   end if;
 
-  -- Badge 7: 7-Day Streak
-  if coalesce(v_streak, 0) >= 7 then
+  if v_streak >= 7 then
+    v_new_key := null;
     insert into public.user_badges (user_id, badge_key, badge_name)
     values (v_user_id, 'streak_7_days', '7-Day Streak')
-    on conflict (user_id, badge_key) do nothing;
+    on conflict (user_id, badge_key) do nothing
+    returning badge_key into v_new_key;
+    if v_new_key is not null then v_newly_awarded := array_append(v_newly_awarded, v_new_key); end if;
   end if;
 
-  -- Badge 8: First Combat Win
   if v_duel_wins >= 1 then
+    v_new_key := null;
     insert into public.user_badges (user_id, badge_key, badge_name)
-    values (v_user_id, 'first_duel_win', 'First Combat Win')
-    on conflict (user_id, badge_key) do nothing;
+    values (v_user_id, 'first_duel_win', 'First Win')
+    on conflict (user_id, badge_key) do nothing
+    returning badge_key into v_new_key;
+    if v_new_key is not null then v_newly_awarded := array_append(v_newly_awarded, v_new_key); end if;
   end if;
 
-  -- Badge 9: Combat Veteran (10 wins)
   if v_duel_wins >= 10 then
+    v_new_key := null;
     insert into public.user_badges (user_id, badge_key, badge_name)
-    values (v_user_id, 'duel_winner_x10', 'Combat Veteran')
-    on conflict (user_id, badge_key) do nothing;
+    values (v_user_id, 'duel_winner_x10', 'Duelist')
+    on conflict (user_id, badge_key) do nothing
+    returning badge_key into v_new_key;
+    if v_new_key is not null then v_newly_awarded := array_append(v_newly_awarded, v_new_key); end if;
   end if;
 
-  -- Badge 10: Solution Master
-  if v_accepted_replies >= 1 then
+  if v_post_count >= 1 then
+    v_new_key := null;
     insert into public.user_badges (user_id, badge_key, badge_name)
-    values (v_user_id, 'accepted_answer', 'Solution Master')
-    on conflict (user_id, badge_key) do nothing;
+    values (v_user_id, 'first_post', 'First Post')
+    on conflict (user_id, badge_key) do nothing
+    returning badge_key into v_new_key;
+    if v_new_key is not null then v_newly_awarded := array_append(v_newly_awarded, v_new_key); end if;
   end if;
 
-  -- Badge 11: Aura Elite (Top 10 Monthly)
-  if v_is_top_10 then
+  if v_follower_count >= 10 then
+    v_new_key := null;
     insert into public.user_badges (user_id, badge_key, badge_name)
-    values (v_user_id, 'top_10_aura', 'Aura Elite')
-    on conflict (user_id, badge_key) do nothing;
+    values (v_user_id, 'connector_x10', 'Connector')
+    on conflict (user_id, badge_key) do nothing
+    returning badge_key into v_new_key;
+    if v_new_key is not null then v_newly_awarded := array_append(v_newly_awarded, v_new_key); end if;
   end if;
 
-  -- Return all earned badges for the user
-  return query
-  select *
+  select coalesce(array_agg(badge_key order by awarded_at asc), '{}'::text[])
+  into v_earned_keys
   from public.user_badges
-  where user_id = v_user_id
-  order by awarded_at asc;
+  where user_id = v_user_id;
+
+  v_progress := jsonb_build_object(
+    'first_practice_solve', jsonb_build_object(
+      'name', 'First Solve',
+      'current', least(v_practice_count, 1),
+      'target', 1,
+      'completed', ('first_practice_solve' = any(v_earned_keys)),
+      'percent', round(least(v_practice_count::numeric / 1.0, 1.0), 3)
+    ),
+    'practice_easy_cleared', jsonb_build_object(
+      'name', 'Easy Cleared',
+      'current', least(v_easy_count, 20),
+      'target', 20,
+      'completed', ('practice_easy_cleared' = any(v_earned_keys)),
+      'percent', round(least(v_easy_count::numeric / 20.0, 1.0), 3)
+    ),
+    'practice_medium_cleared', jsonb_build_object(
+      'name', 'Medium Cleared',
+      'current', least(v_med_count, 20),
+      'target', 20,
+      'completed', ('practice_medium_cleared' = any(v_earned_keys)),
+      'percent', round(least(v_med_count::numeric / 20.0, 1.0), 3)
+    ),
+    'practice_hard_cleared', jsonb_build_object(
+      'name', 'Hard Cleared',
+      'current', least(v_hard_count, 20),
+      'target', 20,
+      'completed', ('practice_hard_cleared' = any(v_earned_keys)),
+      'percent', round(least(v_hard_count::numeric / 20.0, 1.0), 3)
+    ),
+    'practice_ultra_cleared', jsonb_build_object(
+      'name', 'Ultra Cleared',
+      'current', least(v_ultra_count, 20),
+      'target', 20,
+      'completed', ('practice_ultra_cleared' = any(v_earned_keys)),
+      'percent', round(least(v_ultra_count::numeric / 20.0, 1.0), 3)
+    ),
+    'streak_3_days', jsonb_build_object(
+      'name', '3-Day Streak',
+      'current', least(v_streak, 3),
+      'target', 3,
+      'completed', ('streak_3_days' = any(v_earned_keys)),
+      'percent', round(least(v_streak::numeric / 3.0, 1.0), 3)
+    ),
+    'streak_7_days', jsonb_build_object(
+      'name', '7-Day Streak',
+      'current', least(v_streak, 7),
+      'target', 7,
+      'completed', ('streak_7_days' = any(v_earned_keys)),
+      'percent', round(least(v_streak::numeric / 7.0, 1.0), 3)
+    ),
+    'first_duel_win', jsonb_build_object(
+      'name', 'First Win',
+      'current', least(v_duel_wins, 1),
+      'target', 1,
+      'completed', ('first_duel_win' = any(v_earned_keys)),
+      'percent', round(least(v_duel_wins::numeric / 1.0, 1.0), 3)
+    ),
+    'duel_winner_x10', jsonb_build_object(
+      'name', 'Duelist',
+      'current', least(v_duel_wins, 10),
+      'target', 10,
+      'completed', ('duel_winner_x10' = any(v_earned_keys)),
+      'percent', round(least(v_duel_wins::numeric / 10.0, 1.0), 3)
+    ),
+    'first_post', jsonb_build_object(
+      'name', 'First Post',
+      'current', least(v_post_count, 1),
+      'target', 1,
+      'completed', ('first_post' = any(v_earned_keys)),
+      'percent', round(least(v_post_count::numeric / 1.0, 1.0), 3)
+    ),
+    'connector_x10', jsonb_build_object(
+      'name', 'Connector',
+      'current', least(v_follower_count, 10),
+      'target', 10,
+      'completed', ('connector_x10' = any(v_earned_keys)),
+      'percent', round(least(v_follower_count::numeric / 10.0, 1.0), 3)
+    )
+  );
+
+  select jsonb_build_object(
+    'badge_key', item.key,
+    'badge_name', item.value->>'name',
+    'current', (item.value->>'current')::int,
+    'target', (item.value->>'target')::int,
+    'percent', (item.value->>'percent')::numeric
+  )
+  into v_next_badge
+  from jsonb_each(v_progress) item
+  where (item.value->>'completed')::boolean = false
+  order by (item.value->>'percent')::numeric desc, (item.value->>'target')::int asc
+  limit 1;
+
+  return jsonb_build_object(
+    'user_id', v_user_id,
+    'earned_badge_keys', to_jsonb(v_earned_keys),
+    'newly_awarded_keys', to_jsonb(v_newly_awarded),
+    'progress', v_progress,
+    'next_badge', v_next_badge
+  );
 end;
 $$;
 
-revoke all on function public.sync_my_badges(uuid) from public, anon;
+revoke all on function public.sync_my_badges(uuid) from anon, public;
 grant execute on function public.sync_my_badges(uuid) to authenticated, service_role;

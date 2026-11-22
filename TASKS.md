@@ -47,6 +47,7 @@ Upgrade the app backend for launch-ready gamification and gated engagement witho
 - [x] Implemented 2v2 Team Duels gameplay scoring, pooled team points, divided reward distributions, and live activity feeds
 - [x] Redesigned the Opportunities Detail Page to adopt the premium Warm Orange app theme, replacing outdated pink/purple styles with glassmorphic cards
 - [x] Extended matchmaking search timeout to 45 seconds to prevent premature search failure
+- [x] Redesigned Path Tab: Personalised 5-track roadmaps (Flutter, Web, Backend, DSA, AI/ML) with 48 curated nodes, starting level skipping (foundation nodes deducted from hours without fake records), 3h/6h/10h finish date math, 60fps optimistic node completion with rollback on failure, single active roadmap enforcement (user_roadmaps table and idx_user_roadmaps_one_active), One Clear Next Step discovery, official documentation links, and comprehensive unit/widget tests.
 - [x] Fixed manual opportunity dates and registration deadlines in client, Edge Functions, and founder tools panel
 - [x] Phase 1: Play Tab Aura synchronized across all levels (Easy 5, Med 10, Hard 15, Ultra 20) with immediate client state refresh from RPC response
 - [x] Phase 2: Path Tab Roadmap implemented with InteractiveViewer mind map canvas, verified learning resources, node detail sheets, and user_roadmap_progress persistence
@@ -61,6 +62,19 @@ Upgrade the app backend for launch-ready gamification and gated engagement witho
 - [x] Backend Controller & Middleware Fix: Resolved `maybeSingle()` null crashes and passed `p_user_id` to `complete_daily_challenge`
 - [x] FCM Stream Memory Leak Fix: Stored and canceled `FirebaseMessaging` subscriptions in NotificationService
 - [x] Beta-Readiness Codebase & Dependency Audit: Removed 20 total dead/orphaned Dart files and 6 unused dependencies from `pubspec.yaml`, hardened Storage MIME/size validation (`StorageService`), URL schemes (`https://` / `http://`), PostgREST `.or()` filter escaping (`Sanitizer`), and resolved all analyzer warnings (`0 errors, 0 warnings`, `28 / 28` tests passing)
+- [x] India-Optimized Hackathons & B.Tech Tech Internships:
+  - Database schema patched (`supabase/patches/events-01-support-internships.sql` and `supabase/devspace_schema.sql`) to expand `events_type_check` for `internship` support.
+  - Multi-page engineering-filtered Unstop fetcher implemented for hackathons and software/developer tech internships with non-tech role filtering (sales, marketing, HR pruned).
+  - Devfolio fetcher filtered strictly for Indian timezones (`Asia/Kolkata`, `Asia/Calcutta`).
+  - Backend sync engine (`backend/src/services/hackathonSyncService.js`) and Supabase Edge Function (`supabase/functions/_shared/services/event-service.ts`) updated with graceful constraint retry fallbacks.
+  - 4 automated filter test suites passing (`backend/test/hackathonFilters.test.js`).
+  - Verified client compatibility in `lib/screens/opportunities_screen.dart` and `lib/screens/opportunity_detail_screen.dart`.
+- [x] Arena Practice Question Pool Scaling & Deduplication:
+  - Expanded question bank from 80 to 190 high-signal, non-repetitive CS, DSA, OOPs, and logic questions across Easy (44), Medium (74), Hard (42), and Ultra (30).
+  - Pruned duplicate and near-identical numeric templates from PDF 2 while preserving distinct archetypes.
+  - Integrated LeetCode/interview patterns (Two-Sum, Kadane, LIS, Mountain Array, Climbing Stairs DP, Move Zeroes, Majority Element) into Ultra.
+  - Upgraded `quiz_screen.dart` to Smart Sampling (prioritizes uncompleted questions, mixing in completed ones for revision).
+  - Generated complete verification document `ARENA_QUESTIONS_ORGANIZED.md` and verified with passing widget tests.
 
 ## In Progress
 - [x] Glitch v1.0 Design System Implementation:
@@ -83,33 +97,42 @@ Upgrade the app backend for launch-ready gamification and gated engagement witho
     - [x] Android Build Verification (`flutter build apk --debug` succeeded with zero packaging or Gradle errors)
     - [x] Code Quality Audit (36/36 tests passing, 0 analyzer errors, 0 warnings)
 
+- [x] Launch Readiness & Codebase Hardening:
+  - [x] Purged 6 orphaned/dead files (`lib/app.dart`, `lib/screens/home_screen.dart`, `lib/screens/arena_screen.dart`, `lib/screens/explore_screen.dart`, `lib/screens/splash_screen.dart`, `lib/screens/qa_screen.dart`), eliminating over 3,600 lines of dead code
+  - [x] Removed outdated glass container abstractions (`lib/widgets/glass_container.dart`) and unified profile routing on `lib/features/profile/screens/profile_screen.dart` with optional `userId` support
+  - [x] Feed Hashtag Bugfix: Resolved `RangeError: -1` crash upon tapping hashtag suggestions in `compose_box.dart` via safe offset clamping; added regex auto-extraction for `#hashtags` typed directly in post bodies
+  - [x] Events & Hackathons Glitch v1.0 Redesign: Replaced outdated gradient and floating `"0"` circle avatar in `OpportunityDetailScreen` with Glitch v1.0 tactile components (`DsCard`, `DsTag`, `DsButton`, `DsText`); updated `community_screen.dart` and `backend_api_service.dart` to sort upcoming active hackathons by nearest deadline first and auto-filter expired events into collapsible Past Events
+  - [x] App Logo & Launcher Icon Modernization: Replaced legacy icons with the official Glitch on Coin Yellow (`#FFD23F`) asset across Android mipmaps (mdpi to xxxhdpi), iOS AppIcon set (1024x1024 down to 20x20), `app_launcher_icon.png`, and `app_icon_splash.png`; updated `devspace_logo.dart` to preserve full-color mascot graphics
+  - [x] Unified Profile Architecture: Upgraded `lib/features/profile/screens/profile_screen.dart` to support both self and peer profile viewing (with Follow/Message buttons, badges, public posts) and deleted legacy `lib/screens/profile_screen.dart`
+  - [x] Anti-AI Design System Hardening: Completely deleted `GlassContainer` and `AppGlassCard`, replacing all residual glassmorphism in `post_card.dart`, `compose_box.dart`, and `daily_challenge_screen.dart` with solid `DsCard` surfaces
+  - [x] Feed Doubts Polish: Added `#Doubt`, `#Question`, and `#Project` to `kTrendingTags` and enabled fast doubt creation in the unified Community Feed
+  - [x] Storage & Device Safeguards: Added 2-second timeout fallback for `SafeDevice` checks on physical devices, and enforced image compression (1280x1280 @ 82% quality) in `compose_box.dart`
+  - [x] Active Hackathons Pipeline & Multi-Pattern Expiry Filtering: Filtered expired, closed, and stale TBA hackathons from the active feed via robust date & keyword parsing; populated upcoming opportunities with verified active 2025–2026 national Indian student hackathons (`kCuratedIndianHackathons` in `community_screen.dart` and `opportunities_screen.dart`)
+  - [x] Play Mode Question Expansion to 30: Increased session length from 8 to 30 questions in `quiz_screen.dart`, expanded question pool in `practice_questions.dart` to 242 questions across all 4 modes (Easy: 60, Medium: 74, Hard: 58, Ultra: 50), dynamically scaled `SegmentBar` for 30 segments, and synchronized `quiz_screen_test.dart`
+  - [x] Native Splash Color & Asset Cleanliness: Aligned `flutter_native_splash` background color in `pubspec.yaml` with `Ds.ink` (`#0D0E14`), purged orphaned 525KB asset `assets/images/tactical_pilot.png`, and verified brand asset integrity
+  - [x] Play Quiz Text & Code Overflow Immunity: Replaced fixed header tag row with `Wrap(spacing: 8, runSpacing: 8)`, enabled horizontal scrolling on monospace code blocks, constrained pinned feedback panel height, and top-aligned `QuizOptionRow` letter chips
+  - [x] Daily Mission Glitch v1.0 Modernization: Fully restyled `daily_challenge_screen.dart` to Glitch v1.0 design system (`Ds.ink`, `DsCard`, `DsTag`, `DsButton`, `AuraChip`, `Glitch` celebration overlay) with zero logic changes to `submit_daily_mission`, streak tracking, or aura rewards
+  - [x] Opportunity Detail Banner Polish: Safeguarded `opportunity_detail_screen.dart` with `isLogoPhotoUrl` check using `BoxFit.contain` to prevent low-resolution or circular thumbnail logos from zooming/clipping awkwardly across mobile screens
+  - [x] Event Expiry & Date Parser Hardening: Fixed false-positive past-event classification where words like "Smart" matched "mar" (March) or date ranges evaluated against the start month instead of deadline; added word-boundary token matching, deadline segment extraction, and updated curated hackathon dates to active 2026/2027 windows (`Dec 2026 - Mar 2027`)
+
 ## In Progress
-- [ ] End-to-end founder smoke testing on real Android devices
+- [ ] End-to-end founder smoke testing on real Android devices (including opportunity feeds & sync verification)
 
 ## Next
-1. Test rate limits, duplicate-prevention, and streak reset behavior on real devices
+1. Run `supabase/patches/events-01-support-internships.sql` in the Supabase SQL Editor to allow `'internship'` types in the database.
+2. Test rate limits, duplicate-prevention, and streak reset behavior on real devices.
+3. Move feed reads to paginated requests where infinite scrolling is needed.
+4. Run Android release smoke checks on at least one low-end and one mid-range phone.
+5. Add targeted tests for aura awarding and challenge completion edge cases.
+6. Add a simple founder-device registration checklist for phone changes and reinstalls.
+7. Founder-test direct messaging on two real accounts after re-running the latest Supabase schema.
 
 ## Later
 - Offline font bundling for Anton and Rubik in release builds.
 - Native splash screen updates (`flutter_native_splash`).
-- [ ] Pre-production verification across release build smoke checks and network-failure handling
-
-
-## Next
-1. Test rate limits, duplicate-prevention, and streak reset behavior on real devices
-2. Move feed reads to paginated requests where infinite scrolling is needed
-3. Run Android release smoke checks on at least one low-end and one mid-range phone
-4. Add targeted tests for aura awarding and challenge completion edge cases
-5. Add a simple founder-device registration checklist for phone changes and reinstalls
-6. Founder-test direct messaging on two real accounts after re-running the latest Supabase schema
-
-## Later
-- [ ] Google sign-in
-- [ ] Post type system
-- [ ] Notifications productization
-- [ ] Better automated coverage
-- [ ] Recruiter / premium ideas
-- [ ] Multi-college tooling
+- Post type system.
+- Recruiter / premium ideas.
+- Multi-college tooling.
 
 ## MVP Definition
 The MVP is ready when:
