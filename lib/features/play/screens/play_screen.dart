@@ -14,6 +14,7 @@ import '../../../screens/daily_challenge_screen.dart';
 import '../../../screens/notifications_screen.dart';
 import '../../../screens/duel_mode_landing_screen.dart';
 import '../../tour/models/tour_step.dart';
+import '../../tour/widgets/first_quests_card.dart';
 import '../../tour/widgets/tour_anchor.dart';
 
 class PlayScreen extends StatelessWidget {
@@ -142,6 +143,9 @@ class PlayScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
+
+            // Starter quests card
+            const FirstQuestsCard(),
 
             // 3. Solo mode (easy, medium, hard, ultra)
             Text('QUEUE UP', style: DsText.h3),
