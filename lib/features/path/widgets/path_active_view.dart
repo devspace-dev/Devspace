@@ -11,6 +11,7 @@ import '../providers/path_provider.dart';
 import 'path_map_canvas.dart';
 import 'path_node_detail_sheet.dart';
 import 'path_saved_sheet.dart';
+import 'path_setup_sheet.dart';
 
 enum PathViewMode { list, map }
 
@@ -61,91 +62,120 @@ class _PathActiveViewState extends State<PathActiveView> {
 
   Widget _buildTopBar(PathProvider provider) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: const BoxDecoration(
         color: Ds.ink,
         border: Border(bottom: BorderSide(color: Ds.border, width: 1)),
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Browse all button
-          IconButton(
-            icon: const Icon(Icons.explore_outlined, color: Ds.bone),
-            tooltip: 'Browse all roadmaps',
-            onPressed: widget.onBrowseAll,
-          ),
-          const SizedBox(width: 4),
-
-          // Title & Level Tag
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
+          // Labeled "ALL PATHS" button with back icon
+          InkWell(
+            onTap: widget.onBrowseAll,
+            borderRadius: BorderRadius.circular(8),
+            child: Tooltip(
+              message: 'Browse all roadmaps',
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  color: Ds.surface,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Ds.border),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    DsTag(widget.roadmap.levelTag, bg: Ds.surface, fg: Ds.aura),
-                    const SizedBox(width: 6),
+                    const Icon(Icons.arrow_back_ios_new, size: 12, color: Ds.aura),
+                    const SizedBox(width: 8),
                     Text(
-                      '${provider.currentWeeklyHours}H/WK',
-                      style: DsText.caption.copyWith(color: Ds.muted),
+                      'ALL PATHS',
+                      style: DsText.caption.copyWith(
+                        color: Ds.bone,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.6,
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  widget.roadmap.title.toUpperCase(),
-                  style: DsText.h3,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+
+          // Right Controls: View Switcher (List / Map) + Saved Roadmaps
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: Ds.surface,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Ds.border),
                 ),
-              ],
-            ),
-          ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildModeIcon(Icons.view_list, PathViewMode.list, 'List'),
+                    _buildModeIcon(Icons.alt_route, PathViewMode.map, 'Map'),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
 
-          // View Mode Switcher (List / Map)
-          Container(
-            decoration: BoxDecoration(
-              color: Ds.surface,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Ds.border),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildModeIcon(Icons.view_list, PathViewMode.list),
-                _buildModeIcon(Icons.alt_route, PathViewMode.map),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // Roadmaps Manager Sheet
-          IconButton(
-            icon: const Icon(Icons.folder_open_outlined, color: Ds.bone),
-            tooltip: 'Saved Roadmaps',
-            onPressed: () => PathSavedSheet.show(context),
+              // Roadmaps Manager Sheet
+              InkWell(
+                onTap: () => PathSavedSheet.show(context),
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: Ds.surface,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Ds.border),
+                  ),
+                  child: const Icon(
+                    Icons.folder_open_outlined,
+                    color: Ds.bone,
+                    size: 18,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildModeIcon(IconData icon, PathViewMode mode) {
+  Widget _buildModeIcon(IconData icon, PathViewMode mode, String label) {
     final isSelected = _viewMode == mode;
     return InkWell(
       onTap: () => setState(() => _viewMode = mode),
       borderRadius: BorderRadius.circular(7),
       child: Container(
-        padding: const EdgeInsets.all(7),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected ? Ds.aura : Colors.transparent,
           borderRadius: BorderRadius.circular(7),
         ),
-        child: Icon(
-          icon,
-          size: 18,
-          color: isSelected ? Ds.onAura : Ds.muted,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 14,
+              color: isSelected ? Ds.onAura : Ds.muted,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: DsText.caption.copyWith(
+                color: isSelected ? Ds.onAura : Ds.muted,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                fontSize: 11,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -163,27 +193,161 @@ class _PathActiveViewState extends State<PathActiveView> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       children: [
-        // One Clear Next Step Card
-        _buildNextStepCard(nextStep, provider),
+        // 1. Roadmap Identity Header (Spacious, full title with no truncation)
+        _buildRoadmapHeader(provider),
+        const SizedBox(height: 12),
+
+        // 2. Slim Progress Bar (Option B style: compact, responsive)
+        _buildSlimProgressBar(provider, doneActive, totalActive),
         const SizedBox(height: 16),
 
-        // Progress Summary & Milestone Marker
-        _buildProgressCard(provider, doneActive, totalActive),
+        // 3. One Clear Next Step Card (Option A style)
+        _buildNextStepCard(nextStep, provider),
         const SizedBox(height: 24),
 
-        // Section Title: Stages Breakdown
+        // 4. Section Title: Stages Breakdown
         Text(
           'YOUR LEARNING ROUTE'.toUpperCase(),
           style: DsText.number.copyWith(color: Ds.aura),
         ),
         const SizedBox(height: 12),
 
-        // Stages and Nodes
+        // 5. Stages and Nodes
         for (final stage in widget.roadmap.stages) ...[
           _buildStageSection(stage, completed, level, nextStep),
           const SizedBox(height: 18),
         ],
       ],
+    );
+  }
+
+  Widget _buildRoadmapHeader(PathProvider provider) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Tags Row
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          children: [
+            DsTag(widget.roadmap.levelTag, bg: Ds.surface, fg: Ds.aura),
+            DsTag('${provider.currentWeeklyHours}H / WEEK', bg: Ds.surface, fg: Ds.bone),
+            DsTag('~${provider.estimatedWeeks}W LEFT', bg: Ds.surface, fg: Ds.mint),
+          ],
+        ),
+        const SizedBox(height: 8),
+
+        // Full Title (Anton H2 - wraps naturally if long, never truncated)
+        Text(
+          widget.roadmap.title.toUpperCase(),
+          style: DsText.h2,
+        ),
+        const SizedBox(height: 4),
+
+        // Outcome summary & quick settings link
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Text(
+                widget.roadmap.outcome,
+                style: DsText.bodySm.copyWith(color: Ds.muted),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 8),
+            InkWell(
+              onTap: () => PathSetupSheet.show(context, roadmap: widget.roadmap),
+              borderRadius: BorderRadius.circular(6),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.tune, size: 14, color: Ds.aura),
+                    const SizedBox(width: 4),
+                    Text(
+                      'SETTINGS',
+                      style: DsText.caption.copyWith(
+                        color: Ds.aura,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSlimProgressBar(PathProvider provider, int done, int total) {
+    final pct = provider.progressPercent;
+    final pctInt = (pct * 100).toInt();
+
+    return DsCard(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              // Done count badge
+              Text(
+                '$done / $total DONE',
+                style: DsText.caption.copyWith(
+                  color: Ds.mint,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 11,
+                ),
+              ),
+              const SizedBox(width: 10),
+
+              // Progress Bar
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: Container(
+                    height: 8,
+                    color: Ds.ink,
+                    child: FractionallySizedBox(
+                      alignment: Alignment.centerLeft,
+                      widthFactor: pct.clamp(0.0, 1.0),
+                      child: Container(color: Ds.mint),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+
+              // Percentage & Remaining Hours
+              Text(
+                '$pctInt% • ${provider.remainingHours}H LEFT',
+                style: DsText.caption.copyWith(
+                  color: Ds.aura,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Milestone Checkpoint Markers (Clean, compact row)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildMilestonePill('25% Milestone', pct >= 0.25),
+              _buildMilestonePill('50% Milestone', pct >= 0.50),
+              _buildMilestonePill('100% Complete', pct >= 1.0),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -262,67 +426,6 @@ class _PathActiveViewState extends State<PathActiveView> {
                 stageTitle: stageName,
               );
             },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProgressCard(PathProvider provider, int done, int total) {
-    final pct = provider.progressPercent;
-    final pctInt = (pct * 100).toInt();
-
-    return DsCard(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text('ROUTE PROGRESS', style: DsText.number.copyWith(color: Ds.bone)),
-              const Spacer(),
-              Text(
-                '$pctInt% COMPLETED',
-                style: DsText.number.copyWith(color: Ds.mint),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Progress Segment Bar
-          SegmentBar(
-            total: total > 0 ? total : 1,
-            current: done,
-            height: 10,
-            filledColor: Ds.mint,
-            emptyColor: Ds.border,
-          ),
-          const SizedBox(height: 12),
-
-          // Milestone Checkpoint Markers (Visual markers in v1 per specs)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildMilestonePill('25%', pct >= 0.25),
-              _buildMilestonePill('50%', pct >= 0.50),
-              _buildMilestonePill('100%', pct >= 1.0),
-            ],
-          ),
-          const SizedBox(height: 14),
-
-          // Stats Footer
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '$done of $total nodes done',
-                style: DsText.caption,
-              ),
-              Text(
-                '${provider.remainingHours}h remaining (~${provider.estimatedWeeks}w)',
-                style: DsText.caption.copyWith(color: Ds.aura),
-              ),
-            ],
           ),
         ],
       ),
