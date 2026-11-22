@@ -18,6 +18,10 @@ import '../models/conversation_model.dart';
 import '../models/user_model.dart';
 import '../screens/chat_detail_screen.dart';
 import '../screens/question_detail_screen.dart';
+import '../widgets/duel_invite_dialog.dart';
+import 'path/providers/path_provider.dart';
+import 'tour/services/tour_controller.dart';
+import 'tour/widgets/tour_host.dart';
 
 class AppShell extends StatefulWidget {
   final StatefulNavigationShell shell;
@@ -79,6 +83,24 @@ class _AppShellState extends State<AppShell> {
         context.read<MessagesProvider>().init(user.id);
         context.read<EngagementProvider>().fetchOverview();
         _setupDuelRequestsListener(user.id);
+
+        // Initialize Tour for user
+        final tour = context.read<TourController>();
+        final pathProvider = context.read<PathProvider>();
+        tour.hasActiveRoadmapGetter = () => pathProvider.hasActiveRoadmap;
+
+        final isNew = user.createdAt != null &&
+            DateTime.now().difference(user.createdAt!).inMinutes < 60;
+
+        tour.initForUser(userId: user.id, isNewRegistration: isNew).then((_) {
+          if (mounted) {
+            // First-run trigger for new users and backfill for existing users with 0 completed nodes
+            final hasCompletedNodes = pathProvider.completedNodeIds.isNotEmpty;
+            if (isNew || !hasCompletedNodes) {
+              tour.checkAndStartTour();
+            }
+          }
+        });
       } catch (e) {
         debugPrint('Provider initialization in AppShell failed: $e');
       }
@@ -97,51 +119,9 @@ class _AppShellState extends State<AppShell> {
     });
   }
 
-  void _showIncomingDuelDialog(Map<String, dynamic> request) async {
-    final senderId = request['sender_id'].toString();
-    UserModel? sender = context.read<UsersProvider>().getUserById(senderId);
-    if (sender == null) {
-      try {
-        sender = await context.read<UsersProvider>().getUser(senderId);
-      } catch (_) {}
-    }
-    if (!mounted || sender == null) return;
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Ds.surface,
-        title: const Row(
-          children: [
-            Icon(Icons.flash_on_rounded, color: Ds.aura),
-            SizedBox(width: 8),
-            Text('CHALLENGE!', style: TextStyle(color: Ds.bone, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: Text(
-          '${sender!.name} challenged you to a duel in ${request['category']}!',
-          style: const TextStyle(color: Ds.muted),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              SupabaseService.instance.updateDuelRequestStatus(request['id'].toString(), 'declined');
-            },
-            child: const Text('DECLINE', style: TextStyle(color: Ds.hot)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Ds.aura),
-            onPressed: () {
-              Navigator.pop(ctx);
-              SupabaseService.instance.updateDuelRequestStatus(request['id'].toString(), 'accepted');
-            },
-            child: const Text('ACCEPT', style: TextStyle(color: Ds.onAura, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
+  void _showIncomingDuelDialog(Map<String, dynamic> request) {
+    if (!mounted) return;
+    showIncomingDuelInviteDialog(context, request);
   }
 
   void _setupNotificationTapListener() {
@@ -151,6 +131,7 @@ class _AppShellState extends State<AppShell> {
         final data = jsonDecode(payload);
         final String type = data['type'] ?? '';
         final String? fromUid = data['fromUid'] ?? data['from_uid'];
+        final String? postId = (data['postId'] ?? data['post_id'])?.toString();
         final String? questionId = data['questionId'] ?? data['question_id'];
 
         if (type == 'message' && fromUid != null) {
@@ -181,7 +162,21 @@ class _AppShellState extends State<AppShell> {
               ),
             );
           }
-        } else if (type == 'pr_request' || type == 'solved') {
+        } else if (type == 'duel_invite' && postId != null && postId.isNotEmpty) {
+          final request = await SupabaseService.instance.getDuelRequest(postId);
+          if (!mounted) return;
+          if (request != null && request['status'] == 'pending') {
+            _showIncomingDuelDialog(request);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('This challenge has expired or already been handled.'),
+              ),
+            );
+          }
+        } else if (type == 'pr_request' ||
+            type == 'pr_accepted' ||
+            type == 'solved') {
           if (questionId != null && mounted) {
             Navigator.push(
               context,
@@ -204,7 +199,7 @@ class _AppShellState extends State<AppShell> {
 
     return Scaffold(
       backgroundColor: Ds.ink,
-      body: widget.shell,
+      body: TourHost(child: widget.shell),
       bottomNavigationBar: DsNavBar(
         currentIndex: widget.shell.currentIndex,
         onTap: (index) {

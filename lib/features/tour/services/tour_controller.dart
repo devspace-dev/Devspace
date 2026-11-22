@@ -86,9 +86,9 @@ class TourController extends ChangeNotifier {
       'user_type': _isNewUser ? 'new' : 'existing',
     });
 
-    await _saveState();
     _evaluateCurrentStepSkipping();
     notifyListeners();
+    await _saveState();
   }
 
   /// Replays the tour from S1, resetting skipping rules.
@@ -120,8 +120,8 @@ class TourController extends ChangeNotifier {
       return;
     }
 
-    await _saveState();
     notifyListeners();
+    await _saveState();
   }
 
   /// Skips the entire tour.
@@ -135,8 +135,8 @@ class TourController extends ChangeNotifier {
       'step_at_skip': prevStep?.name ?? 'unknown',
     });
 
-    await _saveState();
     notifyListeners();
+    await _saveState();
   }
 
   /// Marks the current step as skipped and advances to the next step (e.g. Android back button).
@@ -171,8 +171,8 @@ class TourController extends ChangeNotifier {
       'completed_count': _completedSteps.length,
     });
 
-    await _saveState();
     notifyListeners();
+    await _saveState();
   }
 
   /// Handles user goal selection during S2.

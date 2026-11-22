@@ -10,7 +10,11 @@ enum RewardKind {
   badgeEarned,
   questCompleted,
   firstAura,
+  subtle,
+  levelUp,
 }
+
+typedef RewardFeedbackKind = RewardKind;
 
 /// Central reward haptics helper that maps confirmed server rewards to physical feedback.
 /// Respects the user's "Haptics" toggle stored in SharedPreferences.
@@ -69,7 +73,12 @@ class RewardFeedback {
         break;
 
       case RewardKind.firstAura:
+      case RewardKind.levelUp:
         await HapticFeedback.heavyImpact();
+        break;
+
+      case RewardKind.subtle:
+        await HapticFeedback.selectionClick();
         break;
     }
   }

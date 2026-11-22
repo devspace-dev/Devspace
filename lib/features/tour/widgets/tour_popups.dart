@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/services/reward_feedback.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text.dart';
 import '../../../core/widgets/ds_button.dart';
@@ -117,6 +118,8 @@ class TourGoalSheet extends StatefulWidget {
 
 class _TourGoalSheetState extends State<TourGoalSheet> {
   String _selectedRoadmapId = TourCopy.s2OptionDsaRoadmapId;
+  int _weeklyHours = 6;
+  bool _isLocked = false;
 
   final List<Map<String, String>> _options = const [
     {
@@ -141,6 +144,15 @@ class _TourGoalSheetState extends State<TourGoalSheet> {
     },
   ];
 
+  Future<void> _handleConfirm() async {
+    setState(() => _isLocked = true);
+    await RewardFeedback.play(RewardFeedbackKind.levelUp);
+  }
+
+  void _finish() {
+    widget.onGoalSelected(_selectedRoadmapId);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -155,64 +167,149 @@ class _TourGoalSheetState extends State<TourGoalSheet> {
       child: SafeArea(
         top: false,
         child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Glitch Mascot + Header
-              Row(
-                children: [
-                  const Glitch(size: 48, mood: GlitchMood.idle),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+          child: _isLocked
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 12),
+                    const Glitch(size: 72, mood: GlitchMood.win),
+                    const SizedBox(height: 16),
+                    Text(
+                      TourCopy.s2GoalLocked.toUpperCase(),
+                      style: DsText.h2.copyWith(color: Ds.aura),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      TourCopy.s2GoalLockedBody,
+                      style: DsText.bodySm.copyWith(color: Ds.bone),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 20),
+                    DsButton(
+                      label: 'CONTINUE',
+                      kind: DsButtonKind.aura,
+                      onPressed: _finish,
+                    ),
+                  ],
+                )
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Glitch Mascot + Header
+                    Row(
                       children: [
-                        Text(
-                          TourCopy.s2GoalTitle.toUpperCase(),
-                          style: DsText.h3,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          TourCopy.s2GoalBody,
-                          style: DsText.caption.copyWith(color: Ds.muted),
+                        const Glitch(size: 48, mood: GlitchMood.idle),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                TourCopy.s2GoalTitle.toUpperCase(),
+                                style: DsText.h3,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                TourCopy.s2GoalBody,
+                                style: DsText.caption.copyWith(color: Ds.muted),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 18),
+                    const SizedBox(height: 18),
 
-              // 4 Goal Options
-              for (final opt in _options) ...[
-                _buildOptionTile(
-                  id: opt['id']!,
-                  title: opt['title']!,
-                  desc: opt['desc']!,
+                    // 4 Goal Options
+                    for (final opt in _options) ...[
+                      _buildOptionTile(
+                        id: opt['id']!,
+                        title: opt['title']!,
+                        desc: opt['desc']!,
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    const SizedBox(height: 14),
+
+                    // Weekly Commitment Hours
+                    Text(
+                      'COMMITMENT'.toUpperCase(),
+                      style: DsText.label.copyWith(color: Ds.muted),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        _buildHourChip(3, '3 hrs / wk'),
+                        const SizedBox(width: 8),
+                        _buildHourChip(6, '6 hrs / wk', recommended: true),
+                        const SizedBox(width: 8),
+                        _buildHourChip(10, '10 hrs / wk'),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+
+                    // Confirm Action Button
+                    DsButton(
+                      label: TourCopy.s2GoalAction,
+                      kind: DsButtonKind.aura,
+                      onPressed: _handleConfirm,
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Skip text
+                    Center(
+                      child: TextButton(
+                        onPressed: widget.onSkip,
+                        child: Text(
+                          TourCopy.s1WelcomeSkip,
+                          style: DsText.caption.copyWith(color: Ds.muted),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-              ],
-              const SizedBox(height: 16),
+        ),
+      ),
+    );
+  }
 
-              // Confirm Action Button
-              DsButton(
-                label: TourCopy.s2GoalAction,
-                kind: DsButtonKind.aura,
-                onPressed: () => widget.onGoalSelected(_selectedRoadmapId),
+  Widget _buildHourChip(int hours, String label, {bool recommended = false}) {
+    final isSelected = _weeklyHours == hours;
+    return Expanded(
+      child: InkWell(
+        onTap: () => setState(() => _weeklyHours = hours),
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? Ds.ink : Ds.surface,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isSelected ? Ds.aura : Ds.border,
+              width: isSelected ? 2 : 1,
+            ),
+          ),
+          child: Column(
+            children: [
+              Text(
+                label,
+                style: DsText.caption.copyWith(
+                  color: isSelected ? Ds.aura : Ds.bone,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+                textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 8),
-
-              // Skip text
-              Center(
-                child: TextButton(
-                  onPressed: widget.onSkip,
-                  child: Text(
-                    TourCopy.s1WelcomeSkip,
-                    style: DsText.caption.copyWith(color: Ds.muted),
+              if (recommended)
+                Text(
+                  'SWEET SPOT',
+                  style: DsText.caption.copyWith(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Ds.hot,
                   ),
                 ),
-              ),
             ],
           ),
         ),

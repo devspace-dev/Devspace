@@ -8,6 +8,7 @@ class TourCopy {
   static const String s1WelcomeBody =
       'Solve. Post. Compete. Let us earn your first Aura in 2 minutes.';
   static const String s1WelcomePrimary = 'Let us go';
+  static const String s1WelcomeCta = s1WelcomePrimary;
   static const String s1WelcomeSkip = 'Skip for now';
 
   // S1: Existing User Upgrade Modal
@@ -21,6 +22,9 @@ class TourCopy {
   static const String s2GoalTitle = 'What do you want to build?';
   static const String s2GoalBody = 'I will set up your Path.';
   static const String s2GoalAction = 'Set up my Path';
+  static const String s2GoalLocked = 'Goal locked! 🎯';
+  static const String s2GoalLockedBody =
+      'Your roadmap is set. Let\'s earn your first Aura.';
 
   static const String s2OptionDsaTitle = 'Land a placement';
   static const String s2OptionDsaDesc = 'DSA, projects and interview prep';

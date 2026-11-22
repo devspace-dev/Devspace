@@ -22,6 +22,7 @@ import 'providers/engagement_provider.dart';
 import 'providers/messages_provider.dart';
 import 'providers/practice_provider.dart';
 import 'features/path/providers/path_provider.dart';
+import 'features/tour/services/tour_controller.dart';
 import 'features/splash/screens/splash_screen.dart';
 import 'services/auth_service.dart';
 import 'services/analytics_service.dart';
@@ -251,6 +252,7 @@ class DevSpaceRoot extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MessagesProvider()),
         ChangeNotifierProvider(create: (_) => PracticeProvider()),
         ChangeNotifierProvider(create: (_) => PathProvider()..loadUserRoadmaps()),
+        ChangeNotifierProvider(create: (_) => TourController.instance),
       ],
       child: MaterialApp.router(
         title: 'DevSpace',
