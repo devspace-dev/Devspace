@@ -149,6 +149,27 @@ class TourHost extends StatelessWidget {
         );
         break;
 
+      case TourStep.s6Ranks:
+        final rect = TourAnchorRegistry.instance.getGlobalRect(TourAnchorId.myRankRow);
+        final bodyText = tour.isNewUser
+            ? TourCopy.s6RanksBodyNew
+            : TourCopy.s6RanksBodyClimb;
+        overlayWidget = CoachMarkOverlay(
+          targetRect: rect,
+          title: TourCopy.s6RanksTitle,
+          body: bodyText,
+          mood: GlitchMood.idle,
+          primaryButtonLabel: 'FINISH',
+          onPrimaryPressed: () => tour.completeTour(),
+          secondaryButtonLabel: 'Skip',
+          onSecondaryPressed: () => tour.skipTour(),
+          onDismiss: () => tour.completeTour(),
+          onTargetTap: () {
+            tour.completeTour();
+          },
+        );
+        break;
+
       case TourStep.s7RewardModal:
         overlayWidget = Center(
           child: TourModalPopup(
@@ -197,7 +218,8 @@ class TourHost extends StatelessWidget {
     final isCoachMark = tour.currentStep == TourStep.s3Play ||
         tour.currentStep == TourStep.s3bPlayExisting ||
         tour.currentStep == TourStep.s4Community ||
-        tour.currentStep == TourStep.s5Events;
+        tour.currentStep == TourStep.s5Events ||
+        tour.currentStep == TourStep.s6Ranks;
 
     return Stack(
       children: [

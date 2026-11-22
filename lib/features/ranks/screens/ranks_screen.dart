@@ -3,57 +3,44 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text.dart';
 import '../../../core/widgets/aura_chip.dart';
+import '../../../core/widgets/ds_button.dart';
 import '../../../core/widgets/ds_card.dart';
 import '../../../core/widgets/ds_tag.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/users_provider.dart';
 import '../../../models/user_model.dart';
-import '../../../screens/profile_screen.dart';
+import '../../profile/screens/profile_screen.dart';
 import '../../../services/supabase_service.dart';
+import '../../tour/models/tour_step.dart';
+import '../../tour/widgets/tour_anchor.dart';
+
+typedef LeaderboardLoader = Future<List<UserModel>> Function({
+  required bool isMonthly,
+  String? college,
+});
 
 class RanksScreen extends StatefulWidget {
-  const RanksScreen({super.key});
+  const RanksScreen({
+    super.key,
+    this.leaderboardLoader,
+  });
 
-  @override
-  State<RanksScreen> createState() => _RanksScreenState();
-}
+  final LeaderboardLoader? leaderboardLoader;
 
-class _RanksScreenState extends State<RanksScreen> {
-  bool _isMonthly = true;
-  bool _isCollege = true;
-  List<UserModel>? _remoteLeaderboard;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        context.read<UsersProvider>().fetchUsers();
-        _fetchLeaderboard();
+  /// Computes 1-based standard competition ranks (1, 2, 2, 4) for a
+  /// descending-sorted list of positive-aura users.
+  static List<int> computeCompetitionRanks(List<UserModel> users) {
+    final ranks = <int>[];
+    for (var i = 0; i < users.length; i++) {
+      if (i == 0) {
+        ranks.add(1);
+      } else if (users[i].aura == users[i - 1].aura) {
+        ranks.add(ranks[i - 1]);
+      } else {
+        ranks.add(i + 1);
       }
-    });
-  }
-
-  Future<void> _fetchLeaderboard() async {
-    final me = context.read<AuthProvider>().currentUserOrNull;
-    final collegeFilter = _isCollege && (me?.college.isNotEmpty ?? false) ? me!.college : null;
-    try {
-      final list = _isMonthly
-          ? await SupabaseService.instance.getMonthlyAuraLeaderboard(college: collegeFilter)
-          : await SupabaseService.instance.getAllTimeAuraLeaderboard(college: collegeFilter);
-      if (mounted && list.isNotEmpty) {
-        setState(() => _remoteLeaderboard = list);
-      }
-    } catch (_) {
-      // Keep local in-memory fallback
     }
-  }
-
-  void _openProfile(String userId) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => ProfileScreen(userId: userId)),
-    );
+    return ranks;
   }
 
   static String getRankTag(int aura) {
@@ -71,38 +58,280 @@ class _RanksScreenState extends State<RanksScreen> {
   }
 
   @override
+  State<RanksScreen> createState() => _RanksScreenState();
+}
+
+class _RanksScreenState extends State<RanksScreen> with WidgetsBindingObserver {
+  bool _isMonthly = true;
+  bool _isCollege = true;
+  List<UserModel>? _remoteLeaderboard;
+  bool _hasRemoteData = false;
+  bool _isLoadingRemote = false;
+  String? _remoteError;
+  ({int? rank, int aura, bool outsideTop100})? _myRankFallback;
+
+  bool _initializedTabState = false;
+  bool _wasTabActive = true;
+  int? _lastObservedUserAura;
+
+  static const _monthNames = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<UsersProvider>().fetchUsers();
+        _fetchLeaderboard();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _fetchLeaderboard();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final isTabActive = TickerMode.valuesOf(context).enabled;
+    if (!_initializedTabState) {
+      _initializedTabState = true;
+      _wasTabActive = isTabActive;
+    } else if (isTabActive && !_wasTabActive) {
+      _wasTabActive = true;
+      _fetchLeaderboard();
+    } else if (!isTabActive) {
+      _wasTabActive = false;
+    }
+
+    final meAura = context.read<AuthProvider>().currentUserOrNull?.aura;
+    if (_lastObservedUserAura != null &&
+        meAura != null &&
+        meAura != _lastObservedUserAura) {
+      _lastObservedUserAura = meAura;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _fetchLeaderboard();
+      });
+    } else if (_lastObservedUserAura == null && meAura != null) {
+      _lastObservedUserAura = meAura;
+    }
+  }
+
+  String? _effectiveCollegeFilter(UserModel? me) {
+    final college = me?.college.trim() ?? '';
+    if (!_isCollege || college.isEmpty) return null;
+    return me!.college;
+  }
+
+  Future<void> _fetchLeaderboard() async {
+    final me = context.read<AuthProvider>().currentUserOrNull;
+    final collegeFilter = _effectiveCollegeFilter(me);
+    final isMonthly = _isMonthly;
+
+    final hasCustomLoader = widget.leaderboardLoader != null;
+    final useSupabase =
+        hasCustomLoader || SupabaseService.instance.isSupabaseReady;
+
+    if (!useSupabase) {
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _isLoadingRemote = true;
+        _remoteError = null;
+      });
+    }
+
+    try {
+      final list = hasCustomLoader
+          ? await widget.leaderboardLoader!(
+              isMonthly: isMonthly,
+              college: collegeFilter,
+            )
+          : (isMonthly
+              ? await SupabaseService.instance.getMonthlyAuraLeaderboard(
+                  college: collegeFilter,
+                  throwOnError: true,
+                )
+              : await SupabaseService.instance.getAllTimeAuraLeaderboard(
+                  college: collegeFilter,
+                  throwOnError: true,
+                ));
+
+      ({int? rank, int aura, bool outsideTop100})? fallbackRank;
+      if (me != null && !hasCustomLoader) {
+        final inPositiveList =
+            list.any((u) => u.id == me.id && u.aura > 0);
+        if (!inPositiveList) {
+          fallbackRank = await _resolveFallbackRankForMe(
+            me: me,
+            collegeFilter: collegeFilter,
+            isMonthly: isMonthly,
+            returnedCount: list.length,
+          );
+        }
+      }
+
+      if (!mounted) return;
+      final currentMe = context.read<AuthProvider>().currentUserOrNull;
+      if (isMonthly != _isMonthly ||
+          collegeFilter != _effectiveCollegeFilter(currentMe)) {
+        return;
+      }
+
+      setState(() {
+        _remoteLeaderboard = list;
+        _hasRemoteData = true;
+        _isLoadingRemote = false;
+        _remoteError = null;
+        _myRankFallback = fallbackRank;
+      });
+    } catch (e) {
+      debugPrint('Failed to load leaderboard: $e');
+      if (!mounted) return;
+      setState(() {
+        _isLoadingRemote = false;
+        if (!_hasRemoteData) {
+          _remoteError = 'Could not load rankings. Please try again.';
+        }
+      });
+    }
+  }
+
+  Future<({int? rank, int aura, bool outsideTop100})> _resolveFallbackRankForMe({
+    required UserModel me,
+    required String? collegeFilter,
+    required bool isMonthly,
+    required int returnedCount,
+  }) async {
+    final rpcRank = await SupabaseService.instance.getMyLeaderboardRank(
+      college: collegeFilter,
+      isMonthly: isMonthly,
+    );
+    if (rpcRank != null) {
+      return (
+        rank: rpcRank.rank,
+        aura: rpcRank.aura,
+        outsideTop100: false,
+      );
+    }
+
+    if (!isMonthly) {
+      final rank = collegeFilter != null
+          ? await SupabaseService.instance.getUserCollegeRank(me.id)
+          : await SupabaseService.instance.getUserGlobalRank(me.id);
+      return (
+        rank: rank,
+        aura: me.aura > 0 ? me.aura : 0,
+        outsideTop100: false,
+      );
+    }
+
+    final monthlyAura =
+        await SupabaseService.instance.getMyCurrentMonthUtcAura(me.id);
+    if (monthlyAura <= 0) {
+      return (rank: null, aura: 0, outsideTop100: false);
+    }
+    return (
+      rank: null,
+      aura: monthlyAura,
+      outsideTop100: returnedCount >= 100,
+    );
+  }
+
+  void _openProfile(String userId) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => ProfileScreen(userId: userId)),
+    );
+  }
+
+  String _currentUtcMonthLabel() {
+    final utcNow = DateTime.now().toUtc();
+    return '${_monthNames[utcNow.month - 1]} ${utcNow.year} (UTC)';
+  }
+
+  @override
   Widget build(BuildContext context) {
     final me = context.watch<AuthProvider>().currentUserOrNull;
     final usersP = context.watch<UsersProvider>();
-    
-    List<UserModel> localUsers = List<UserModel>.from(usersP.users);
-    if (_isCollege && me != null && me.college.isNotEmpty) {
-      final collegeUsers = localUsers
-          .where((u) => u.college.toLowerCase().trim() == me.college.toLowerCase().trim())
-          .toList();
-      if (collegeUsers.isNotEmpty) {
-        localUsers = collegeUsers;
-      }
-    }
-    localUsers.sort((a, b) => b.aura.compareTo(a.aura));
+    final myCollege = me?.college ?? '';
+    final hasCollege = myCollege.trim().isNotEmpty;
+    final isCollegeScopeActive = _isCollege && hasCollege;
 
-    List<UserModel> users;
-    if (_remoteLeaderboard != null) {
-      users = _remoteLeaderboard!.map((u) {
-        if (me != null && u.id == me.id && u.aura != me.aura) {
-          return u.copyWith(aura: me.aura);
+    List<UserModel> sourceUsers;
+    if (_hasRemoteData && _remoteLeaderboard != null) {
+      sourceUsers = _remoteLeaderboard!;
+    } else if (!SupabaseService.instance.isSupabaseReady &&
+        widget.leaderboardLoader == null) {
+      var localUsers = List<UserModel>.from(usersP.users);
+      if (isCollegeScopeActive) {
+        final collegeUsers = localUsers
+            .where((u) =>
+                u.college.toLowerCase().trim() ==
+                myCollege.toLowerCase().trim())
+            .toList();
+        if (collegeUsers.isNotEmpty) {
+          localUsers = collegeUsers;
         }
-        return u;
-      }).toList();
+      }
+      localUsers.sort((a, b) => b.aura.compareTo(a.aura));
+      sourceUsers = localUsers;
     } else {
-      users = localUsers;
+      sourceUsers = const [];
     }
 
-    final hasData = users.isNotEmpty && users.any((u) => u.aura > 0);
-    final myRank = me != null ? users.indexWhere((u) => u.id == me.id) + 1 : 0;
-    final collegeName = (me?.college.isNotEmpty ?? false)
-        ? me!.college.split(' ').first
-        : 'Your College';
+    // Never rank or render 0-Aura rows.
+    final rankedUsers = sourceUsers.where((u) => u.aura > 0).toList();
+    final ranks = RanksScreen.computeCompetitionRanks(rankedUsers);
+    final hasData = rankedUsers.isNotEmpty;
+
+    final myIndex =
+        me != null ? rankedUsers.indexWhere((u) => u.id == me.id) : -1;
+    final String myRankLabel;
+    final int myBoardAura;
+    if (myIndex != -1) {
+      myRankLabel = '#${ranks[myIndex]}';
+      myBoardAura = rankedUsers[myIndex].aura;
+    } else if (_myRankFallback != null) {
+      if (_myRankFallback!.rank != null) {
+        myRankLabel = '#${_myRankFallback!.rank}';
+      } else if (_myRankFallback!.outsideTop100 &&
+          _myRankFallback!.aura > 0) {
+        myRankLabel = '100+';
+      } else {
+        myRankLabel = 'Unranked';
+      }
+      myBoardAura = _myRankFallback!.aura;
+    } else {
+      myRankLabel = 'Unranked';
+      myBoardAura = 0;
+    }
 
     return Scaffold(
       backgroundColor: Ds.ink,
@@ -126,235 +355,397 @@ class _RanksScreenState extends State<RanksScreen> {
           await _fetchLeaderboard();
         },
         child: CustomScrollView(
-        slivers: [
-          // Filter toggles
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
+          slivers: [
+            // Filter toggles
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
                     children: [
-                      _buildPill(
-                        label: 'MONTHLY',
-                        active: _isMonthly,
-                        onTap: () {
-                          setState(() {
-                            _isMonthly = true;
-                            _remoteLeaderboard = null;
-                          });
-                          _fetchLeaderboard();
-                        },
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildPill(
+                            label: 'MONTHLY',
+                            active: _isMonthly,
+                            onTap: () {
+                              if (_isMonthly) return;
+                              setState(() {
+                                _isMonthly = true;
+                                _remoteLeaderboard = null;
+                                _hasRemoteData = false;
+                                _myRankFallback = null;
+                              });
+                              _fetchLeaderboard();
+                            },
+                          ),
+                          const SizedBox(width: 8),
+                          _buildPill(
+                            label: 'ALL TIME',
+                            active: !_isMonthly,
+                            onTap: () {
+                              if (!_isMonthly) return;
+                              setState(() {
+                                _isMonthly = false;
+                                _remoteLeaderboard = null;
+                                _hasRemoteData = false;
+                                _myRankFallback = null;
+                              });
+                              _fetchLeaderboard();
+                            },
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      _buildPill(
-                        label: 'ALL TIME',
-                        active: !_isMonthly,
-                        onTap: () {
-                          setState(() {
-                            _isMonthly = false;
-                            _remoteLeaderboard = null;
-                          });
-                          _fetchLeaderboard();
-                        },
+                      const SizedBox(width: 12),
+                      GestureDetector(
+                        onTap: !hasCollege
+                            ? () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Add your college in Edit Profile to view campus rankings.',
+                                    ),
+                                  ),
+                                );
+                              }
+                            : () {
+                                setState(() {
+                                  _isCollege = !_isCollege;
+                                  _remoteLeaderboard = null;
+                                  _hasRemoteData = false;
+                                  _myRankFallback = null;
+                                });
+                                _fetchLeaderboard();
+                              },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Ds.surface,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Ds.border),
+                          ),
+                          child: Text(
+                            isCollegeScopeActive ? 'COLLEGE' : 'GLOBAL',
+                            style: DsText.caption.copyWith(
+                              color: Ds.aura,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _isCollege = !_isCollege;
-                        _remoteLeaderboard = null;
-                      });
-                      _fetchLeaderboard();
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Ds.surface,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Ds.border),
-                      ),
-                      child: Text(
-                        _isCollege ? 'COLLEGE' : 'GLOBAL',
-                        style: DsText.caption.copyWith(color: Ds.aura, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
 
-          // College Rivalry Banner
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-              child: DsCard(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('$collegeName vs Apex Tech', style: DsText.label),
-                        Text('+140 AURA', style: DsText.number.copyWith(fontSize: 14)),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(5),
-                      child: const SizedBox(
-                        height: 10,
-                        child: Row(
+            // Season & Reset Window Banner (real info only)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                child: DsCard(
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _isMonthly
+                            ? Icons.schedule_rounded
+                            : Icons.public_rounded,
+                        color: Ds.aura,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              flex: 65,
-                              child: ColoredBox(color: Ds.aura),
+                            Text(
+                              _isMonthly
+                                  ? _currentUtcMonthLabel()
+                                  : 'ALL-TIME STANDINGS',
+                              style: DsText.label,
                             ),
-                            Expanded(
-                              flex: 35,
-                              child: ColoredBox(color: Ds.hot),
+                            const SizedBox(height: 2),
+                            Text(
+                              _isMonthly
+                                  ? 'Resets 1st of month · 05:30 IST (00:00 UTC)'
+                                  : (isCollegeScopeActive
+                                      ? myCollege
+                                      : 'Across all colleges on DevSpace'),
+                              style: DsText.caption,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'You are 140 Aura ahead. Do not get cooked.',
-                      style: DsText.caption,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          if (usersP.isLoading && users.isEmpty)
-            const SliverFillRemaining(
-              child: Center(
-                child: CircularProgressIndicator(color: Ds.aura),
-              ),
-            )
-          else if (!hasData)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 40),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.emoji_events_outlined, size: 64, color: Ds.muted),
-                      const SizedBox(height: 16),
-                      Text('Season just started.', style: DsText.h3),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Be the first on the board.',
-                        style: DsText.bodySm.copyWith(color: Ds.muted),
-                      ),
                     ],
                   ),
                 ),
               ),
-            )
-          else ...[
-            // Top 3 Podium
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-                child: _buildPodium(users),
-              ),
             ),
 
-            // Ranks 4+
-            if (users.length > 3)
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final userIndex = index + 3;
-                      final u = users[userIndex];
-                      final isMe = me?.id == u.id;
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: _buildRankRow(
-                          rank: userIndex + 1,
-                          user: u,
-                          isMe: isMe,
+            if ((_isLoadingRemote && !_hasRemoteData) ||
+                (usersP.isLoading && !hasData && _remoteError == null))
+              const SliverFillRemaining(
+                child: Center(
+                  child: CircularProgressIndicator(color: Ds.aura),
+                ),
+              )
+            else if (_remoteError != null && !hasData)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 32, vertical: 40),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.wifi_off_rounded,
+                            size: 48, color: Ds.muted),
+                        const SizedBox(height: 12),
+                        Text(
+                          _remoteError!,
+                          style: DsText.bodySm.copyWith(color: Ds.muted),
+                          textAlign: TextAlign.center,
                         ),
-                      );
-                    },
-                    childCount: users.length - 3,
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: 140,
+                          child: DsButton(
+                            label: 'Retry',
+                            height: 44,
+                            onPressed: _fetchLeaderboard,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               )
-            else
-              const SliverToBoxAdapter(
-                child: SizedBox(height: 100),
-              ),
-          ],
-        ],
-      ),
-    ),
-      bottomSheet: me != null && myRank > 0
-          ? Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              decoration: const BoxDecoration(
-                color: Ds.navBg,
-                border: Border(
-                  top: BorderSide(color: Ds.aura, width: 2),
+            else if (!hasData)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 40),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.emoji_events_outlined,
+                            size: 64, color: Ds.muted),
+                        const SizedBox(height: 16),
+                        Text('Season just started.', style: DsText.h3),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Be the first on the board.',
+                          style: DsText.bodySm.copyWith(color: Ds.muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+            else ...[
+              // Top 3 Podium
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                  child: _buildPodium(rankedUsers, ranks),
                 ),
               ),
-              child: SafeArea(
-                top: false,
-                child: Row(
-                  children: [
-                    Text(
-                      '#$myRank',
-                      style: DsText.h3.copyWith(color: Ds.aura),
+
+              // Ranks 4+
+              if (rankedUsers.length > 3)
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final userIndex = index + 3;
+                        final u = rankedUsers[userIndex];
+                        final isMe = me?.id == u.id;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: _buildRankRow(
+                            rank: ranks[userIndex],
+                            user: u,
+                            isMe: isMe,
+                          ),
+                        );
+                      },
+                      childCount: rankedUsers.length - 3,
                     ),
-                    const SizedBox(width: 14),
-                    CircleAvatar(
-                      radius: 18,
-                      backgroundColor: Ds.surface,
-                      child: Text(
-                        me.name.isNotEmpty ? me.name[0].toUpperCase() : 'U',
-                        style: DsText.caption.copyWith(color: Ds.bone),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
+                  ),
+                )
+              else
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: 100),
+                ),
+            ],
+          ],
+        ),
+      ),
+      bottomSheet: me != null
+          ? TourAnchor(
+              id: TourAnchorId.myRankRow,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: const BoxDecoration(
+                  color: Ds.navBg,
+                  border: Border(
+                    top: BorderSide(color: Ds.aura, width: 2),
+                  ),
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: Builder(
+                    builder: (context) {
+                      final textScale =
+                          MediaQuery.textScalerOf(context).scale(1.0);
+                      final screenWidth = MediaQuery.sizeOf(context).width;
+                      final isCompact = screenWidth < 420 ||
+                          textScale > 1.15 ||
+                          myRankLabel.length > 4;
+
+                      if (isCompact) {
+                        return Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Wrap(
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 8,
+                              runSpacing: 4,
+                              children: [
+                                Text(
+                                  myRankLabel,
+                                  style: (myRankLabel == 'Unranked'
+                                          ? DsText.label
+                                          : DsText.h3)
+                                      .copyWith(
+                                    color: myRankLabel == 'Unranked'
+                                        ? Ds.muted
+                                        : Ds.aura,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                CircleAvatar(
+                                  radius: 14,
+                                  backgroundColor: Ds.surface,
+                                  child: Text(
+                                    me.name.isNotEmpty
+                                        ? me.name[0].toUpperCase()
+                                        : 'U',
+                                    style: DsText.caption
+                                        .copyWith(color: Ds.bone),
+                                  ),
+                                ),
+                                const DsTag('YOU', bg: Ds.aura, fg: Ds.ink),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        me.name,
+                                        style: DsText.label,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      Text(
+                                        '@${me.handle}',
+                                        style: DsText.caption,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '$myBoardAura AURA',
+                                  style: DsText.number.copyWith(fontSize: 13),
+                                ),
+                              ],
+                            ),
+                          ],
+                        );
+                      }
+
+                      return Row(
                         children: [
-                          Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  me.name,
-                                  style: DsText.label,
+                          Text(
+                            myRankLabel,
+                            style: (myRankLabel == 'Unranked'
+                                    ? DsText.label
+                                    : DsText.h3)
+                                .copyWith(
+                              color: myRankLabel == 'Unranked'
+                                  ? Ds.muted
+                                  : Ds.aura,
+                              fontSize: 15,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          CircleAvatar(
+                            radius: 16,
+                            backgroundColor: Ds.surface,
+                            child: Text(
+                              me.name.isNotEmpty
+                                  ? me.name[0].toUpperCase()
+                                  : 'U',
+                              style: DsText.caption.copyWith(color: Ds.bone),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Wrap(
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  spacing: 6,
+                                  runSpacing: 2,
+                                  children: [
+                                    Text(
+                                      me.name,
+                                      style: DsText.label,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const DsTag('YOU', bg: Ds.aura, fg: Ds.ink),
+                                  ],
+                                ),
+                                Text(
+                                  '@${me.handle}',
+                                  style: DsText.caption,
+                                  maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              const DsTag('YOU', bg: Ds.aura, fg: Ds.ink),
-                            ],
+                              ],
+                            ),
                           ),
-                          Text('@${me.handle}', style: DsText.caption),
+                          const SizedBox(width: 10),
+                          Text(
+                            '$myBoardAura AURA',
+                            style: DsText.number.copyWith(fontSize: 14),
+                          ),
                         ],
-                      ),
-                    ),
-                    Text(
-                      '${me.aura} AURA',
-                      style: DsText.number.copyWith(fontSize: 16),
-                    ),
-                  ],
+                      );
+                    },
+                  ),
                 ),
               ),
             )
@@ -362,7 +753,11 @@ class _RanksScreenState extends State<RanksScreen> {
     );
   }
 
-  Widget _buildPill({required String label, required bool active, required VoidCallback onTap}) {
+  Widget _buildPill({
+    required String label,
+    required bool active,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -383,31 +778,36 @@ class _RanksScreenState extends State<RanksScreen> {
     );
   }
 
-  Widget _buildPodium(List<UserModel> users) {
+  Widget _buildPodium(List<UserModel> users, List<int> ranks) {
     final first = users.isNotEmpty ? users[0] : null;
     final second = users.length > 1 ? users[1] : null;
     final third = users.length > 2 ? users[2] : null;
+    final firstRank = ranks.isNotEmpty ? ranks[0] : 1;
+    final secondRank = ranks.length > 1 ? ranks[1] : 2;
+    final thirdRank = ranks.length > 2 ? ranks[2] : 3;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        // 2nd Place (Left)
+        // 2nd Slot (Left)
         Expanded(
           child: _buildPodiumColumn(
             user: second,
-            rank: 2,
+            rank: secondRank,
             podiumHeight: 80,
-            ringColor: Ds.tierSilver,
-            rankNumberStyle: DsText.h2.copyWith(color: Ds.tierSilver),
+            ringColor: secondRank == 1 ? Ds.aura : Ds.tierSilver,
+            rankNumberStyle: DsText.h2.copyWith(
+              color: secondRank == 1 ? Ds.aura : Ds.tierSilver,
+            ),
           ),
         ),
         const SizedBox(width: 10),
 
-        // 1st Place (Center - Highest)
+        // 1st Slot (Center - Highest)
         Expanded(
           child: _buildPodiumColumn(
             user: first,
-            rank: 1,
+            rank: firstRank,
             podiumHeight: 110,
             ringColor: Ds.aura,
             rankNumberStyle: DsText.h1.copyWith(color: Ds.aura, fontSize: 36),
@@ -416,14 +816,20 @@ class _RanksScreenState extends State<RanksScreen> {
         ),
         const SizedBox(width: 10),
 
-        // 3rd Place (Right)
+        // 3rd Slot (Right)
         Expanded(
           child: _buildPodiumColumn(
             user: third,
-            rank: 3,
+            rank: thirdRank,
             podiumHeight: 60,
-            ringColor: Ds.tierBronze,
-            rankNumberStyle: DsText.h3.copyWith(color: Ds.tierBronze),
+            ringColor: thirdRank == 1
+                ? Ds.aura
+                : (thirdRank == 2 ? Ds.tierSilver : Ds.tierBronze),
+            rankNumberStyle: DsText.h3.copyWith(
+              color: thirdRank == 1
+                  ? Ds.aura
+                  : (thirdRank == 2 ? Ds.tierSilver : Ds.tierBronze),
+            ),
           ),
         ),
       ],
@@ -521,8 +927,8 @@ class _RanksScreenState extends State<RanksScreen> {
     required UserModel user,
     required bool isMe,
   }) {
-    final tierColor = getTierColor(user.aura);
-    final rankTag = getRankTag(user.aura);
+    final tierColor = RanksScreen.getTierColor(user.aura);
+    final rankTag = RanksScreen.getRankTag(user.aura);
 
     return DsCard(
       borderColor: isMe ? Ds.aura : Ds.border,
