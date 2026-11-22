@@ -2,138 +2,140 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:devspace/core/theme/theme.dart';
-import 'package:devspace/core/widgets/glitch.dart';
-import 'package:devspace/models/user_model.dart';
-import 'package:devspace/providers/auth_provider.dart';
+import 'package:devspace/features/path/data/curated_roadmaps.dart';
+import 'package:devspace/features/path/models/roadmap_model.dart';
+import 'package:devspace/features/path/providers/path_provider.dart';
 import 'package:devspace/features/path/screens/path_screen.dart';
+import 'package:devspace/features/path/widgets/path_active_view.dart';
+import 'package:devspace/features/path/widgets/path_find_view.dart';
 
 void main() {
   setUpAll(() {
     GoogleFonts.config.allowRuntimeFetching = false;
   });
 
-  setUp(() {
-    SharedPreferences.setMockInitialValues({});
-  });
-
-  final testUser = UserModel(
-    id: 'u-1',
-    name: 'Harshit Raj',
-    handle: 'harshit',
-    email: 'harshit@example.com',
-    avatar: '',
-    color: Colors.black,
-    aura: 650,
-    roles: const ['Student'],
-    year: '3rd Year',
-    branch: 'CSE',
-    building: 'DevSpace',
-    stack: const ['Flutter', 'PostgreSQL'],
-    followers: 10,
-    following: 5,
-    bio: 'Student builder',
-    college: 'IIIT Delhi',
-    githubHandle: 'harshit',
-    profileCompleted: true,
-    currentStreak: 4,
-  );
-
-  Widget createPathApp() {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(
-          create: (_) => AuthProvider(
-            initialUser: testUser,
-            listenToAuthChanges: false,
-          ),
-        ),
-      ],
-      child: MaterialApp(
-        theme: buildTheme(),
-        home: const PathScreen(),
+  Widget createPathApp(PathProvider provider) {
+    return MaterialApp(
+      home: ChangeNotifierProvider<PathProvider>.value(
+        value: provider,
+        child: const PathScreen(),
       ),
     );
   }
 
-  testWidgets('PathScreen renders title, track chips, and segmented progress', (tester) async {
-    await tester.pumpWidget(createPathApp());
-    await tester.pumpAndSettle();
+  group('PathScreen & UI widget tests', () {
+    testWidgets('renders PathFindView when user has no active roadmap', (tester) async {
+      tester.view.physicalSize = const Size(800, 1800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
 
-    expect(find.text('PATH'), findsOneWidget);
-    expect(find.text('FLUTTER & DART'), findsOneWidget);
-    expect(find.text('WEB FRONTEND'), findsOneWidget);
-    expect(find.text('BACKEND ENGINEERING'), findsOneWidget);
+      final provider = PathProvider(
+        currentUserIdGetter: () => null,
+      );
 
-    expect(find.text('0 of 6 NODES'), findsOneWidget);
-  });
+      await tester.pumpWidget(createPathApp(provider));
+      await tester.pumpAndSettle();
 
-  testWidgets('PathScreen renders active node with Glitch companion and bottom card', (tester) async {
-    tester.view.physicalSize = const Size(800, 1600);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
+      expect(find.byType(PathFindView), findsOneWidget);
+      expect(find.text('CHOOSE YOUR GOAL'), findsOneWidget);
+      expect(find.text('FLUTTER APP DEVELOPER'), findsOneWidget);
+      expect(find.text('WEB FRONTEND (HTML/CSS/JS/REACT)'), findsOneWidget);
+      expect(find.text('BACKEND & SYSTEMS ENGINEERING'), findsOneWidget);
+    });
 
-    await tester.pumpWidget(createPathApp());
-    await tester.pumpAndSettle();
+    testWidgets('search field filters curated roadmaps in real time', (tester) async {
+      final provider = PathProvider(
+        currentUserIdGetter: () => null,
+      );
 
-    // Glitch companion stands next to the active node
-    expect(find.byType(Glitch), findsOneWidget);
+      await tester.pumpWidget(createPathApp(provider));
+      await tester.pumpAndSettle();
 
-    // Default active node is Dart & Type System
-    expect(find.text('IN PROGRESS'), findsWidgets);
-    expect(find.text('Dart & Type System'), findsWidgets);
-  });
+      // Enter search query 'leetcode'
+      await tester.enterText(find.byType(TextField), 'leetcode');
+      await tester.pumpAndSettle();
 
-  testWidgets('Tapping bottom card opens modal detail sheet with verified resources and project', (tester) async {
-    tester.view.physicalSize = const Size(800, 1600);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
+      // Only DSA roadmap should match
+      expect(find.text('DATA STRUCTURES, ALGORITHMS & PLACEMENTS'), findsOneWidget);
+      expect(find.text('FLUTTER APP DEVELOPER'), findsNothing);
+    });
 
-    await tester.pumpWidget(createPathApp());
-    await tester.pumpAndSettle();
+    testWidgets('renders PathActiveView when user has an active roadmap', (tester) async {
+      final fakeSelections = [
+        UserRoadmapSelection(
+          id: 'sel_1',
+          userId: 'user_123',
+          roadmapId: 'flutter',
+          status: 'active',
+          level: RoadmapLevel.beginner,
+          weeklyHours: 6,
+          startedAt: DateTime(2026, 11, 20),
+          updatedAt: DateTime(2026, 11, 20),
+        ),
+      ];
 
-    // Tap the bottom preview card
-    await tester.tap(find.byKey(const ValueKey('selected_node_preview_card')));
-    await tester.pumpAndSettle();
+      final provider = PathProvider(
+        currentUserIdGetter: () => 'user_123',
+        userRoadmapsLoader: (userId) async => fakeSelections,
+        roadmapProgressLoader: (userId, roadmapId) async => {'fl_dart_basics'},
+      );
 
-    // Detail sheet content
-    expect(find.text('WHY IT MATTERS'), findsOneWidget);
-    expect(find.text('CORE CONCEPTS'), findsOneWidget);
-    expect(find.text('HANDS-ON PROJECT'), findsOneWidget);
-    expect(find.text('VERIFIED RESOURCES'), findsOneWidget);
-    expect(find.text('MARK AS COMPLETED'), findsOneWidget);
+      await provider.loadUserRoadmaps();
 
-    // Tap Mark As Completed
-    await tester.tap(find.text('MARK AS COMPLETED'));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(createPathApp(provider));
+      await tester.pumpAndSettle();
 
-    // Bottom sheet should now show MARK INCOMPLETE
-    expect(find.text('MARK INCOMPLETE'), findsOneWidget);
-  });
+      expect(find.byType(PathActiveView), findsOneWidget);
+      expect(find.text('FLUTTER APP DEVELOPER'), findsOneWidget);
+      expect(find.text('CONTINUE LEARNING'), findsOneWidget);
+      expect(find.text('DART SYNTAX & NULL SAFETY'), findsOneWidget);
+      expect(find.text('OOP, RECORDS & PATTERN MATCHING'), findsWidgets);
 
-  testWidgets('PathScreen switches track when tapping Backend track chip', (tester) async {
-    await tester.pumpWidget(createPathApp());
-    await tester.pumpAndSettle();
+      // Verify One Clear Next Step points to fl_oop_patterns
+      expect(provider.nextRecommendedStep?.id, 'fl_oop_patterns');
+    });
 
-    await tester.tap(find.text('BACKEND ENGINEERING'));
-    await tester.pumpAndSettle();
+    testWidgets('tapping explore button switches to PathFindView with active banner', (tester) async {
+      tester.view.physicalSize = const Size(800, 1800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
 
-    // Should now show backend first node
-    expect(find.text('HTTP, REST & Networking'), findsWidgets);
-  });
+      final fakeSelections = [
+        UserRoadmapSelection(
+          id: 'sel_1',
+          userId: 'user_123',
+          roadmapId: 'flutter',
+          status: 'active',
+          level: RoadmapLevel.beginner,
+          weeklyHours: 6,
+          startedAt: DateTime(2026, 11, 20),
+          updatedAt: DateTime(2026, 11, 20),
+        ),
+      ];
 
-  testWidgets('PathScreen search button opens roadmap.sh directory modal', (tester) async {
-    await tester.pumpWidget(createPathApp());
-    await tester.pumpAndSettle();
+      final provider = PathProvider(
+        currentUserIdGetter: () => 'user_123',
+        userRoadmapsLoader: (userId) async => fakeSelections,
+        roadmapProgressLoader: (userId, roadmapId) async => {},
+      );
 
-    // Tap search icon button in AppBar
-    await tester.tap(find.byIcon(Icons.search_rounded));
-    await tester.pumpAndSettle();
+      await provider.loadUserRoadmaps();
 
-    expect(find.text('SEARCH ROADMAPS'), findsOneWidget);
-    expect(find.text('ROADMAP.SH'), findsOneWidget);
-    expect(find.text('INTERACTIVE MIND MAP TRACKS'), findsOneWidget);
-    expect(find.text('ROADMAP.SH CURATED GUIDES'), findsOneWidget);
+      await tester.pumpWidget(createPathApp(provider));
+      await tester.pumpAndSettle();
+
+      // Tap browse all roadmaps icon
+      await tester.tap(find.byTooltip('Browse all roadmaps'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(PathFindView), findsOneWidget);
+      expect(find.textContaining('CURRENTLY ACTIVE: FLUTTER APP DEVELOPER'), findsOneWidget);
+
+      // Tap VIEW ROUTE to return to PathActiveView
+      await tester.tap(find.text('VIEW ROUTE'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(PathActiveView), findsOneWidget);
+    });
   });
 }
