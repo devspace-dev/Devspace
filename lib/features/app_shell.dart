@@ -12,6 +12,7 @@ import '../providers/messages_provider.dart';
 import '../providers/users_provider.dart';
 import '../providers/posts_provider.dart';
 import '../providers/questions_provider.dart';
+import '../providers/practice_provider.dart';
 import '../services/notification_service.dart';
 import '../services/supabase_service.dart';
 import '../models/conversation_model.dart';
@@ -87,16 +88,18 @@ class _AppShellState extends State<AppShell> {
         // Initialize Tour for user
         final tour = context.read<TourController>();
         final pathProvider = context.read<PathProvider>();
+        final practiceProvider = context.read<PracticeProvider>();
         tour.hasActiveRoadmapGetter = () => pathProvider.hasActiveRoadmap;
+        tour.practiceCompletionsCountGetter = () => practiceProvider.totalCompletedCount;
+        practiceProvider.onPracticeCompletionConfirmed = () {
+          tour.handlePracticeCompletionConfirmed();
+        };
 
-        final isNew = user.createdAt != null &&
-            DateTime.now().difference(user.createdAt!).inMinutes < 60;
-
-        tour.initForUser(userId: user.id, isNewRegistration: isNew).then((_) {
+        tour.initForUser(userId: user.id, isNewRegistration: true).then((_) {
           if (mounted) {
             // First-run trigger for new users and backfill for existing users with 0 completed nodes
             final hasCompletedNodes = pathProvider.completedNodeIds.isNotEmpty;
-            if (isNew || !hasCompletedNodes) {
+            if (!hasCompletedNodes) {
               tour.checkAndStartTour();
             }
           }

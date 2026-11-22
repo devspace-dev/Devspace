@@ -19,6 +19,7 @@ class PracticeProvider extends ChangeNotifier {
   int _selectedSectionIndex = 0;
   String _selectedTechStack = 'All';
   bool _isLoading = true;
+  VoidCallback? onPracticeCompletionConfirmed;
 
   PracticeProvider() {
     _loadProgress();
@@ -210,6 +211,7 @@ class PracticeProvider extends ChangeNotifier {
           try {
             await SupabaseService.instance.syncMyBadges();
           } catch (_) {}
+          onPracticeCompletionConfirmed?.call();
           await _saveProgress();
         }
       }
@@ -230,6 +232,9 @@ class PracticeProvider extends ChangeNotifier {
         if (engagementProvider != null) {
           await engagementProvider.fetchAuraHistory();
         }
+        try {
+          await SupabaseService.instance.syncMyBadges();
+        } catch (_) {}
       }
       await _saveProgress();
       notifyListeners();

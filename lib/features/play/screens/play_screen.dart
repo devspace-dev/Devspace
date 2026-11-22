@@ -13,6 +13,8 @@ import '../../../providers/engagement_provider.dart';
 import '../../../screens/daily_challenge_screen.dart';
 import '../../../screens/notifications_screen.dart';
 import '../../../screens/duel_mode_landing_screen.dart';
+import '../../tour/models/tour_step.dart';
+import '../../tour/widgets/tour_anchor.dart';
 
 class PlayScreen extends StatelessWidget {
   const PlayScreen({super.key});
@@ -153,13 +155,16 @@ class PlayScreen extends StatelessWidget {
               mainAxisSpacing: 12,
               childAspectRatio: 1.15,
               children: [
-                _buildLobbyTile(
-                  context: context,
-                  title: 'NOOB LOBBY',
-                  level: 'EASY',
-                  tierColor: Ds.tierBronze,
-                  reward: '+5 AURA',
-                  lobbyId: 'noob',
+                TourAnchor(
+                  id: TourAnchorId.firstTierTile,
+                  child: _buildLobbyTile(
+                    context: context,
+                    title: 'NOOB LOBBY',
+                    level: 'EASY',
+                    tierColor: Ds.tierBronze,
+                    reward: '+5 AURA',
+                    lobbyId: 'noob',
+                  ),
                 ),
                 _buildLobbyTile(
                   context: context,
@@ -263,18 +268,31 @@ class PlayScreen extends StatelessWidget {
   }) {
     return DsCard(
       leftBar: tierColor,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       onTap: () => context.push('/quiz/$lobbyId'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           DsTag(level, bg: tierColor, fg: Ds.ink),
-          Text(title, style: DsText.h3.copyWith(fontSize: 18)),
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: DsText.h3.copyWith(fontSize: 16),
+          ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(reward, style: DsText.number.copyWith(fontSize: 16)),
-              const Icon(Icons.arrow_forward_rounded, size: 18, color: Ds.muted),
+              Flexible(
+                child: Text(
+                  reward,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: DsText.number.copyWith(fontSize: 14),
+                ),
+              ),
+              const Icon(Icons.arrow_forward_rounded, size: 16, color: Ds.muted),
             ],
           ),
         ],
@@ -292,9 +310,9 @@ class PlayScreen extends StatelessWidget {
   }) {
     return DsCard(
       leftBar: accentColor,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       onTap: () {
-        Navigator.push(
-          context,
+        Navigator.of(context, rootNavigator: true).push(
           MaterialPageRoute(
             builder: (_) => DuelModeLandingScreen(
               category: 'Combat',
@@ -309,12 +327,24 @@ class PlayScreen extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           DsTag(tag, bg: accentColor, fg: Ds.ink),
-          Text(title, style: DsText.h3.copyWith(fontSize: 18)),
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: DsText.h3.copyWith(fontSize: 16),
+          ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(reward, style: DsText.number.copyWith(fontSize: 16)),
-              const Icon(Icons.arrow_forward_rounded, size: 18, color: Ds.muted),
+              Flexible(
+                child: Text(
+                  reward,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: DsText.number.copyWith(fontSize: 14),
+                ),
+              ),
+              const Icon(Icons.arrow_forward_rounded, size: 16, color: Ds.muted),
             ],
           ),
         ],

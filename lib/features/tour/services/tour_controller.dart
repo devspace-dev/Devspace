@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../core/services/reward_feedback.dart';
 import '../../../services/analytics_service.dart';
 import '../models/tour_step.dart';
 
@@ -187,6 +188,17 @@ class TourController extends ChangeNotifier {
     await nextStep();
   }
 
+  /// Called after a practice question submission is confirmed by the server RPC.
+  /// Fires reward haptics and triggers the S7 celebration modal.
+  void handlePracticeCompletionConfirmed() {
+    if (_status == TourStatus.inProgress) {
+      RewardFeedback.play(RewardKind.practice);
+      _currentStep = TourStep.s7RewardModal;
+      notifyListeners();
+      _saveState();
+    }
+  }
+
   TourStep? _determineNextStep(TourStep step) {
     if (_isNewUser) {
       switch (step) {
@@ -196,13 +208,13 @@ class TourController extends ChangeNotifier {
           return TourStep.s3Play;
         case TourStep.s3Play:
         case TourStep.s3bPlayExisting:
+        case TourStep.s7RewardModal:
           return TourStep.s4Community;
         case TourStep.s4Community:
           return TourStep.s5Events;
         case TourStep.s5Events:
           return TourStep.s6Ranks;
         case TourStep.s6Ranks:
-        case TourStep.s7RewardModal:
           return null;
       }
     } else {
@@ -212,6 +224,7 @@ class TourController extends ChangeNotifier {
           return TourStep.s3bPlayExisting;
         case TourStep.s3bPlayExisting:
         case TourStep.s3Play:
+        case TourStep.s7RewardModal:
           return TourStep.s4Community;
         case TourStep.s4Community:
           return TourStep.s5Events;
@@ -219,7 +232,6 @@ class TourController extends ChangeNotifier {
           return TourStep.s6Ranks;
         case TourStep.s2Goal:
         case TourStep.s6Ranks:
-        case TourStep.s7RewardModal:
           return null;
       }
     }
@@ -239,6 +251,7 @@ class TourController extends ChangeNotifier {
         break;
 
       case TourStep.s3Play:
+      case TourStep.s3bPlayExisting:
         // Skip if user already has completed at least 1 practice question
         if ((practiceCompletionsCountGetter?.call() ?? 0) >= 1) {
           shouldSkip = true;

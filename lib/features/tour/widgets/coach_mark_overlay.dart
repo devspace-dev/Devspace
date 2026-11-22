@@ -19,6 +19,7 @@ class CoachMarkOverlay extends StatelessWidget {
   final String? secondaryButtonLabel;
   final VoidCallback? onSecondaryPressed;
   final VoidCallback? onDismiss;
+  final VoidCallback? onTargetTap;
 
   const CoachMarkOverlay({
     super.key,
@@ -31,6 +32,7 @@ class CoachMarkOverlay extends StatelessWidget {
     this.secondaryButtonLabel,
     this.onSecondaryPressed,
     this.onDismiss,
+    this.onTargetTap,
   });
 
   @override
@@ -49,7 +51,15 @@ class CoachMarkOverlay extends StatelessWidget {
         children: [
           // 1. Semi-transparent scrim with spotlight hole
           GestureDetector(
-            onTap: onDismiss,
+            onTapUp: (details) {
+              if (targetRect != null && targetRect!.contains(details.localPosition)) {
+                if (onTargetTap != null) {
+                  onTargetTap!();
+                  return;
+                }
+              }
+              onDismiss?.call();
+            },
             behavior: HitTestBehavior.translucent,
             child: CustomPaint(
               size: screenSize,
