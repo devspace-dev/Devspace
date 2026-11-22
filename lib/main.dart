@@ -8,12 +8,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'app.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_colors.dart';
 import 'core/theme/theme.dart';
 import 'core/router.dart';
-import 'models/user_model.dart';
 import 'providers/auth_provider.dart';
 import 'providers/posts_provider.dart';
 import 'providers/questions_provider.dart';
@@ -23,9 +21,8 @@ import 'providers/theme_provider.dart';
 import 'providers/engagement_provider.dart';
 import 'providers/messages_provider.dart';
 import 'providers/practice_provider.dart';
-import 'screens/profile_setup_screen.dart';
+import 'features/path/providers/path_provider.dart';
 import 'features/splash/screens/splash_screen.dart';
-import 'screens/auth_intro_screen.dart';
 import 'services/auth_service.dart';
 import 'services/analytics_service.dart';
 import 'utils/runtime_config.dart';
@@ -95,23 +92,30 @@ class _AppBootstrapperState extends State<AppBootstrapper> {
     try {
       await Future.wait([
         // Task A: Firebase Initialization
-        Firebase.initializeApp().timeout(const Duration(seconds: 5)).then((_) {
-          firebaseInitialized = true;
-          FlutterError.onError =
-              FirebaseCrashlytics.instance.recordFlutterFatalError;
-          PlatformDispatcher.instance.onError = (error, stack) {
-            FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-            return true;
-          };
-        }).catchError((e) {
-          if (kDebugMode) debugPrint('Firebase initialization failed: $e');
+        Future(() async {
+          if (kIsWeb) return;
+          try {
+            await Firebase.initializeApp().timeout(const Duration(seconds: 5));
+            firebaseInitialized = true;
+            FlutterError.onError =
+                FirebaseCrashlytics.instance.recordFlutterFatalError;
+            PlatformDispatcher.instance.onError = (error, stack) {
+              FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+              return true;
+            };
+          } catch (e) {
+            if (kDebugMode) debugPrint('Firebase initialization failed: $e');
+          }
         }),
 
-        // Task B: Security check for compromised device
+        // Task B: Security check for compromised device (with 2s timeout safeguard)
         Future(() async {
+          if (kIsWeb) return;
           try {
-            final isJailBroken = await SafeDevice.isJailBroken;
-            final isRealDevice = await SafeDevice.isRealDevice;
+            final isJailBroken = await SafeDevice.isJailBroken
+                .timeout(const Duration(seconds: 2), onTimeout: () => false);
+            final isRealDevice = await SafeDevice.isRealDevice
+                .timeout(const Duration(seconds: 2), onTimeout: () => true);
             if (kReleaseMode) {
               isCompromisedLocal = isJailBroken || !isRealDevice;
             } else {
@@ -169,6 +173,9 @@ class _AppBootstrapperState extends State<AppBootstrapper> {
     }
 
     if (mounted) {
+      if (kDebugMode) {
+        debugPrint('Bootstrap finished: initialized=true, error=$bootstrapErrorLocal');
+      }
       setState(() {
         _isCompromised = isCompromisedLocal;
         _error = bootstrapErrorLocal;
@@ -243,6 +250,7 @@ class DevSpaceRoot extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => EngagementProvider()),
         ChangeNotifierProvider(create: (_) => MessagesProvider()),
         ChangeNotifierProvider(create: (_) => PracticeProvider()),
+        ChangeNotifierProvider(create: (_) => PathProvider()..loadUserRoadmaps()),
       ],
       child: MaterialApp.router(
         title: 'DevSpace',
@@ -284,51 +292,6 @@ class DevSpaceSetupApp extends StatelessWidget {
       theme: AppTheme.dark,
       navigatorObservers: [AnalyticsService.instance.observer],
       home: _SetupRequiredScreen(error: error, onRetry: onRetry),
-    );
-  }
-}
-
-class _Root extends StatefulWidget {
-  final bool isCompromised;
-  const _Root({required this.isCompromised});
-  @override
-  State<_Root> createState() => _RootState();
-}
-
-class _RootState extends State<_Root> {
-  @override
-  Widget build(BuildContext context) {
-    return _buildCurrentScreen();
-  }
-
-  Widget _buildCurrentScreen() {
-    return StreamBuilder<UserModel?>(
-      key: const ValueKey('auth-gate'),
-      stream: AuthService.instance.authStateChanges,
-      initialData: AuthService.instance.currentUser,
-      builder: (context, snap) {
-        final user = snap.data ?? AuthService.instance.currentUser;
-
-        if (widget.isCompromised) {
-          return const _SecurityCompromisedScreen();
-        }
-
-        if (user == null) {
-          return AuthIntroScreen(
-            key: const ValueKey('login'),
-            onSuccess: () {},
-          );
-        }
-
-        if (!user.profileCompleted) {
-          return const ProfileSetupScreen(
-            key: ValueKey('onboarding'),
-            mode: ProfileSetupMode.onboarding,
-          );
-        }
-
-        return const DevSpaceApp(key: ValueKey('app'));
-      },
     );
   }
 }
