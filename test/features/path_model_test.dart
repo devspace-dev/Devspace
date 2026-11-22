@@ -71,13 +71,13 @@ void main() {
         74,
       );
 
-      // Basics after completing fl_widgets_layout (10h): 64h
+      // Basics after completing fl_widget_tree (12h): 74 - 12 = 62h
       expect(
         kFlutterRoadmap.remainingHours(
           level: RoadmapLevel.basics,
-          completedNodeIds: {'fl_widgets_layout'},
+          completedNodeIds: {'fl_widget_tree'},
         ),
-        64,
+        62,
       );
     });
 
@@ -251,7 +251,7 @@ void main() {
 
     test('Web Frontend roadmap content is complete and well-structured', () {
       expect(kWebRoadmap.id, 'web');
-      expect(kWebRoadmap.title, 'Web Frontend Developer');
+      expect(kWebRoadmap.title, 'Web Frontend (HTML/CSS/JS/React)');
       expect(kWebRoadmap.stages.length, 4);
       expect(kWebRoadmap.allNodes.length, 10);
       expect(kWebRoadmap.totalHours, 94);
@@ -263,8 +263,8 @@ void main() {
 
       // Verify foundation nodes
       final foundation = kWebRoadmap.foundationNodeIds;
-      expect(foundation, contains('web_html_css'));
-      expect(foundation, contains('web_js_core'));
+      expect(foundation, contains('web_html_semantics'));
+      expect(foundation, contains('web_css_modern'));
       expect(foundation.length, 2);
 
       for (final stage in kWebRoadmap.stages) {
@@ -289,11 +289,140 @@ void main() {
       // These nodes intentionally omit external unverified blogs in favor of self-contained guidance:
       final flutterCleanArch = kFlutterRoadmap.allNodes.firstWhere((n) => n.id == 'fl_clean_arch');
       expect(flutterCleanArch.resources, isEmpty);
-      expect(flutterCleanArch.why, contains('Spaghetti code'));
+      expect(flutterCleanArch.why, contains('repository pattern'));
 
       final webRouting = kWebRoadmap.allNodes.firstWhere((n) => n.id == 'web_react_routing');
       expect(webRouting.resources, isEmpty);
-      expect(webRouting.why, contains('Multi-page feel'));
+      expect(webRouting.why, contains('Single-page applications'));
+    });
+
+    test('Backend roadmap content is complete and well-structured', () {
+      expect(kBackendRoadmap.id, 'backend');
+      expect(kBackendRoadmap.stages.length, 4);
+      expect(kBackendRoadmap.allNodes.length, 9);
+      expect(kBackendRoadmap.totalHours, 86);
+
+      // Aliases
+      expect(kBackendRoadmap.matchesQuery('api'), isTrue);
+      expect(kBackendRoadmap.matchesQuery('postgres'), isTrue);
+      expect(kBackendRoadmap.matchesQuery('docker'), isTrue);
+
+      // Foundation nodes
+      final foundation = kBackendRoadmap.foundationNodeIds;
+      expect(foundation, contains('be_http_rest'));
+      expect(foundation, contains('be_auth_security'));
+      expect(foundation.length, 2);
+
+      // Level skipping
+      final basicsNodes = kBackendRoadmap.activeNodesForLevel(RoadmapLevel.basics);
+      expect(basicsNodes.length, 7);
+      expect(kBackendRoadmap.remainingHours(level: RoadmapLevel.basics, completedNodeIds: {}), 66);
+
+      for (final stage in kBackendRoadmap.stages) {
+        for (final node in stage.nodes) {
+          expect(node.id, isNotEmpty);
+          expect(node.title, isNotEmpty);
+          expect(node.why.length, greaterThan(30));
+          expect(node.subtopics.length, greaterThanOrEqualTo(3));
+          expect(node.projectIdea, isNotEmpty);
+          expect(node.estimatedHours, greaterThan(0));
+
+          for (final res in node.resources) {
+            expect(res.url, startsWith('https://'));
+            expect(res.sourceDomain, isNotEmpty);
+            expect(res.title, isNotEmpty);
+          }
+        }
+      }
+    });
+
+    test('DSA & Placements roadmap content is complete and well-structured', () {
+      expect(kDsaRoadmap.id, 'dsa');
+      expect(kDsaRoadmap.stages.length, 4);
+      expect(kDsaRoadmap.allNodes.length, 10);
+      expect(kDsaRoadmap.totalHours, 98);
+
+      // Aliases
+      expect(kDsaRoadmap.matchesQuery('leetcode'), isTrue);
+      expect(kDsaRoadmap.matchesQuery('algorithms'), isTrue);
+      expect(kDsaRoadmap.matchesQuery('placement'), isTrue);
+
+      // Foundation nodes
+      final foundation = kDsaRoadmap.foundationNodeIds;
+      expect(foundation, contains('dsa_complexity_arrays'));
+      expect(foundation, contains('dsa_strings_hashing'));
+      expect(foundation.length, 2);
+
+      // Level skipping
+      final basicsNodes = kDsaRoadmap.activeNodesForLevel(RoadmapLevel.basics);
+      expect(basicsNodes.length, 8);
+      expect(kDsaRoadmap.remainingHours(level: RoadmapLevel.basics, completedNodeIds: {}), 80);
+
+      for (final stage in kDsaRoadmap.stages) {
+        for (final node in stage.nodes) {
+          expect(node.id, isNotEmpty);
+          expect(node.title, isNotEmpty);
+          expect(node.why.length, greaterThan(30));
+          expect(node.subtopics.length, greaterThanOrEqualTo(3));
+          expect(node.projectIdea, isNotEmpty);
+          expect(node.estimatedHours, greaterThan(0));
+
+          for (final res in node.resources) {
+            expect(res.url, startsWith('https://'));
+            expect(res.sourceDomain, isNotEmpty);
+            expect(res.title, isNotEmpty);
+          }
+        }
+      }
+    });
+
+    test('AI & ML Basics roadmap content is complete and well-structured', () {
+      expect(kAiMlRoadmap.id, 'ai_ml');
+      expect(kAiMlRoadmap.stages.length, 4);
+      expect(kAiMlRoadmap.allNodes.length, 9);
+      expect(kAiMlRoadmap.totalHours, 90);
+
+      // Aliases
+      expect(kAiMlRoadmap.matchesQuery('pytorch'), isTrue);
+      expect(kAiMlRoadmap.matchesQuery('llm'), isTrue);
+      expect(kAiMlRoadmap.matchesQuery('machine learning'), isTrue);
+
+      // Foundation nodes
+      final foundation = kAiMlRoadmap.foundationNodeIds;
+      expect(foundation, contains('ai_python_numpy'));
+      expect(foundation, contains('ai_pandas_eda'));
+      expect(foundation.length, 2);
+
+      // Level skipping
+      final basicsNodes = kAiMlRoadmap.activeNodesForLevel(RoadmapLevel.basics);
+      expect(basicsNodes.length, 7);
+      expect(kAiMlRoadmap.remainingHours(level: RoadmapLevel.basics, completedNodeIds: {}), 70);
+
+      for (final stage in kAiMlRoadmap.stages) {
+        for (final node in stage.nodes) {
+          expect(node.id, isNotEmpty);
+          expect(node.title, isNotEmpty);
+          expect(node.why.length, greaterThan(30));
+          expect(node.subtopics.length, greaterThanOrEqualTo(3));
+          expect(node.projectIdea, isNotEmpty);
+          expect(node.estimatedHours, greaterThan(0));
+
+          for (final res in node.resources) {
+            expect(res.url, startsWith('https://'));
+            expect(res.sourceDomain, isNotEmpty);
+            expect(res.title, isNotEmpty);
+          }
+        }
+      }
+    });
+
+    test('Master curated roadmaps catalog contains all 5 deep roadmaps', () {
+      expect(kCuratedRoadmaps.length, 5);
+      final ids = kCuratedRoadmaps.map((r) => r.id).toList();
+      expect(ids, ['flutter', 'web', 'backend', 'dsa', 'ai_ml']);
+
+      final totalNodes = kCuratedRoadmaps.fold<int>(0, (sum, r) => sum + r.totalNodes);
+      expect(totalNodes, 48); // 10 + 10 + 9 + 10 + 9
     });
   });
 }
