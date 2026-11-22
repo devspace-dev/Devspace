@@ -32,7 +32,7 @@ class AppShell extends StatefulWidget {
   State<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell> {
+class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   StreamSubscription<String?>? _notificationSubscription;
   dynamic _duelRequestsSubscription;
   String? _lastInitializedUid;
@@ -40,15 +40,28 @@ class _AppShellState extends State<AppShell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initProviders();
     _setupNotificationTapListener();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _notificationSubscription?.cancel();
     _duelRequestsSubscription?.unsubscribe();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!mounted) return;
+    final tour = context.read<TourController>();
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      tour.pauseTour();
+    } else if (state == AppLifecycleState.resumed) {
+      tour.resumeTour();
+    }
   }
 
   void _initProviders() {
@@ -94,6 +107,9 @@ class _AppShellState extends State<AppShell> {
         tour.practiceCompletionsCountGetter = () => practiceProvider.totalCompletedCount;
         tour.postsCountGetter = () => postsProvider.postsForUser(user.id).length;
         tour.hasEventsTabGetter = () => true;
+        tour.routeNavigator = (route) {
+          if (mounted) context.go(route);
+        };
         practiceProvider.onPracticeCompletionConfirmed = () {
           tour.handlePracticeCompletionConfirmed();
         };

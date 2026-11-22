@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../core/services/reward_feedback.dart';
+import '../features/tour/services/tour_controller.dart';
 import '../providers/auth_provider.dart';
 import '../providers/posts_provider.dart';
 import '../providers/theme_provider.dart';
@@ -10,6 +13,8 @@ import '../screens/founder_tools_screen.dart';
 import '../screens/terms_and_conditions_screen.dart';
 import '../services/backend_api_service.dart';
 import '../theme/app_colors.dart';
+import '../core/theme/colors.dart';
+import '../core/theme/text.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -20,11 +25,15 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   late final Future<bool> _founderAccessFuture;
+  bool _hapticsEnabled = RewardFeedback.isHapticsEnabledSync;
 
   @override
   void initState() {
     super.initState();
     _founderAccessFuture = BackendApiService.instance.hasFounderAccess();
+    RewardFeedback.isHapticsEnabled().then((enabled) {
+      if (mounted) setState(() => _hapticsEnabled = enabled);
+    });
   }
 
   @override
@@ -38,17 +47,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final totalLikes = posts.fold<int>(0, (sum, post) => sum + post.likes);
 
     return Scaffold(
-      backgroundColor: AppColors.bgFor(context),
+      backgroundColor: Ds.ink,
       appBar: AppBar(
-        backgroundColor: AppColors.bgFor(context),
+        backgroundColor: Ds.ink,
         elevation: 0,
-        title: Text(
-          'Settings',
-          style: TextStyle(
-            fontWeight: FontWeight.w900,
-            color: AppColors.textFor(context),
-          ),
+        scrolledUnderElevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: Ds.bone),
+          onPressed: () => Navigator.maybePop(context),
         ),
+        title: Text(
+          'SETTINGS',
+          style: DsText.h3.copyWith(fontSize: 18),
+        ),
+        centerTitle: true,
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
@@ -90,6 +102,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           const _SectionHeader(title: 'APP'),
+          _SettingsTile(
+            icon: Icons.vibration_rounded,
+            title: 'Haptic feedback',
+            subtitle:
+                'Physical vibration on earning Aura, solving quests, and winning combat.',
+            onTap: () {
+              setState(() {
+                _hapticsEnabled = !_hapticsEnabled;
+                RewardFeedback.setHapticsEnabled(_hapticsEnabled);
+                if (_hapticsEnabled) {
+                  RewardFeedback.play(RewardKind.subtle);
+                }
+              });
+            },
+            trailing: Switch.adaptive(
+              value: _hapticsEnabled,
+              activeColor: Ds.aura,
+              onChanged: (val) {
+                setState(() {
+                  _hapticsEnabled = val;
+                  RewardFeedback.setHapticsEnabled(val);
+                  if (val) {
+                    RewardFeedback.play(RewardKind.subtle);
+                  }
+                });
+              },
+            ),
+          ),
+          _SettingsTile(
+            icon: Icons.replay_rounded,
+            title: 'Replay tour',
+            subtitle: 'Reset and walk through the feature tour with Glitch.',
+            onTap: () async {
+              final tour = context.read<TourController>();
+              await tour.replayTour();
+              if (context.mounted) {
+                Navigator.of(context).pop();
+                try {
+                  GoRouter.maybeOf(context)?.go('/play');
+                } catch (_) {
+                  tour.routeNavigator?.call('/play');
+                }
+              }
+            },
+          ),
           if (me.isFounder)
             _SettingsTile(
               icon: Icons.developer_mode_rounded,
@@ -375,6 +432,7 @@ class _ThemeOption extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 icon,
@@ -384,14 +442,17 @@ class _ThemeOption extends StatelessWidget {
                     : AppColors.text3For(context),
               ),
               const SizedBox(height: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                  color: isSelected
-                      ? AppColors.textFor(context)
-                      : AppColors.text3For(context),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                    color: isSelected
+                        ? AppColors.textFor(context)
+                        : AppColors.text3For(context),
+                  ),
                 ),
               ),
             ],
@@ -407,12 +468,14 @@ class _SettingsTile extends StatelessWidget {
   final String title;
   final String subtitle;
   final VoidCallback onTap;
+  final Widget? trailing;
 
   const _SettingsTile({
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.onTap,
+    this.trailing,
   });
 
   @override
@@ -420,43 +483,48 @@ class _SettingsTile extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: AppColors.bg2For(context),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.borderFor(context)),
       ),
-      child: ListTile(
-        onTap: onTap,
-        leading: Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: AppColors.bg3For(context),
-            borderRadius: BorderRadius.circular(14),
+      child: Material(
+        color: AppColors.bg2For(context),
+        borderRadius: BorderRadius.circular(18),
+        clipBehavior: Clip.antiAlias,
+        child: ListTile(
+          onTap: onTap,
+          leading: Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppColors.bg3For(context),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: AppColors.text2For(context), size: 20),
           ),
-          child: Icon(icon, color: AppColors.text2For(context), size: 20),
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            color: AppColors.textFor(context),
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Text(
-            subtitle,
+          title: Text(
+            title,
             style: TextStyle(
-              color: AppColors.text3For(context),
-              fontSize: 13,
-              height: 1.35,
+              color: AppColors.textFor(context),
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
             ),
           ),
-        ),
-        trailing: Icon(
-          Icons.chevron_right_rounded,
-          color: AppColors.text4For(context),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              subtitle,
+              style: TextStyle(
+                color: AppColors.text3For(context),
+                fontSize: 13,
+                height: 1.35,
+              ),
+            ),
+          ),
+          trailing: trailing ??
+              Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.text4For(context),
+              ),
         ),
       ),
     );
@@ -560,29 +628,34 @@ class _AnalyticsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
       decoration: BoxDecoration(
         color: AppColors.bg2For(context),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.borderFor(context)),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _InsightItem(
-            label: 'Posts',
-            value: '$postsCount',
-            icon: Icons.grid_view_rounded,
+          Expanded(
+            child: _InsightItem(
+              label: 'Posts',
+              value: '$postsCount',
+              icon: Icons.grid_view_rounded,
+            ),
           ),
-          _InsightItem(
-            label: 'Likes',
-            value: '$totalLikes',
-            icon: Icons.favorite_rounded,
+          Expanded(
+            child: _InsightItem(
+              label: 'Likes',
+              value: '$totalLikes',
+              icon: Icons.favorite_rounded,
+            ),
           ),
-          _InsightItem(
-            label: 'Aura',
-            value: '$aura',
-            icon: Icons.auto_awesome_rounded,
+          Expanded(
+            child: _InsightItem(
+              label: 'Aura',
+              value: '$aura',
+              icon: Icons.auto_awesome_rounded,
+            ),
           ),
         ],
       ),
@@ -604,20 +677,27 @@ class _InsightItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, size: 20, color: AppColors.primary),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-            color: AppColors.textFor(context),
+        const SizedBox(height: 6),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textFor(context),
+            ),
           ),
         ),
-        Text(
-          label,
-          style: TextStyle(fontSize: 12, color: AppColors.text3For(context)),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            label,
+            style: TextStyle(fontSize: 12, color: AppColors.text3For(context)),
+          ),
         ),
       ],
     );

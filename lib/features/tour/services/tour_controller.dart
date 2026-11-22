@@ -116,6 +116,7 @@ class TourController extends ChangeNotifier {
       _currentStep = next;
       _logAnalytics('tour_step_viewed', {'step': next.name});
       _evaluateCurrentStepSkipping();
+      _navigateForCurrentStep();
     } else {
       await completeTour();
       return;
@@ -193,9 +194,29 @@ class TourController extends ChangeNotifier {
   void handlePracticeCompletionConfirmed() {
     if (_status == TourStatus.inProgress) {
       RewardFeedback.play(RewardKind.practice);
+      _logAnalytics('first_aura_earned', {'amount': 5});
       _currentStep = TourStep.s7RewardModal;
       notifyListeners();
       _saveState();
+    }
+  }
+
+  void _navigateForCurrentStep() {
+    if (_currentStep == null || routeNavigator == null) return;
+    switch (_currentStep!) {
+      case TourStep.s3Play:
+      case TourStep.s3bPlayExisting:
+        routeNavigator!('/play');
+        break;
+      case TourStep.s4Community:
+      case TourStep.s5Events:
+        routeNavigator!('/community');
+        break;
+      case TourStep.s6Ranks:
+        routeNavigator!('/ranks');
+        break;
+      default:
+        break;
     }
   }
 
