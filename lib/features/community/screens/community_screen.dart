@@ -176,7 +176,9 @@ class _CommunityScreenState extends State<CommunityScreen>
           ),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
+          preferredSize: Size.fromHeight(
+            MediaQuery.textScalerOf(context).scale(48).clamp(48.0, 68.0),
+          ),
           child: Container(
             decoration: const BoxDecoration(
               border: Border(
@@ -191,7 +193,17 @@ class _CommunityScreenState extends State<CommunityScreen>
               unselectedLabelColor: Ds.muted,
               labelStyle: DsText.caption.copyWith(fontWeight: FontWeight.w700),
               unselectedLabelStyle: DsText.caption,
-              tabs: _tabs.map((t) => Tab(text: t)).toList(),
+              tabs: _tabs.map((t) {
+                if (t == 'EVENTS') {
+                  return Tab(
+                    child: TourAnchor(
+                      id: TourAnchorId.eventsTab,
+                      child: Text(t),
+                    ),
+                  );
+                }
+                return Tab(text: t);
+              }).toList(),
             ),
           ),
         ),

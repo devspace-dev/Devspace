@@ -93,6 +93,7 @@ class _AppShellState extends State<AppShell> {
         tour.hasActiveRoadmapGetter = () => pathProvider.hasActiveRoadmap;
         tour.practiceCompletionsCountGetter = () => practiceProvider.totalCompletedCount;
         tour.postsCountGetter = () => postsProvider.postsForUser(user.id).length;
+        tour.hasEventsTabGetter = () => true;
         practiceProvider.onPracticeCompletionConfirmed = () {
           tour.handlePracticeCompletionConfirmed();
         };

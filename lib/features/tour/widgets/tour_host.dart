@@ -131,6 +131,24 @@ class TourHost extends StatelessWidget {
         );
         break;
 
+      case TourStep.s5Events:
+        final rect = TourAnchorRegistry.instance.getGlobalRect(TourAnchorId.eventsTab);
+        overlayWidget = CoachMarkOverlay(
+          targetRect: rect,
+          title: TourCopy.s5EventsTitle,
+          body: TourCopy.s5EventsBody,
+          mood: GlitchMood.idle,
+          primaryButtonLabel: 'NEXT',
+          onPrimaryPressed: () => tour.nextStep(),
+          secondaryButtonLabel: 'Skip',
+          onSecondaryPressed: () => tour.skipTour(),
+          onDismiss: () => tour.nextStep(),
+          onTargetTap: () {
+            tour.nextStep();
+          },
+        );
+        break;
+
       case TourStep.s7RewardModal:
         overlayWidget = Center(
           child: TourModalPopup(
@@ -178,7 +196,8 @@ class TourHost extends StatelessWidget {
 
     final isCoachMark = tour.currentStep == TourStep.s3Play ||
         tour.currentStep == TourStep.s3bPlayExisting ||
-        tour.currentStep == TourStep.s4Community;
+        tour.currentStep == TourStep.s4Community ||
+        tour.currentStep == TourStep.s5Events;
 
     return Stack(
       children: [

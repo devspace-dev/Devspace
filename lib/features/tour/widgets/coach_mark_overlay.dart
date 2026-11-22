@@ -85,8 +85,8 @@ class CoachMarkOverlay extends StatelessWidget {
     // If targetRect is null (fallback mode), center on screen
     if (targetRect == null) {
       return Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: _buildTooltipCard(context, double.infinity),
         ),
       );
@@ -123,7 +123,17 @@ class CoachMarkOverlay extends StatelessWidget {
       width: maxCardWidth,
       top: top,
       bottom: bottom,
-      child: _buildTooltipCard(context, maxCardWidth),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: math.max(
+            180.0,
+            screenHeight - (top ?? safePadding.top) - safePadding.bottom - 16,
+          ),
+        ),
+        child: SingleChildScrollView(
+          child: _buildTooltipCard(context, maxCardWidth),
+        ),
+      ),
     );
   }
 
@@ -185,7 +195,7 @@ class CoachMarkOverlay extends StatelessWidget {
                   ),
                 DsButton(
                   label: primaryButtonLabel,
-                  height: 40,
+                  height: MediaQuery.textScalerOf(context).scale(40).clamp(40.0, 56.0),
                   kind: DsButtonKind.aura,
                   onPressed: onPrimaryPressed,
                 ),

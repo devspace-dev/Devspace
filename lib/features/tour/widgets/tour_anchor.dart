@@ -3,7 +3,7 @@ import '../models/tour_step.dart';
 
 /// Lightweight wrapper widget that registers its [GlobalKey] with [TourAnchorRegistry]
 /// so coach marks can spotlight and anchor tooltips to it dynamically.
-class TourAnchor extends StatefulWidget {
+class TourAnchor extends StatefulWidget implements PreferredSizeWidget {
   final TourAnchorId id;
   final Widget child;
 
@@ -12,6 +12,11 @@ class TourAnchor extends StatefulWidget {
     required this.id,
     required this.child,
   });
+
+  @override
+  Size get preferredSize => child is PreferredSizeWidget
+      ? (child as PreferredSizeWidget).preferredSize
+      : const Size.fromHeight(48);
 
   @override
   State<TourAnchor> createState() => _TourAnchorState();

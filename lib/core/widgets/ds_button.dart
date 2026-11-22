@@ -60,7 +60,7 @@ class _DsButtonState extends State<DsButton> {
             : null,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 80),
-          height: widget.height,
+          constraints: BoxConstraints(minHeight: widget.height),
           width: double.infinity,
           margin: EdgeInsets.only(top: 5 - edgeW), // keeps total height stable
           alignment: Alignment.center,
