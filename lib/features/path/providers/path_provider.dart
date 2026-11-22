@@ -495,7 +495,8 @@ class PathProvider extends ChangeNotifier {
         _completedNodeIds.remove(nodeId);
       }
       _progressCache[roadmapId] = Set.from(_completedNodeIds);
-      _errorMessage = 'Could not sync node completion. Reverted.';
+      final err = e is PostgrestException ? e.message : e.toString();
+      _errorMessage = 'Could not sync node completion. Reverted. ($err)';
       notifyListeners();
       return false;
     }
