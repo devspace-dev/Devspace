@@ -45,6 +45,7 @@
 - Official App Icon & Launcher Branding: Converted and packaged the authentic Glitch mascot on Coin Yellow (`#FFD23F`) across Android mipmaps (mdpi to xxxhdpi), iOS AppIcon xcassets set (1024x1024 down to 20x20), `app_launcher_icon.png`, and `app_icon_splash.png`; modernized `devspace_logo.dart` to display multi-color mascot graphics natively.
 - India-Optimized Opportunities Pipeline & Freshness Filter: High-signal ingestion and curated catalog of verified active 2025–2026 engineering hackathons tailored for Indian B.Tech students (SIH 2026, Flipkart GRiD 7.0, Google Solution Challenge, ETHIndia, Amazon ML Challenge, Hack This Fall) with automated multi-pattern date & keyword parsing, non-tech pruning, and automatic relegation of expired/TBA events into collapsible Past Events.
 - Arena Practice & Quiz Engine Expansion to 30 Questions: Scaled quiz session length from 8 to 30 questions in `quiz_screen.dart`, expanded question pool in `practice_questions.dart` to 242 high-signal CS, DSA, and architecture questions across Easy (60), Medium (74), Hard (58), and Ultra (50) with smart uncompleted-first quiz sampling, verified step-by-step explanations, dynamically responsive `SegmentBar`, and 100% database RPC schema compatibility.
+- First-Run Onboarding & Feature Tour (Stages 0–8): Full Duolingo-style guided tour with Glitch companion mascot, root-level TourHost coordinate-mapped overlay, circular/rounded-rect spotlight cutouts, pulsing halo rings, typewriter copy, state-aware step skipping, cross-tab route auto-navigation, practice completion reward celebration modal (+5 AURA, Glitch win mood, heavy haptic feedback), Settings haptic toggle & replay tour controls, app lifecycle pause/resume handling, 200% font scale accessibility on 360dp screens, and Play tab First Quests starter card with real provider-derived completion and auto-dismissal (54 passing tests across 11 test suites).
 
 ## Partial
 - GitHub profile card is useful scaffold, not a finished identity system
@@ -54,7 +55,7 @@
 - Pre-production release hardening now covers runtime config gating, Crashlytics wiring, notification permission requests, HTTPS-only backend expectations, and friendlier network failure handling
 
 ## Missing
-- Settings/account surface beyond sign-out
+- Settings/account surface (Implemented with theme, haptic feedback toggle, and tour replay)
 - Notifications screen/inbox (Implemented)
 - Broader automated coverage for core flows
 - External privacy policy URL and full Play Store listing assets/metadata

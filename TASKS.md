@@ -114,6 +114,17 @@ Upgrade the app backend for launch-ready gamification and gated engagement witho
   - [x] Daily Mission Glitch v1.0 Modernization: Fully restyled `daily_challenge_screen.dart` to Glitch v1.0 design system (`Ds.ink`, `DsCard`, `DsTag`, `DsButton`, `AuraChip`, `Glitch` celebration overlay) with zero logic changes to `submit_daily_mission`, streak tracking, or aura rewards
   - [x] Opportunity Detail Banner Polish: Safeguarded `opportunity_detail_screen.dart` with `isLogoPhotoUrl` check using `BoxFit.contain` to prevent low-resolution or circular thumbnail logos from zooming/clipping awkwardly across mobile screens
   - [x] Event Expiry & Date Parser Hardening: Fixed false-positive past-event classification where words like "Smart" matched "mar" (March) or date ranges evaluated against the start month instead of deadline; added word-boundary token matching, deadline segment extraction, and updated curated hackathon dates to active 2026/2027 windows (`Dec 2026 - Mar 2027`)
+- [x] First-Run Onboarding & Feature Tour (Stages 0–8):
+  - [x] Stage 0: Codebase diagnosis, token alignment, and dependency audit
+  - [x] Stage 1: Tour infrastructure (`TourController`, `TourStep`, `TourAnchor`, `CoachMarkOverlay`, `TourHost`, `RewardFeedback`)
+  - [x] Stage 2: Welcome modal (S1) and Goal / Path selection spotlight (S2)
+  - [x] Stage 3: Play tab practice spotlight (S3), First practice reward celebration modal (S3b), and Daily routine return (S7)
+  - [x] Stage 4: Community tab post creation FAB spotlight (S4) with user post skipping logic
+  - [x] Stage 5: Events / Hackathons tab spotlight (S5) with dynamic tab availability skipping
+  - [x] Stage 6: Ranks tab leaderboard spotlight (S6) with responsive compact layout under 200% font scale
+  - [x] Stage 7: Tour polish, Settings screen controls (haptic feedback toggle, replay tour button), lifecycle pause/resume, and route auto-nav
+  - [x] Stage 8: First Quests card on Play tab with live provider-derived progress, zero DB writes, and auto-dismissal
+  - [x] Test coverage: 54 automated widget and unit tests passing across 11 test suites with 0 analyzer issues
 
 ## In Progress
 - [ ] End-to-end founder smoke testing on real Android devices (including opportunity feeds & sync verification)
