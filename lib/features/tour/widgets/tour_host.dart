@@ -5,6 +5,7 @@ import '../../../core/services/reward_feedback.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text.dart';
 import '../../../core/widgets/glitch.dart';
+import '../../../widgets/compose_box.dart';
 import '../../path/models/roadmap_model.dart';
 import '../../path/providers/path_provider.dart';
 import '../models/tour_step.dart';
@@ -111,6 +112,25 @@ class TourHost extends StatelessWidget {
         );
         break;
 
+      case TourStep.s4Community:
+        final rect = TourAnchorRegistry.instance.getGlobalRect(TourAnchorId.createPostButton);
+        overlayWidget = CoachMarkOverlay(
+          targetRect: rect,
+          title: TourCopy.s4CommunityTitle,
+          body: TourCopy.s4CommunityBody,
+          mood: GlitchMood.idle,
+          primaryButtonLabel: 'NEXT',
+          onPrimaryPressed: () => tour.nextStep(),
+          secondaryButtonLabel: 'Skip',
+          onSecondaryPressed: () => tour.skipTour(),
+          onDismiss: () => tour.nextStep(),
+          onTargetTap: () {
+            ComposeBox.showCreatePostSheet(context);
+            tour.nextStep();
+          },
+        );
+        break;
+
       case TourStep.s7RewardModal:
         overlayWidget = Center(
           child: TourModalPopup(
@@ -157,7 +177,8 @@ class TourHost extends StatelessWidget {
     }
 
     final isCoachMark = tour.currentStep == TourStep.s3Play ||
-        tour.currentStep == TourStep.s3bPlayExisting;
+        tour.currentStep == TourStep.s3bPlayExisting ||
+        tour.currentStep == TourStep.s4Community;
 
     return Stack(
       children: [

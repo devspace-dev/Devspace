@@ -30,14 +30,14 @@ class _TourAnchorState extends State<TourAnchor> {
   void didUpdateWidget(TourAnchor oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.id != widget.id) {
-      TourAnchorRegistry.instance.unregister(oldWidget.id);
+      TourAnchorRegistry.instance.unregister(oldWidget.id, _key);
       TourAnchorRegistry.instance.register(widget.id, _key);
     }
   }
 
   @override
   void dispose() {
-    TourAnchorRegistry.instance.unregister(widget.id);
+    TourAnchorRegistry.instance.unregister(widget.id, _key);
     super.dispose();
   }
 

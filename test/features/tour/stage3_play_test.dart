@@ -22,6 +22,7 @@ void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     tourController = TourController();
+    TourAnchorRegistry.instance.clear();
   });
 
   UserModel makeUser({

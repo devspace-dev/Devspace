@@ -89,8 +89,10 @@ class _AppShellState extends State<AppShell> {
         final tour = context.read<TourController>();
         final pathProvider = context.read<PathProvider>();
         final practiceProvider = context.read<PracticeProvider>();
+        final postsProvider = context.read<PostsProvider>();
         tour.hasActiveRoadmapGetter = () => pathProvider.hasActiveRoadmap;
         tour.practiceCompletionsCountGetter = () => practiceProvider.totalCompletedCount;
+        tour.postsCountGetter = () => postsProvider.postsForUser(user.id).length;
         practiceProvider.onPracticeCompletionConfirmed = () {
           tour.handlePracticeCompletionConfirmed();
         };

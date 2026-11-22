@@ -68,8 +68,10 @@ class TourAnchorRegistry {
     _anchors[id] = key;
   }
 
-  void unregister(TourAnchorId id) {
-    _anchors.remove(id);
+  void unregister(TourAnchorId id, [GlobalKey? key]) {
+    if (key == null || _anchors[id] == key) {
+      _anchors.remove(id);
+    }
   }
 
   GlobalKey? getKey(TourAnchorId id) => _anchors[id];
@@ -77,15 +79,19 @@ class TourAnchorRegistry {
   Rect? getGlobalRect(TourAnchorId id) {
     final key = _anchors[id];
     final context = key?.currentContext;
-    if (context == null) return null;
+    if (context == null || !context.mounted) return null;
 
-    final renderBox = context.findRenderObject() as RenderBox?;
-    if (renderBox == null || !renderBox.hasSize || !renderBox.attached) {
+    try {
+      final renderBox = context.findRenderObject() as RenderBox?;
+      if (renderBox == null || !renderBox.hasSize || !renderBox.attached) {
+        return null;
+      }
+
+      final offset = renderBox.localToGlobal(Offset.zero);
+      return offset & renderBox.size;
+    } catch (_) {
       return null;
     }
-
-    final offset = renderBox.localToGlobal(Offset.zero);
-    return offset & renderBox.size;
   }
 
   void clear() {
