@@ -67,7 +67,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('DEVSPACE'), findsOneWidget);
-    expect(find.text('No mission today. Touch grass, or practice.'), findsOneWidget);
+    expect(find.text('No mission today, Harshit. Practice in the Arena or keep building!'), findsOneWidget);
   });
 
   testWidgets('PlayScreen renders speech bubble with streak and user name when mission exists', (tester) async {
@@ -95,7 +95,34 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.text('DEVSPACE'), findsOneWidget);
-    expect(find.text('Day 5 streak, Harshit. Do not ruin it.'), findsOneWidget);
+    expect(find.text("Day 5 streak, Harshit. Solve today's mission to keep it."), findsOneWidget);
+  });
+
+  testWidgets('PlayScreen celebrates with win mascot state when mission is completed and solved', (tester) async {
+    final solvedChallenge = DailyChallengeModel(
+      assignmentId: 'a-1',
+      challengeId: 'c-1',
+      assignedDate: DateTime.now(),
+      selectedTechStack: 'Flutter',
+      completed: true,
+      completedAt: DateTime.now(),
+      title: 'Daily puzzle: mate in 2',
+      description: 'Solve puzzle',
+      difficulty: 'Easy',
+      techStack: 'Flutter',
+      pointsReward: 20,
+      missionType: 'mcq',
+      question: 'Question?',
+      options: const ['A', 'B'],
+      link: '',
+      isCorrect: true,
+    );
+
+    await tester.pumpWidget(createPlayScreenApp(challenge: solvedChallenge));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Mission crushed today, Harshit! +20 Aura. Streak safe.'), findsOneWidget);
+    expect(find.text('MISSION COMPLETED'), findsOneWidget);
   });
 
   testWidgets('PlayScreen removes Continue Path and college rivalry', (tester) async {

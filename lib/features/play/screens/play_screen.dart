@@ -32,6 +32,25 @@ class PlayScreen extends StatelessWidget {
     final textScale = MediaQuery.textScalerOf(context).scale(1.0);
     final tileAspectRatio = textScale > 1.3 ? 0.85 : (textScale > 1.1 ? 1.0 : 1.15);
 
+    final GlitchMood mascotMood;
+    final String mascotText;
+
+    if (mission != null && mission.completed) {
+      if (mission.wasSolved) {
+        mascotMood = GlitchMood.win;
+        mascotText = 'Mission crushed today, $name! +${mission.pointsReward} Aura. Streak safe.';
+      } else {
+        mascotMood = GlitchMood.idle;
+        mascotText = 'Mission attempted, $name! Streak safe. Come back tomorrow for +20.';
+      }
+    } else if (hasMission) {
+      mascotMood = GlitchMood.hype;
+      mascotText = 'Day $streak streak, $name. Solve today\'s mission to keep it.';
+    } else {
+      mascotMood = GlitchMood.idle;
+      mascotText = 'No mission today, $name. Practice in the Arena or keep building!';
+    }
+
     return Scaffold(
       backgroundColor: Ds.ink,
       appBar: AppBar(
@@ -72,7 +91,7 @@ class PlayScreen extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Glitch(size: 64, mood: hasMission ? GlitchMood.hype : GlitchMood.idle),
+                Glitch(size: 64, mood: mascotMood),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Container(
@@ -88,9 +107,7 @@ class PlayScreen extends StatelessWidget {
                       border: Border.all(color: Ds.border, width: 2),
                     ),
                     child: Text(
-                      hasMission
-                          ? 'Day $streak streak, $name. Do not ruin it.'
-                          : 'No mission today. Touch grass, or practice.',
+                      mascotText,
                       style: DsText.body.copyWith(fontWeight: FontWeight.w600),
                     ),
                   ),
@@ -115,19 +132,41 @@ class PlayScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Ds.surface,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Ds.aura, width: 2),
+                      border: Border.all(
+                        color: mission?.completed == true
+                            ? (mission!.wasSolved ? Ds.mint : Ds.hot)
+                            : Ds.aura,
+                        width: 2,
+                      ),
                     ),
-                    child: const Icon(Icons.emoji_events_rounded, color: Ds.aura, size: 24),
+                    child: Icon(
+                      mission?.completed == true
+                          ? Icons.check_circle_rounded
+                          : Icons.emoji_events_rounded,
+                      color: mission?.completed == true
+                          ? (mission!.wasSolved ? Ds.mint : Ds.hot)
+                          : Ds.aura,
+                      size: 24,
+                    ),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('DAILY PUZZLE', style: DsText.caption.copyWith(color: Ds.aura)),
+                        Text(
+                          mission?.completed == true
+                              ? (mission!.wasSolved ? 'MISSION COMPLETED' : 'MISSION ATTEMPTED')
+                              : 'DAILY PUZZLE',
+                          style: DsText.caption.copyWith(
+                            color: mission?.completed == true
+                                ? (mission!.wasSolved ? Ds.mint : Ds.hot)
+                                : Ds.aura,
+                          ),
+                        ),
                         const SizedBox(height: 2),
                         Text(
-                          mission?.title ?? 'Daily puzzle: mate in 2',
+                          mission?.title ?? 'Daily puzzle',
                           style: DsText.label,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -136,8 +175,11 @@ class PlayScreen extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '+${mission?.pointsReward ?? 10}',
-                    style: DsText.number.copyWith(fontSize: 18),
+                    '+${mission?.completed == true ? (mission!.wasSolved ? mission.pointsReward : DailyChallengeModel.attemptReward) : (mission?.pointsReward ?? 20)}',
+                    style: DsText.number.copyWith(
+                      fontSize: 18,
+                      color: mission?.completed == true ? Ds.mint : Ds.bone,
+                    ),
                   ),
                   const SizedBox(width: 4),
                   const Icon(Icons.chevron_right_rounded, color: Ds.muted),

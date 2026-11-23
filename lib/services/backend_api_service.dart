@@ -44,13 +44,18 @@ class BackendApiService {
         .toList();
   }
 
+  static String _todayIstDate() {
+    final ist = DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
+    return '${ist.year.toString().padLeft(4, '0')}-${ist.month.toString().padLeft(2, '0')}-${ist.day.toString().padLeft(2, '0')}';
+  }
+
   Future<Map<String, dynamic>?> _resolveTodayMissionFallback({
     String? techStack,
   }) async {
     final user = _client.auth.currentUser;
     if (user == null) return null;
 
-    final today = DateTime.now().toIso8601String().split('T').first;
+    final today = _todayIstDate();
 
     final userRow = await _client
         .from('users')
@@ -434,7 +439,7 @@ class BackendApiService {
             .from('events')
             .select('id, title, description, required_aura, link, type, banner_url, date, end_date, location, organizer')
             .eq('is_active', true)
-            .order('required_aura', ascending: true);
+            .order('created_at', ascending: false);
 
         final results = <EventAccessModel>[];
         if (rows.isNotEmpty) {
@@ -692,7 +697,7 @@ class BackendApiService {
       final user = _client.auth.currentUser;
       if (user == null) return null;
 
-      final today = DateTime.now().toIso8601String().split('T').first;
+      final today = _todayIstDate();
       
       // 1. Try to find an existing assignment for today in user_missions
       Map<String, dynamic>? row = await _client
@@ -1201,7 +1206,7 @@ class BackendApiService {
     final user = _client.auth.currentUser;
     if (user == null) return const [];
 
-    final today = DateTime.now().toIso8601String().split('T').first;
+    final today = _todayIstDate();
     try {
       final missionRows = await _client
           .from('missions')

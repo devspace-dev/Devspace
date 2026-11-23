@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
+import '../core/services/reward_feedback.dart';
 import '../core/theme/colors.dart';
 import '../core/theme/text.dart';
 import '../core/widgets/aura_chip.dart';
@@ -92,7 +93,10 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
           solved ? (challenge?.pointsReward ?? 20) : DailyChallengeModel.attemptReward;
 
       if (solved) {
+        RewardFeedback.success();
         _playSuccessOverlay(awardedPoints);
+      } else {
+        RewardFeedback.medium();
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -160,6 +164,9 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
   @override
   Widget build(BuildContext context) {
     final me = context.watch<AuthProvider>().currentUserOrNull;
+    final provider = context.watch<EngagementProvider>();
+    final daily = provider.dailyChallenge;
+    final canSubmit = daily != null && !daily.completed;
 
     return Scaffold(
       backgroundColor: Ds.ink,
@@ -197,6 +204,27 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
           ),
         ],
       ),
+      bottomNavigationBar: canSubmit
+          ? Container(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+              decoration: const BoxDecoration(
+                color: Ds.ink,
+                border: Border(top: BorderSide(color: Ds.border, width: 1)),
+              ),
+              child: SafeArea(
+                top: false,
+                child: SizedBox(
+                  height: 52,
+                  child: DsButton(
+                    label: 'CONFIRM SUBMISSION',
+                    kind: DsButtonKind.aura,
+                    loading: provider.isSubmittingChallenge,
+                    onPressed: _selectedOption == null ? null : () => _submit(provider),
+                  ),
+                ),
+              ),
+            )
+          : null,
       body: Stack(
         children: [
           Consumer<EngagementProvider>(
@@ -334,29 +362,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
             ),
           ],
           const SizedBox(height: 20),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Ds.ink,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Ds.border),
-            ),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              child: Text(
-                challenge.question,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  height: 1.5,
-                  color: Ds.aura,
-                  fontFamily: 'monospace',
-                ),
-              ),
-            ),
-          ),
+          _buildQuestionContent(challenge.question),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -373,6 +379,107 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
         ],
       ),
     ).animate().fadeIn(duration: 200.ms);
+  }
+
+  Widget _buildQuestionContent(String rawQuestion) {
+    final trimmed = rawQuestion.trim();
+    if (!trimmed.contains('```')) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Ds.ink,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Ds.border),
+        ),
+        child: Text(
+          trimmed,
+          style: DsText.body.copyWith(
+            fontSize: 15,
+            height: 1.5,
+            color: Ds.bone,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      );
+    }
+
+    final parts = trimmed.split('```');
+    final widgets = <Widget>[];
+
+    for (int i = 0; i < parts.length; i++) {
+      final part = parts[i];
+      if (part.trim().isEmpty) continue;
+
+      if (i % 2 == 1) {
+        // Monospace code block with horizontal scrolling
+        String code = part;
+        final firstNewline = code.indexOf('\n');
+        if (firstNewline != -1) {
+          final firstWord = code.substring(0, firstNewline).trim();
+          if (firstWord.isNotEmpty && !firstWord.contains(' ') && firstWord.length < 15) {
+            code = code.substring(firstNewline + 1);
+          }
+        }
+
+        widgets.add(
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.symmetric(vertical: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Ds.ink,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Ds.border),
+            ),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Text(
+                code.trimRight(),
+                style: const TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 13,
+                  height: 1.45,
+                  color: Ds.aura,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        );
+      } else {
+        // Prose block wrapping naturally to width
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Text(
+              part.trim(),
+              style: DsText.body.copyWith(
+                fontSize: 15,
+                height: 1.5,
+                color: Ds.bone,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Ds.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Ds.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: widgets,
+      ),
+    );
   }
 
   Widget _buildActionSection(BuildContext context, EngagementProvider provider) {
@@ -396,7 +503,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
             padding: const EdgeInsets.only(bottom: 10),
             child: GestureDetector(
               onTap: () {
-                HapticFeedback.lightImpact();
+                RewardFeedback.selection();
                 setState(() {
                   _selectedOption = option;
                 });
@@ -461,13 +568,6 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
             style: DsText.caption.copyWith(color: Ds.hot, fontWeight: FontWeight.w600),
           ),
         ],
-        const SizedBox(height: 24),
-        DsButton(
-          label: 'CONFIRM SUBMISSION',
-          kind: DsButtonKind.aura,
-          loading: provider.isSubmittingChallenge,
-          onPressed: _selectedOption == null ? null : () => _submit(provider),
-        ),
       ],
     );
   }
@@ -532,8 +632,10 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
     }
   }
 
-  static String _dateKeyFor(DateTime dateTime) =>
-      dateTime.toIso8601String().split('T').first;
+  static String _dateKeyFor(DateTime dateTime) {
+    final ist = dateTime.toUtc().add(const Duration(hours: 5, minutes: 30));
+    return '${ist.year.toString().padLeft(4, '0')}-${ist.month.toString().padLeft(2, '0')}-${ist.day.toString().padLeft(2, '0')}';
+  }
 }
 
 class _MissionSolvedOverlay extends StatelessWidget {
