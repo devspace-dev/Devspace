@@ -29,6 +29,8 @@ class PlayScreen extends StatelessWidget {
     final name = (user?.name ?? 'Builder').split(' ').first;
     final mission = engagement.dailyChallenge;
     final hasMission = mission != null && !mission.completed;
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final tileAspectRatio = textScale > 1.3 ? 0.85 : (textScale > 1.1 ? 1.0 : 1.15);
 
     return Scaffold(
       backgroundColor: Ds.ink,
@@ -157,7 +159,7 @@ class PlayScreen extends StatelessWidget {
               physics: const NeverScrollableScrollPhysics(),
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
-              childAspectRatio: 1.15,
+              childAspectRatio: tileAspectRatio,
               children: [
                 TourAnchor(
                   id: TourAnchorId.firstTierTile,
@@ -208,7 +210,7 @@ class PlayScreen extends StatelessWidget {
               physics: const NeverScrollableScrollPhysics(),
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
-              childAspectRatio: 1.15,
+              childAspectRatio: tileAspectRatio,
               children: [
                 _buildCombatTile(
                   context: context,
@@ -228,34 +230,7 @@ class PlayScreen extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 24),
-
-            // 5. Continue Path at the end
-            DsCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      DsTag('CONTINUE PATH', bg: Ds.border, fg: Ds.bone),
-                      Icon(Icons.route_outlined, color: Ds.aura, size: 20),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Text('REACT & STATE MANAGEMENT', style: DsText.h3),
-                  const SizedBox(height: 4),
-                  Text('Step 4 of 7 · +40 Aura on completion', style: DsText.bodySm),
-                  const SizedBox(height: 14),
-                  DsButton(
-                    label: 'Continue',
-                    kind: DsButtonKind.aura,
-                    onPressed: () => context.go('/path'),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 8),
           ],
         ),
       ),
@@ -279,11 +254,14 @@ class PlayScreen extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           DsTag(level, bg: tierColor, fg: Ds.ink),
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: DsText.h3.copyWith(fontSize: 16),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              title,
+              maxLines: 1,
+              style: DsText.h3.copyWith(fontSize: 16),
+            ),
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -331,11 +309,14 @@ class PlayScreen extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           DsTag(tag, bg: accentColor, fg: Ds.ink),
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: DsText.h3.copyWith(fontSize: 16),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              title,
+              maxLines: 1,
+              style: DsText.h3.copyWith(fontSize: 16),
+            ),
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,

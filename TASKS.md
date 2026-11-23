@@ -4,6 +4,15 @@
 Upgrade the app backend for launch-ready gamification and gated engagement without adding product bloat.
 
 ## Done
+- [x] Pre-release Polish Stage 0: Audit & Diagnostics across Items A-K, with read-only SQL scripts (11_avatars.sql, 12_events_dates.sql).
+- [x] Pre-release Polish Stage 1: Low-Risk UI hardening:
+  - Item C: Removed static "Continue Path" card from PlayScreen.
+  - Item D: Removed Aura badges and lock chips from event cards and opportunity details.
+  - Item E: Removed collapsible "Past events" section; auto-filter expired events (UTC-to-local), while keeping TBA events visible.
+  - Item F: Made chat text-only by removing attachment menu and disabling rich content insertion.
+  - Item H: Replaced hardcoded "Active now" chat header with user's academic year/branch (`user.academicLabel`).
+  - Item I: Permanently forced `ThemeMode.dark` in `ThemeProvider` and `MaterialApp`, removing settings appearance selector.
+  - Item G: Hardened Path tab layout against 360dp width and 200% font scale (flexible progress bar, scrollable milestone row, 44dp touch targets).
 - [x] Auth-gated app entry
 - [x] Email/password sign up and sign in
 - [x] Phone OTP sign in/sign up through Supabase
@@ -124,7 +133,14 @@ Upgrade the app backend for launch-ready gamification and gated engagement witho
   - [x] Stage 6: Ranks tab leaderboard spotlight (S6) with responsive compact layout under 200% font scale
   - [x] Stage 7: Tour polish, Settings screen controls (haptic feedback toggle, replay tour button), lifecycle pause/resume, and route auto-nav
   - [x] Stage 8: First Quests card on Play tab with live provider-derived progress, zero DB writes, and auto-dismissal
-  - [x] Test coverage: 54 automated widget and unit tests passing across 11 test suites with 0 analyzer issues
+  - [x] Final Pre-Release Audit & Launch Hardening:
+    - [x] Universal tactile haptics wired through `RewardFeedback` across all buttons, navigation tabs, quiz selections, post likes, bookmarks, and daily challenge.
+    - [x] Purged 1,000+ lines of dead code (`roadmaps_data.dart`, `bottom_nav.dart`, `post_shimmer.dart`, `question_pull_request_model.dart`, unused PR provider getters).
+    - [x] RepaintBoundary performance optimization on Glitch SVG animation and coach mark spotlight painters.
+    - [x] Memory optimization: bounded raster cache on image decodes (`memCacheWidth: 720`).
+    - [x] Security verification: read-only client Aura (server RPC calculations only), PostgREST filter injection protection, and UID-scoped storage.
+    - [x] 200% font scale overflow immunity on 360dp screens verified across Play, Profile, Settings, and First Quests (`overflow_immunity_test.dart`).
+    - [x] 100% test pass rate achieved across all 164 automated test suites in the codebase.
 
 ## In Progress
 - [ ] End-to-end founder smoke testing on real Android devices (including opportunity feeds & sync verification)

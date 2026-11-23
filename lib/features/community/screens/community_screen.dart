@@ -39,7 +39,6 @@ class _CommunityScreenState extends State<CommunityScreen>
   late final TabController _tabController;
   final ScrollController _feedScrollController = ScrollController();
   final List<String> _tabs = ['FEED', 'EVENTS'];
-  bool _showPastEvents = false;
 
   @override
   void initState() {
@@ -772,11 +771,10 @@ class _CommunityScreenState extends State<CommunityScreen>
       }
     }
 
-    final upcoming = combinedEvents.where((e) => !_isPastEvent(e)).toList();
-    final past = combinedEvents.where((e) => _isPastEvent(e)).toList();
+    final activeEvents = combinedEvents.where((e) => !_isExpired(e)).toList();
 
-    // Sort upcoming: nearest deadline ascending, then title
-    upcoming.sort((a, b) {
+    // Sort active events: nearest deadline ascending, then title
+    activeEvents.sort((a, b) {
       final dateA = _getEventDate(a);
       final dateB = _getEventDate(b);
       if (dateA != null && dateB != null) {
@@ -785,16 +783,6 @@ class _CommunityScreenState extends State<CommunityScreen>
       if (dateA != null) return -1;
       if (dateB != null) return 1;
       return a.title.compareTo(b.title);
-    });
-
-    // Sort past: most recently ended first
-    past.sort((a, b) {
-      final dateA = _getEventDate(a);
-      final dateB = _getEventDate(b);
-      if (dateA != null && dateB != null) {
-        return dateB.compareTo(dateA);
-      }
-      return 0;
     });
 
     return RefreshIndicator(
@@ -806,7 +794,7 @@ class _CommunityScreenState extends State<CommunityScreen>
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
         children: [
-          if (upcoming.isEmpty)
+          if (activeEvents.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 24),
               child: Center(
@@ -814,38 +802,7 @@ class _CommunityScreenState extends State<CommunityScreen>
               ),
             )
           else
-            ...upcoming.map(_buildEventCard),
-          if (past.isNotEmpty) ...[
-            const SizedBox(height: 20),
-            GestureDetector(
-              onTap: () => setState(() => _showPastEvents = !_showPastEvents),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Ds.surface,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Ds.border),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('PAST EVENTS (${past.length})', style: DsText.label),
-                    Icon(
-                      _showPastEvents
-                          ? Icons.expand_less_rounded
-                          : Icons.expand_more_rounded,
-                      color: Ds.muted,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            if (_showPastEvents) ...[
-              const SizedBox(height: 12),
-              ...past.map(_buildEventCard),
-            ],
-          ],
+            ...activeEvents.map(_buildEventCard),
         ],
       ),
     );
@@ -985,7 +942,7 @@ class _CommunityScreenState extends State<CommunityScreen>
     return null;
   }
 
-  bool _isPastEvent(EventAccessModel e) {
+  bool _isExpired(EventAccessModel e) {
     final lowerTitle = e.title.toLowerCase();
     if (RegExp(r'\b(ended|concluded|expired)\b').hasMatch(lowerTitle)) {
       return true;
@@ -994,16 +951,10 @@ class _CommunityScreenState extends State<CommunityScreen>
     final date = _getEventDate(e);
     if (date != null) {
       final now = DateTime.now();
-      final todayStart = DateTime(now.year, now.month, now.day);
-      return date.isBefore(todayStart);
+      return date.isBefore(now);
     }
 
-    // Unparsed TBA test hackathons with no concrete date are treated as past
-    if ((e.date == null || e.date!.toUpperCase() == 'TBA') &&
-        (e.endDate == null || e.endDate!.isEmpty)) {
-      return true;
-    }
-
+    // TBA / unparsed date events remain visible
     return false;
   }
 
@@ -1026,10 +977,6 @@ class _CommunityScreenState extends State<CommunityScreen>
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 DsTag(event.type.toUpperCase(), bg: Ds.border, fg: Ds.bone),
-                if (event.requiredAura > 0)
-                  DsTag('${event.requiredAura} AURA', bg: Ds.aura, fg: Ds.ink)
-                else
-                  const DsTag('FREE', bg: Ds.mint, fg: Ds.ink),
               ],
             ),
             const SizedBox(height: 10),

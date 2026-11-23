@@ -72,8 +72,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             totalLikes: totalLikes,
             aura: me.aura,
           ),
-          const _SectionHeader(title: 'APPEARANCE'),
-          const _ThemeSelector(),
           const _SectionHeader(title: 'PROFILE'),
           _SettingsTile(
             icon: Icons.edit_outlined,

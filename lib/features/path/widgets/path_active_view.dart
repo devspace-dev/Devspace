@@ -77,7 +77,8 @@ class _PathActiveViewState extends State<PathActiveView> {
             child: Tooltip(
               message: 'Browse all roadmaps',
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                constraints: const BoxConstraints(minHeight: 44),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: Ds.surface,
                   borderRadius: BorderRadius.circular(8),
@@ -107,6 +108,7 @@ class _PathActiveViewState extends State<PathActiveView> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
+                constraints: const BoxConstraints(minHeight: 44),
                 decoration: BoxDecoration(
                   color: Ds.surface,
                   borderRadius: BorderRadius.circular(8),
@@ -127,7 +129,9 @@ class _PathActiveViewState extends State<PathActiveView> {
                 onTap: () => PathSavedSheet.show(context),
                 borderRadius: BorderRadius.circular(8),
                 child: Container(
+                  constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
                   padding: const EdgeInsets.all(7),
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: Ds.surface,
                     borderRadius: BorderRadius.circular(8),
@@ -297,18 +301,23 @@ class _PathActiveViewState extends State<PathActiveView> {
           Row(
             children: [
               // Done count badge
-              Text(
-                '$done / $total DONE',
-                style: DsText.caption.copyWith(
-                  color: Ds.mint,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 11,
+              Flexible(
+                child: Text(
+                  '$done / $total DONE',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: DsText.caption.copyWith(
+                    color: Ds.mint,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                  ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
 
               // Progress Bar
               Expanded(
+                flex: 2,
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(4),
                   child: Container(
@@ -322,29 +331,38 @@ class _PathActiveViewState extends State<PathActiveView> {
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
 
               // Percentage & Remaining Hours
-              Text(
-                '$pctInt% • ${provider.remainingHours}H LEFT',
-                style: DsText.caption.copyWith(
-                  color: Ds.aura,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 11,
+              Flexible(
+                child: Text(
+                  '$pctInt% • ${provider.remainingHours}H LEFT',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                  style: DsText.caption.copyWith(
+                    color: Ds.aura,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 8),
 
-          // Milestone Checkpoint Markers (Clean, compact row)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildMilestonePill('25% Milestone', pct >= 0.25),
-              _buildMilestonePill('50% Milestone', pct >= 0.50),
-              _buildMilestonePill('100% Complete', pct >= 1.0),
-            ],
+          // Milestone Checkpoint Markers (Clean, scrollable row for small screens & large fonts)
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildMilestonePill('25% Milestone', pct >= 0.25),
+                const SizedBox(width: 8),
+                _buildMilestonePill('50% Milestone', pct >= 0.50),
+                const SizedBox(width: 8),
+                _buildMilestonePill('100% Complete', pct >= 1.0),
+              ],
+            ),
           ),
         ],
       ),

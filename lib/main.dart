@@ -257,6 +257,7 @@ class DevSpaceRoot extends StatelessWidget {
       child: MaterialApp.router(
         title: 'DevSpace',
         debugShowCheckedModeBanner: false,
+        themeMode: ThemeMode.dark,
         scaffoldMessengerKey: rootScaffoldMessengerKey,
         theme: buildTheme(),
         routerConfig: router,

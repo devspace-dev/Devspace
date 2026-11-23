@@ -18,7 +18,7 @@ import '../services/storage_service.dart';
 import '../widgets/app_state_widgets.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'profile_screen.dart';
+import '../features/profile/screens/profile_screen.dart';
 
 class ChatDetailScreen extends StatefulWidget {
   final ConversationModel conversation;
@@ -45,10 +45,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   Timer? _typingTimer;
   bool _iAmTyping = false;
   bool _isSubmitting = false;
+  late MessagesProvider _messagesProvider;
 
   @override
   void initState() {
     super.initState();
+    context
+        .read<MessagesProvider>()
+        .setActiveConversationId(widget.conversation.id);
     _messagesStream = context
         .read<MessagesProvider>()
         .messagesStream(widget.conversation.id);
@@ -60,6 +64,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           .read<MessagesProvider>()
           .markConversationRead(widget.conversation.id, me.id);
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _messagesProvider = context.read<MessagesProvider>();
   }
 
   void _initPresence() {
@@ -114,6 +124,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   @override
   void dispose() {
+    if (_messagesProvider.activeConversationId == widget.conversation.id) {
+      _messagesProvider.setActiveConversationId(null);
+    }
     _setTyping(false);
     _channel.unsubscribe();
     _typingTimer?.cancel();
@@ -358,9 +371,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                           fontWeight: FontWeight.w600,
                         ),
                       )
-                    else
+                    else if (widget.otherUser.academicLabel.isNotEmpty)
                       Text(
-                        'Active now',
+                        widget.otherUser.academicLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 11,
                           color: AppColors.text3For(context),
@@ -573,15 +588,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: IconButton(
-              onPressed: _showOptions,
-              icon: Icon(Icons.add_circle_outline_rounded,
-                  color: AppColors.primary, size: 28),
-              splashRadius: 24,
-            ),
-          ),
           Expanded(
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -596,6 +602,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 controller: _controller,
                 onChanged: _onTextChanged,
                 enabled: !isSending,
+                contentInsertionConfiguration: null,
                 style: GoogleFonts.plusJakartaSans(
                     fontSize: 15, color: AppColors.textFor(context)),
                 maxLines: 5,

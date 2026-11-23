@@ -98,7 +98,7 @@ void main() {
     expect(find.text('Day 5 streak, Harshit. Do not ruin it.'), findsOneWidget);
   });
 
-  testWidgets('PlayScreen renders Continue Path at the end and removes college rivalry', (tester) async {
+  testWidgets('PlayScreen removes Continue Path and college rivalry', (tester) async {
     tester.view.physicalSize = const Size(800, 2400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -106,9 +106,8 @@ void main() {
     await tester.pumpWidget(createPlayScreenApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('CONTINUE PATH'), findsOneWidget);
-    expect(find.text('REACT & STATE MANAGEMENT'), findsOneWidget);
-    expect(find.text('CONTINUE'), findsOneWidget);
+    expect(find.text('CONTINUE PATH'), findsNothing);
+    expect(find.text('REACT & STATE MANAGEMENT'), findsNothing);
 
     // College rivalry should be removed
     expect(find.textContaining('vs Apex Tech'), findsNothing);
@@ -127,7 +126,7 @@ void main() {
     expect(find.text('RANKED'), findsOneWidget);
     expect(find.text('FINAL CIRCLE'), findsOneWidget);
 
-    expect(find.text('+5 AURA'), findsOneWidget);
+    expect(find.text('+5 AURA'), findsNWidgets(2));
     expect(find.text('+10 AURA'), findsOneWidget);
     expect(find.text('+15 AURA'), findsOneWidget);
     expect(find.text('+20 AURA'), findsOneWidget);
@@ -147,16 +146,14 @@ void main() {
     expect(find.text('+25 AURA'), findsOneWidget);
     expect(find.text('+50 AURA'), findsOneWidget);
 
-    // Verify ordering: Mascot -> Daily Puzzle -> Solo (Queue Up) -> Combat -> Continue Path
+    // Verify ordering: Mascot -> Daily Puzzle -> Solo (Queue Up) -> Combat
     final mascotY = tester.getTopLeft(find.text('DEVSPACE')).dy;
     final puzzleY = tester.getTopLeft(find.text('DAILY PUZZLE')).dy;
     final queueY = tester.getTopLeft(find.text('QUEUE UP')).dy;
     final combatY = tester.getTopLeft(find.text('COMBAT')).dy;
-    final continuePathY = tester.getTopLeft(find.text('CONTINUE PATH')).dy;
 
     expect(mascotY < puzzleY, isTrue);
     expect(puzzleY < queueY, isTrue);
     expect(queueY < combatY, isTrue);
-    expect(combatY < continuePathY, isTrue);
   });
 }
