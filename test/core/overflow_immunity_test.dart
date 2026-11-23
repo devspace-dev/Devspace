@@ -177,6 +177,10 @@ void main() {
       final auth = AuthProvider(initialUser: testUser, listenToAuthChanges: false);
       final controller = TourController();
       final theme = ThemeProvider();
+      final postsProvider = PostsProvider(
+        initialPosts: const [],
+        postsPageLoader: ({required limit, required offset}) async => const [],
+      );
 
       FlutterErrorDetails? caughtError;
       final prevHandler = FlutterError.onError;
@@ -193,6 +197,7 @@ void main() {
               ChangeNotifierProvider<AuthProvider>.value(value: auth),
               ChangeNotifierProvider<TourController>.value(value: controller),
               ChangeNotifierProvider<ThemeProvider>.value(value: theme),
+              ChangeNotifierProvider<PostsProvider>.value(value: postsProvider),
             ],
             child: wrapWith200PercentScale(child: const SettingsScreen()),
           ),

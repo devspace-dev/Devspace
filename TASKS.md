@@ -13,6 +13,12 @@ Upgrade the app backend for launch-ready gamification and gated engagement witho
   - Item H: Replaced hardcoded "Active now" chat header with user's academic year/branch (`user.academicLabel`).
   - Item I: Permanently forced `ThemeMode.dark` in `ThemeProvider` and `MaterialApp`, removing settings appearance selector.
   - Item G: Hardened Path tab layout against 360dp width and 200% font scale (flexible progress bar, scrollable milestone row, 44dp touch targets).
+- [x] Pre-release Polish Stage 2: Settings Screen Glitch Redesign (Item J):
+  - Completely redesigned `SettingsScreen` using Glitch design tokens: `DsCard`, `DsTag`, `DsText`, `Ds.ink`, `Ds.surface`, `Ds.border`, `Ds.bone`, `Ds.muted`, `Ds.hot`, `Ds.aura`.
+  - Rebuilt Account card and 3-column Analytics insights card (`POSTS`, `LIKES`, `AURA`) with `DsCard`.
+  - Redesigned danger actions (Delete account & Sign out button) with `Ds.hot` borders and labels.
+  - Rebuilt all confirmation dialogs (`Sign out`, `Delete account`, `About DevSpace`) using `Ds.surface` and neo-brutalist styling.
+  - Removed old soft-card styling and purged dead theme switcher code.
 - [x] Auth-gated app entry
 - [x] Email/password sign up and sign in
 - [x] Phone OTP sign in/sign up through Supabase

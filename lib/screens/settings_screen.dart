@@ -3,18 +3,18 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../core/services/reward_feedback.dart';
+import '../core/theme/colors.dart';
+import '../core/theme/text.dart';
+import '../core/widgets/ds_card.dart';
+import '../core/widgets/ds_tag.dart';
 import '../features/tour/services/tour_controller.dart';
 import '../providers/auth_provider.dart';
 import '../providers/posts_provider.dart';
-import '../providers/theme_provider.dart';
+import '../screens/founder_tools_screen.dart';
 import '../screens/profile_setup_screen.dart';
 import '../screens/saved_posts_screen.dart';
-import '../screens/founder_tools_screen.dart';
 import '../screens/terms_and_conditions_screen.dart';
 import '../services/backend_api_service.dart';
-import '../theme/app_colors.dart';
-import '../core/theme/colors.dart';
-import '../core/theme/text.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -40,10 +40,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final me = context.watch<AuthProvider>().currentUserOrNull;
     if (me == null) {
-      return Scaffold(backgroundColor: AppColors.bgFor(context));
+      return const Scaffold(backgroundColor: Ds.ink);
     }
 
-    final posts = context.watch<PostsProvider>().postsForUser(me.id);
+    final posts =
+        Provider.of<PostsProvider?>(context, listen: true)?.postsForUser(me.id) ??
+            const [];
     final totalLikes = posts.fold<int>(0, (sum, post) => sum + post.likes);
 
     return Scaffold(
@@ -66,7 +68,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
         children: [
           _AccountCard(userName: me.name, handle: me.handle, email: me.email),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           _AnalyticsCard(
             postsCount: posts.length,
             totalLikes: totalLikes,
@@ -117,6 +119,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             trailing: Switch.adaptive(
               value: _hapticsEnabled,
               activeColor: Ds.aura,
+              activeTrackColor: Ds.aura.withValues(alpha: 0.3),
               onChanged: (val) {
                 setState(() {
                   _hapticsEnabled = val;
@@ -185,6 +188,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
+          const _SectionHeader(title: 'ABOUT & LEGAL'),
           _SettingsTile(
             icon: Icons.description_outlined,
             title: 'Terms & Privacy',
@@ -208,24 +212,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
             icon: Icons.delete_forever_rounded,
             title: 'Delete account',
             subtitle: 'Permanently remove your profile and all your data.',
+            isDanger: true,
             onTap: () => _handleDeleteAccount(context),
           ),
-          const SizedBox(height: 28),
-          ElevatedButton.icon(
-            onPressed: () => _handleLogout(context),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent.withValues(alpha: 0.12),
-              foregroundColor: Colors.redAccent,
-              elevation: 0,
+          const SizedBox(height: 20),
+          InkWell(
+            onTap: () => _handleLogout(context),
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 48),
               padding: const EdgeInsets.symmetric(vertical: 14),
-              side: BorderSide(
-                color: Colors.redAccent.withValues(alpha: 0.35),
+              decoration: BoxDecoration(
+                color: Ds.surface,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Ds.hot.withValues(alpha: 0.6)),
               ),
-            ),
-            icon: const Icon(Icons.logout_rounded),
-            label: const Text(
-              'Sign out',
-              style: TextStyle(fontWeight: FontWeight.w800),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.logout_rounded, color: Ds.hot, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    'SIGN OUT',
+                    style: DsText.label.copyWith(
+                      color: Ds.hot,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -237,36 +253,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bg2For(context),
+        backgroundColor: Ds.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: const BorderSide(color: Ds.border),
+        ),
         title: Text(
-          'Sign out?',
-          style: TextStyle(color: AppColors.textFor(context)),
+          'SIGN OUT?',
+          style: DsText.h3,
         ),
         content: Text(
           'You will return to the login screen on this device.',
-          style: TextStyle(color: AppColors.text2For(context)),
+          style: DsText.bodySm.copyWith(color: Ds.muted),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(
+              'CANCEL',
+              style: DsText.caption.copyWith(color: Ds.bone),
+            ),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+          TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Sign out'),
+            child: Text(
+              'SIGN OUT',
+              style: DsText.caption.copyWith(
+                color: Ds.hot,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
         ],
       ),
     );
 
     if (confirm == true && context.mounted) {
-      // Wait for signOut to complete
       await context.read<AuthProvider>().signOut();
-
-      // Ensure navigation happens only after signOut is confirmed complete
-      // and currentUser is null (or will become null shortly via listener).
-      // popUntil route.isFirst navigates to the root. Assuming the root is the login/splash screen.
       if (context.mounted) {
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
@@ -277,24 +300,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bg2For(context),
+        backgroundColor: Ds.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: const BorderSide(color: Ds.hot),
+        ),
         title: Text(
-          'Delete account?',
-          style: TextStyle(color: AppColors.textFor(context)),
+          'DELETE ACCOUNT?',
+          style: DsText.h3.copyWith(color: Ds.hot),
         ),
         content: Text(
           'This action is permanent. All your posts, profile, and aura points will be removed. You cannot undo this.',
-          style: TextStyle(color: AppColors.text2For(context)),
+          style: DsText.bodySm.copyWith(color: Ds.muted),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(
+              'CANCEL',
+              style: DsText.caption.copyWith(color: Ds.bone),
+            ),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+          TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete permanently'),
+            child: Text(
+              'DELETE PERMANENTLY',
+              style: DsText.caption.copyWith(
+                color: Ds.hot,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
         ],
       ),
@@ -321,19 +356,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: AppColors.bg2For(context),
-          title: Text(
-            'About DevSpace',
-            style: TextStyle(color: AppColors.textFor(context)),
+          backgroundColor: Ds.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+            side: const BorderSide(color: Ds.border),
           ),
+          title: Text('ABOUT DEVSPACE', style: DsText.h3),
           content: Text(
             'DevSpace is built for student developers to share progress, ask for help, and build a real builder identity inside their college community.',
-            style: TextStyle(color: AppColors.text2For(context), height: 1.5),
+            style: DsText.bodySm.copyWith(color: Ds.bone, height: 1.5),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Close'),
+              child: Text(
+                'CLOSE',
+                style: DsText.caption.copyWith(
+                  color: Ds.aura,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
           ],
         );
@@ -350,111 +392,14 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 24, 4, 8),
+      padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
       child: Text(
         title,
-        style: TextStyle(
+        style: DsText.caption.copyWith(
           fontSize: 11,
           fontWeight: FontWeight.w800,
-          color: AppColors.text4For(context),
+          color: Ds.muted,
           letterSpacing: 1.2,
-        ),
-      ),
-    );
-  }
-}
-
-class _ThemeSelector extends StatelessWidget {
-  const _ThemeSelector();
-
-  @override
-  Widget build(BuildContext context) {
-    final themeProvider = context.watch<ThemeProvider>();
-
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: AppColors.bg2For(context),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.borderFor(context)),
-      ),
-      child: Row(
-        children: [
-          _ThemeOption(
-            label: 'System',
-            icon: Icons.brightness_auto_rounded,
-            isSelected: themeProvider.themeMode == ThemeMode.system,
-            onTap: () => themeProvider.setThemeMode(ThemeMode.system),
-          ),
-          _ThemeOption(
-            label: 'Light',
-            icon: Icons.light_mode_rounded,
-            isSelected: themeProvider.themeMode == ThemeMode.light,
-            onTap: () => themeProvider.setThemeMode(ThemeMode.light),
-          ),
-          _ThemeOption(
-            label: 'Dark',
-            icon: Icons.dark_mode_rounded,
-            isSelected: themeProvider.themeMode == ThemeMode.dark,
-            onTap: () => themeProvider.setThemeMode(ThemeMode.dark),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ThemeOption extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _ThemeOption({
-    required this.label,
-    required this.icon,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: isSelected ? AppColors.bg3For(context) : Colors.transparent,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 20,
-                color: isSelected
-                    ? AppColors.primary
-                    : AppColors.text3For(context),
-              ),
-              const SizedBox(height: 6),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                    color: isSelected
-                        ? AppColors.textFor(context)
-                        : AppColors.text3For(context),
-                  ),
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -467,6 +412,7 @@ class _SettingsTile extends StatelessWidget {
   final String subtitle;
   final VoidCallback onTap;
   final Widget? trailing;
+  final bool isDanger;
 
   const _SettingsTile({
     required this.icon,
@@ -474,55 +420,68 @@ class _SettingsTile extends StatelessWidget {
     required this.subtitle,
     required this.onTap,
     this.trailing,
+    this.isDanger = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.borderFor(context)),
-      ),
-      child: Material(
-        color: AppColors.bg2For(context),
-        borderRadius: BorderRadius.circular(18),
-        clipBehavior: Clip.antiAlias,
-        child: ListTile(
-          onTap: onTap,
-          leading: Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: AppColors.bg3For(context),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, color: AppColors.text2For(context), size: 20),
-          ),
-          title: Text(
-            title,
-            style: TextStyle(
-              color: AppColors.textFor(context),
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          subtitle: Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              subtitle,
-              style: TextStyle(
-                color: AppColors.text3For(context),
-                fontSize: 13,
-                height: 1.35,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: DsCard(
+        onTap: onTap,
+        borderColor: isDanger ? Ds.hot.withValues(alpha: 0.4) : Ds.border,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: Ds.ink,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: isDanger ? Ds.hot.withValues(alpha: 0.5) : Ds.border,
+                ),
+              ),
+              alignment: Alignment.center,
+              child: Icon(
+                icon,
+                color: isDanger ? Ds.hot : Ds.bone,
+                size: 18,
               ),
             ),
-          ),
-          trailing: trailing ??
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: DsText.body.copyWith(
+                      color: isDanger ? Ds.hot : Ds.bone,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: DsText.caption.copyWith(color: Ds.muted),
+                  ),
+                ],
+              ),
+            ),
+            if (trailing != null) ...[
+              const SizedBox(width: 8),
+              trailing!,
+            ] else ...[
+              const SizedBox(width: 8),
               Icon(
                 Icons.chevron_right_rounded,
-                color: AppColors.text4For(context),
+                color: isDanger ? Ds.hot : Ds.muted,
+                size: 20,
               ),
+            ],
+          ],
         ),
       ),
     );
@@ -542,65 +501,32 @@ class _AccountCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.bg2For(context),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.borderFor(context)),
-      ),
+    return DsCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Account',
-            style: TextStyle(
-              color: AppColors.text4For(context),
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.2,
-            ),
-          ),
+          const DsTag('ACCOUNT', bg: Ds.border, fg: Ds.bone),
           const SizedBox(height: 12),
-          Text(
-            userName,
-            style: TextStyle(
-              color: AppColors.textFor(context),
-              fontSize: 19,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '@$handle',
-            style: TextStyle(
-              color: AppColors.text3For(context),
-              fontSize: 13,
-            ),
-          ),
-          const SizedBox(height: 14),
+          Text(userName, style: DsText.h3),
+          const SizedBox(height: 2),
+          Text('@$handle', style: DsText.caption.copyWith(color: Ds.muted)),
+          const SizedBox(height: 12),
           Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: AppColors.bg3For(context),
-              borderRadius: BorderRadius.circular(16),
+              color: Ds.ink,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Ds.border),
             ),
             child: Row(
               children: [
-                Icon(
-                  Icons.mail_outline_rounded,
-                  size: 18,
-                  color: AppColors.text3For(context),
-                ),
-                const SizedBox(width: 10),
+                const Icon(Icons.mail_outline_rounded, size: 16, color: Ds.muted),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     email,
-                    style: TextStyle(
-                      color: AppColors.text2For(context),
-                      fontSize: 13,
-                    ),
+                    style: DsText.bodySm.copyWith(color: Ds.bone),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -625,34 +551,34 @@ class _AnalyticsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-      decoration: BoxDecoration(
-        color: AppColors.bg2For(context),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.borderFor(context)),
-      ),
+    return DsCard(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       child: Row(
         children: [
           Expanded(
             child: _InsightItem(
-              label: 'Posts',
+              label: 'POSTS',
               value: '$postsCount',
               icon: Icons.grid_view_rounded,
+              accent: Ds.bone,
             ),
           ),
+          Container(width: 1, height: 32, color: Ds.border),
           Expanded(
             child: _InsightItem(
-              label: 'Likes',
+              label: 'LIKES',
               value: '$totalLikes',
               icon: Icons.favorite_rounded,
+              accent: Ds.hot,
             ),
           ),
+          Container(width: 1, height: 32, color: Ds.border),
           Expanded(
             child: _InsightItem(
-              label: 'Aura',
+              label: 'AURA',
               value: '$aura',
-              icon: Icons.auto_awesome_rounded,
+              icon: Icons.bolt_rounded,
+              accent: Ds.aura,
             ),
           ),
         ],
@@ -665,11 +591,13 @@ class _InsightItem extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
+  final Color accent;
 
   const _InsightItem({
     required this.label,
     required this.value,
     required this.icon,
+    required this.accent,
   });
 
   @override
@@ -677,24 +605,24 @@ class _InsightItem extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 20, color: AppColors.primary),
-        const SizedBox(height: 6),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            value,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              color: AppColors.textFor(context),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 14, color: accent),
+            const SizedBox(width: 4),
+            Text(
+              value,
+              style: DsText.h3.copyWith(fontSize: 16, color: accent),
             ),
-          ),
+          ],
         ),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            label,
-            style: TextStyle(fontSize: 12, color: AppColors.text3For(context)),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: DsText.caption.copyWith(
+            fontSize: 10,
+            color: Ds.muted,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ],
