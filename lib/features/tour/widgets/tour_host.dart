@@ -241,6 +241,16 @@ class TourHost extends StatelessWidget {
       ),
     );
 
+    final tourOverlayWithBack = PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          tour.nextStep();
+        }
+      },
+      child: styledOverlay,
+    );
+
     return Stack(
       children: [
         child,
@@ -250,10 +260,10 @@ class TourHost extends StatelessWidget {
             dismissible: false,
           ),
           SafeArea(
-            child: styledOverlay,
+            child: tourOverlayWithBack,
           ),
         ] else ...[
-          styledOverlay,
+          tourOverlayWithBack,
         ],
       ],
     );

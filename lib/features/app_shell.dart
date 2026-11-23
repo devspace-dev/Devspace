@@ -1,10 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../core/theme/colors.dart';
+import '../core/theme/text.dart';
+import '../core/widgets/ds_button.dart';
+import '../core/widgets/ds_card.dart';
 import '../core/widgets/ds_nav_bar.dart';
+import '../core/widgets/glitch.dart';
 import '../providers/auth_provider.dart';
 import '../providers/engagement_provider.dart';
 import '../providers/notifications_provider.dart';
@@ -212,6 +217,81 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     });
   }
 
+  Future<bool?> _showExitConfirmDialog(BuildContext context) {
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogCtx) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          child: DsCard(
+            padding: const EdgeInsets.all(20),
+            borderColor: Ds.border,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    const Glitch(size: 40, mood: GlitchMood.idle),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Leave DevSpace?',
+                        style: DsText.h3.copyWith(fontSize: 18, color: Ds.bone),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Are you sure you want to exit the app?',
+                  style: DsText.bodySm.copyWith(color: Ds.muted),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(dialogCtx).pop(true),
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(48, 48),
+                          foregroundColor: Ds.muted,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: Text(
+                          'Exit',
+                          style: DsText.label.copyWith(color: Ds.muted),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: SizedBox(
+                        height: 48,
+                        child: DsButton(
+                          label: 'Stay',
+                          kind: DsButtonKind.aura,
+                          height: 48,
+                          onPressed: () => Navigator.of(dialogCtx).pop(false),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().currentUserOrNull;
@@ -219,21 +299,45 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
 
     final initials = user?.initials ?? 'U';
 
-    return TourHost(
-      child: Scaffold(
-        backgroundColor: Ds.ink,
-        body: widget.shell,
-        bottomNavigationBar: DsNavBar(
-          currentIndex: widget.shell.currentIndex,
-          onTap: (index) {
-            widget.shell.goBranch(
-              index,
-              initialLocation: index == widget.shell.currentIndex,
-            );
-          },
-          ranksDot: unreadCount > 0,
-          profileAvatarUrl: user?.avatar,
-          profileInitials: initials,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+
+        // 1. If tour is active, tour handles back itself
+        final tour = context.read<TourController>();
+        if (tour.status == TourStatus.inProgress && tour.currentStep != null) {
+          return;
+        }
+
+        // 2. If on Path, Ranks, Community or Profile (index != 0), switch to Play first
+        if (widget.shell.currentIndex != 0) {
+          widget.shell.goBranch(0);
+          return;
+        }
+
+        // 3. On Play tab: show "Leave DevSpace?" dialog
+        final shouldExit = await _showExitConfirmDialog(context);
+        if (shouldExit == true) {
+          SystemNavigator.pop();
+        }
+      },
+      child: TourHost(
+        child: Scaffold(
+          backgroundColor: Ds.ink,
+          body: widget.shell,
+          bottomNavigationBar: DsNavBar(
+            currentIndex: widget.shell.currentIndex,
+            onTap: (index) {
+              widget.shell.goBranch(
+                index,
+                initialLocation: index == widget.shell.currentIndex,
+              );
+            },
+            ranksDot: unreadCount > 0,
+            profileAvatarUrl: user?.avatar,
+            profileInitials: initials,
+          ),
         ),
       ),
     );

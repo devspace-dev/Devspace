@@ -19,6 +19,8 @@ import 'package:devspace/features/community/screens/community_screen.dart';
 import 'package:devspace/features/profile/screens/profile_screen.dart';
 import 'package:devspace/models/user_model.dart';
 import 'package:devspace/features/quiz/screens/quiz_screen.dart';
+import 'package:devspace/features/path/providers/path_provider.dart';
+import 'package:devspace/features/tour/services/tour_controller.dart';
 
 void main() {
   setUpAll(() {
@@ -68,6 +70,8 @@ void main() {
         ChangeNotifierProvider(create: (_) => NotificationsProvider()),
         ChangeNotifierProvider(create: (_) => MessagesProvider()),
         ChangeNotifierProvider(create: (_) => PracticeProvider()),
+        ChangeNotifierProvider(create: (_) => PathProvider()),
+        ChangeNotifierProvider(create: (_) => TourController()),
       ],
       child: MaterialApp.router(
         theme: buildTheme(),
@@ -95,8 +99,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(PathScreen), findsOneWidget);
-    expect(find.text('PATH'), findsOneWidget);
-    expect(find.textContaining('NODES'), findsOneWidget);
+    expect(find.text('CHOOSE YOUR GOAL'), findsOneWidget);
   });
 
   testWidgets('Tapping Ranks nav tab switches branch to RanksScreen', (tester) async {
@@ -118,7 +121,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(CommunityScreen), findsOneWidget);
-    expect(find.text('COMMUNITY'), findsOneWidget);
+    expect(find.text('Community'), findsNWidgets(2));
+    expect(find.text('FEED'), findsOneWidget);
   });
 
   testWidgets('Tapping Profile nav tab switches branch to ProfileScreen', (tester) async {
@@ -129,7 +133,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(ProfileScreen), findsOneWidget);
-    expect(find.text('PROFILE'), findsOneWidget);
+    expect(find.text('Profile'), findsNWidgets(2));
+    expect(find.text('EDIT PROFILE'), findsOneWidget);
   });
 
   testWidgets('Navigating to full-screen /quiz/ranked loads QuizScreen without DsNavBar', (tester) async {
@@ -139,5 +144,45 @@ void main() {
     expect(find.byType(QuizScreen), findsOneWidget);
     expect(find.text('HARD'), findsOneWidget);
     expect(find.text('Play'), findsNothing);
+  });
+
+  testWidgets('Back button on Path tab redirects back to Play tab first', (tester) async {
+    await tester.pumpWidget(createTestApp(initialLocation: '/path'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PathScreen), findsOneWidget);
+
+    // Simulate Android system back button press
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    // Switched to PlayScreen
+    expect(find.byType(PlayScreen), findsOneWidget);
+    expect(find.text('DEVSPACE'), findsOneWidget);
+  });
+
+  testWidgets('Back button on Play tab shows Leave DevSpace dialog and Stay dismisses it', (tester) async {
+    await tester.pumpWidget(createTestApp(initialLocation: '/play'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PlayScreen), findsOneWidget);
+
+    // Simulate Android system back button press on Play tab
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    // Confirm dialog is shown
+    expect(find.text('Leave DevSpace?'), findsOneWidget);
+    expect(find.text('Are you sure you want to exit the app?'), findsOneWidget);
+    expect(find.text('Stay'), findsOneWidget);
+    expect(find.text('Exit'), findsOneWidget);
+
+    // Tap Stay
+    await tester.tap(find.text('Stay'));
+    await tester.pumpAndSettle();
+
+    // Dialog dismissed and still on PlayScreen
+    expect(find.text('Leave DevSpace?'), findsNothing);
+    expect(find.byType(PlayScreen), findsOneWidget);
   });
 }
