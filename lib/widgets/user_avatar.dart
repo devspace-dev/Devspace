@@ -46,7 +46,7 @@ class UserAvatar extends StatelessWidget {
                       color: user.color.withValues(alpha: 0.1),
                       child: Center(
                         child: Text(
-                          user.avatar,
+                          user.avatar.isNotEmpty ? user.avatar : user.initials,
                           style: TextStyle(
                             fontSize: size * 0.4,
                             fontWeight: FontWeight.w800,

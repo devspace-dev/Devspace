@@ -56,7 +56,13 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
         file,
         onProgress: (p) => setState(() => _progress = p),
       );
-      widget.onUploaded(url);
+      final cacheBustedUrl = url.contains('?')
+          ? '$url&t=${DateTime.now().millisecondsSinceEpoch}'
+          : '$url?t=${DateTime.now().millisecondsSinceEpoch}';
+      try {
+        await CachedNetworkImage.evictFromCache(url);
+      } catch (_) {}
+      widget.onUploaded(cacheBustedUrl);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

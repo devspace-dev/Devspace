@@ -25,6 +25,13 @@ Upgrade the app backend for launch-ready gamification and gated engagement witho
   - Cutout is now 100% transparent and unobstructed with inflated padding and a 2.5px glowing `Ds.aura` border; target element is crisp and bright.
   - Redesigned Coach Mark Card with Glitch mascot, step pill tag (`STEP X OF Y`), Anton title, Typewriter text, and clean action buttons.
   - Prevented accidental background dismissal; tapping inside the spotlighted hole activates the target.
+- [x] Pre-release Polish Stage 4: Avatar Display & Pipeline Hardening (Item K):
+  - Integrated `CachedNetworkImage` into `RanksScreen` across Top 3 Podium, leaderboard rows (rank 4+), and pinned YOU row (compact and standard).
+  - Validated HTTP avatar URLs before passing to image loaders, falling back cleanly to user initials on `Ds.surface` to prevent URL parse errors.
+  - Redesigned `DsNavBar` Profile button to a 28dp circle with active yellow ring (`Ds.aura`), loaded profile picture, and fallback initials.
+  - Stopped writing legacy initials strings (e.g. 'AK') into `users.avatar` in `AuthService`; store `null` instead when user has no photo.
+  - Added cache-busting timestamp (`?t=...`) and evicted old URLs upon upload in `ImageUploadWidget`.
+  - Prepared SQL migration `supabase/patches/avatars-01-cleanup.sql` to clean non-URL values from `users.avatar`.
 - [x] Auth-gated app entry
 - [x] Email/password sign up and sign in
 - [x] Phone OTP sign in/sign up through Supabase

@@ -272,13 +272,13 @@ class AuthService {
     return 'DevSpace Student';
   }
 
-  String _initialAvatarForUser(User user, String name, String email) {
+  String? _initialAvatarForUser(User user, String name, String email) {
     final metadata = user.userMetadata;
     final photoUrl = metadata?['avatar_url'] ?? metadata?['picture'];
     if (photoUrl is String && photoUrl.trim().startsWith('http')) {
       return photoUrl.trim();
     }
-    return _buildAvatar(name, email);
+    return null;
   }
 
   Future<UserModel?> _loadOrCreateProfile(User user) async {
@@ -558,11 +558,13 @@ class AuthService {
       final trimmedBuilding = building.trim();
       final trimmedBio = bio.trim();
       final trimmedGithub = githubHandle.trim();
-      final nextAvatar = (avatar != null && avatar.trim().isNotEmpty)
+      final nextAvatar = (avatar != null &&
+              avatar.trim().isNotEmpty &&
+              _looksLikeImageReference(avatar))
           ? avatar.trim()
           : (_looksLikeImageReference(user.avatar)
               ? user.avatar
-              : _buildAvatar(trimmedName, user.email));
+              : null);
 
       await SupabaseService.instance.updateUser(user.id, {
         'name': trimmedName,

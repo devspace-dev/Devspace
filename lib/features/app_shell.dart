@@ -217,7 +217,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     final user = context.watch<AuthProvider>().currentUserOrNull;
     final unreadCount = context.select<NotificationsProvider, int>((p) => p.unreadCount);
 
-    final initials = (user?.name.isNotEmpty ?? false) ? user!.name[0] : 'U';
+    final initials = user?.initials ?? 'U';
 
     return TourHost(
       child: Scaffold(

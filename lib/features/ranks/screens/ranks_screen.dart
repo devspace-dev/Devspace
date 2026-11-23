@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text.dart';
@@ -10,6 +11,7 @@ import '../../../providers/auth_provider.dart';
 import '../../../providers/users_provider.dart';
 import '../../../models/user_model.dart';
 import '../../profile/screens/profile_screen.dart';
+import '../../../services/storage_service.dart';
 import '../../../services/supabase_service.dart';
 import '../../tour/models/tour_step.dart';
 import '../../tour/widgets/tour_anchor.dart';
@@ -634,16 +636,10 @@ class _RanksScreenState extends State<RanksScreen> with WidgetsBindingObserver {
                                     fontSize: 14,
                                   ),
                                 ),
-                                CircleAvatar(
+                                _buildAvatar(
+                                  avatarUrl: me.avatar,
+                                  name: me.name,
                                   radius: 14,
-                                  backgroundColor: Ds.surface,
-                                  child: Text(
-                                    me.name.isNotEmpty
-                                        ? me.name[0].toUpperCase()
-                                        : 'U',
-                                    style: DsText.caption
-                                        .copyWith(color: Ds.bone),
-                                  ),
                                 ),
                                 const DsTag('YOU', bg: Ds.aura, fg: Ds.ink),
                               ],
@@ -698,15 +694,10 @@ class _RanksScreenState extends State<RanksScreen> with WidgetsBindingObserver {
                             ),
                           ),
                           const SizedBox(width: 10),
-                          CircleAvatar(
+                          _buildAvatar(
+                            avatarUrl: me.avatar,
+                            name: me.name,
                             radius: 16,
-                            backgroundColor: Ds.surface,
-                            child: Text(
-                              me.name.isNotEmpty
-                                  ? me.name[0].toUpperCase()
-                                  : 'U',
-                              style: DsText.caption.copyWith(color: Ds.bone),
-                            ),
                           ),
                           const SizedBox(width: 10),
                           Expanded(
@@ -864,16 +855,10 @@ class _RanksScreenState extends State<RanksScreen> with WidgetsBindingObserver {
                     shape: BoxShape.circle,
                     border: Border.all(color: ringColor, width: 2.5),
                   ),
-                  child: CircleAvatar(
+                  child: _buildAvatar(
+                    avatarUrl: user.avatar,
+                    name: user.name,
                     radius: isFirst ? 26 : 22,
-                    backgroundColor: Ds.surface,
-                    child: Text(
-                      user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
-                      style: DsText.h3.copyWith(
-                        color: Ds.bone,
-                        fontSize: isFirst ? 20 : 16,
-                      ),
-                    ),
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -947,13 +932,10 @@ class _RanksScreenState extends State<RanksScreen> with WidgetsBindingObserver {
             ),
           ),
           const SizedBox(width: 8),
-          CircleAvatar(
+          _buildAvatar(
+            avatarUrl: user.avatar,
+            name: user.name,
             radius: 18,
-            backgroundColor: Ds.surface,
-            child: Text(
-              user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
-              style: DsText.caption.copyWith(color: Ds.bone),
-            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -988,6 +970,71 @@ class _RanksScreenState extends State<RanksScreen> with WidgetsBindingObserver {
             style: DsText.number.copyWith(fontSize: 18),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAvatar({
+    required String? avatarUrl,
+    required String name,
+    required double radius,
+  }) {
+    final bool hasValidUrl = avatarUrl != null &&
+        (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://'));
+    final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : 'U';
+
+    if (hasValidUrl) {
+      final resolvedUrl = StorageService.instance.resolvePublicUrl(avatarUrl);
+      return ClipOval(
+        child: CachedNetworkImage(
+          imageUrl: resolvedUrl,
+          fit: BoxFit.cover,
+          width: radius * 2,
+          height: radius * 2,
+          memCacheWidth: (radius * 4).round().clamp(64, 256),
+          memCacheHeight: (radius * 4).round().clamp(64, 256),
+          placeholder: (_, __) => Container(
+            width: radius * 2,
+            height: radius * 2,
+            color: Ds.surface,
+            alignment: Alignment.center,
+            child: Text(
+              initial,
+              style: DsText.caption.copyWith(
+                color: Ds.bone,
+                fontSize: radius * 0.75,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          errorWidget: (_, __, ___) => Container(
+            width: radius * 2,
+            height: radius * 2,
+            color: Ds.surface,
+            alignment: Alignment.center,
+            child: Text(
+              initial,
+              style: DsText.caption.copyWith(
+                color: Ds.bone,
+                fontSize: radius * 0.75,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: Ds.surface,
+      child: Text(
+        initial,
+        style: DsText.caption.copyWith(
+          color: Ds.bone,
+          fontSize: radius * 0.75,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

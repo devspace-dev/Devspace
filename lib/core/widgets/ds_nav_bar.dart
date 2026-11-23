@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../services/reward_feedback.dart';
 import '../theme/colors.dart';
 import '../theme/text.dart';
 
@@ -25,7 +26,7 @@ class DsNavItem extends StatelessWidget {
         label: label,
         child: InkResponse(
           onTap: () {
-            HapticFeedback.selectionClick();
+            RewardFeedback.selection();
             onTap();
           },
           child: SizedBox(
@@ -164,32 +165,67 @@ class DsNavBar extends StatelessWidget {
   }
 
   Widget _buildProfileIcon(bool active) {
-    if (profileAvatarUrl != null && profileAvatarUrl!.isNotEmpty) {
+    final bool hasValidUrl = profileAvatarUrl != null &&
+        (profileAvatarUrl!.startsWith('http://') ||
+            profileAvatarUrl!.startsWith('https://'));
+
+    if (hasValidUrl) {
       return Container(
-        width: 24,
-        height: 24,
+        width: 28,
+        height: 28,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           border: Border.all(
-            color: active ? Ds.onAura : Ds.border,
-            width: 1.5,
+            color: active ? Ds.aura : Ds.border,
+            width: active ? 2.0 : 1.5,
           ),
-          image: DecorationImage(
-            image: NetworkImage(profileAvatarUrl!),
+        ),
+        child: ClipOval(
+          child: CachedNetworkImage(
+            imageUrl: profileAvatarUrl!,
             fit: BoxFit.cover,
+            width: 28,
+            height: 28,
+            memCacheWidth: 84,
+            memCacheHeight: 84,
+            placeholder: (_, __) => Container(
+              color: Ds.surface,
+              alignment: Alignment.center,
+              child: Text(
+                profileInitials.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: active ? Ds.aura : Ds.bone,
+                ),
+              ),
+            ),
+            errorWidget: (_, __, ___) => Container(
+              color: Ds.surface,
+              alignment: Alignment.center,
+              child: Text(
+                profileInitials.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: active ? Ds.aura : Ds.bone,
+                ),
+              ),
+            ),
           ),
         ),
       );
     }
+
     return Container(
-      width: 24,
-      height: 24,
+      width: 28,
+      height: 28,
       decoration: BoxDecoration(
-        color: active ? Ds.onAura : Ds.surface,
+        color: active ? Ds.surface : Ds.ink,
         shape: BoxShape.circle,
         border: Border.all(
-          color: active ? Ds.onAura : Ds.border,
-          width: 1.5,
+          color: active ? Ds.aura : Ds.border,
+          width: active ? 2.0 : 1.5,
         ),
       ),
       alignment: Alignment.center,
