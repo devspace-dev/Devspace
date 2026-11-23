@@ -32,6 +32,14 @@ Upgrade the app backend for launch-ready gamification and gated engagement witho
   - Stopped writing legacy initials strings (e.g. 'AK') into `users.avatar` in `AuthService`; store `null` instead when user has no photo.
   - Added cache-busting timestamp (`?t=...`) and evicted old URLs upon upload in `ImageUploadWidget`.
   - Prepared SQL migration `supabase/patches/avatars-01-cleanup.sql` to clean non-URL values from `users.avatar`.
+- [x] Pre-release Polish Stage 5: Combat Multiplayer Rematch Flow (Item A):
+  - Fixed Rematch button in `DuelResultScreen`: replaced placeholder `Navigator.popUntil((route) => route.isFirst)` with real challenge issuance via `sendDuelRequest`.
+  - Passed `category` from `DuelScreen` to `DuelResultScreen` so rematches preserve category alongside mode and opponent.
+  - Pushes `WaitingForOpponentScreen`: if accepted, smoothly transitions both players into `DuelScreen` with a brand-new match ID; if declined or timed out, returns back to `DuelResultScreen` with a status snackbar message.
+  - Added double-tap protection, in-flight "WAITING..." state with spinner, and a 10-second cooldown timer (`REMATCH (10s)`) disabling the button upon return.
+  - Added `PopScope` to `DuelResultScreen` preventing unintended back-navigation into intermediate match routes.
+  - Ensured touch targets >= 48dp and immunity to overflow at 360dp width and 200% font scale.
+  - Added full test suite in `test/features/duel_result_screen_test.dart`.
 - [x] Auth-gated app entry
 - [x] Email/password sign up and sign in
 - [x] Phone OTP sign in/sign up through Supabase

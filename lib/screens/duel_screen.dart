@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -48,6 +49,7 @@ class _DuelScreenState extends State<DuelScreen> {
   Timer? _timer;
   Timer? _scoreSyncTimer;
   RealtimeChannel? _matchSubscription;
+  Future<void>? _pendingScoreUpdate;
 
   UserModel? _teammate;
   UserModel? _opponentTeammate;
@@ -79,19 +81,23 @@ class _DuelScreenState extends State<DuelScreen> {
       _timeRemaining = 120;
     } else if (modeUpper == 'REFLEX MODE' || modeUpper == 'REFLEX') {
       _timeRemaining = 60;
+    } else if (modeUpper == 'CODE COMBAT') {
+      _timeRemaining = 45;
     } else {
       _timeRemaining = 45;
     }
     _timeRemainingNotifier.value = _timeRemaining;
 
-    if (modeUpper == 'REFLEX MODE' || modeUpper == 'REFLEX' || modeUpper == 'TEAM DUELS' || modeUpper == 'TEAM BATTLE') {
-      _questions.addAll(reflexQuestions.toList()..shuffle());
+    final shuffleRng =
+        widget.matchId == 'solo' ? Random() : Random(widget.matchId.hashCode);
+    if (modeUpper == 'REFLEX MODE' || modeUpper == 'REFLEX' || modeUpper == 'TEAM DUELS' || modeUpper == 'TEAM BATTLE' || modeUpper == 'CODE COMBAT') {
+      _questions.addAll(reflexQuestions.toList()..shuffle(shuffleRng));
     } else if (modeUpper == 'LOGIC LAB') {
-      _questions.addAll(logicQuestions.toList()..shuffle());
+      _questions.addAll(logicQuestions.toList()..shuffle(shuffleRng));
     } else if (modeUpper == 'MIND GAMES') {
-      _questions.addAll(triviaQuestions.toList()..shuffle());
+      _questions.addAll(triviaQuestions.toList()..shuffle(shuffleRng));
     } else {
-      _questions.addAll(reflexQuestions.toList()..shuffle());
+      _questions.addAll(reflexQuestions.toList()..shuffle(shuffleRng));
     }
 
     _initializeTeammates().then((_) {
@@ -314,6 +320,12 @@ class _DuelScreenState extends State<DuelScreen> {
     _scoreSyncTimer?.cancel();
     setState(() => _phase = DuelPhase.finished);
 
+    if (_pendingScoreUpdate != null) {
+      try {
+        await _pendingScoreUpdate;
+      } catch (_) {}
+    }
+
     if (widget.isPlayer1) {
       try {
         await SupabaseService.instance.finishArenaMatch(widget.matchId);
@@ -386,6 +398,7 @@ class _DuelScreenState extends State<DuelScreen> {
       await AuthService.instance.refreshCurrentUser();
       unawaited(engagementProvider.fetchOverview(forceChallengeRefresh: true));
       await engagementProvider.fetchAuraHistory();
+      unawaited(SupabaseService.instance.syncMyBadges());
     } catch (e) {
       debugPrint('Error resolving arena match: $e');
       if (mounted) {
@@ -406,6 +419,7 @@ class _DuelScreenState extends State<DuelScreen> {
           myScore: _myScore,
           opponentScore: _opponentScore,
           mode: widget.mode,
+          category: widget.category,
           myQuestionsAnswered: _questionsAnswered,
           opponentQuestionsAnswered: oppQuestionsAnswered,
           myAccuracy: myAccuracy,
@@ -433,7 +447,7 @@ class _DuelScreenState extends State<DuelScreen> {
         _myOwnAnswersScore += 15;
         _myScore = _myOwnAnswersScore + _myTeammateScore;
       });
-      SupabaseService.instance
+      _pendingScoreUpdate = SupabaseService.instance
           .updateArenaScore(widget.matchId, widget.isPlayer1, _myScore);
       _showStatusMessage('You answered correctly! +15');
       ScaffoldMessenger.of(context).showSnackBar(

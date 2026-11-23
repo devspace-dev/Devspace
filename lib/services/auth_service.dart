@@ -313,7 +313,7 @@ class AuthService {
       name: name,
       email: email,
       handle: handle,
-      avatar: _initialAvatarForUser(user, name, email),
+      avatar: _initialAvatarForUser(user, name, email) ?? '',
       roles: const ['Student'],
       year: '',
       branch: '',

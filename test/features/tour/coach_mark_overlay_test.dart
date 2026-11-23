@@ -78,6 +78,10 @@ void main() {
   });
 
   testWidgets('CoachMarkOverlay renders stepPill and fires onTargetTap on hole press', (tester) async {
+    tester.view.physicalSize = const Size(360, 640);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
     var targetTapped = false;
 
     await tester.pumpWidget(

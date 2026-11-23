@@ -120,6 +120,8 @@ class _CoachMarkOverlayState extends State<CoachMarkOverlay> {
     if (localRect == null) {
       return Center(
         child: SingleChildScrollView(
+          primary: false,
+          physics: const ClampingScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: _buildTooltipCard(context, double.infinity),
         ),
@@ -165,6 +167,8 @@ class _CoachMarkOverlayState extends State<CoachMarkOverlay> {
           ),
         ),
         child: SingleChildScrollView(
+          primary: false,
+          physics: const ClampingScrollPhysics(),
           child: _buildTooltipCard(context, maxCardWidth),
         ),
       ),
