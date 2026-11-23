@@ -226,4 +226,28 @@ void main() {
     expect(find.text('REMATCH'), findsWidgets);
     expect(find.text('NEW DUEL'), findsWidgets);
   });
+
+  testWidgets('DuelResultScreen uses horizontal PageView to prevent vertical scroll conflict', (tester) async {
+    final me = makeUser(id: 'u1', name: 'DevOne');
+    final opp = makeUser(id: 'u2', name: 'DevTwo');
+
+    await tester.pumpWidget(
+      buildTestWidget(
+        me: me,
+        opponent: opp,
+        size: const Size(360, 640),
+        fontScale: 1.0,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final pageView = tester.widget<PageView>(find.byType(PageView));
+    expect(pageView.scrollDirection, Axis.horizontal);
+
+    // Swipe horizontally to switch to analysis
+    await tester.fling(find.byType(PageView), const Offset(-300, 0), 1000);
+    await tester.pumpAndSettle();
+
+    expect(find.text('SWIPE RIGHT FOR SUMMARY'), findsOneWidget);
+  });
 }

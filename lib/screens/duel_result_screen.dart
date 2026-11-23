@@ -233,7 +233,7 @@ class _DuelResultScreenState extends State<DuelResultScreen> {
                 Expanded(
                   child: PageView(
                     controller: _pageController,
-                    scrollDirection: Axis.vertical,
+                    scrollDirection: Axis.horizontal,
                     onPageChanged: _onPageChanged,
                     children: [
                       _buildOverviewCard(iWon, themeColor),
@@ -475,12 +475,12 @@ class _DuelResultScreenState extends State<DuelResultScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.keyboard_double_arrow_up_rounded, color: Colors.white38, size: 24)
+                            const Icon(Icons.keyboard_double_arrow_right_rounded, color: Colors.white38, size: 24)
                                 .animate(onPlay: (c) => c.repeat(reverse: true))
-                                .moveY(begin: 0, end: -6, duration: 800.ms),
+                                .moveX(begin: 0, end: 6, duration: 800.ms),
                             const SizedBox(height: 4),
                             Text(
-                              "SWIPE UP FOR DETAILED ANALYSIS",
+                              "SWIPE LEFT FOR DETAILED ANALYSIS",
                               style: GoogleFonts.plusJakartaSans(
                                 color: Colors.white30,
                                 fontSize: 9,
@@ -519,19 +519,19 @@ class _DuelResultScreenState extends State<DuelResultScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Drag handle indicator (Swipe down)
+          // Drag handle indicator (Swipe right for summary)
           Center(
             child: GestureDetector(
               onTap: () => _navigateToPage(0),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.keyboard_double_arrow_down_rounded, color: Colors.white24, size: 20)
+                  const Icon(Icons.keyboard_double_arrow_left_rounded, color: Colors.white24, size: 20)
                       .animate(onPlay: (c) => c.repeat(reverse: true))
-                      .moveY(begin: 0, end: 4, duration: 800.ms),
+                      .moveX(begin: 0, end: -4, duration: 800.ms),
                   const SizedBox(height: 2),
                   Text(
-                    "SWIPE DOWN FOR SUMMARY",
+                    "SWIPE RIGHT FOR SUMMARY",
                     style: GoogleFonts.plusJakartaSans(
                       color: Colors.white30,
                       fontSize: 8,

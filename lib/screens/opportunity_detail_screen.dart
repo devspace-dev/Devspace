@@ -113,7 +113,7 @@ class OpportunityDetailScreen extends StatelessWidget {
           ),
         ],
       ),
-      bottomSheet: _buildStickyActionBar(context, isHackathon),
+      bottomNavigationBar: _buildStickyActionBar(context, isHackathon),
     );
   }
 
@@ -406,10 +406,13 @@ class OpportunityDetailScreen extends StatelessWidget {
   }
 
   Widget _buildStickyActionBar(BuildContext context, bool isHackathon) {
-    final label = isHackathon ? 'REGISTER NOW' : 'APPLY TO ACCESS';
+    final hasLink = opportunity.link.trim().isNotEmpty;
+    final label = !hasLink
+        ? 'REGISTRATION CLOSED'
+        : (isHackathon ? 'REGISTER NOW' : 'APPLY TO ACCESS');
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       decoration: const BoxDecoration(
         color: Ds.ink,
         border: Border(
@@ -418,10 +421,13 @@ class OpportunityDetailScreen extends StatelessWidget {
       ),
       child: SafeArea(
         top: false,
-        child: DsButton(
-          label: label,
-          kind: DsButtonKind.aura,
-          onPressed: () => _handleRegister(context),
+        child: SizedBox(
+          height: 52,
+          child: DsButton(
+            label: label,
+            kind: DsButtonKind.aura,
+            onPressed: hasLink ? () => _handleRegister(context) : null,
+          ),
         ),
       ),
     );

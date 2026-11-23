@@ -155,16 +155,18 @@ class _TourGoalSheetState extends State<TourGoalSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-      decoration: const BoxDecoration(
-        color: Ds.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        border: Border(
-          top: BorderSide(color: Ds.aura, width: 2),
+    return Material(
+      type: MaterialType.transparency,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        decoration: const BoxDecoration(
+          color: Ds.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          border: Border(
+            top: BorderSide(color: Ds.aura, width: 2),
+          ),
         ),
-      ),
-      child: SafeArea(
+        child: SafeArea(
         top: false,
         child: SingleChildScrollView(
           child: _isLocked
@@ -272,6 +274,7 @@ class _TourGoalSheetState extends State<TourGoalSheet> {
                 ),
         ),
       ),
+    ),
     );
   }
 

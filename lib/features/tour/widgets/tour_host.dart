@@ -233,6 +233,14 @@ class TourHost extends StatelessWidget {
         tour.currentStep == TourStep.s5Events ||
         tour.currentStep == TourStep.s6Ranks;
 
+    final styledOverlay = Material(
+      type: MaterialType.transparency,
+      child: DefaultTextStyle(
+        style: DsText.body.copyWith(decoration: TextDecoration.none),
+        child: overlayWidget,
+      ),
+    );
+
     return Stack(
       children: [
         child,
@@ -242,10 +250,10 @@ class TourHost extends StatelessWidget {
             dismissible: false,
           ),
           SafeArea(
-            child: overlayWidget,
+            child: styledOverlay,
           ),
         ] else ...[
-          overlayWidget,
+          styledOverlay,
         ],
       ],
     );

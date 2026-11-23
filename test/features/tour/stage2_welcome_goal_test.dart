@@ -190,5 +190,34 @@ void main() {
       expect(tourController.status, TourStatus.inProgress);
       expect(tourController.currentStep, TourStep.s1Welcome);
     });
+
+    testWidgets('Tour overlays have no yellow double underline (Material text decoration clean)', (tester) async {
+      await tourController.initForUser(
+        userId: 'test_user_decorations',
+        isNewRegistration: true,
+      );
+      await tourController.checkAndStartTour();
+      await tester.pumpWidget(
+        buildTestApp(
+          child: const Center(child: Text('Underlying App Content')),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Check all rendered text widgets in TourModalPopup
+      for (final element in find.byType(Text).evaluate()) {
+        final textWidget = element.widget as Text;
+        expect(textWidget.style?.decoration, isNot(TextDecoration.underline));
+      }
+
+      // Advance to S2 Goal sheet
+      await tourController.nextStep();
+      await tester.pumpAndSettle();
+
+      for (final element in find.byType(Text).evaluate()) {
+        final textWidget = element.widget as Text;
+        expect(textWidget.style?.decoration, isNot(TextDecoration.underline));
+      }
+    });
   });
 }
