@@ -26,11 +26,18 @@ class TourHost extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tour = context.watch<TourController>();
+    TourController? maybeTour;
+    try {
+      maybeTour = context.watch<TourController>();
+    } catch (_) {
+      maybeTour = null;
+    }
 
-    if (!tour.isTourActive) {
+    if (maybeTour == null || !maybeTour.isTourActive) {
       return child;
     }
+
+    final TourController tour = maybeTour;
 
     Widget? overlayWidget;
 
@@ -80,6 +87,7 @@ class TourHost extends StatelessWidget {
           targetRect: rect,
           title: TourCopy.s3PlayTitle,
           body: TourCopy.s3PlayBody,
+          stepPill: tour.isNewUser ? 'STEP 3 OF 6' : 'STEP 2 OF 5',
           mood: GlitchMood.idle,
           primaryButtonLabel: 'NEXT',
           onPrimaryPressed: () => tour.nextStep(),
@@ -99,6 +107,7 @@ class TourHost extends StatelessWidget {
           targetRect: rect,
           title: TourCopy.s3bPlayTitle,
           body: TourCopy.s3bPlayBody,
+          stepPill: 'STEP 2 OF 5',
           mood: GlitchMood.idle,
           primaryButtonLabel: 'NEXT',
           onPrimaryPressed: () => tour.nextStep(),
@@ -118,6 +127,7 @@ class TourHost extends StatelessWidget {
           targetRect: rect,
           title: TourCopy.s4CommunityTitle,
           body: TourCopy.s4CommunityBody,
+          stepPill: tour.isNewUser ? 'STEP 4 OF 6' : 'STEP 3 OF 5',
           mood: GlitchMood.idle,
           primaryButtonLabel: 'NEXT',
           onPrimaryPressed: () => tour.nextStep(),
@@ -137,6 +147,7 @@ class TourHost extends StatelessWidget {
           targetRect: rect,
           title: TourCopy.s5EventsTitle,
           body: TourCopy.s5EventsBody,
+          stepPill: tour.isNewUser ? 'STEP 5 OF 6' : 'STEP 4 OF 5',
           mood: GlitchMood.idle,
           primaryButtonLabel: 'NEXT',
           onPrimaryPressed: () => tour.nextStep(),
@@ -158,6 +169,7 @@ class TourHost extends StatelessWidget {
           targetRect: rect,
           title: TourCopy.s6RanksTitle,
           body: bodyText,
+          stepPill: tour.isNewUser ? 'STEP 6 OF 6' : 'STEP 5 OF 5',
           mood: GlitchMood.idle,
           primaryButtonLabel: 'FINISH',
           onPrimaryPressed: () => tour.completeTour(),
@@ -224,14 +236,17 @@ class TourHost extends StatelessWidget {
     return Stack(
       children: [
         child,
-        if (!isCoachMark)
+        if (!isCoachMark) ...[
           ModalBarrier(
             color: Ds.ink.withValues(alpha: 0.8),
             dismissible: false,
           ),
-        SafeArea(
-          child: overlayWidget,
-        ),
+          SafeArea(
+            child: overlayWidget,
+          ),
+        ] else ...[
+          overlayWidget,
+        ],
       ],
     );
   }

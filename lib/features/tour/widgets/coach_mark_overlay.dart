@@ -4,12 +4,13 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/text.dart';
 import '../../../core/widgets/ds_button.dart';
 import '../../../core/widgets/ds_card.dart';
+import '../../../core/widgets/ds_tag.dart';
 import '../../../core/widgets/glitch.dart';
 import 'typewriter_text.dart';
 
 /// Fullscreen overlay that dims the background with a rounded spotlight cutout
 /// around [targetRect] and positions a tooltip bubble on the side with room.
-class CoachMarkOverlay extends StatelessWidget {
+class CoachMarkOverlay extends StatefulWidget {
   final Rect? targetRect;
   final String title;
   final String body;
@@ -20,6 +21,7 @@ class CoachMarkOverlay extends StatelessWidget {
   final VoidCallback? onSecondaryPressed;
   final VoidCallback? onDismiss;
   final VoidCallback? onTargetTap;
+  final String? stepPill;
 
   const CoachMarkOverlay({
     super.key,
@@ -33,45 +35,77 @@ class CoachMarkOverlay extends StatelessWidget {
     this.onSecondaryPressed,
     this.onDismiss,
     this.onTargetTap,
+    this.stepPill,
   });
+
+  @override
+  State<CoachMarkOverlay> createState() => _CoachMarkOverlayState();
+}
+
+class _CoachMarkOverlayState extends State<CoachMarkOverlay> {
+  final GlobalKey _stackKey = GlobalKey();
+
+  Rect? _calculateLocalTargetRect() {
+    if (widget.targetRect == null) return null;
+    final context = _stackKey.currentContext;
+    if (context == null || !context.mounted) return widget.targetRect;
+
+    final renderBox = context.findRenderObject() as RenderBox?;
+    if (renderBox == null || !renderBox.hasSize || !renderBox.attached) {
+      return widget.targetRect;
+    }
+
+    final globalTopLeft = widget.targetRect!.topLeft;
+    final globalBottomRight = widget.targetRect!.bottomRight;
+    final localTopLeft = renderBox.globalToLocal(globalTopLeft);
+    final localBottomRight = renderBox.globalToLocal(globalBottomRight);
+
+    return Rect.fromPoints(localTopLeft, localBottomRight);
+  }
 
   @override
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
     final screenSize = mediaQuery.size;
     final padding = mediaQuery.padding;
+    final localTargetRect = _calculateLocalTargetRect();
 
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) onDismiss?.call();
+        if (!didPop) widget.onDismiss?.call();
       },
       child: Stack(
+        key: _stackKey,
         fit: StackFit.expand,
         children: [
           // 1. Semi-transparent scrim with spotlight hole
           GestureDetector(
             onTapUp: (details) {
-              if (targetRect != null && targetRect!.contains(details.localPosition)) {
-                if (onTargetTap != null) {
-                  onTargetTap!();
+              final local = details.localPosition;
+              if (localTargetRect != null &&
+                  localTargetRect.inflate(10).contains(local)) {
+                if (widget.onTargetTap != null) {
+                  widget.onTargetTap!();
                   return;
                 }
               }
-              onDismiss?.call();
+              // Prevent accidental background dismiss
             },
             behavior: HitTestBehavior.translucent,
-            child: CustomPaint(
-              size: screenSize,
-              painter: _SpotlightPainter(
-                targetRect: targetRect,
-                scrimColor: Ds.ink.withValues(alpha: 0.85),
+            child: RepaintBoundary(
+              child: CustomPaint(
+                size: screenSize,
+                painter: _SpotlightPainter(
+                  targetRect: localTargetRect,
+                  scrimColor: Ds.ink.withValues(alpha: 0.85),
+                ),
               ),
             ),
           ),
 
           // 2. Positioned Tooltip Bubble
-          _buildPositionedTooltip(context, screenSize, padding),
+          _buildPositionedTooltip(context, screenSize, padding, localTargetRect),
         ],
       ),
     );
@@ -81,9 +115,9 @@ class CoachMarkOverlay extends StatelessWidget {
     BuildContext context,
     Size screenSize,
     EdgeInsets safePadding,
+    Rect? localRect,
   ) {
-    // If targetRect is null (fallback mode), center on screen
-    if (targetRect == null) {
+    if (localRect == null) {
       return Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -96,26 +130,26 @@ class CoachMarkOverlay extends StatelessWidget {
     final double screenHeight = screenSize.height;
 
     // Tooltip width constrained to fit 360dp phones up to tablets
-    final double maxCardWidth = math.min(screenWidth - 32, 400.0);
+    final double maxCardWidth = math.min(screenWidth - 32, 380.0);
 
     // Determine vertical placement: place above or below depending on available space
-    final double spaceAbove = targetRect!.top - safePadding.top;
-    final double spaceBelow = screenHeight - safePadding.bottom - targetRect!.bottom;
+    final double spaceAbove = localRect.top - safePadding.top;
+    final double spaceBelow = screenHeight - safePadding.bottom - localRect.bottom;
 
-    final bool placeBelow = spaceBelow >= 220 || spaceBelow >= spaceAbove;
+    final bool placeBelow = spaceBelow >= 240 && spaceBelow >= spaceAbove;
 
     // Horizontal clamping inside safe margins
-    final double targetCenterX = targetRect!.center.dx;
+    final double targetCenterX = localRect.center.dx;
     final double left = (targetCenterX - (maxCardWidth / 2))
         .clamp(16.0, screenWidth - maxCardWidth - 16.0);
 
     final double? top = placeBelow
-        ? (targetRect!.bottom + 12).clamp(safePadding.top + 8, screenHeight - 260)
+        ? (localRect.bottom + 14).clamp(safePadding.top + 8, screenHeight - 240)
         : null;
 
     final double? bottom = !placeBelow
-        ? (screenHeight - targetRect!.top + 12)
-            .clamp(safePadding.bottom + 8, screenHeight - 120)
+        ? (screenHeight - localRect.top + 14)
+            .clamp(safePadding.bottom + 8, screenHeight - safePadding.top - 180)
         : null;
 
     return Positioned(
@@ -127,7 +161,7 @@ class CoachMarkOverlay extends StatelessWidget {
         constraints: BoxConstraints(
           maxHeight: math.max(
             180.0,
-            screenHeight - (top ?? safePadding.top) - safePadding.bottom - 16,
+            screenHeight - (top ?? safePadding.top) - (bottom ?? safePadding.bottom) - 32,
           ),
         ),
         child: SingleChildScrollView(
@@ -145,62 +179,72 @@ class CoachMarkOverlay extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Glitch Mascot + Title Header
+          // Header: Glitch Mascot + Step Tag + Title
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Glitch(size: 42, mood: mood),
+              Glitch(size: 40, mood: widget.mood),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (widget.stepPill != null && widget.stepPill!.isNotEmpty) ...[
+                      DsTag(widget.stepPill!, bg: Ds.ink, fg: Ds.aura),
+                      const SizedBox(height: 4),
+                    ],
                     Text(
-                      title.toUpperCase(),
-                      style: DsText.label.copyWith(color: Ds.aura),
+                      widget.title.toUpperCase(),
+                      style: DsText.h3.copyWith(fontSize: 16, height: 1.2),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 6),
-                    TypewriterText(
-                      text: body,
-                      style: DsText.bodySm.copyWith(
-                        color: Ds.bone,
-                        height: 1.35,
-                      ),
                     ),
                   ],
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 12),
+
+          // Body: Typewriter text effect
+          TypewriterText(
+            text: widget.body,
+            style: DsText.bodySm.copyWith(
+              color: Ds.bone,
+              height: 1.4,
+            ),
+          ),
           const SizedBox(height: 16),
 
-          // Action Buttons
-          Align(
-            alignment: Alignment.centerRight,
-            child: Wrap(
-              alignment: WrapAlignment.end,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                if (secondaryButtonLabel != null)
-                  TextButton(
-                    onPressed: onSecondaryPressed,
-                    child: Text(
-                      secondaryButtonLabel!,
-                      style: DsText.caption.copyWith(color: Ds.muted),
+          // Footer Action Buttons
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              if (widget.secondaryButtonLabel != null)
+                TextButton(
+                  onPressed: widget.onSecondaryPressed,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    minimumSize: const Size(48, 40),
+                  ),
+                  child: Text(
+                    widget.secondaryButtonLabel!,
+                    style: DsText.caption.copyWith(
+                      color: Ds.muted,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.6,
                     ),
                   ),
-                DsButton(
-                  label: primaryButtonLabel,
-                  height: MediaQuery.textScalerOf(context).scale(40).clamp(40.0, 56.0),
-                  kind: DsButtonKind.aura,
-                  onPressed: onPrimaryPressed,
-                ),
-              ],
-            ),
+                )
+              else
+                const SizedBox.shrink(),
+              DsButton(
+                label: widget.primaryButtonLabel,
+                height: 42,
+                kind: DsButtonKind.aura,
+                onPressed: widget.onPrimaryPressed,
+              ),
+            ],
           ),
         ],
       ),
@@ -229,7 +273,7 @@ class _SpotlightPainter extends CustomPainter {
     }
 
     // Expand the target rect slightly for breathing room
-    final holeRect = targetRect!.inflate(6);
+    final holeRect = targetRect!.inflate(8);
     final holePath = Path()
       ..addRRect(
         RRect.fromRectAndRadius(holeRect, const Radius.circular(12)),
@@ -248,7 +292,7 @@ class _SpotlightPainter extends CustomPainter {
     final borderPaint = Paint()
       ..color = Ds.aura
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
+      ..strokeWidth = 2.5;
 
     canvas.drawRRect(
       RRect.fromRectAndRadius(holeRect, const Radius.circular(12)),

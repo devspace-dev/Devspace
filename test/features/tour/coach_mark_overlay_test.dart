@@ -76,4 +76,35 @@ void main() {
     expect(find.byType(DsButton), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('CoachMarkOverlay renders stepPill and fires onTargetTap on hole press', (tester) async {
+    var targetTapped = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CoachMarkOverlay(
+            targetRect: const Rect.fromLTWH(50, 150, 100, 50),
+            title: 'Spotlight Tap Test',
+            body: 'Verify tapping the spotlighted hole invokes onTargetTap.',
+            stepPill: 'STEP 2 OF 5',
+            primaryButtonLabel: 'NEXT',
+            onPrimaryPressed: () {},
+            onTargetTap: () => targetTapped = true,
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('STEP 2 OF 5'), findsOneWidget);
+    expect(find.text('SPOTLIGHT TAP TEST'), findsOneWidget);
+
+    // Tap in center of the targetRect (100, 175)
+    await tester.tapAt(const Offset(100, 175));
+    await tester.pump();
+
+    expect(targetTapped, isTrue);
+  });
 }

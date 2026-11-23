@@ -219,20 +219,22 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
 
     final initials = (user?.name.isNotEmpty ?? false) ? user!.name[0] : 'U';
 
-    return Scaffold(
-      backgroundColor: Ds.ink,
-      body: TourHost(child: widget.shell),
-      bottomNavigationBar: DsNavBar(
-        currentIndex: widget.shell.currentIndex,
-        onTap: (index) {
-          widget.shell.goBranch(
-            index,
-            initialLocation: index == widget.shell.currentIndex,
-          );
-        },
-        ranksDot: unreadCount > 0,
-        profileAvatarUrl: user?.avatar,
-        profileInitials: initials,
+    return TourHost(
+      child: Scaffold(
+        backgroundColor: Ds.ink,
+        body: widget.shell,
+        bottomNavigationBar: DsNavBar(
+          currentIndex: widget.shell.currentIndex,
+          onTap: (index) {
+            widget.shell.goBranch(
+              index,
+              initialLocation: index == widget.shell.currentIndex,
+            );
+          },
+          ranksDot: unreadCount > 0,
+          profileAvatarUrl: user?.avatar,
+          profileInitials: initials,
+        ),
       ),
     );
   }

@@ -19,6 +19,12 @@ Upgrade the app backend for launch-ready gamification and gated engagement witho
   - Redesigned danger actions (Delete account & Sign out button) with `Ds.hot` borders and labels.
   - Rebuilt all confirmation dialogs (`Sign out`, `Delete account`, `About DevSpace`) using `Ds.surface` and neo-brutalist styling.
   - Removed old soft-card styling and purged dead theme switcher code.
+- [x] Pre-release Polish Stage 3: Tour Overlay Coordinate Alignment & Card Redesign (Item B):
+  - Fixed ~65px coordinate shift by wrapping `Scaffold` with `TourHost` in `AppShell` and eliminating incorrect `SafeArea` wrapping on coach mark layers.
+  - Added dynamic `renderBox.globalToLocal` conversion in `CoachMarkOverlay` so target rects perfectly match local canvas space across all device sizes and safe areas.
+  - Cutout is now 100% transparent and unobstructed with inflated padding and a 2.5px glowing `Ds.aura` border; target element is crisp and bright.
+  - Redesigned Coach Mark Card with Glitch mascot, step pill tag (`STEP X OF Y`), Anton title, Typewriter text, and clean action buttons.
+  - Prevented accidental background dismissal; tapping inside the spotlighted hole activates the target.
 - [x] Auth-gated app entry
 - [x] Email/password sign up and sign in
 - [x] Phone OTP sign in/sign up through Supabase
