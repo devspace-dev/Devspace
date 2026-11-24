@@ -47,39 +47,39 @@ class PostCardSkeleton extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.borderFor(context), width: 0.5),
       ),
-      child: Column(
+      child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const SkeletonLoader(width: 40, height: 40, borderRadius: 20),
-              const SizedBox(width: 12),
+              SkeletonLoader(width: 40, height: 40, borderRadius: 20),
+              SizedBox(width: 12),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SkeletonLoader(width: 120, height: 14),
-                  const SizedBox(height: 6),
-                  const SkeletonLoader(width: 80, height: 10),
+                  SkeletonLoader(width: 120, height: 14),
+                  SizedBox(height: 6),
+                  SkeletonLoader(width: 80, height: 10),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          const SkeletonLoader(width: double.infinity, height: 16),
-          const SizedBox(height: 8),
-          const SkeletonLoader(width: double.infinity, height: 16),
-          const SizedBox(height: 8),
-          const SkeletonLoader(width: 200, height: 16),
-          const SizedBox(height: 16),
-          const SkeletonLoader(width: double.infinity, height: 180, borderRadius: 16),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
+          SkeletonLoader(width: double.infinity, height: 16),
+          SizedBox(height: 8),
+          SkeletonLoader(width: double.infinity, height: 16),
+          SizedBox(height: 8),
+          SkeletonLoader(width: 200, height: 16),
+          SizedBox(height: 16),
+          SkeletonLoader(width: double.infinity, height: 180, borderRadius: 16),
+          SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const SkeletonLoader(width: 60, height: 24, borderRadius: 12),
-              const SkeletonLoader(width: 60, height: 24, borderRadius: 12),
-              const SkeletonLoader(width: 60, height: 24, borderRadius: 12),
-              const SkeletonLoader(width: 24, height: 24, borderRadius: 12),
+              SkeletonLoader(width: 60, height: 24, borderRadius: 12),
+              SkeletonLoader(width: 60, height: 24, borderRadius: 12),
+              SkeletonLoader(width: 60, height: 24, borderRadius: 12),
+              SkeletonLoader(width: 24, height: 24, borderRadius: 12),
             ],
           ),
         ],
@@ -104,18 +104,18 @@ class ProfileSkeleton extends StatelessWidget {
         const SizedBox(height: 24),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(3, (i) => Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: const SkeletonLoader(width: 60, height: 40, borderRadius: 8),
+          children: List.generate(3, (i) => const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12),
+            child: SkeletonLoader(width: 60, height: 40, borderRadius: 8),
           )),
         ),
         const SizedBox(height: 32),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
-            children: List.generate(3, (i) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: const SkeletonLoader(width: double.infinity, height: 100, borderRadius: 20),
+            children: List.generate(3, (i) => const Padding(
+              padding: EdgeInsets.only(bottom: 12),
+              child: SkeletonLoader(width: double.infinity, height: 100, borderRadius: 20),
             )),
           ),
         ),
@@ -136,22 +136,22 @@ class QuestionCardSkeleton extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.borderFor(context), width: 0.5),
       ),
-      child: Column(
+      child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SkeletonLoader(width: 150, height: 18),
-          const SizedBox(height: 10),
-          const SkeletonLoader(width: double.infinity, height: 14),
-          const SizedBox(height: 6),
-          const SkeletonLoader(width: 200, height: 14),
-          const SizedBox(height: 16),
+          SkeletonLoader(width: 150, height: 18),
+          SizedBox(height: 10),
+          SkeletonLoader(width: double.infinity, height: 14),
+          SizedBox(height: 6),
+          SkeletonLoader(width: 200, height: 14),
+          SizedBox(height: 16),
           Row(
             children: [
-              const SkeletonLoader(width: 24, height: 24, borderRadius: 12),
-              const SizedBox(width: 8),
-              const SkeletonLoader(width: 80, height: 12),
-              const Spacer(),
-              const SkeletonLoader(width: 40, height: 24, borderRadius: 8),
+              SkeletonLoader(width: 24, height: 24, borderRadius: 12),
+              SizedBox(width: 8),
+              SkeletonLoader(width: 80, height: 12),
+              Spacer(),
+              SkeletonLoader(width: 40, height: 24, borderRadius: 8),
             ],
           ),
         ],

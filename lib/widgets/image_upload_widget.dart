@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../services/storage_service.dart';
 import '../theme/app_colors.dart';
@@ -56,7 +55,13 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
         file,
         onProgress: (p) => setState(() => _progress = p),
       );
-      widget.onUploaded(url);
+      final cacheBustedUrl = url.contains('?')
+          ? '$url&t=${DateTime.now().millisecondsSinceEpoch}'
+          : '$url?t=${DateTime.now().millisecondsSinceEpoch}';
+      try {
+        await CachedNetworkImage.evictFromCache(url);
+      } catch (_) {}
+      widget.onUploaded(cacheBustedUrl);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

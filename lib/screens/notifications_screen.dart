@@ -4,8 +4,11 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../providers/notifications_provider.dart';
 import '../providers/auth_provider.dart';
+import '../services/supabase_service.dart';
 import '../theme/app_colors.dart';
 import '../models/notification_model.dart';
+import '../widgets/duel_invite_dialog.dart';
+import 'question_detail_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -42,7 +45,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     // Filter items for tabs
     final allNotifications = displayList;
     final mentions = displayList.where((n) => n.type == 'mention' || n.message.contains('@')).toList();
-    final activity = displayList.where((n) => ['like', 'comment', 'follow', 'activity'].contains(n.type)).toList();
+    final activity = displayList
+        .where((n) => ['like', 'comment', 'follow', 'activity', 'duel_invite'].contains(n.type))
+        .toList();
 
     return Scaffold(
       backgroundColor: AppColors.bgFor(context),
@@ -176,6 +181,8 @@ class _NotificationList extends StatelessWidget {
           typeIcon = const Icon(Icons.chat_bubble_rounded, color: Colors.orange, size: 14);
         } else if (n.type == 'follow') {
           typeIcon = const Icon(Icons.person_add_rounded, color: Colors.blue, size: 14);
+        } else if (n.type == 'duel_invite') {
+          typeIcon = const Icon(Icons.flash_on_rounded, color: AppColors.primary, size: 16);
         } else {
           typeIcon = const Icon(Icons.info_outline_rounded, color: AppColors.primary, size: 15);
         }
@@ -185,7 +192,12 @@ class _NotificationList extends StatelessWidget {
             ? n.payload!['senderName'][0].toUpperCase()
             : (n.message.isNotEmpty ? n.message[0].toUpperCase() : 'D');
 
-        return Row(
+        return InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: () => _handleNotificationTap(context, n),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Stack(
@@ -266,9 +278,48 @@ class _NotificationList extends StatelessWidget {
               ),
             ),
           ],
+            ),
+          ),
         );
       },
     );
+  }
+
+  Future<void> _handleNotificationTap(
+    BuildContext context,
+    NotificationModel n,
+  ) async {
+    if (!n.read && n.id.isNotEmpty) {
+      context.read<NotificationsProvider>().markAsRead(n.id);
+    }
+
+    if (n.type == 'duel_invite' && n.postId != null && n.postId!.isNotEmpty) {
+      final request = await SupabaseService.instance.getDuelRequest(n.postId!);
+      if (!context.mounted) return;
+      if (request != null && request['status'] == 'pending') {
+        await showIncomingDuelInviteDialog(context, request);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('This challenge has expired or already been handled.'),
+          ),
+        );
+      }
+      return;
+    }
+
+    if ((n.type == 'pr_request' ||
+            n.type == 'pr_accepted' ||
+            n.type == 'solved') &&
+        n.questionId != null &&
+        n.questionId!.isNotEmpty) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => QuestionDetailScreen(questionId: n.questionId!),
+        ),
+      );
+    }
   }
 
   String _formatTimeAgo(DateTime dt) {

@@ -51,3 +51,6 @@ app.*.map.json
 .env
 .gemini/
 supabase/.temp/
+
+# APK build outputs
+*.apk

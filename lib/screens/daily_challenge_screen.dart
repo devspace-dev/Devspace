@@ -4,14 +4,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
 
+import '../core/services/reward_feedback.dart';
+import '../core/theme/colors.dart';
+import '../core/theme/text.dart';
+import '../core/widgets/aura_chip.dart';
+import '../core/widgets/ds_button.dart';
+import '../core/widgets/ds_card.dart';
+import '../core/widgets/ds_tag.dart';
+import '../core/widgets/glitch.dart';
 import '../models/daily_challenge_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/engagement_provider.dart';
-import '../theme/app_colors.dart';
-import '../widgets/app_state_widgets.dart';
-import '../widgets/app_ui_kit.dart';
+import '../services/supabase_service.dart';
 
 class DailyChallengeScreen extends StatefulWidget {
   const DailyChallengeScreen({super.key});
@@ -72,13 +77,26 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
     if (!mounted) return;
 
     if (success) {
+      if (mounted) {
+        try {
+          final authP = context.read<AuthProvider>();
+          if (provider.auraSummary != null) {
+            authP.updateLocalAura(provider.auraSummary!.auraPoints);
+          }
+        } catch (_) {}
+      }
+      unawaited(provider.fetchAuraHistory());
+      unawaited(SupabaseService.instance.syncMyBadges());
       final challenge = provider.dailyChallenge;
       final solved = challenge?.wasSolved ?? false;
       final awardedPoints =
           solved ? (challenge?.pointsReward ?? 20) : DailyChallengeModel.attemptReward;
 
       if (solved) {
+        RewardFeedback.success();
         _playSuccessOverlay(awardedPoints);
+      } else {
+        RewardFeedback.medium();
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -87,8 +105,9 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
             solved
                 ? 'Correct answer. +$awardedPoints Aura added.'
                 : 'Wrong answer. +$awardedPoints Aura for attempting. Mission locked until tomorrow.',
+            style: DsText.label.copyWith(color: Ds.ink),
           ),
-          backgroundColor: solved ? Colors.green : Colors.orange,
+          backgroundColor: solved ? Ds.mint : Ds.hot,
           behavior: SnackBarBehavior.floating,
           margin: EdgeInsets.only(
             bottom: MediaQuery.of(context).size.height - 160,
@@ -102,7 +121,11 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
 
     if (provider.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(provider.error!)),
+        SnackBar(
+          content: Text(provider.error!, style: DsText.label.copyWith(color: Ds.ink)),
+          backgroundColor: Ds.hot,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     }
   }
@@ -141,70 +164,128 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
   @override
   Widget build(BuildContext context) {
     final me = context.watch<AuthProvider>().currentUserOrNull;
+    final provider = context.watch<EngagementProvider>();
+    final daily = provider.dailyChallenge;
+    final canSubmit = daily != null && !daily.completed;
 
     return Scaffold(
-      backgroundColor: AppColors.bgFor(context),
+      backgroundColor: Ds.ink,
+      appBar: AppBar(
+        backgroundColor: Ds.ink,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: GestureDetector(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              Navigator.pop(context);
+            },
+            child: Container(
+              decoration: BoxDecoration(
+                color: Ds.surface,
+                shape: BoxShape.circle,
+                border: Border.all(color: Ds.border),
+              ),
+              child: const Icon(Icons.arrow_back_ios_new_rounded, color: Ds.bone, size: 16),
+            ),
+          ),
+        ),
+        title: Text(
+          'DAILY MISSION',
+          style: DsText.h2.copyWith(fontSize: 20, color: Ds.bone),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: Center(
+              child: AuraChip(me?.aura ?? 0),
+            ),
+          ),
+        ],
+      ),
+      bottomNavigationBar: canSubmit
+          ? Container(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+              decoration: const BoxDecoration(
+                color: Ds.ink,
+                border: Border(top: BorderSide(color: Ds.border, width: 1)),
+              ),
+              child: SafeArea(
+                top: false,
+                child: SizedBox(
+                  height: 52,
+                  child: DsButton(
+                    label: 'CONFIRM SUBMISSION',
+                    kind: DsButtonKind.aura,
+                    loading: provider.isSubmittingChallenge,
+                    onPressed: _selectedOption == null ? null : () => _submit(provider),
+                  ),
+                ),
+              ),
+            )
+          : null,
       body: Stack(
         children: [
-          AppGradientBackground(
-            child: Consumer<EngagementProvider>(
-              builder: (context, provider, _) {
-                return CustomScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  slivers: [
-                    _buildAppBar(context),
-                    if (provider.isLoading && provider.dailyChallenge == null)
-                      const SliverFillRemaining(
-                        child: Center(
-                          child: CircularProgressIndicator.adaptive(),
-                        ),
-                      )
-                    else if (provider.dailyChallenge == null)
-                      const SliverFillRemaining(
-                        child: AppEmptyState(
-                          icon: Icons.auto_awesome_rounded,
-                          title: 'No mission today',
-                          message: 'Check back tomorrow for a new mission.',
-                        ),
-                      )
-                    else
-                      SliverToBoxAdapter(
-                        child: Builder(
-                          builder: (context) {
-                            final daily = provider.dailyChallenge!;
-                            if (!daily.completed &&
-                                _selectedOption != null &&
-                                !daily.options.contains(_selectedOption)) {
-                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                if (mounted) {
-                                  setState(() {
-                                    _selectedOption = null;
-                                  });
-                                }
-                              });
-                            }
-
-                            return Padding(
-                              padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _buildMissionHeader(context, me),
-                                  const SizedBox(height: 24),
-                                  _buildMainCard(context, daily),
-                                  const SizedBox(height: 32),
-                                  if (!daily.completed) _buildActionSection(context, provider),
-                                  if (daily.completed) _buildCompletionStatus(context, daily),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                  ],
+          Consumer<EngagementProvider>(
+            builder: (context, provider, _) {
+              if (provider.isLoading && provider.dailyChallenge == null) {
+                return const Center(
+                  child: CircularProgressIndicator(color: Ds.aura),
                 );
-              },
-            ),
+              }
+
+              if (provider.dailyChallenge == null) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Glitch(size: 80, mood: GlitchMood.idle),
+                        const SizedBox(height: 16),
+                        Text('NO MISSION TODAY', style: DsText.h3.copyWith(color: Ds.bone)),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Check back tomorrow for a new mission.',
+                          textAlign: TextAlign.center,
+                          style: DsText.bodySm.copyWith(color: Ds.muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              final daily = provider.dailyChallenge!;
+              if (!daily.completed &&
+                  _selectedOption != null &&
+                  !daily.options.contains(_selectedOption)) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    setState(() {
+                      _selectedOption = null;
+                    });
+                  }
+                });
+              }
+
+              return SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildMissionHeader(context, me),
+                    const SizedBox(height: 16),
+                    _buildMainCard(context, daily),
+                    const SizedBox(height: 24),
+                    if (!daily.completed) _buildActionSection(context, provider),
+                    if (daily.completed) _buildCompletionStatus(context, daily),
+                  ],
+                ),
+              );
+            },
           ),
           if (_showSuccessOverlay)
             Positioned.fill(
@@ -218,147 +299,187 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
     );
   }
 
-  Widget _buildAppBar(BuildContext context) {
-    return SliverAppBar(
-      floating: false,
-      pinned: true,
-      elevation: 0,
-      backgroundColor: Colors.transparent,
-      surfaceTintColor: Colors.transparent,
-      centerTitle: false,
-      title: Text(
-        'Daily Mission',
-        style: GoogleFonts.plusJakartaSans(
-          fontWeight: FontWeight.w900,
-          fontSize: 24,
-          color: AppColors.textFor(context),
-          letterSpacing: -0.5,
-        ),
-      ),
-    );
-  }
-
   Widget _buildMissionHeader(BuildContext context, dynamic me) {
     return Wrap(
-      spacing: 12,
-      runSpacing: 12,
+      spacing: 8,
+      runSpacing: 8,
       children: [
-        _HeaderBadge(
-          label: '${me?.currentStreak ?? 0} DAY STREAK',
-          icon: Icons.local_fire_department_rounded,
-          color: Colors.orange,
-        ).animate().fadeIn().slideX(begin: -0.1),
-        const _HeaderBadge(
-          label: '+20 SOLVE / +5 TRY',
-          icon: Icons.bolt_rounded,
-          color: AppColors.primary,
-        ).animate().fadeIn(delay: 100.ms).slideX(begin: -0.2),
+        DsTag(
+          '${me?.currentStreak ?? 0} DAY STREAK',
+          bg: Ds.surface,
+          fg: Ds.hot,
+        ),
+        const DsTag(
+          '+20 SOLVE / +5 TRY',
+          bg: Ds.aura,
+          fg: Ds.ink,
+        ),
       ],
     );
   }
 
-
   Widget _buildMainCard(BuildContext context, DailyChallengeModel challenge) {
-    final showDescription = challenge.description.trim() != challenge.question.trim();
+    final showDescription =
+        challenge.description.trim() != challenge.question.trim();
 
-    return AppGlassCard(
-      padding: const EdgeInsets.all(24),
+    return DsCard(
+      leftBar: challenge.completed
+          ? (challenge.wasSolved ? Ds.mint : Ds.hot)
+          : Ds.aura,
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
-                ),
-                child: Text(
-                  challenge.techStack.toUpperCase(),
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.primary,
-                    letterSpacing: 1.0,
-                  ),
-                ),
+              DsTag(
+                challenge.techStack.toUpperCase(),
+                bg: Ds.surface,
+                fg: Ds.aura,
               ),
-              AppBadge(
-                label: challenge.difficulty.toUpperCase(),
-                color: _getDifficultyColor(challenge.difficulty),
+              DsTag(
+                challenge.difficulty.toUpperCase(),
+                bg: _getDifficultyColor(challenge.difficulty),
+                fg: Ds.ink,
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           Text(
-            challenge.title,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
-              color: AppColors.textFor(context),
-              letterSpacing: -0.8,
-              height: 1.2,
-            ),
+            challenge.title.toUpperCase(),
+            style: DsText.h2.copyWith(fontSize: 22, color: Ds.bone, height: 1.15),
           ),
           if (showDescription) ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             Text(
               challenge.description,
-              style: TextStyle(
-                fontSize: 15,
-                height: 1.6,
-                color: AppColors.text2For(context),
+              style: DsText.body.copyWith(
+                fontSize: 14,
+                height: 1.5,
+                color: Ds.muted,
               ),
             ),
           ],
-          const SizedBox(height: 28),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.bg3For(context).withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.borderFor(context)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  challenge.question,
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    height: 1.5,
-                    color: AppColors.textFor(context),
-                    fontFamily: 'monospace',
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
+          _buildQuestionContent(challenge.question),
+          const SizedBox(height: 16),
           Row(
             children: [
-              const Icon(Icons.info_outline_rounded, size: 16, color: AppColors.text3),
-              const SizedBox(width: 8),
+              const Icon(Icons.info_outline_rounded, size: 14, color: Ds.muted),
+              const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   'Solve this to boost your aura and maintain your streak.',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.text3For(context),
-                  ),
+                  style: DsText.caption.copyWith(color: Ds.muted),
                 ),
               ),
             ],
           ),
         ],
       ),
-    ).animate().scale(delay: 200.ms, curve: Curves.easeOutBack);
+    ).animate().fadeIn(duration: 200.ms);
+  }
+
+  Widget _buildQuestionContent(String rawQuestion) {
+    final trimmed = rawQuestion.trim();
+    if (!trimmed.contains('```')) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Ds.ink,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Ds.border),
+        ),
+        child: Text(
+          trimmed,
+          style: DsText.body.copyWith(
+            fontSize: 15,
+            height: 1.5,
+            color: Ds.bone,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      );
+    }
+
+    final parts = trimmed.split('```');
+    final widgets = <Widget>[];
+
+    for (int i = 0; i < parts.length; i++) {
+      final part = parts[i];
+      if (part.trim().isEmpty) continue;
+
+      if (i % 2 == 1) {
+        // Monospace code block with horizontal scrolling
+        String code = part;
+        final firstNewline = code.indexOf('\n');
+        if (firstNewline != -1) {
+          final firstWord = code.substring(0, firstNewline).trim();
+          if (firstWord.isNotEmpty && !firstWord.contains(' ') && firstWord.length < 15) {
+            code = code.substring(firstNewline + 1);
+          }
+        }
+
+        widgets.add(
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.symmetric(vertical: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Ds.ink,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Ds.border),
+            ),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Text(
+                code.trimRight(),
+                style: const TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 13,
+                  height: 1.45,
+                  color: Ds.aura,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        );
+      } else {
+        // Prose block wrapping naturally to width
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Text(
+              part.trim(),
+              style: DsText.body.copyWith(
+                fontSize: 15,
+                height: 1.5,
+                color: Ds.bone,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Ds.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Ds.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: widgets,
+      ),
+    );
   }
 
   Widget _buildActionSection(BuildContext context, EngagementProvider provider) {
@@ -370,53 +491,83 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
       children: [
         Text(
           'SELECT YOUR ANSWER',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 12,
-            fontWeight: FontWeight.w900,
-            color: AppColors.text3For(context),
-            letterSpacing: 1.5,
-          ),
-        ).animate().fadeIn(delay: 300.ms),
-        const SizedBox(height: 16),
-        ListView.separated(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: challenge.options.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
-          itemBuilder: (context, index) {
-            final option = challenge.options[index];
-            return _PhysicalOption(
-              label: option,
-              isSelected: _selectedOption == option,
+          style: DsText.label.copyWith(fontSize: 11, color: Ds.muted, letterSpacing: 1.5),
+        ).animate().fadeIn(delay: 150.ms),
+        const SizedBox(height: 14),
+        ...List.generate(challenge.options.length, (index) {
+          final option = challenge.options[index];
+          final letter = String.fromCharCode(65 + index);
+          final isSelected = _selectedOption == option;
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: GestureDetector(
               onTap: () {
-                HapticFeedback.lightImpact();
+                RewardFeedback.selection();
                 setState(() {
                   _selectedOption = option;
                 });
               },
-            );
-          },
-        ).animate().fadeIn(delay: 420.ms).slideY(begin: 0.1),
+              child: Container(
+                constraints: const BoxConstraints(minHeight: 52),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: isSelected ? Ds.surface : Ds.surface.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isSelected ? Ds.aura : Ds.border,
+                    width: isSelected ? 2 : 1,
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      margin: const EdgeInsets.only(top: 2),
+                      decoration: BoxDecoration(
+                        color: isSelected ? Ds.aura : Ds.border,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        letter,
+                        style: DsText.caption.copyWith(
+                          color: isSelected ? Ds.ink : Ds.bone,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        option,
+                        style: DsText.body.copyWith(
+                          color: isSelected ? Ds.aura : Ds.bone,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    if (isSelected)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 4),
+                        child: Icon(Icons.check_circle_rounded, color: Ds.aura, size: 20),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }),
         if (provider.error != null) ...[
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Text(
             provider.error!,
-            style: const TextStyle(
-              fontSize: 13,
-              color: Colors.redAccent,
-              fontWeight: FontWeight.w600,
-            ),
+            style: DsText.caption.copyWith(color: Ds.hot, fontWeight: FontWeight.w600),
           ),
         ],
-        const SizedBox(height: 32),
-        AppButton(
-          onPressed: _selectedOption == null ? null : () => _submit(provider),
-          isLoading: provider.isSubmittingChallenge,
-          child: const Text(
-            'Confirm Submission',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 0.5),
-          ),
-        ).animate().fadeIn(delay: 560.ms).moveY(begin: 20),
       ],
     );
   }
@@ -428,41 +579,36 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
     final solved = challenge.wasSolved;
     final points =
         solved ? challenge.pointsReward : DailyChallengeModel.attemptReward;
-    final accent = solved ? Colors.green : Colors.orange;
 
-    return AppCard(
-      color: accent.withValues(alpha: 0.1),
-      border: Border.all(color: accent.withValues(alpha: 0.2)),
-      padding: const EdgeInsets.all(24),
+    return DsCard(
+      leftBar: solved ? Ds.mint : Ds.hot,
+      padding: const EdgeInsets.all(20),
       child: Row(
         children: [
-          Icon(
-            solved ? Icons.verified_rounded : Icons.lock_clock_rounded,
-            color: accent,
-            size: 48,
+          Glitch(
+            size: 56,
+            mood: solved ? GlitchMood.win : GlitchMood.lose,
           ),
-          const SizedBox(width: 20),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  solved ? 'Module Solved' : 'Module Attempted',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontWeight: FontWeight.w900,
-                    fontSize: 20,
-                    color: accent,
+                  solved ? 'MISSION SOLVED' : 'MISSION ATTEMPTED',
+                  style: DsText.h3.copyWith(
+                    fontSize: 16,
+                    color: solved ? Ds.mint : Ds.hot,
                   ),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   solved
                       ? 'You earned +$points Aura points. Your streak stays active.'
-                      : 'You earned +$points Aura for trying. This mission is locked until tomorrow.',
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: accent.withValues(alpha: 0.85),
-                    height: 1.45,
+                      : 'You earned +$points Aura for attempting. This mission is locked until tomorrow.',
+                  style: DsText.bodySm.copyWith(
+                    color: Ds.bone,
+                    height: 1.4,
                   ),
                 ),
               ],
@@ -470,63 +616,25 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
           ),
         ],
       ),
-    ).animate().shimmer(duration: 2.seconds).fadeIn();
+    ).animate().fadeIn();
   }
 
   Color _getDifficultyColor(String difficulty) {
     switch (difficulty.toLowerCase()) {
       case 'easy':
-        return Colors.green;
+        return Ds.mint;
       case 'medium':
-        return Colors.orange;
+        return Ds.aura;
       case 'hard':
-        return Colors.red;
+        return Ds.hot;
       default:
-        return AppColors.text3;
+        return Ds.border;
     }
   }
 
-  static String _dateKeyFor(DateTime dateTime) =>
-      dateTime.toIso8601String().split('T').first;
-}
-
-class _HeaderBadge extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final Color color;
-
-  const _HeaderBadge({
-    required this.label,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 18, color: color),
-          const SizedBox(width: 10),
-          Text(
-            label,
-            style: GoogleFonts.plusJakartaSans(
-              color: color,
-              fontWeight: FontWeight.w900,
-              fontSize: 12,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ],
-      ),
-    );
+  static String _dateKeyFor(DateTime dateTime) {
+    final ist = dateTime.toUtc().add(const Duration(hours: 5, minutes: 30));
+    return '${ist.year.toString().padLeft(4, '0')}-${ist.month.toString().padLeft(2, '0')}-${ist.day.toString().padLeft(2, '0')}';
   }
 }
 
@@ -560,13 +668,11 @@ class _MissionSolvedOverlay extends StatelessWidget {
           return Opacity(
             opacity: fade,
             child: Container(
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.85 * fade),
-              ),
+              color: Ds.ink.withValues(alpha: 0.88 * fade),
               child: Stack(
                 children: [
                   ...List.generate(
-                    32,
+                    24,
                     (index) => _CelebrationParticle(
                       controller: controller,
                       index: index,
@@ -578,56 +684,47 @@ class _MissionSolvedOverlay extends StatelessWidget {
                       child: Container(
                         margin: const EdgeInsets.symmetric(horizontal: 32),
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 32,
-                          vertical: 48,
+                          horizontal: 28,
+                          vertical: 36,
                         ),
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(40),
-                          gradient: const LinearGradient(
-                            colors: [AppColors.primary, Color(0xFF4F46E5)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.4),
-                              blurRadius: 60,
-                              spreadRadius: 10,
-                            ),
-                          ],
+                          color: Ds.surface,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Ds.mint, width: 2),
                         ),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(
-                              Icons.auto_awesome_rounded,
+                            const Glitch(
                               size: 80,
-                              color: Colors.white,
+                              mood: GlitchMood.win,
                             ),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 20),
                             Text(
-                              'EXCELLENT!',
+                              'BIG BRAIN!',
                               textAlign: TextAlign.center,
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 32,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                                letterSpacing: 2.0,
+                              style: DsText.h1.copyWith(
+                                fontSize: 28,
+                                color: Ds.bone,
+                                letterSpacing: 1.5,
                               ),
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 14),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
                               decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(99),
+                                color: Ds.mint,
+                                borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
                                 '+$awardedPoints AURA POINTS',
                                 style: const TextStyle(
-                                  fontSize: 18,
+                                  fontSize: 16,
                                   fontWeight: FontWeight.w800,
-                                  color: Colors.white,
+                                  color: Ds.ink,
                                   letterSpacing: 1.0,
                                 ),
                               ),
@@ -642,78 +739,6 @@ class _MissionSolvedOverlay extends StatelessWidget {
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-class _PhysicalOption extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _PhysicalOption({
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final shadowColor = isSelected
-        ? AppColors.primary.withValues(alpha: 0.3)
-        : Colors.black.withValues(alpha: 0.1);
-
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        curve: Curves.easeOut,
-        transform: Matrix4.translationValues(0, isSelected ? 4 : 0, 0),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : AppColors.bg2For(context),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.borderFor(context),
-            width: isSelected ? 2.5 : 1.5,
-          ),
-          boxShadow: isSelected 
-            ? [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.15),
-                  blurRadius: 15,
-                  spreadRadius: 2,
-                )
-              ] 
-            : [
-                BoxShadow(
-                  color: shadowColor,
-                  offset: const Offset(0, 4),
-                  blurRadius: 0,
-                ),
-              ],
-        ),
-        child: Row(
-          children: [
-            Icon(
-              isSelected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
-              color: isSelected ? AppColors.primary : AppColors.text3For(context),
-              size: 24,
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: isSelected ? AppColors.primary : AppColors.textFor(context),
-                  fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
-                  fontSize: 16,
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -736,13 +761,11 @@ class _CelebrationParticle extends StatelessWidget {
     final endY = 1.1 + ((index % 3) * 0.1);
     final drift = ((index % 6) - 2.5) * 0.04;
     final turns = ((index % 5) + 1) * 0.25;
-    final colors = <Color>[
-      const Color(0xFFFFD54F),
-      const Color(0xFFFF7043),
-      const Color(0xFF4DD0E1),
-      const Color(0xFF81C784),
-      const Color(0xFFBA68C8),
-      AppColors.primary,
+    const colors = <Color>[
+      Ds.aura,
+      Ds.mint,
+      Ds.hot,
+      Ds.bone,
     ];
     final color = colors[index % colors.length];
 

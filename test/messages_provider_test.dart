@@ -89,6 +89,44 @@ void main() {
 
     provider.dispose();
   });
+
+  test('setActiveConversationId does not notify listeners and matches active conversation participants', () async {
+    final provider = MessagesProvider(
+      conversationStreamLoader: (_) => Stream.value([
+        _conversation(id: 'conv-1'),
+      ]),
+    );
+
+    await provider.init('user-1');
+    await Future<void>.delayed(Duration.zero);
+
+    var listenerNotificationCount = 0;
+    provider.addListener(() {
+      listenerNotificationCount++;
+    });
+
+    expect(provider.activeConversationId, isNull);
+    expect(provider.isNotificationForActiveConversation('user-2'), isFalse);
+
+    provider.setActiveConversationId('conv-1');
+    expect(listenerNotificationCount, 0,
+        reason: 'setActiveConversationId must not notify listeners');
+    expect(provider.activeConversationId, 'conv-1');
+    expect(provider.isNotificationForActiveConversation('user-2'), isTrue);
+    expect(provider.isNotificationForActiveConversation('user-3'), isFalse);
+    expect(provider.isNotificationForActiveConversation(null), isFalse);
+
+    provider.setActiveConversationId('conv-1');
+    expect(listenerNotificationCount, 0);
+
+    provider.setActiveConversationId(null);
+    expect(listenerNotificationCount, 0,
+        reason: 'clearing activeConversationId must not notify listeners');
+    expect(provider.activeConversationId, isNull);
+    expect(provider.isNotificationForActiveConversation('user-2'), isFalse);
+
+    provider.dispose();
+  });
 }
 
 ConversationModel _conversation({required String id}) {

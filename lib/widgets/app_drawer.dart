@@ -8,7 +8,7 @@ import '../providers/auth_provider.dart';
 import '../screens/aura_board_screen.dart';
 import '../screens/daily_challenge_screen.dart';
 import '../screens/founder_tools_screen.dart';
-import '../screens/profile_screen.dart';
+import '../features/profile/screens/profile_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/practice_map_screen.dart';
 import '../screens/roadmap_directory_screen.dart';
@@ -352,18 +352,26 @@ class _DevSpaceDrawerState extends State<DevSpaceDrawer> {
                     iconColor: Colors.redAccent,
                     title: 'Log Out',
                     onTap: () async {
+                      final authProvider = context.read<AuthProvider>();
+                      final rootNavigator =
+                          Navigator.of(context, rootNavigator: true);
+                      final dialogBg = AppColors.bg2For(context);
+                      final titleColor = AppColors.textFor(context);
+                      final contentColor = AppColors.text2For(context);
+
                       Navigator.pop(context);
+
                       final confirm = await showDialog<bool>(
-                        context: context,
+                        context: rootNavigator.context,
                         builder: (ctx) => AlertDialog(
-                          backgroundColor: AppColors.bg2For(context),
+                          backgroundColor: dialogBg,
                           title: Text(
                             'Sign out?',
-                            style: TextStyle(color: AppColors.textFor(context)),
+                            style: TextStyle(color: titleColor),
                           ),
                           content: Text(
                             'You will return to the login screen on this device.',
-                            style: TextStyle(color: AppColors.text2For(context)),
+                            style: TextStyle(color: contentColor),
                           ),
                           actions: [
                             TextButton(
@@ -380,11 +388,9 @@ class _DevSpaceDrawerState extends State<DevSpaceDrawer> {
                         ),
                       );
 
-                      if (confirm == true && context.mounted) {
-                        await context.read<AuthProvider>().signOut();
-                        if (context.mounted) {
-                          Navigator.of(context).popUntil((route) => route.isFirst);
-                        }
+                      if (confirm == true) {
+                        await authProvider.signOut();
+                        rootNavigator.popUntil((route) => route.isFirst);
                       }
                     },
                   ),

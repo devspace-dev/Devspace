@@ -33,11 +33,13 @@ class PostCreateResult {
 
 class PostsProvider extends ChangeNotifier {
   PostsProvider({
+    List<PostModel>? initialPosts,
     PostsPageLoader? postsPageLoader,
     CurrentUserResolver? currentUserResolver,
     PostIdSetLoader? likedPostIdsLoader,
     PostIdSetLoader? bookmarkedPostIdsLoader,
-  })  : _postsPageLoader = postsPageLoader ?? _defaultPostsPageLoader,
+  })  : _posts = initialPosts != null ? List.from(initialPosts) : [],
+        _postsPageLoader = postsPageLoader ?? _defaultPostsPageLoader,
         _currentUserResolver =
             currentUserResolver ?? _defaultCurrentUserResolver,
         _likedPostIdsLoader = likedPostIdsLoader ?? _defaultLikedPostIdsLoader,

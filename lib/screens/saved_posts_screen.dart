@@ -51,7 +51,7 @@ class _SavedPostsScreenState extends State<SavedPostsScreen> {
             return ListView.builder(
               padding: const EdgeInsets.only(top: 8),
               itemCount: 5,
-              itemBuilder: (context, index) => PostCardSkeleton(),
+              itemBuilder: (context, index) => const PostCardSkeleton(),
             );
           }
 

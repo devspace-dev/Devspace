@@ -1,9 +1,13 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
+import '../core/theme/colors.dart';
 import '../models/user_model.dart';
+import '../services/supabase_service.dart';
 import '../widgets/user_avatar.dart';
+import 'waiting_for_opponent_screen.dart';
 
 class DuelResultScreen extends StatefulWidget {
   final UserModel me;
@@ -11,6 +15,7 @@ class DuelResultScreen extends StatefulWidget {
   final int myScore;
   final int opponentScore;
   final String mode;
+  final String? category;
   final int myQuestionsAnswered;
   final int opponentQuestionsAnswered;
   final double myAccuracy;
@@ -20,6 +25,13 @@ class DuelResultScreen extends StatefulWidget {
   final List<int>? opponentScoreTimeline;
   final UserModel? teammate;
   final UserModel? opponentTeammate;
+  final Future<String> Function({
+    required String senderId,
+    required String receiverId,
+    required String category,
+    required String mode,
+  })? onSendDuelRequest;
+  final Widget Function(String requestId)? waitingScreenBuilder;
 
   const DuelResultScreen({
     super.key,
@@ -28,6 +40,7 @@ class DuelResultScreen extends StatefulWidget {
     required this.myScore,
     required this.opponentScore,
     required this.mode,
+    this.category,
     required this.myQuestionsAnswered,
     required this.opponentQuestionsAnswered,
     required this.myAccuracy,
@@ -37,6 +50,8 @@ class DuelResultScreen extends StatefulWidget {
     this.opponentScoreTimeline,
     this.teammate,
     this.opponentTeammate,
+    this.onSendDuelRequest,
+    this.waitingScreenBuilder,
   });
 
   @override
@@ -64,6 +79,10 @@ class _DuelResultScreenState extends State<DuelResultScreen> {
 
   String get _oppChangeStr => '+$_oppEarnedPoints';
 
+  bool _isRequestingRematch = false;
+  int _rematchCooldownSeconds = 0;
+  Timer? _cooldownTimer;
+
   @override
   void initState() {
     super.initState();
@@ -72,8 +91,100 @@ class _DuelResultScreenState extends State<DuelResultScreen> {
 
   @override
   void dispose() {
+    _cooldownTimer?.cancel();
     _pageController.dispose();
     super.dispose();
+  }
+
+  void _startRematchCooldown() {
+    _cooldownTimer?.cancel();
+    if (!mounted) return;
+    setState(() {
+      _isRequestingRematch = false;
+      _rematchCooldownSeconds = 10;
+    });
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      setState(() {
+        if (_rematchCooldownSeconds > 1) {
+          _rematchCooldownSeconds--;
+        } else {
+          _rematchCooldownSeconds = 0;
+          timer.cancel();
+        }
+      });
+    });
+  }
+
+  Future<void> _handleRematch() async {
+    if (_isRequestingRematch || _rematchCooldownSeconds > 0) return;
+
+    if (widget.me.id.isEmpty || widget.opponent.id.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cannot rematch: opponent info is unavailable.'),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isRequestingRematch = true;
+    });
+
+    try {
+      final category = widget.category ?? 'Combat';
+      final String requestId;
+      if (widget.onSendDuelRequest != null) {
+        requestId = await widget.onSendDuelRequest!(
+          senderId: widget.me.id,
+          receiverId: widget.opponent.id,
+          category: category,
+          mode: widget.mode,
+        );
+      } else {
+        requestId = await SupabaseService.instance.sendDuelRequest(
+          senderId: widget.me.id,
+          receiverId: widget.opponent.id,
+          category: category,
+          mode: widget.mode,
+        );
+      }
+
+      if (!mounted) return;
+
+      final Widget waitingScreen = widget.waitingScreenBuilder != null
+          ? widget.waitingScreenBuilder!(requestId)
+          : WaitingForOpponentScreen(
+              requestId: requestId,
+              opponent: widget.opponent,
+              category: category,
+              mode: widget.mode,
+            );
+
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => waitingScreen,
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        final errorMsg = SupabaseService.instance.cleanErrorText(e);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to request rematch: $errorMsg'),
+            backgroundColor: Ds.hot,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        _startRematchCooldown();
+      }
+    }
   }
 
   void _onPageChanged(int page) {
@@ -95,35 +206,43 @@ class _DuelResultScreenState extends State<DuelResultScreen> {
     final bool iWon = widget.myScore >= widget.opponentScore;
     final themeColor = iWon ? const Color(0xFF00FFCC) : const Color(0xFFFF416C);
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF0F0F12),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              themeColor.withValues(alpha: 0.08),
-              const Color(0xFF0F0F12),
-            ],
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFF0F0F12),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                themeColor.withValues(alpha: 0.08),
+                const Color(0xFF0F0F12),
+              ],
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              _buildTopBar(iWon, themeColor),
-              Expanded(
-                child: PageView(
-                  controller: _pageController,
-                  scrollDirection: Axis.vertical,
-                  onPageChanged: _onPageChanged,
-                  children: [
-                    _buildOverviewCard(iWon, themeColor),
-                    _buildDetailedAnalytics(iWon, themeColor),
-                  ],
+          child: SafeArea(
+            child: Column(
+              children: [
+                _buildTopBar(iWon, themeColor),
+                Expanded(
+                  child: PageView(
+                    controller: _pageController,
+                    scrollDirection: Axis.horizontal,
+                    onPageChanged: _onPageChanged,
+                    children: [
+                      _buildOverviewCard(iWon, themeColor),
+                      _buildDetailedAnalytics(iWon, themeColor),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -356,12 +475,12 @@ class _DuelResultScreenState extends State<DuelResultScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.keyboard_double_arrow_up_rounded, color: Colors.white38, size: 24)
+                            const Icon(Icons.keyboard_double_arrow_right_rounded, color: Colors.white38, size: 24)
                                 .animate(onPlay: (c) => c.repeat(reverse: true))
-                                .moveY(begin: 0, end: -6, duration: 800.ms),
+                                .moveX(begin: 0, end: 6, duration: 800.ms),
                             const SizedBox(height: 4),
                             Text(
-                              "SWIPE UP FOR DETAILED ANALYSIS",
+                              "SWIPE LEFT FOR DETAILED ANALYSIS",
                               style: GoogleFonts.plusJakartaSans(
                                 color: Colors.white30,
                                 fontSize: 9,
@@ -400,19 +519,19 @@ class _DuelResultScreenState extends State<DuelResultScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Drag handle indicator (Swipe down)
+          // Drag handle indicator (Swipe right for summary)
           Center(
             child: GestureDetector(
               onTap: () => _navigateToPage(0),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.keyboard_double_arrow_down_rounded, color: Colors.white24, size: 20)
+                  const Icon(Icons.keyboard_double_arrow_left_rounded, color: Colors.white24, size: 20)
                       .animate(onPlay: (c) => c.repeat(reverse: true))
-                      .moveY(begin: 0, end: 4, duration: 800.ms),
+                      .moveX(begin: 0, end: -4, duration: 800.ms),
                   const SizedBox(height: 2),
                   Text(
-                    "SWIPE DOWN FOR SUMMARY",
+                    "SWIPE RIGHT FOR SUMMARY",
                     style: GoogleFonts.plusJakartaSans(
                       color: Colors.white30,
                       fontSize: 8,
@@ -892,55 +1011,95 @@ class _DuelResultScreenState extends State<DuelResultScreen> {
   }
 
   Widget _buildActionButtons() {
+    final bool canRematch = !_isRequestingRematch && _rematchCooldownSeconds == 0;
+    final String rematchLabel = _isRequestingRematch
+        ? "WAITING..."
+        : _rematchCooldownSeconds > 0
+            ? "REMATCH (${_rematchCooldownSeconds}s)"
+            : "REMATCH";
+
     return Row(
       children: [
         Expanded(
-          child: ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).popUntil((route) => route.isFirst);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white.withValues(alpha: 0.03),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: const BorderSide(color: Colors.white10),
+          child: SizedBox(
+            height: 48,
+            child: ElevatedButton(
+              onPressed: canRematch ? _handleRematch : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: canRematch
+                    ? Ds.aura.withValues(alpha: 0.12)
+                    : Colors.white.withValues(alpha: 0.03),
+                foregroundColor: canRematch ? Ds.aura : Colors.white38,
+                disabledBackgroundColor: Colors.white.withValues(alpha: 0.03),
+                disabledForegroundColor: Colors.white38,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: canRematch ? Ds.aura : Colors.white10,
+                    width: canRematch ? 1.5 : 1.0,
+                  ),
+                ),
               ),
-            ),
-            child: Text(
-              "REMATCH",
-              style: GoogleFonts.plusJakartaSans(
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.2,
-                fontSize: 12,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_isRequestingRematch) ...[
+                      const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Ds.aura),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    Text(
+                      rematchLabel,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).popUntil((route) => route.isFirst);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF00FFCC).withValues(alpha: 0.1),
-              foregroundColor: const Color(0xFF00FFCC),
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: const BorderSide(color: Color(0xFF00FFCC), width: 1),
+          child: SizedBox(
+            height: 48,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00FFCC).withValues(alpha: 0.1),
+                foregroundColor: const Color(0xFF00FFCC),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: const BorderSide(color: Color(0xFF00FFCC), width: 1),
+                ),
               ),
-            ),
-            child: Text(
-              "NEW DUEL",
-              style: GoogleFonts.plusJakartaSans(
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.2,
-                fontSize: 12,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  "NEW DUEL",
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
+                    fontSize: 12,
+                  ),
+                ),
               ),
             ),
           ),

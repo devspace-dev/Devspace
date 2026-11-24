@@ -30,11 +30,12 @@ class DevSpaceLogo extends StatelessWidget {
       ),
     );
 
-    final finalColor = color ?? fallbackColor;
-    imageWidget = ColorFiltered(
-      colorFilter: ColorFilter.mode(finalColor, BlendMode.srcIn),
-      child: imageWidget,
-    );
+    if (color != null) {
+      imageWidget = ColorFiltered(
+        colorFilter: ColorFilter.mode(color!, BlendMode.srcIn),
+        child: imageWidget,
+      );
+    }
 
     return SizedBox(
       width: size,

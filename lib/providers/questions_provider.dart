@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 
 import '../models/question_model.dart';
 import '../models/question_reply_model.dart';
-import '../models/question_pull_request_model.dart';
 import '../services/auth_service.dart';
 import '../services/supabase_service.dart';
 
@@ -19,6 +18,12 @@ class QuestionActionResult {
 }
 
 class QuestionsProvider extends ChangeNotifier {
+  QuestionsProvider({List<QuestionModel>? initialQuestions}) {
+    if (initialQuestions != null) {
+      _questions = List.from(initialQuestions);
+    }
+  }
+
   List<QuestionModel> _questions = [];
   final Map<String, List<QuestionReplyModel>> _repliesByQuestion = {};
   final Map<String, bool> _replyLoading = {};
@@ -34,11 +39,6 @@ class QuestionsProvider extends ChangeNotifier {
   String? _error;
   String _currentFilter = 'latest';
   static const int _pageSize = 20;
-
-  final Map<String, List<QuestionPullRequestModel>> _pullRequestsByQuestion = {};
-  final Map<String, bool> _prLoading = {};
-  final Map<String, String?> _prErrors = {};
-  final Map<String, bool> _prSubmitting = {};
 
   List<QuestionModel> get questions => List.unmodifiable(_questions);
   bool get isLoading => _isLoading;
@@ -65,9 +65,6 @@ class QuestionsProvider extends ChangeNotifier {
   bool isSolveUpdating(String questionId) =>
       _solveUpdating[questionId] ?? false;
   String? solveError(String questionId) => _solveErrors[questionId];
-  bool isPRLoading(String questionId) => _prLoading[questionId] ?? false;
-  String? prError(String questionId) => _prErrors[questionId];
-  bool isPRSubmitting(String questionId) => _prSubmitting[questionId] ?? false;
 
   QuestionModel? getQuestionById(String questionId) {
     try {
@@ -80,108 +77,6 @@ class QuestionsProvider extends ChangeNotifier {
   List<QuestionReplyModel> repliesForQuestion(String questionId) {
     return List.unmodifiable(_repliesByQuestion[questionId] ?? const []);
   }
-
-  List<QuestionPullRequestModel> pullRequestsForQuestion(String questionId) {
-    return List.unmodifiable(_pullRequestsByQuestion[questionId] ?? const []);
-  }
-
-  QuestionPullRequestModel? getMyPullRequest(String questionId, String userId) {
-    try {
-      return _pullRequestsByQuestion[questionId]?.firstWhere(
-        (pr) => pr.userId == userId,
-      );
-    } catch (_) {
-      return null;
-    }
-  }
-
-  Future<void> fetchPullRequests(String questionId) async {
-    _prLoading[questionId] = true;
-    _prErrors[questionId] = null;
-    notifyListeners();
-
-    try {
-      final prs =
-          await SupabaseService.instance.getPullRequestsForQuestion(questionId);
-      _pullRequestsByQuestion[questionId] = prs;
-    } catch (e) {
-      _prErrors[questionId] =
-          'Failed to load pull requests: ${SupabaseService.instance.cleanErrorText(e)}';
-    } finally {
-      _prLoading[questionId] = false;
-      notifyListeners();
-    }
-  }
-
-  Future<QuestionActionResult> submitPullRequest({
-    required String questionId,
-    required String userId,
-    required String message,
-  }) async {
-    final trimmedMessage = message.trim();
-    if (trimmedMessage.isEmpty) {
-      return const QuestionActionResult(
-        success: false,
-        error: 'Message is required.',
-      );
-    }
-
-    _prSubmitting[questionId] = true;
-    notifyListeners();
-
-    try {
-      await SupabaseService.instance.submitPullRequest(
-        questionId: questionId,
-        userId: userId,
-        message: trimmedMessage,
-      );
-
-      await fetchPullRequests(questionId);
-      return const QuestionActionResult(success: true);
-    } catch (e) {
-      return QuestionActionResult(
-        success: false,
-        error:
-            'Failed to submit pull request: ${SupabaseService.instance.cleanErrorText(e)}',
-      );
-    } finally {
-      _prSubmitting[questionId] = false;
-      notifyListeners();
-    }
-  }
-
-  Future<QuestionActionResult> updatePullRequestStatus({
-    required String questionId,
-    required String prId,
-    required String status,
-  }) async {
-    try {
-      if (status == 'accepted') {
-        await SupabaseService.instance.acceptPullRequestAsSolution(
-          questionId: questionId,
-          prId: prId,
-        );
-      } else {
-        await SupabaseService.instance.updatePullRequestStatus(
-          prId: prId,
-          status: status,
-        );
-      }
-
-      await fetchPullRequests(questionId);
-      await fetchReplies(questionId, force: true);
-      await refreshQuestions(); // To update solved status
-
-      return const QuestionActionResult(success: true);
-    } catch (e) {
-      return QuestionActionResult(
-        success: false,
-        error:
-            'Failed to update request: ${SupabaseService.instance.cleanErrorText(e)}',
-      );
-    }
-  }
-
 
   Future<void> fetchQuestions() async {
     _isLoading = true;
@@ -466,6 +361,9 @@ class QuestionsProvider extends ChangeNotifier {
         }).toList();
       }
       _solveErrors[questionId] = null;
+      try {
+        await SupabaseService.instance.syncMyBadges();
+      } catch (_) {}
       return const QuestionActionResult(success: true);
     } catch (e) {
       final error = 'Failed to mark solved reply: $e';
@@ -521,10 +419,5 @@ class QuestionsProvider extends ChangeNotifier {
       );
     }).toList();
     _voteErrors[questionId] = null;
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
   }
 }

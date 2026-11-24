@@ -8,10 +8,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'app.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_colors.dart';
-import 'models/user_model.dart';
+import 'core/theme/theme.dart';
+import 'core/router.dart';
 import 'providers/auth_provider.dart';
 import 'providers/posts_provider.dart';
 import 'providers/questions_provider.dart';
@@ -21,11 +21,10 @@ import 'providers/theme_provider.dart';
 import 'providers/engagement_provider.dart';
 import 'providers/messages_provider.dart';
 import 'providers/practice_provider.dart';
-import 'screens/profile_setup_screen.dart';
-import 'screens/splash_screen.dart';
-import 'screens/auth_intro_screen.dart';
+import 'features/path/providers/path_provider.dart';
+import 'features/tour/services/tour_controller.dart';
+import 'features/splash/screens/splash_screen.dart';
 import 'services/auth_service.dart';
-import 'services/notification_service.dart';
 import 'services/analytics_service.dart';
 import 'utils/runtime_config.dart';
 import 'utils/secure_local_storage.dart';
@@ -86,12 +85,6 @@ class _AppBootstrapperState extends State<AppBootstrapper> {
     _initApp();
   }
 
-  bool get _isBootThemeDark {
-    if (_bootThemeMode == ThemeMode.dark) return true;
-    if (_bootThemeMode == ThemeMode.light) return false;
-    return PlatformDispatcher.instance.platformBrightness == Brightness.dark;
-  }
-
   Future<void> _initApp() async {
     bool firebaseInitialized = false;
     bool isCompromisedLocal = false;
@@ -100,23 +93,30 @@ class _AppBootstrapperState extends State<AppBootstrapper> {
     try {
       await Future.wait([
         // Task A: Firebase Initialization
-        Firebase.initializeApp().timeout(const Duration(seconds: 5)).then((_) {
-          firebaseInitialized = true;
-          FlutterError.onError =
-              FirebaseCrashlytics.instance.recordFlutterFatalError;
-          PlatformDispatcher.instance.onError = (error, stack) {
-            FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-            return true;
-          };
-        }).catchError((e) {
-          if (kDebugMode) debugPrint('Firebase initialization failed: $e');
+        Future(() async {
+          if (kIsWeb) return;
+          try {
+            await Firebase.initializeApp().timeout(const Duration(seconds: 5));
+            firebaseInitialized = true;
+            FlutterError.onError =
+                FirebaseCrashlytics.instance.recordFlutterFatalError;
+            PlatformDispatcher.instance.onError = (error, stack) {
+              FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+              return true;
+            };
+          } catch (e) {
+            if (kDebugMode) debugPrint('Firebase initialization failed: $e');
+          }
         }),
 
-        // Task B: Security check for compromised device
+        // Task B: Security check for compromised device (with 2s timeout safeguard)
         Future(() async {
+          if (kIsWeb) return;
           try {
-            final isJailBroken = await SafeDevice.isJailBroken;
-            final isRealDevice = await SafeDevice.isRealDevice;
+            final isJailBroken = await SafeDevice.isJailBroken
+                .timeout(const Duration(seconds: 2), onTimeout: () => false);
+            final isRealDevice = await SafeDevice.isRealDevice
+                .timeout(const Duration(seconds: 2), onTimeout: () => true);
             if (kReleaseMode) {
               isCompromisedLocal = isJailBroken || !isRealDevice;
             } else {
@@ -143,6 +143,7 @@ class _AppBootstrapperState extends State<AppBootstrapper> {
             } else {
               await Supabase.initialize(
                 url: supabaseUrl,
+                // ignore: deprecated_member_use
                 anonKey: supabaseAnonKey,
                 authOptions: const FlutterAuthClientOptions(
                   authFlowType: AuthFlowType.pkce,
@@ -158,9 +159,6 @@ class _AppBootstrapperState extends State<AppBootstrapper> {
             bootstrapErrorLocal = 'Supabase initialization failed: $e';
           }
         }),
-
-        // Task D: Enforce minimum display time for splash logo/shimmer animations
-        Future.delayed(const Duration(milliseconds: 1600)),
       ]);
 
       if (firebaseInitialized && bootstrapErrorLocal == null) {
@@ -174,6 +172,9 @@ class _AppBootstrapperState extends State<AppBootstrapper> {
     }
 
     if (mounted) {
+      if (kDebugMode) {
+        debugPrint('Bootstrap finished: initialized=true, error=$bootstrapErrorLocal');
+      }
       setState(() {
         _isCompromised = isCompromisedLocal;
         _error = bootstrapErrorLocal;
@@ -198,7 +199,7 @@ class _AppBootstrapperState extends State<AppBootstrapper> {
           ? MaterialApp(
               key: const ValueKey('splash'),
               debugShowCheckedModeBanner: false,
-              theme: _isBootThemeDark ? AppTheme.dark : AppTheme.light,
+              theme: buildTheme(),
               home: const SplashScreen(),
             )
           : (_error == null
@@ -227,6 +228,15 @@ class DevSpaceRoot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (isCompromised) {
+      return MaterialApp(
+        title: 'DevSpace',
+        debugShowCheckedModeBanner: false,
+        theme: buildTheme(),
+        home: const _SecurityCompromisedScreen(),
+      );
+    }
+
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(
@@ -239,29 +249,25 @@ class DevSpaceRoot extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => EngagementProvider()),
         ChangeNotifierProvider(create: (_) => MessagesProvider()),
         ChangeNotifierProvider(create: (_) => PracticeProvider()),
+        ChangeNotifierProvider(create: (_) => PathProvider()..loadUserRoadmaps()),
+        ChangeNotifierProvider(create: (_) => TourController.instance),
       ],
-      child: Consumer<ThemeProvider>(
-        builder: (context, themeProvider, _) {
-          return MaterialApp(
-            title: 'DevSpace',
-            debugShowCheckedModeBanner: false,
-            scaffoldMessengerKey: rootScaffoldMessengerKey,
-            theme: AppTheme.light,
-            darkTheme: AppTheme.dark,
-            themeMode: themeProvider.themeMode,
-            navigatorObservers: [AnalyticsService.instance.observer],
-            builder: (context, child) {
-              return MediaQuery(
-                data: MediaQuery.of(context).copyWith(
-                  textScaler: MediaQuery.of(context).textScaler.clamp(
-                        minScaleFactor: 0.85,
-                        maxScaleFactor: 1.15,
-                      ),
-                ),
-                child: child!,
-              );
-            },
-            home: _Root(isCompromised: isCompromised),
+      child: MaterialApp.router(
+        title: 'DevSpace',
+        debugShowCheckedModeBanner: false,
+        themeMode: ThemeMode.dark,
+        scaffoldMessengerKey: rootScaffoldMessengerKey,
+        theme: buildTheme(),
+        routerConfig: router,
+        builder: (context, child) {
+          return MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: MediaQuery.of(context).textScaler.clamp(
+                    minScaleFactor: 0.85,
+                    maxScaleFactor: 1.15,
+                  ),
+            ),
+            child: child!,
           );
         },
       ),
@@ -287,58 +293,6 @@ class DevSpaceSetupApp extends StatelessWidget {
       theme: AppTheme.dark,
       navigatorObservers: [AnalyticsService.instance.observer],
       home: _SetupRequiredScreen(error: error, onRetry: onRetry),
-    );
-  }
-}
-
-class _Root extends StatefulWidget {
-  final bool isCompromised;
-  const _Root({required this.isCompromised});
-  @override
-  State<_Root> createState() => _RootState();
-}
-
-class _RootState extends State<_Root> {
-  String? _notificationsInitializedForUid;
-
-  @override
-  Widget build(BuildContext context) {
-    return _buildCurrentScreen();
-  }
-
-  Widget _buildCurrentScreen() {
-    return StreamBuilder<UserModel?>(
-      key: const ValueKey('auth-gate'),
-      stream: AuthService.instance.authStateChanges,
-      initialData: AuthService.instance.currentUser,
-      builder: (context, snap) {
-        final user = snap.data ?? AuthService.instance.currentUser;
-
-        if (widget.isCompromised) {
-          return const _SecurityCompromisedScreen();
-        }
-
-        if (user == null) {
-          return AuthIntroScreen(
-            key: const ValueKey('login'),
-            onSuccess: () {},
-          );
-        }
-
-        if (_notificationsInitializedForUid != user.id) {
-          _notificationsInitializedForUid = user.id;
-          NotificationService.instance.init(user.id);
-        }
-
-        if (!user.profileCompleted) {
-          return const ProfileSetupScreen(
-            key: ValueKey('onboarding'),
-            mode: ProfileSetupMode.onboarding,
-          );
-        }
-
-        return const DevSpaceApp(key: ValueKey('app'));
-      },
     );
   }
 }
@@ -638,26 +592,26 @@ class _SecurityCompromisedScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0F0F12),
+    return const Scaffold(
+      backgroundColor: Color(0xFF0F0F12),
       body: Center(
         child: Padding(
-          padding: const EdgeInsets.all(32),
+          padding: EdgeInsets.all(32),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.security_rounded,
+              Icon(Icons.security_rounded,
                   color: Colors.redAccent, size: 64),
-              const SizedBox(height: 24),
-              const Text(
+              SizedBox(height: 24),
+              Text(
                 'Security Check Failed',
                 style: TextStyle(
                     color: Colors.white,
                     fontSize: 24,
                     fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 16),
-              const Text(
+              SizedBox(height: 16),
+              Text(
                 'DevSpace cannot run on this device because it appears to be rooted, jailbroken, or running in an unsafe environment. This is to protect your developer identity and aura points.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.white70, height: 1.5),

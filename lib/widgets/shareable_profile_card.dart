@@ -43,6 +43,7 @@ class _ShareableProfileCardState extends State<ShareableProfileCard> {
       final imagePath = await File('${directory.path}/devspace_profile.png').create();
       await imagePath.writeAsBytes(pngBytes);
 
+      // ignore: deprecated_member_use
       await Share.shareXFiles(
         [XFile(imagePath.path)],
         text: 'Check out my builder profile on DevSpace! 🚀',
