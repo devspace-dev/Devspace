@@ -6,7 +6,6 @@ import '../models/comment_model.dart';
 import '../models/notification_model.dart';
 import '../models/question_model.dart';
 import '../models/question_reply_model.dart';
-import '../models/question_pull_request_model.dart';
 import '../models/conversation_model.dart';
 import '../models/message_model.dart';
 import '../models/aura_ledger_model.dart';
@@ -188,7 +187,27 @@ class SupabaseService {
     r'[0-9a-fA-F]{12}$',
   );
 
+  /// Safe column projection for public user profiles (excludes email & fcm_token)
+  static const String safePublicUserColumns =
+      'id, name, handle, avatar, color, aura, role, year, branch, building, stack, followers, following, current_streak, bio, college, github_handle, profile_completed';
+
+  /// Safe column projection for posts (uses exact database column names)
+  static const String safePostColumns =
+      'id, user_id, content, tags, image_url, document_url, document_name, quote_post_id, created_at, likes_count, comments_count, reposts_count';
+
+  /// Standard network timeout to prevent hanging futures on throttled mobile connections
+  static const Duration requestTimeout = Duration(seconds: 15);
+
   SupabaseClient get _client => Supabase.instance.client;
+
+  bool get isSupabaseReady {
+    try {
+      Supabase.instance.client;
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 
   String cleanErrorText(Object error) {
     if (error is PostgrestException) {
@@ -245,6 +264,7 @@ class SupabaseService {
   // ══════════════════════════════════════════════════════════════════════════
 
   Future<UserModel?> getUserByEmail(String email) async {
+    if (!isSupabaseReady) return null;
     final data = await _client
         .from('users')
         .select()
@@ -254,17 +274,22 @@ class SupabaseService {
   }
 
   Future<UserModel?> getUserByHandle(String handle) async {
+    if (!isSupabaseReady) return null;
     final data = await _client
         .from('users')
-        .select()
+        .select(safePublicUserColumns)
         .eq('handle', handle.toLowerCase())
         .maybeSingle();
     return data == null ? null : UserModel.fromJson(data);
   }
 
   Future<UserModel?> getUserById(String id) async {
-    final data =
-        await _client.from('users').select().eq('id', id).maybeSingle();
+    if (!isSupabaseReady) return null;
+    final data = await _client
+        .from('users')
+        .select(safePublicUserColumns)
+        .eq('id', id)
+        .maybeSingle();
     return data == null ? null : UserModel.fromJson(data);
   }
 
@@ -304,7 +329,6 @@ class SupabaseService {
     // 2. Attempt to update extended fields (In case they are missing in the current schema)
     try {
       await _client.from('users').update({
-        'cover_url': coverUrl,
         'color': 0xFF7C3AED,
         'aura': 0,
         'role': roles,
@@ -408,6 +432,7 @@ class SupabaseService {
 
   /// Synchronizes and awards badges computed by server RPC (0 Aura)
   Future<List<Map<String, dynamic>>> syncMyBadges({String? userId}) async {
+    if (!isSupabaseReady) return const [];
     try {
       final res = await _client.rpc(
         'sync_my_badges',
@@ -415,11 +440,138 @@ class SupabaseService {
       );
       if (res is List) {
         return res.map((r) => Map<String, dynamic>.from(r as Map)).toList();
+      } else if (res is Map && res['earned_badge_keys'] is List) {
+        final keys = (res['earned_badge_keys'] as List).map((k) => k.toString()).toList();
+        return keys.map((k) => {'badge_key': k}).toList();
       }
-      return [];
+      return const [];
     } catch (e) {
-      debugPrint('Error syncing badges: ');
-      return [];
+      debugPrint('Error syncing badges: $e');
+      return const [];
+    }
+  }
+
+  /// Synchronizes badges and returns complete payload including progress and next badge
+  Future<Map<String, dynamic>?> syncMyBadgesPayload({String? userId}) async {
+    if (!isSupabaseReady) return null;
+    try {
+      final res = await _client.rpc(
+        'sync_my_badges',
+        params: userId != null ? {'p_user_id': userId} : {},
+      );
+      if (res is Map) {
+        return Map<String, dynamic>.from(res);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error syncing badges: $e');
+      return null;
+    }
+  }
+
+  /// Fetches college rank cheaply using exact count head query.
+  /// Returns null (Unranked) if college is empty or user has 0 aura.
+  Future<int?> getUserCollegeRank(String userId) async {
+    if (!isSupabaseReady) return null;
+    try {
+      final user = await getUserById(userId);
+      if (user == null || user.college.trim().isEmpty || user.aura <= 0) {
+        return null;
+      }
+      final int count = await _client
+          .from('users')
+          .count()
+          .eq('college', user.college)
+          .gt('aura', user.aura);
+      return count + 1;
+    } catch (e) {
+      debugPrint('Error getting user college rank: $e');
+      return null;
+    }
+  }
+
+  /// Fetches all-time global competition rank using exact count head query.
+  /// Returns null (Unranked) if user has 0 aura.
+  Future<int?> getUserGlobalRank(String userId) async {
+    if (!isSupabaseReady) return null;
+    try {
+      final user = await getUserById(userId);
+      if (user == null || user.aura <= 0) return null;
+      final int count = await _client
+          .from('users')
+          .count()
+          .gt('aura', user.aura);
+      return count + 1;
+    } catch (e) {
+      debugPrint('Error getting user global rank: $e');
+      return null;
+    }
+  }
+
+  /// Fetches caller's current UTC calendar month aura from allowed ledger actions.
+  Future<int> getMyCurrentMonthUtcAura(String userId) async {
+    if (!isSupabaseReady) return 0;
+    try {
+      final nowUtc = DateTime.now().toUtc();
+      final monthStartUtc = DateTime.utc(nowUtc.year, nowUtc.month, 1);
+      final nextMonthStartUtc = DateTime.utc(nowUtc.year, nowUtc.month + 1, 1);
+      final rows = await _client
+          .from('aura_ledger')
+          .select('points, action')
+          .eq('user_id', userId)
+          .gte('created_at', monthStartUtc.toIso8601String())
+          .lt('created_at', nextMonthStartUtc.toIso8601String());
+      var sum = 0;
+      for (final row in (rows as List)) {
+        final action = row['action']?.toString() ?? '';
+        if (allowedLeaderboardActions.contains(action)) {
+          sum += (row['points'] as num?)?.toInt() ?? 0;
+        }
+      }
+      return sum < 0 ? 0 : sum;
+    } catch (e) {
+      debugPrint('Error fetching monthly UTC aura: $e');
+      return 0;
+    }
+  }
+
+  /// Queries optional helper RPC get_my_leaderboard_rank when deployed.
+  /// Returns null when the helper RPC is not present in the database.
+  Future<({int? rank, int aura, int totalRanked})?> getMyLeaderboardRank({
+    String? college,
+    required bool isMonthly,
+  }) async {
+    try {
+      final response = await _client.rpc(
+        'get_my_leaderboard_rank',
+        params: {
+          'p_college': college,
+          'p_timeframe': isMonthly ? 'monthly' : 'all_time',
+        },
+      );
+      final list = response is List ? response : null;
+      if (list == null || list.isEmpty) return null;
+      final row = Map<String, dynamic>.from(list.first as Map);
+      final rankVal = (row['rank'] as num?)?.toInt();
+      final auraVal = (row['aura'] as num?)?.toInt() ?? 0;
+      final totalVal = (row['total_ranked'] as num?)?.toInt() ?? 0;
+      return (rank: rankVal, aura: auraVal, totalRanked: totalVal);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Fetches exact count of posts published by a user
+  Future<int> getUserPostsCount(String userId) async {
+    try {
+      final int count = await _client
+          .from('posts')
+          .count()
+          .eq('user_id', userId);
+      return count;
+    } catch (e) {
+      debugPrint('Error getting user posts count: $e');
+      return 0;
     }
   }
 
@@ -433,7 +585,7 @@ class SupabaseService {
           .order('awarded_at', ascending: true);
       return (res as List).map((r) => Map<String, dynamic>.from(r as Map)).toList();
     } catch (e) {
-      debugPrint('Error fetching user badges: ');
+      debugPrint('Error fetching user badges: $e');
       return [];
     }
   }
@@ -453,7 +605,11 @@ class SupabaseService {
   }
 
   /// Returns users ranked by Monthly Aura points (earned in the current UTC calendar month).
-  Future<List<UserModel>> getMonthlyAuraLeaderboard({String? college}) async {
+  Future<List<UserModel>> getMonthlyAuraLeaderboard({
+    String? college,
+    bool throwOnError = false,
+  }) async {
+    if (!isSupabaseReady) return const [];
     try {
       final response = await _client.rpc(
         'get_aura_leaderboard',
@@ -468,12 +624,17 @@ class SupabaseService {
       }
     } catch (e) {
       debugPrint('RPC get_aura_leaderboard failed for monthly: $e');
+      if (throwOnError) rethrow;
     }
     return [];
   }
 
   /// Returns users ranked by All-Time Aura earned across all time in Arena
-  Future<List<UserModel>> getAllTimeAuraLeaderboard({String? college}) async {
+  Future<List<UserModel>> getAllTimeAuraLeaderboard({
+    String? college,
+    bool throwOnError = false,
+  }) async {
+    if (!isSupabaseReady) return const [];
     try {
       final response = await _client.rpc(
         'get_aura_leaderboard',
@@ -488,6 +649,7 @@ class SupabaseService {
       }
     } catch (e) {
       debugPrint('RPC get_aura_leaderboard failed for all_time: $e');
+      if (throwOnError) rethrow;
     }
     return [];
   }
@@ -517,7 +679,8 @@ class SupabaseService {
     int offset = 0,
     String? query,
   }) async {
-    var request = _client.from('users').select();
+    if (!isSupabaseReady) return const [];
+    var request = _client.from('users').select(safePublicUserColumns);
 
     if (query != null && query.isNotEmpty) {
       final safeQuery = Sanitizer.sanitize(query, maxLength: 80)
@@ -525,8 +688,33 @@ class SupabaseService {
           .replaceAll(RegExp(r'[,()%\\"\{\}]'), '')
           .trim();
       if (safeQuery.isNotEmpty) {
+        final stackVariants = <String>{
+          safeQuery,
+          safeQuery.toLowerCase(),
+          safeQuery.toUpperCase(),
+          if (safeQuery.length > 1)
+            '${safeQuery[0].toUpperCase()}${safeQuery.substring(1).toLowerCase()}'
+          else
+            safeQuery.toUpperCase(),
+        };
+        const canonicalStacks = {
+          'next.js': 'Next.js',
+          'node.js': 'Node.js',
+          'typescript': 'TypeScript',
+          'postgresql': 'PostgreSQL',
+          'ai/ml': 'AI/ML',
+          'ui/ux': 'UI/UX',
+          'c++': 'C++',
+          'javascript': 'JavaScript',
+        };
+        final canonical = canonicalStacks[safeQuery.toLowerCase()];
+        if (canonical != null) {
+          stackVariants.add(canonical);
+        }
+        final stackClauses =
+            stackVariants.map((v) => 'stack.cs.{"$v"}').join(',');
         request = request.or(
-          'name.ilike.%$safeQuery%,handle.ilike.%$safeQuery%,branch.ilike.%$safeQuery%,building.ilike.%$safeQuery%,stack.cs.{"$safeQuery"}',
+          'name.ilike.%$safeQuery%,handle.ilike.%$safeQuery%,branch.ilike.%$safeQuery%,building.ilike.%$safeQuery%,$stackClauses',
         );
       }
     }
@@ -553,6 +741,60 @@ class SupabaseService {
         .eq('following_id', userId)
         .order('created_at', ascending: false);
     return (data as List).map((row) => row['follower_id'].toString()).toList();
+  }
+
+  /// Fetches paginated follower user IDs (page of 30)
+  Future<List<String>> getFollowerIdsPaginated(
+    String userId, {
+    int limit = 30,
+    int offset = 0,
+  }) async {
+    final from = offset;
+    final to = offset + limit - 1;
+    final data = await _client
+        .from('follows')
+        .select('follower_id')
+        .eq('following_id', userId)
+        .order('created_at', ascending: false)
+        .range(from, to);
+    return (data as List).map((row) => row['follower_id'].toString()).toList();
+  }
+
+  /// Fetches paginated following user IDs (page of 30)
+  Future<List<String>> getFollowingIdListPaginated(
+    String userId, {
+    int limit = 30,
+    int offset = 0,
+  }) async {
+    final from = offset;
+    final to = offset + limit - 1;
+    final data = await _client
+        .from('follows')
+        .select('following_id')
+        .eq('follower_id', userId)
+        .order('created_at', ascending: false)
+        .range(from, to);
+    return (data as List).map((row) => row['following_id'].toString()).toList();
+  }
+
+  /// Fetches paginated connection users (followers or following) with isFollowing status hydrated for current viewer
+  Future<List<UserModel>> getConnectionUsersPaginated({
+    required String targetUserId,
+    required bool isFollowers,
+    String? currentViewerId,
+    int limit = 30,
+    int offset = 0,
+  }) async {
+    final ids = isFollowers
+        ? await getFollowerIdsPaginated(targetUserId, limit: limit, offset: offset)
+        : await getFollowingIdListPaginated(targetUserId, limit: limit, offset: offset);
+    if (ids.isEmpty) return [];
+
+    final users = await getUsersByIds(ids);
+    if (currentViewerId == null || currentViewerId.isEmpty) return users;
+
+    final myFollowing = await getFollowingIds(currentViewerId);
+    return users.map((u) => u.copyWith(isFollowing: myFollowing.contains(u.id))).toList();
   }
 
   Future<Set<String>> getLikedStatusForPosts(String userId, List<String> postIds) async {
@@ -586,10 +828,12 @@ class SupabaseService {
 
   Future<List<UserModel>> getUsersByIds(List<String> userIds) async {
     final distinctIds = userIds.toSet().toList();
-    if (distinctIds.isEmpty) return const [];
+    if (distinctIds.isEmpty || !isSupabaseReady) return const [];
 
-    final data =
-        await _client.from('users').select().inFilter('id', distinctIds);
+    final data = await _client
+        .from('users')
+        .select(safePublicUserColumns)
+        .inFilter('id', distinctIds);
 
     final usersById = {
       for (final row in data as List)
@@ -700,13 +944,15 @@ class SupabaseService {
     int limit = 20,
     int offset = 0,
   }) async {
+    if (!isSupabaseReady) return const [];
     final from = offset;
     final to = offset + limit - 1;
     final data = await _client
         .from('posts')
-        .select()
+        .select(safePostColumns)
         .order('created_at', ascending: false)
-        .range(from, to);
+        .range(from, to)
+        .timeout(requestTimeout);
     return (data as List).map((d) => PostModel.fromJson(d)).toList();
   }
 
@@ -715,20 +961,27 @@ class SupabaseService {
     int limit = 20,
     int offset = 0,
   }) async {
+    if (!isSupabaseReady) return const [];
     final from = offset;
     final to = offset + limit - 1;
     final data = await _client
         .from('posts')
-        .select()
+        .select(safePostColumns)
         .eq('user_id', userId)
         .order('created_at', ascending: false)
-        .range(from, to);
+        .range(from, to)
+        .timeout(requestTimeout);
     return (data as List).map((d) => PostModel.fromJson(d)).toList();
   }
 
   Future<PostModel?> getPostById(String postId) async {
-    final data =
-        await _client.from('posts').select().eq('id', postId).maybeSingle();
+    if (!isSupabaseReady) return null;
+    final data = await _client
+        .from('posts')
+        .select(safePostColumns)
+        .eq('id', postId)
+        .maybeSingle()
+        .timeout(requestTimeout);
     return data == null ? null : PostModel.fromJson(data);
   }
 
@@ -1026,88 +1279,6 @@ class SupabaseService {
     }
   }
 
-  Future<List<QuestionPullRequestModel>> getPullRequestsForQuestion(
-      String questionId) async {
-    final data = await _client
-        .from('question_pull_requests')
-        .select()
-        .eq('question_id', questionId)
-        .order('created_at', ascending: true);
-    return (data as List)
-        .map((d) => QuestionPullRequestModel.fromJson(d))
-        .toList();
-  }
-
-  Future<void> updatePullRequestStatus({
-    required String prId,
-    required String status,
-  }) async {
-    await _client
-        .from('question_pull_requests')
-        .update({'status': status}).eq('id', prId);
-  }
-
-  Future<void> acceptPullRequestAsSolution({
-    required String questionId,
-    required String prId,
-  }) async {
-    // 1. Get PR info
-    final pr = await _client.from('question_pull_requests').select().eq('id', prId).single();
-    final prUserId = pr['user_id'].toString();
-    final prMessage = pr['message'].toString();
-
-    // 2. Accept the PR
-    await _client.from('question_pull_requests').update({'status': 'accepted'}).eq('id', prId);
-
-    // 3. Check if user already has access (just in case, but rpc usually handles it)
-    // We'll skip it and just use the insert directly if rpc blocks it.
-    
-    // 4. Create a reply with the PR message
-    // Note: We use the question owner's ID (the current user) to insert the reply
-    // to avoid RLS errors, and attribute it to the PR author in the content.
-    final currentUser = _client.auth.currentUser;
-    if (currentUser == null) throw Exception('Not authenticated');
-
-    final prUser = await _client.from('users').select('handle').eq('id', prUserId).maybeSingle();
-    final prUserHandle = prUser != null ? prUser['handle'] : 'a builder';
-
-    final replyId = await _client.from('question_replies').insert({
-      'question_id': questionId,
-      'user_id': currentUser.id,
-      'content': 'Accepted PR Solution from @$prUserHandle:\n\n$prMessage',
-    }).select('id').single();
-
-    // 5. Mark as solved
-    await markSolvedReply(questionId: questionId, replyId: replyId['id'].toString());
-
-    // 6. Notify the PR owner
-    try {
-      final question = await getQuestionById(questionId);
-      if (question != null) {
-        await pushNotification(
-          toUid: prUserId,
-          fromUid: question.userId,
-          type: 'pr_accepted',
-          questionId: questionId,
-          message: 'Your solution for "${question.title}" was accepted!',
-        );
-      }
-    } catch (e) {
-      debugPrint('Failed to send PR acceptance notification: $e');
-    }
-  }
-
-  Future<QuestionPullRequestModel?> getPullRequestStatus(
-      String questionId, String userId) async {
-    final data = await _client
-        .from('question_pull_requests')
-        .select()
-        .eq('question_id', questionId)
-        .eq('user_id', userId)
-        .maybeSingle();
-    return data == null ? null : QuestionPullRequestModel.fromJson(data);
-  }
-
   Future<void> upvoteQuestion(String questionId, String userId) async {
     await _client.from('question_votes').insert({
       'question_id': questionId,
@@ -1290,14 +1461,17 @@ class SupabaseService {
       debugPrint('Error in initial streamConversations fetch: $e');
     }
 
-    // Poll periodically every 15 seconds
+    // Poll periodically every 45 seconds with error backoff
+    int backoffSeconds = 45;
     while (true) {
-      await Future.delayed(const Duration(seconds: 15));
+      await Future.delayed(Duration(seconds: backoffSeconds));
       try {
         final data = await getConversations(userId);
+        backoffSeconds = 45;
         yield data;
       } catch (e) {
         debugPrint('Error in polling streamConversations: $e');
+        backoffSeconds = (backoffSeconds * 1.5).toInt().clamp(45, 120);
       }
     }
   }
@@ -1373,13 +1547,6 @@ class SupabaseService {
         'last_message_at': now,
         'last_message_sender_id': senderId,
       }).eq('id', conversationId);
-
-      await pushNotification(
-        toUid: otherUserId,
-        fromUid: senderId,
-        type: 'message',
-        message: trimmed.length > 50 ? '${trimmed.substring(0, 47)}...' : trimmed,
-      );
     } catch (e) {
       debugPrint('Failed to send message: $e');
       rethrow;
@@ -1421,6 +1588,7 @@ class SupabaseService {
   }
 
   Future<List<AuraLedgerModel>> getAuraLedger(String userId) async {
+    if (!isSupabaseReady) return const [];
     final data = await _client
         .from('aura_ledger')
         .select()
@@ -1505,7 +1673,7 @@ class SupabaseService {
     final requestId = data['id'].toString();
 
     // Pre-create the arena_matches row with the same ID, so both players can read/write it.
-    // This succeeds because the sender (player1_id) is the one inserting it, satisfying the RLS insert policy.
+    // This must succeed before sending the invite because RLS only allows player1_id to insert.
     try {
       await _client.from('arena_matches').insert({
         'id': requestId,
@@ -1516,6 +1684,13 @@ class SupabaseService {
       });
     } catch (e) {
       debugPrint('Failed to pre-create arena_matches row: $e');
+      try {
+        await _client
+            .from('duel_requests')
+            .update({'status': 'cancelled'})
+            .eq('id', requestId);
+      } catch (_) {}
+      rethrow;
     }
 
     String senderName = 'A peer';
@@ -1546,9 +1721,43 @@ class SupabaseService {
     await _client.from('duel_requests').update({'status': status}).eq('id', requestId);
   }
 
-  /// Marks the arena_matches row for an accepted duel request as 'playing',
-  /// creating it if it doesn't exist yet (e.g. the challenger's client
-  /// hasn't pre-created it).
+  /// Atomically transitions a 'pending' duel request to 'accepted'.
+  /// Returns false if the request was already accepted, declined, or cancelled.
+  Future<bool> acceptDuelRequestIfPending(String requestId) async {
+    final updated = await _client
+        .from('duel_requests')
+        .update({'status': 'accepted'})
+        .eq('id', requestId)
+        .eq('status', 'pending')
+        .select('id')
+        .maybeSingle();
+    return updated != null;
+  }
+
+  /// Cancels a pending duel request and cleans up its unused 'waiting' match room.
+  Future<void> cancelDuelRequestAndCleanupMatch(String requestId) async {
+    try {
+      await _client
+          .from('duel_requests')
+          .update({'status': 'cancelled'})
+          .eq('id', requestId)
+          .eq('status', 'pending');
+    } catch (e) {
+      debugPrint('Failed to cancel duel request: $e');
+    }
+    try {
+      await _client
+          .from('arena_matches')
+          .delete()
+          .eq('id', requestId)
+          .eq('status', 'waiting');
+    } catch (e) {
+      debugPrint('Failed to clean up waiting arena_matches row: $e');
+    }
+  }
+
+  /// Marks the arena_matches row for an accepted duel request as 'playing'.
+  /// Only player1 can insert a missing row due to arena_matches RLS (auth.uid() = player1_id).
   Future<void> acceptDuelRequestMatch({
     required String matchId,
     required String mode,
@@ -1562,13 +1771,24 @@ class SupabaseService {
         .select();
 
     if (response.isEmpty) {
-      await _client.from('arena_matches').insert({
-        'id': matchId,
-        'mode': mode,
-        'player1_id': player1Id,
-        'player2_id': player2Id,
-        'status': 'playing',
-      });
+      final existing = await _client
+          .from('arena_matches')
+          .select('id, status')
+          .eq('id', matchId)
+          .maybeSingle();
+      if (existing != null) return;
+
+      if (_client.auth.currentUser?.id == player1Id) {
+        await _client.from('arena_matches').insert({
+          'id': matchId,
+          'mode': mode,
+          'player1_id': player1Id,
+          'player2_id': player2Id,
+          'status': 'playing',
+        });
+      } else {
+        throw StateError('Challenge room could not be found.');
+      }
     }
   }
 

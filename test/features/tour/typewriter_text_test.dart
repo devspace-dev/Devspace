@@ -39,7 +39,7 @@ void main() {
         home: Scaffold(
           body: TypewriterText(
             text: 'Instant Reveal Test',
-            charDuration: Duration(milliseconds: 50),
+            charDuration: const Duration(milliseconds: 50),
             onComplete: () => completedCalled = true,
           ),
         ),

@@ -338,7 +338,8 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Ds.aura,
                         foregroundColor: Ds.onAura,
-                        disabledBackgroundColor: Ds.surfaceAlt,
+                        disabledBackgroundColor: Ds.surface,
+                        disabledForegroundColor: Ds.muted,
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         minimumSize: const Size(72, 38),
                         shape: RoundedRectangleBorder(
@@ -712,7 +713,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
       ),
     );
 
-    if (source == null) return;
+    if (source == null || !mounted) return;
     final file = await StorageService.instance.pickImage(
       context,
       fromCamera: source,

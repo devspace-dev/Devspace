@@ -87,4 +87,47 @@ class RewardFeedback {
   static void resetForTest({bool? enabled}) {
     _cachedEnabled = enabled;
   }
+
+  /// Plays light impact if haptics are enabled (for button clicks, likes, card taps).
+  static Future<void> light() async {
+    if (!isHapticsEnabledSync) return;
+    try {
+      await HapticFeedback.lightImpact();
+    } catch (_) {}
+  }
+
+  /// Plays medium impact if haptics are enabled (for quiz wrong answers, primary actions).
+  static Future<void> medium() async {
+    if (!isHapticsEnabledSync) return;
+    try {
+      await HapticFeedback.mediumImpact();
+    } catch (_) {}
+  }
+
+  /// Plays heavy impact if haptics are enabled (for milestone celebrations, aura rewards).
+  static Future<void> heavy() async {
+    if (!isHapticsEnabledSync) return;
+    try {
+      await HapticFeedback.heavyImpact();
+    } catch (_) {}
+  }
+
+  /// Plays selection click if haptics are enabled (for tab switching, quiz option selects).
+  static Future<void> selection() async {
+    if (!isHapticsEnabledSync) return;
+    try {
+      await HapticFeedback.selectionClick();
+    } catch (_) {}
+  }
+
+  /// Plays success celebration feedback (medium + light double-pulse).
+  static Future<void> success() async {
+    if (!isHapticsEnabledSync) return;
+    try {
+      await HapticFeedback.mediumImpact();
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      if (!isHapticsEnabledSync) return;
+      await HapticFeedback.lightImpact();
+    } catch (_) {}
+  }
 }

@@ -35,7 +35,7 @@ final kFlutterRoadmap = Roadmap(
           tags: {'foundation'},
           projectIdea: 'Build a CLI expense analyzer that parses JSON transaction logs and computes monthly category totals with null-safe models.',
           resources: [
-            VerifiedResource(
+            const VerifiedResource(
               title: 'Introduction to Dart',
               sourceDomain: 'dart.dev',
               url: 'https://dart.dev/guides/language/language-tour',
@@ -61,13 +61,13 @@ final kFlutterRoadmap = Roadmap(
           tags: {'foundation'},
           projectIdea: 'Create a sealed Result<T> hierarchy (Success, Failure, Loading) and write pattern-matching handlers for a simulated API response.',
           resources: [
-            VerifiedResource(
+            const VerifiedResource(
               title: 'Dart Patterns & Exhaustive Switch',
               sourceDomain: 'dart.dev',
               url: 'https://dart.dev/language/patterns',
               type: 'Official Docs',
             ),
-            VerifiedResource(
+            const VerifiedResource(
               title: 'Dart Records & Multiple Returns',
               sourceDomain: 'dart.dev',
               url: 'https://dart.dev/language/records',
@@ -100,7 +100,7 @@ final kFlutterRoadmap = Roadmap(
           tags: {'core'},
           projectIdea: 'Build a profile card component that seamlessly handles very long names, bio paragraphs, and tag wraps without clipping.',
           resources: [
-            VerifiedResource(
+            const VerifiedResource(
               title: 'Layouts in Flutter',
               sourceDomain: 'docs.flutter.dev',
               url: 'https://docs.flutter.dev/ui/layout',
@@ -126,7 +126,7 @@ final kFlutterRoadmap = Roadmap(
           tags: {'core'},
           projectIdea: 'Create a reusable design system preview widget showcasing buttons, cards, text styles, and tags under simulated 200% font scale.',
           resources: [
-            VerifiedResource(
+            const VerifiedResource(
               title: 'Adaptive and Responsive Design in Flutter',
               sourceDomain: 'docs.flutter.dev',
               url: 'https://docs.flutter.dev/ui/adaptive-responsive',
@@ -159,7 +159,7 @@ final kFlutterRoadmap = Roadmap(
           tags: {'core'},
           projectIdea: 'Build a multi-step student onboarding questionnaire where answers update a central profile provider and persist between screens.',
           resources: [
-            VerifiedResource(
+            const VerifiedResource(
               title: 'Simple App State Management',
               sourceDomain: 'docs.flutter.dev',
               url: 'https://docs.flutter.dev/data-and-backend/state-mgmt/simple',
@@ -211,7 +211,7 @@ final kFlutterRoadmap = Roadmap(
           tags: {'networking'},
           projectIdea: 'Build a GitHub repository explorer that fetches user repos, handles search debouncing, and displays clean loading/error/empty states.',
           resources: [
-            VerifiedResource(
+            const VerifiedResource(
               title: 'Fetch Data from the Internet',
               sourceDomain: 'docs.flutter.dev',
               url: 'https://docs.flutter.dev/cookbook/networking/fetch-data',
@@ -237,13 +237,13 @@ final kFlutterRoadmap = Roadmap(
           tags: {'storage'},
           projectIdea: 'Implement a cached bookmarking engine that saves liked hackathons to local storage and updates remote state when connection restores.',
           resources: [
-            VerifiedResource(
+            const VerifiedResource(
               title: 'Store Key-Value Data on Disk',
               sourceDomain: 'docs.flutter.dev',
               url: 'https://docs.flutter.dev/cookbook/persistence/key-value',
               type: 'Official Docs',
             ),
-            VerifiedResource(
+            const VerifiedResource(
               title: 'Persist Data with SQLite',
               sourceDomain: 'docs.flutter.dev',
               url: 'https://docs.flutter.dev/cookbook/persistence/sqlite',
@@ -276,7 +276,7 @@ final kFlutterRoadmap = Roadmap(
           tags: {'testing'},
           projectIdea: 'Write a full test suite for a shopping cart or task list verifying add, remove, total calculation, and edge-case error states.',
           resources: [
-            VerifiedResource(
+            const VerifiedResource(
               title: 'Testing Flutter Apps',
               sourceDomain: 'docs.flutter.dev',
               url: 'https://docs.flutter.dev/testing/overview',
@@ -302,7 +302,7 @@ final kFlutterRoadmap = Roadmap(
           tags: {'deployment'},
           projectIdea: 'Build an optimized release APK and inspect its APK Analyzer report to verify size reduction and ProGuard symbol stripping.',
           resources: [
-            VerifiedResource(
+            const VerifiedResource(
               title: 'Build and Release an Android App',
               sourceDomain: 'docs.flutter.dev',
               url: 'https://docs.flutter.dev/deployment/android',
@@ -345,7 +345,7 @@ final kWebRoadmap = Roadmap(
           tags: {'foundation'},
           projectIdea: 'Build a fully semantic, keyboard-accessible college club registration form with rich client-side HTML5 validation.',
           resources: [
-            VerifiedResource(
+            const VerifiedResource(
               title: 'Structuring Content with HTML',
               sourceDomain: 'developer.mozilla.org',
               url: 'https://developer.mozilla.org/en-US/docs/Learn/HTML',
@@ -371,7 +371,7 @@ final kWebRoadmap = Roadmap(
           tags: {'foundation'},
           projectIdea: 'Design a responsive developer portfolio page with a hero banner, project grid, and dark mode toggle using pure CSS variables.',
           resources: [
-            VerifiedResource(
+            const VerifiedResource(
               title: 'Flexbox Layout - MDN Web Docs',
               sourceDomain: 'developer.mozilla.org',
               url: 'https://developer.mozilla.org/en-US/docs/Learn/CSS/CSS_layout/Flexbox',
@@ -404,7 +404,7 @@ final kWebRoadmap = Roadmap(
           tags: {'core'},
           projectIdea: 'Implement utility functions (memoize, debounce, throttle, deepClone) from scratch and test them with diverse inputs.',
           resources: [
-            VerifiedResource(
+            const VerifiedResource(
               title: 'JavaScript Reference - MDN Web Docs',
               sourceDomain: 'developer.mozilla.org',
               url: 'https://developer.mozilla.org/en-US/docs/Web/JavaScript',
@@ -430,7 +430,7 @@ final kWebRoadmap = Roadmap(
           tags: {'core'},
           projectIdea: 'Build a weather lookup dashboard that fetches concurrently from multiple API endpoints with timeout and fallback handling.',
           resources: [
-            VerifiedResource(
+            const VerifiedResource(
               title: 'How to Use Promises - MDN Web Docs',
               sourceDomain: 'developer.mozilla.org',
               url: 'https://developer.mozilla.org/en-US/docs/Learn/JavaScript/Asynchronous/Promises',
@@ -456,7 +456,7 @@ final kWebRoadmap = Roadmap(
           tags: {'core'},
           projectIdea: 'Build an interactive Kanban board with drag-and-drop task movement, event delegation, and localStorage persistence.',
           resources: [
-            VerifiedResource(
+            const VerifiedResource(
               title: 'Document Object Model (DOM) - MDN Web Docs',
               sourceDomain: 'developer.mozilla.org',
               url: 'https://developer.mozilla.org/en-US/docs/Web/API/Document_Object_Model',
@@ -489,7 +489,7 @@ final kWebRoadmap = Roadmap(
           tags: {'react'},
           projectIdea: 'Build an interactive course catalog with instant filter chips, search input, and responsive course detail cards.',
           resources: [
-            VerifiedResource(
+            const VerifiedResource(
               title: 'Quick Start – React',
               sourceDomain: 'react.dev',
               url: 'https://react.dev/learn',
@@ -515,7 +515,7 @@ final kWebRoadmap = Roadmap(
           tags: {'react'},
           projectIdea: 'Write custom hooks: useDebounce, useLocalStorage, and useFetch with loading, error, and refetch capabilities.',
           resources: [
-            VerifiedResource(
+            const VerifiedResource(
               title: 'Managing State – React',
               sourceDomain: 'react.dev',
               url: 'https://react.dev/learn/managing-state',
@@ -567,7 +567,7 @@ final kWebRoadmap = Roadmap(
           tags: {'typescript'},
           projectIdea: 'Convert an untyped JavaScript React application to strict TypeScript with 100% typed props, API responses, and custom hooks.',
           resources: [
-            VerifiedResource(
+            const VerifiedResource(
               title: 'The TypeScript Handbook',
               sourceDomain: 'typescriptlang.org',
               url: 'https://www.typescriptlang.org/docs/handbook/intro.html',
@@ -593,7 +593,7 @@ final kWebRoadmap = Roadmap(
           tags: {'deployment'},
           projectIdea: 'Analyze a web app with Google Lighthouse, optimize image assets and bundle splitting, and achieve a 95+ performance score.',
           resources: [
-            VerifiedResource(
+            const VerifiedResource(
               title: 'Fast Load Times - web.dev by Google',
               sourceDomain: 'web.dev',
               url: 'https://web.dev/explore/fast',
@@ -636,7 +636,7 @@ final kBackendRoadmap = Roadmap(
           tags: {'foundation'},
           projectIdea: 'Build a college course catalog REST API with query filtering, sorting, and pagination headers.',
           resources: [
-            VerifiedResource(
+            const VerifiedResource(
               title: 'Overview of HTTP - MDN',
               sourceDomain: 'developer.mozilla.org',
               url: 'https://developer.mozilla.org/en-US/docs/Web/HTTP/Overview',
@@ -662,7 +662,7 @@ final kBackendRoadmap = Roadmap(
           tags: {'foundation'},
           projectIdea: 'Build an auth microservice with bcrypt password hashing, short-lived JWT access tokens, and refresh token rotation.',
           resources: [
-            VerifiedResource(
+            const VerifiedResource(
               title: 'Authorization Header - MDN',
               sourceDomain: 'developer.mozilla.org',
               url: 'https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Authorization',
@@ -695,7 +695,7 @@ final kBackendRoadmap = Roadmap(
           tags: {'database'},
           projectIdea: 'Design an e-commerce database schema with transactional inventory reservations to prevent race conditions.',
           resources: [
-            VerifiedResource(
+            const VerifiedResource(
               title: 'The SQL Language - PostgreSQL Documentation',
               sourceDomain: 'postgresql.org',
               url: 'https://www.postgresql.org/docs/current/tutorial-sql.html',
@@ -721,7 +721,7 @@ final kBackendRoadmap = Roadmap(
           tags: {'database'},
           projectIdea: 'Seed a table with 500k records, benchmark query performance with EXPLAIN ANALYZE, and cut execution time with composite B-Tree indexes.',
           resources: [
-            VerifiedResource(
+            const VerifiedResource(
               title: 'Indexes - PostgreSQL Documentation',
               sourceDomain: 'postgresql.org',
               url: 'https://www.postgresql.org/docs/current/indexes.html',
@@ -747,7 +747,7 @@ final kBackendRoadmap = Roadmap(
           tags: {'performance'},
           projectIdea: 'Implement a live gaming leaderboard with Redis Sorted Sets and cache frequently requested user profiles with TTLs.',
           resources: [
-            VerifiedResource(
+            const VerifiedResource(
               title: 'Redis Data Types - Redis Documentation',
               sourceDomain: 'redis.io',
               url: 'https://redis.io/docs/latest/develop/data-types/',
@@ -825,7 +825,7 @@ final kBackendRoadmap = Roadmap(
           tags: {'devops'},
           projectIdea: 'Write multi-stage Dockerfiles and compose a stack containing a backend API, PostgreSQL, and Redis with health checks.',
           resources: [
-            VerifiedResource(
+            const VerifiedResource(
               title: 'Docker Learn & Get Started',
               sourceDomain: 'docs.docker.com',
               url: 'https://docs.docker.com/get-started/',
@@ -887,7 +887,7 @@ final kDsaRoadmap = Roadmap(
           tags: {'foundation'},
           projectIdea: 'Implement a dynamic resizing array from scratch and write a benchmark suite solving 10 Two-Pointer and Sliding Window problems.',
           resources: [
-            VerifiedResource(
+            const VerifiedResource(
               title: 'Data Structures - Python Documentation',
               sourceDomain: 'docs.python.org',
               url: 'https://docs.python.org/3/tutorial/datastructures.html',
@@ -1122,7 +1122,7 @@ final kAiMlRoadmap = Roadmap(
           tags: {'foundation'},
           projectIdea: 'Implement vector matrix operations, linear regression formulas, and gradient step calculations from scratch using pure NumPy.',
           resources: [
-            VerifiedResource(
+            const VerifiedResource(
               title: 'NumPy Quickstart - NumPy Manual',
               sourceDomain: 'numpy.org',
               url: 'https://numpy.org/doc/stable/user/quickstart.html',
@@ -1148,7 +1148,7 @@ final kAiMlRoadmap = Roadmap(
           tags: {'foundation'},
           projectIdea: 'Perform comprehensive exploratory data analysis (EDA) on student placement data, imputing missing values and calculating salary correlations.',
           resources: [
-            VerifiedResource(
+            const VerifiedResource(
               title: '10 Minutes to pandas - pandas documentation',
               sourceDomain: 'pandas.pydata.org',
               url: 'https://pandas.pydata.org/docs/user_guide/10min.html',
@@ -1200,7 +1200,7 @@ final kAiMlRoadmap = Roadmap(
           tags: {'ml'},
           projectIdea: 'Train a student placement probability model using Scikit-Learn Random Forests with cross-validation and feature importance analysis.',
           resources: [
-            VerifiedResource(
+            const VerifiedResource(
               title: 'Getting Started - scikit-learn documentation',
               sourceDomain: 'scikit-learn.org',
               url: 'https://scikit-learn.org/stable/getting_started.html',
@@ -1252,7 +1252,7 @@ final kAiMlRoadmap = Roadmap(
           tags: {'deep-learning'},
           projectIdea: 'Build a Multi-Layer Perceptron (MLP) from scratch in PyTorch to classify handwritten digits (MNIST) with >97% test accuracy.',
           resources: [
-            VerifiedResource(
+            const VerifiedResource(
               title: 'Learn the Basics - PyTorch Tutorials',
               sourceDomain: 'pytorch.org',
               url: 'https://pytorch.org/tutorials/beginner/basics/intro.html',
@@ -1323,7 +1323,7 @@ final kAiMlRoadmap = Roadmap(
           tags: {'generative-ai'},
           projectIdea: 'Build an exam study buddy bot with Google Gemini API using structured JSON schema output and retrieval-augmented generation (RAG) over lecture notes.',
           resources: [
-            VerifiedResource(
+            const VerifiedResource(
               title: 'Getting Started - Gemini API | Google AI Studio',
               sourceDomain: 'ai.google.dev',
               url: 'https://ai.google.dev/gemini-api/docs/quickstart',

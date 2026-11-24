@@ -45,6 +45,18 @@ Acceptance:
 - Arena Question Bank Scaling to 30 Questions: Scaled quiz session length from 8 to 30 questions in `quiz_screen.dart`, expanded question pool in `practice_questions.dart` to 242 clean, non-repetitive CS and logic questions across all 4 modes (Easy: 60, Medium: 74, Hard: 58, Ultra: 50) with smart uncompleted-first quiz sampling, responsive `SegmentBar` scaling, and 100% database RPC schema compatibility.
 - Path Tab Redesign: Productionized personalized learning route engine featuring 5 deep tracks (Flutter, Web, Backend, DSA, AI/ML), 48 curated nodes, starting level skipping (foundation nodes deducted from total hours without fake records), 3h/6h/10h finish date math, 60fps optimistic node completion with rollback on failure, single active roadmap enforcement (`user_roadmaps` table and `idx_user_roadmaps_one_active`), One Clear Next Step discovery, official documentation links, and comprehensive test coverage.
 
+## Phase 6: Release Captain Stabilization & Safety Net (Completed)
+- Startup Critical Path: Eliminated 1.6-second artificial sleep in `main.dart`, accelerating cold-boot time to interactive first frame.
+- Config Hardening: Removed hardcoded production credentials from default parameters in `RuntimeConfig.load()`, adding `.env.staging.json.example`.
+- Automated Safety Net: Added test coverage across critical user paths: `SettingsScreen` (sign out, account deletion), `WaitingForOpponentScreen`, `ChatDetailScreen` (messaging flow), and `DuelScreen` (countdown and live combat session).
+- Polling & Network Efficiency: Optimized `streamConversations` from 15s to 45s with exponential backoff on error; reduced redundant duel invite and score sync polls; eliminated remote DB spam for solo mock bot duels.
+- Query Projections: Added explicit column selection to high-traffic Supabase queries (`users`, `posts`, `conversations`).
+- Dead Code Governance: Cataloged legacy `PracticeMapScreen` and `PracticeQuestionScreen` in Dead Code Inventory (Rule 9: preserved, not deleted).
+- Static Analysis & Hygiene: Cleaned all 355 analyzer issues down to 0 errors, 0 warnings, 0 hints; const-qualified 350+ data structures to reduce heap pressure.
+- Raster Cache & Memory Protection: Capped memory raster cache (`memCacheWidth` & `memCacheHeight`) across network images to prevent OOM on 4GB Android devices.
+- Launch Indexes & Verification: Authored `supabase/patches/14_launch_indexes.sql` and `supabase/checks/14_launch_indexes_verify.sql` for high-throughput p95 performance under launch load.
+- Security & Sensitive Columns: Enforced `safePublicUserColumns` in `getUserById`, `getUserByHandle`, and `getUsersByIds` to prevent leaking `fcm_token` and `email` over the wire; added 15s defensive network timeout.
+
 ## Best Next Decision
 Proceed with **One-College Closed Beta Founder Smoke Testing** on physical Android devices before distributing the APK to the first cohort of students.
 

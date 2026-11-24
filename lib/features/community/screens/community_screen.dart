@@ -193,15 +193,16 @@ class _CommunityScreenState extends State<CommunityScreen>
               labelStyle: DsText.caption.copyWith(fontWeight: FontWeight.w700),
               unselectedLabelStyle: DsText.caption,
               tabs: _tabs.map((t) {
+                final tabChild = Text(t, maxLines: 1, overflow: TextOverflow.ellipsis);
                 if (t == 'EVENTS') {
                   return Tab(
                     child: TourAnchor(
                       id: TourAnchorId.eventsTab,
-                      child: Text(t),
+                      child: tabChild,
                     ),
                   );
                 }
-                return Tab(text: t);
+                return Tab(child: tabChild);
               }).toList(),
             ),
           ),

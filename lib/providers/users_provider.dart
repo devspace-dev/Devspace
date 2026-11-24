@@ -5,8 +5,26 @@ import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/supabase_service.dart';
 
+typedef UsersPageLoader = Future<List<UserModel>> Function({
+  int limit,
+  int offset,
+  String? query,
+});
+typedef FollowToggleAction = Future<void> Function(String fromUid, String toUid);
+typedef CurrentUserIdResolver = String? Function();
+
 class UsersProvider extends ChangeNotifier {
-  UsersProvider({List<UserModel>? initialUsers}) {
+  UsersProvider({
+    List<UserModel>? initialUsers,
+    UsersPageLoader? usersPageLoader,
+    FollowToggleAction? followAction,
+    FollowToggleAction? unfollowAction,
+    CurrentUserIdResolver? currentUserIdResolver,
+  })  : _usersPageLoader = usersPageLoader ?? _defaultUsersPageLoader,
+        _followAction = followAction,
+        _unfollowAction = unfollowAction,
+        _currentUserIdResolver =
+            currentUserIdResolver ?? _defaultCurrentUserIdResolver {
     if (initialUsers != null) {
       _users = List.from(initialUsers);
     }
@@ -21,6 +39,30 @@ class UsersProvider extends ChangeNotifier {
     }
   }
 
+  static Future<List<UserModel>> _defaultUsersPageLoader({
+    int limit = 20,
+    int offset = 0,
+    String? query,
+  }) {
+    return SupabaseService.instance.getUsers(
+      limit: limit,
+      offset: offset,
+      query: query,
+    );
+  }
+
+  static String? _defaultCurrentUserIdResolver() {
+    try {
+      return AuthService.instance.currentUser?.id;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  final UsersPageLoader _usersPageLoader;
+  final FollowToggleAction? _followAction;
+  final FollowToggleAction? _unfollowAction;
+  final CurrentUserIdResolver _currentUserIdResolver;
   StreamSubscription<UserModel?>? _authSub;
   List<UserModel> _users = [];
   bool _isLoading = false;
@@ -54,13 +96,19 @@ class UsersProvider extends ChangeNotifier {
   }
 
   Future<void> fetchUsers({String? query}) async {
+    if (!SupabaseService.instance.isSupabaseReady &&
+        _usersPageLoader == _defaultUsersPageLoader &&
+        _users.isNotEmpty &&
+        (query == null || query.isEmpty)) {
+      return;
+    }
     _isLoading = true;
     _error = null;
     _hasMore = true;
     notifyListeners();
 
     try {
-      final page = await SupabaseService.instance.getUsers(
+      final page = await _usersPageLoader(
         limit: _pageSize,
         offset: 0,
         query: query,
@@ -87,7 +135,7 @@ class UsersProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final page = await SupabaseService.instance.getUsers(
+      final page = await _usersPageLoader(
         limit: _pageSize,
         offset: _users.length,
         query: query,
@@ -114,13 +162,41 @@ class UsersProvider extends ChangeNotifier {
     }
   }
 
+  /// Searches developers without overwriting the shared cached directory used by Feed.
+  Future<List<UserModel>> searchDevelopers({
+    String? query,
+    int limit = 30,
+    int offset = 0,
+  }) async {
+    final page = await _usersPageLoader(
+      limit: limit,
+      offset: offset,
+      query: query,
+    );
+    final hydrated = await _hydrateUsers(page);
+    if (hydrated.isNotEmpty) {
+      final byId = {for (final u in _users) u.id: u};
+      var changed = false;
+      for (final user in hydrated) {
+        if (!byId.containsKey(user.id)) {
+          _users.add(user);
+          changed = true;
+        }
+      }
+      if (changed) {
+        notifyListeners();
+      }
+    }
+    return hydrated;
+  }
+
   Future<List<UserModel>> _hydrateUsers(List<UserModel> users) async {
-    final currentUser = AuthService.instance.currentUser;
-    if (currentUser == null) return users;
+    final currentUserId = _currentUserIdResolver();
+    if (currentUserId == null || currentUserId.isEmpty) return users;
 
     try {
       final followingIds =
-          await SupabaseService.instance.getFollowingIds(currentUser.id);
+          await SupabaseService.instance.getFollowingIds(currentUserId);
       return users
           .map((user) => _mergeHydratedUser(user, followingIds))
           .toList();
@@ -173,12 +249,12 @@ class UsersProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> toggleFollow(String fromUid, String toUid) async {
+  Future<void> toggleFollow(String fromUid, String toUid, {bool? currentIsFollowing}) async {
     if (fromUid == toUid || _followUpdating[toUid] == true) return;
 
     final userIndex = _users.indexWhere((user) => user.id == toUid);
     final existing = userIndex == -1 ? null : _users[userIndex];
-    final isFollowing = existing?.isFollowing ?? false;
+    final isFollowing = currentIsFollowing ?? existing?.isFollowing ?? false;
 
     if (existing != null) {
       _users[userIndex] = existing.copyWith(
@@ -195,11 +271,15 @@ class UsersProvider extends ChangeNotifier {
 
     try {
       if (isFollowing) {
-        await SupabaseService.instance.unfollow(fromUid, toUid);
+        final unfollow = _unfollowAction ?? SupabaseService.instance.unfollow;
+        await unfollow(fromUid, toUid);
       } else {
-        await SupabaseService.instance.follow(fromUid, toUid);
+        final follow = _followAction ?? SupabaseService.instance.follow;
+        await follow(fromUid, toUid);
       }
-      await _refreshFollowState(fromUid, toUid);
+      if (_followAction == null && _unfollowAction == null) {
+        await _refreshFollowState(fromUid, toUid);
+      }
     } catch (e) {
       if (existing != null) {
         _users[userIndex] = existing;
@@ -212,17 +292,23 @@ class UsersProvider extends ChangeNotifier {
     }
   }
 
+  static bool matchesQuery(UserModel u, String query) {
+    final trimmed = query.trim().toLowerCase();
+    if (trimmed.isEmpty) return true;
+    final cleanQ =
+        trimmed.startsWith('@') ? trimmed.substring(1).trim() : trimmed;
+    if (cleanQ.isEmpty) return true;
+    return u.name.toLowerCase().contains(cleanQ) ||
+        u.handle.toLowerCase().contains(cleanQ) ||
+        u.branch.toLowerCase().contains(cleanQ) ||
+        u.building.toLowerCase().contains(cleanQ) ||
+        u.role.toLowerCase().contains(cleanQ) ||
+        u.stack.any((s) => s.toLowerCase().contains(cleanQ));
+  }
+
   List<UserModel> search(String query) {
-    if (query.isEmpty) return _users;
-    final q = query.toLowerCase();
-    return _users.where((u) =>
-      u.name.toLowerCase().contains(q) ||
-      u.handle.toLowerCase().contains(q) ||
-      u.branch.toLowerCase().contains(q) ||
-      u.building.toLowerCase().contains(q) ||
-      u.role.toLowerCase().contains(q) ||
-      u.stack.any((s) => s.toLowerCase().contains(q))
-    ).toList();
+    if (query.trim().isEmpty) return _users;
+    return _users.where((u) => matchesQuery(u, query)).toList();
   }
 
   List<UserModel> filterByBranch(String branch) {
@@ -298,8 +384,10 @@ class UsersProvider extends ChangeNotifier {
     final refreshedCurrentUser =
         await SupabaseService.instance.getUserById(currentUserId);
 
+    var targetFound = false;
     _users = _users.map((user) {
       if (user.id == targetUserId && refreshedTargetUser != null) {
+        targetFound = true;
         return refreshedTargetUser.copyWith(
           isFollowing: followingIds.contains(targetUserId),
         );
@@ -308,10 +396,17 @@ class UsersProvider extends ChangeNotifier {
         return refreshedCurrentUser.copyWith(isFollowing: false);
       }
       if (user.id == targetUserId) {
+        targetFound = true;
         return user.copyWith(isFollowing: followingIds.contains(targetUserId));
       }
       return user;
     }).toList();
+
+    if (!targetFound && refreshedTargetUser != null) {
+      _users.add(refreshedTargetUser.copyWith(
+        isFollowing: followingIds.contains(targetUserId),
+      ));
+    }
 
     _followErrors[targetUserId] = null;
     await AuthService.instance.refreshCurrentUser();

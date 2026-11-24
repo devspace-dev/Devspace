@@ -118,7 +118,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
             trailing: Switch.adaptive(
               value: _hapticsEnabled,
-              activeColor: Ds.aura,
+              activeThumbColor: Ds.aura,
               activeTrackColor: Ds.aura.withValues(alpha: 0.3),
               onChanged: (val) {
                 setState(() {
@@ -605,16 +605,19 @@ class _InsightItem extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 14, color: accent),
-            const SizedBox(width: 4),
-            Text(
-              value,
-              style: DsText.h3.copyWith(fontSize: 16, color: accent),
-            ),
-          ],
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 14, color: accent),
+              const SizedBox(width: 4),
+              Text(
+                value,
+                style: DsText.h3.copyWith(fontSize: 16, color: accent),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 2),
         Text(

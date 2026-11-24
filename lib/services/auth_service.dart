@@ -184,25 +184,6 @@ class AuthService {
     return email.toLowerCase().endsWith('@$_collegeDomain');
   }
 
-  String _buildAvatar(String name, String email) {
-    final trimmedName = name.trim();
-    if (trimmedName.isNotEmpty) {
-      final parts = trimmedName
-          .split(RegExp(r'\s+'))
-          .where((part) => part.isNotEmpty)
-          .toList();
-      final initials =
-          parts.take(2).map((part) => part[0].toUpperCase()).join();
-      if (initials.isNotEmpty) return initials;
-    }
-
-    final localPart = email.split('@').first.trim();
-    if (localPart.isEmpty) return 'DS';
-    final cleaned = localPart.replaceAll(RegExp(r'[^A-Za-z0-9]'), '');
-    if (cleaned.isEmpty) return 'DS';
-    return cleaned.substring(0, cleaned.length >= 2 ? 2 : 1).toUpperCase();
-  }
-
   String _sanitizeHandleSeed(String value) {
     final sanitized = value
         .toLowerCase()

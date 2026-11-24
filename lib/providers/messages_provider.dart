@@ -61,6 +61,7 @@ class MessagesProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   String? _activeUserId;
+  String? _activeConversationId;
 
   List<ConversationModel> get conversations => List.unmodifiable(_conversations);
   bool get isLoading => _isLoading;
@@ -69,6 +70,24 @@ class MessagesProvider extends ChangeNotifier {
       _conversations.fold<int>(0, (sum, item) => sum + item.unreadCount);
   bool isSending(String conversationId) => _sending[conversationId] ?? false;
   String? sendError(String conversationId) => _sendErrors[conversationId];
+  String? get activeConversationId => _activeConversationId;
+
+  void setActiveConversationId(String? id) {
+    if (_activeConversationId == id) return;
+    _activeConversationId = id;
+  }
+
+  bool isNotificationForActiveConversation(String? fromUid) {
+    final activeId = _activeConversationId;
+    if (activeId == null || fromUid == null) return false;
+    final trimmedFrom = fromUid.trim();
+    for (final conv in _conversations) {
+      if (conv.id == activeId) {
+        return conv.participants.contains(trimmedFrom);
+      }
+    }
+    return false;
+  }
 
   static Stream<List<ConversationModel>> _defaultConversationStreamLoader(
     String userId,
@@ -191,6 +210,14 @@ class MessagesProvider extends ChangeNotifier {
     } catch (e) {
       throw StateError('Failed to start conversation: $e');
     }
+  }
+
+  Future<ConversationModel> getOrCreateConversation(String otherId, {String? myId}) async {
+    final effectiveMyId = myId ?? _activeUserId;
+    if (effectiveMyId == null) {
+      throw StateError('Cannot start conversation: no active user id');
+    }
+    return startConversation(effectiveMyId, otherId);
   }
 
   Stream<List<MessageModel>> messagesStream(String conversationId) {

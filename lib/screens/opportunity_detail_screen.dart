@@ -68,6 +68,7 @@ class OpportunityDetailScreen extends StatelessWidget {
 
   void _handleShare() {
     HapticFeedback.lightImpact();
+    // ignore: deprecated_member_use
     Share.share(
       'Check out this ${opportunity.type} on DevSpace: ${opportunity.title}\n\n${opportunity.link}',
       subject: 'DevSpace Opportunity: ${opportunity.title}',
@@ -166,6 +167,8 @@ class OpportunityDetailScreen extends StatelessWidget {
                   CachedNetworkImage(
                     imageUrl: opportunity.bannerUrl!,
                     fit: isLogoPhotoUrl(opportunity.bannerUrl) ? BoxFit.contain : BoxFit.cover,
+                    memCacheWidth: 1080,
+                    memCacheHeight: 480,
                     errorWidget: (_, __, ___) => _buildFallbackBanner(),
                   ),
                   Container(

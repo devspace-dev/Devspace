@@ -95,24 +95,25 @@ class _TypewriterTextState extends State<TypewriterText>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _charAnimation,
-      builder: (context, _) {
-        final count = _charAnimation.value.clamp(0, widget.text.length);
-        final visibleText = widget.text.substring(0, count);
+    return Semantics(
+      excludeSemantics: true,
+      label: widget.text, // Screen reader receives the full text immediately
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _completeInstantly,
+        child: AnimatedBuilder(
+          animation: _charAnimation,
+          builder: (context, _) {
+            final count = _charAnimation.value.clamp(0, widget.text.length);
+            final visibleText = widget.text.substring(0, count);
 
-        return Semantics(
-          label: widget.text, // Screen reader receives the full text immediately
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: _completeInstantly,
-            child: Text(
+            return Text(
               visibleText,
               style: widget.style,
-            ),
-          ),
-        );
-      },
+            );
+          },
+        ),
+      ),
     );
   }
 }

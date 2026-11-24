@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'glass_container.dart';
 import '../theme/app_colors.dart';
 
 class AppCard extends StatelessWidget {
@@ -181,39 +180,6 @@ class _AppButtonState extends State<AppButton> with SingleTickerProviderStateMix
           ),
         ),
       ),
-    );
-  }
-}
-
-class AppGlassCard extends StatelessWidget {
-  final Widget child;
-  final double blur;
-  final double opacity;
-  final BorderRadius? borderRadius;
-  final EdgeInsetsGeometry? padding;
-
-  const AppGlassCard({
-    super.key,
-    required this.child,
-    this.blur = 15.0,
-    this.opacity = 0.6,
-    this.borderRadius,
-    this.padding,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = AppColors.isDark(context);
-    return GlassContainer(
-      blur: blur,
-      opacity: isDark ? 0.3 : 0.6,
-      color: isDark ? Colors.black : Colors.white,
-      borderRadius: borderRadius ?? BorderRadius.circular(20),
-      padding: padding ?? const EdgeInsets.all(16),
-      border: Border.all(
-        color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.1),
-      ),
-      child: child,
     );
   }
 }

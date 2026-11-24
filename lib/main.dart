@@ -143,6 +143,7 @@ class _AppBootstrapperState extends State<AppBootstrapper> {
             } else {
               await Supabase.initialize(
                 url: supabaseUrl,
+                // ignore: deprecated_member_use
                 anonKey: supabaseAnonKey,
                 authOptions: const FlutterAuthClientOptions(
                   authFlowType: AuthFlowType.pkce,
@@ -158,9 +159,6 @@ class _AppBootstrapperState extends State<AppBootstrapper> {
             bootstrapErrorLocal = 'Supabase initialization failed: $e';
           }
         }),
-
-        // Task D: Enforce minimum display time for splash logo/shimmer animations
-        Future.delayed(const Duration(milliseconds: 1600)),
       ]);
 
       if (firebaseInitialized && bootstrapErrorLocal == null) {

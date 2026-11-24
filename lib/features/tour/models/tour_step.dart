@@ -58,7 +58,7 @@ enum TourAnchorId {
 }
 
 /// In-memory registry associating [TourAnchorId]s with their mounted [GlobalKey]s.
-class TourAnchorRegistry {
+class TourAnchorRegistry extends ChangeNotifier {
   TourAnchorRegistry._();
   static final TourAnchorRegistry instance = TourAnchorRegistry._();
 
@@ -66,11 +66,17 @@ class TourAnchorRegistry {
 
   void register(TourAnchorId id, GlobalKey key) {
     _anchors[id] = key;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      notifyListeners();
+    });
   }
 
   void unregister(TourAnchorId id, [GlobalKey? key]) {
     if (key == null || _anchors[id] == key) {
       _anchors.remove(id);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        notifyListeners();
+      });
     }
   }
 
@@ -96,5 +102,8 @@ class TourAnchorRegistry {
 
   void clear() {
     _anchors.clear();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      notifyListeners();
+    });
   }
 }

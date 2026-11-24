@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:devspace/features/path/data/curated_roadmaps.dart';
 import 'package:devspace/features/path/models/roadmap_model.dart';
 import 'package:devspace/features/path/providers/path_provider.dart';
 

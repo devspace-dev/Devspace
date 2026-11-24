@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:devspace/core/theme/theme.dart';
 import 'package:devspace/core/widgets/glitch.dart';
 import 'package:devspace/features/play/screens/play_screen.dart';
 import 'package:devspace/features/tour/models/tour_step.dart';
@@ -72,8 +73,9 @@ void main() {
         ChangeNotifierProvider<EngagementProvider>(create: (_) => EngagementProvider()),
         ChangeNotifierProvider<TourController>.value(value: controller),
       ],
-      child: const MaterialApp(
-        home: Scaffold(
+      child: MaterialApp(
+        theme: buildTheme(),
+        home: const Scaffold(
           body: TourHost(
             child: PlayScreen(),
           ),
@@ -86,7 +88,10 @@ void main() {
     testWidgets('S3 Coach mark renders spotlight on Noob Practice card and advances on NEXT tap', (tester) async {
       tester.view.physicalSize = const Size(360, 640);
       tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
 
       await tourController.initForUser(
         userId: 'test_play_user',
@@ -119,7 +124,10 @@ void main() {
     testWidgets('S3b Existing user sees NEW ARENA RULES coach mark and advances cleanly', (tester) async {
       tester.view.physicalSize = const Size(360, 640);
       tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
 
       await tourController.initForUser(
         userId: 'existing_play_user',
@@ -162,6 +170,13 @@ void main() {
     });
 
     testWidgets('S7 Celebration modal triggers when practice completion is confirmed', (tester) async {
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
       await tourController.initForUser(
         userId: 'reward_user',
         isNewRegistration: true,

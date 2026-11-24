@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:devspace/features/path/data/curated_roadmaps.dart';
 import 'package:devspace/features/path/models/roadmap_model.dart';
 import 'package:devspace/features/path/providers/path_provider.dart';
 import 'package:devspace/features/path/screens/path_screen.dart';

@@ -13,7 +13,6 @@ import 'package:devspace/models/user_model.dart';
 import 'package:devspace/providers/auth_provider.dart';
 import 'package:devspace/providers/engagement_provider.dart';
 import 'package:devspace/providers/posts_provider.dart';
-import 'package:devspace/providers/practice_provider.dart';
 import 'package:devspace/providers/theme_provider.dart';
 import 'package:devspace/providers/users_provider.dart';
 import 'package:devspace/features/path/providers/path_provider.dart';

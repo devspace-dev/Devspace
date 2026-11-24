@@ -108,10 +108,10 @@ class PathMapCanvas extends StatelessWidget {
                       borderColor = Ds.aura;
                       titleColor = Ds.aura;
                     } else if (isSkipped) {
-                      borderColor = Ds.border.withOpacity(0.5);
+                      borderColor = Ds.border.withValues(alpha: 0.5);
                       titleColor = Ds.muted;
                     } else if (!isUnlocked) {
-                      borderColor = Ds.border.withOpacity(0.4);
+                      borderColor = Ds.border.withValues(alpha: 0.4);
                       titleColor = Ds.muted;
                     }
 
@@ -142,7 +142,7 @@ class PathMapCanvas extends StatelessWidget {
                             boxShadow: isNext
                                 ? [
                                     BoxShadow(
-                                      color: Ds.aura.withOpacity(0.2),
+                                      color: Ds.aura.withValues(alpha: 0.2),
                                       blurRadius: 10,
                                       spreadRadius: 1,
                                     ),
@@ -222,7 +222,7 @@ class _GridBackgroundPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Ds.border.withOpacity(0.4)
+      ..color = Ds.border.withValues(alpha: 0.4)
       ..strokeWidth = 1.0;
 
     const spacing = 30.0;

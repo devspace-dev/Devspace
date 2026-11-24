@@ -30,8 +30,8 @@ void main() {
       expect(keys.contains('streak_7_days'), isTrue);
       expect(keys.contains('first_duel_win'), isTrue);
       expect(keys.contains('duel_winner_x10'), isTrue);
-      expect(keys.contains('accepted_answer'), isTrue);
-      expect(keys.contains('top_10_aura'), isTrue);
+      expect(keys.contains('first_post'), isTrue);
+      expect(keys.contains('connector_x10'), isTrue);
     });
   });
 }

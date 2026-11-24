@@ -327,6 +327,8 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
             width: 44,
             height: 44,
             fit: BoxFit.cover,
+            memCacheWidth: 132,
+            memCacheHeight: 132,
             placeholder: (context, url) => Container(
               color: Colors.grey.shade50,
               alignment: Alignment.center,
@@ -665,6 +667,8 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
         height: bannerHeight,
         width: double.infinity,
         fit: BoxFit.cover,
+        memCacheWidth: 720,
+        memCacheHeight: (bannerHeight * 2).round(),
         placeholder: (context, url) => Container(
           height: bannerHeight,
           color: AppColors.bg3For(context),
@@ -1122,6 +1126,8 @@ class _OpportunityCardState extends State<_OpportunityCard> {
       height: _photoHeight,
       width: double.infinity,
       fit: BoxFit.cover,
+      memCacheWidth: 720,
+      memCacheHeight: (_photoHeight * 2).round(),
       placeholder: (context, _) => Container(
         height: _photoHeight,
         color: AppColors.bg3For(context),
@@ -1310,33 +1316,6 @@ class _OpportunityCardState extends State<_OpportunityCard> {
       ),
     );
   }
-
-  Widget _buildLockProgress(BuildContext context) {
-    final progress = (widget.myAura / widget.item.requiredAura).clamp(0.0, 1.0);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: LinearProgressIndicator(
-            value: progress,
-            backgroundColor: AppColors.bg3For(context),
-            color: AppColors.primary.withValues(alpha: 0.6),
-            minHeight: 5,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Keep building your aura to unlock access (${widget.myAura}/${widget.item.requiredAura} Aura)',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 10,
-            fontWeight: FontWeight.w600,
-            color: AppColors.text4For(context),
-          ),
-        ),
-      ],
-    );
-  }
 }
 
 // Flat banner used whenever an opportunity has no usable image. The colour is
@@ -1451,6 +1430,7 @@ Widget _buildLogoBanner(BuildContext context, String logoUrl, double height, boo
             child: CachedNetworkImage(
               imageUrl: logoUrl,
               fit: BoxFit.cover,
+              memCacheWidth: 400,
               errorWidget: (_, __, ___) => const SizedBox(),
             ),
           ),
@@ -1469,6 +1449,8 @@ Widget _buildLogoBanner(BuildContext context, String logoUrl, double height, boo
           child: CachedNetworkImage(
             imageUrl: logoUrl,
             fit: BoxFit.contain,
+            memCacheWidth: 200,
+            memCacheHeight: 200,
             placeholder: (context, url) => const SizedBox(
               width: 20,
               height: 20,

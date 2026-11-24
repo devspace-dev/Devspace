@@ -178,7 +178,7 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
     if (question == null && questionsP.isLoading) {
       return Scaffold(
         backgroundColor: AppColors.bgFor(context),
-        body: AppLoadingState(
+        body: const AppLoadingState(
           title: 'Loading question',
           message: 'Pulling in the full thread and replies.',
         ),

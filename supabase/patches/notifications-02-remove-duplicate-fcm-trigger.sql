@@ -1,0 +1,40 @@
+-- ==============================================================================
+-- DEVSPACE NOTIFICATION REBUILD: MIGRATION 02
+-- File: supabase/patches/notifications-02-remove-duplicate-fcm-trigger.sql
+-- 
+-- Description:
+-- Drops the duplicate FCM push trigger on public.notifications.
+--
+-- Context:
+-- public.notifications has two active triggers firing on INSERT:
+--   1. send_fcm_push
+--   2. trigger_fcm_push
+-- Both triggers invoke the fcm_push Edge Function, causing every notification row
+-- to dispatch duplicate push notifications to the user's device.
+--
+-- Recommendation:
+-- - Check if either trigger is linked to a Dashboard Database Webhook 
+--   (Dashboard -> Database -> Webhooks):
+--   * If the dashboard shows an active webhook for notifications INSERT, keep the
+--     trigger created/managed by that webhook (typically `send_fcm_push` or the named webhook)
+--     and drop the duplicate manual SQL trigger (`trigger_fcm_push`).
+--   * If both were created via SQL, keep `send_fcm_push` (standard naming) and drop `trigger_fcm_push`.
+--
+-- Below, `trigger_fcm_push` is targeted for dropping. Its rollback/re-creation SQL
+-- is documented in the comment below.
+-- ==============================================================================
+
+-- ------------------------------------------------------------------------------
+-- DROP DUPLICATE TRIGGER
+-- ------------------------------------------------------------------------------
+DROP TRIGGER IF EXISTS trigger_fcm_push ON public.notifications;
+
+-- ------------------------------------------------------------------------------
+-- ROLLBACK / RESTORATION INSTRUCTIONS (Keep for safety):
+-- If you ever need to restore trigger_fcm_push, run:
+--
+-- CREATE TRIGGER trigger_fcm_push
+--   AFTER INSERT ON public.notifications
+--   FOR EACH ROW
+--   EXECUTE FUNCTION <function_name_from_check_04>();
+-- ------------------------------------------------------------------------------

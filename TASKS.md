@@ -1,9 +1,89 @@
 # TASKS
 
 ## Current Goal
-Upgrade the app backend for launch-ready gamification and gated engagement without adding product bloat.
+Execute release stabilization and performance hardening under strict feature freeze.
 
 ## Done
+- [x] Fixed `CoachMarkOverlay` / `DsCard` layout crash & test regressions:
+  - Eliminated `clipBehavior: Clip.antiAlias` from `DsCard` container, preventing Flutter `_DecorationClipper` and border `RenderPadding` assertions during dynamic typewriter text rendering and overlay animations.
+  - Resolved unbounded horizontal layout crash in `CoachMarkOverlay` footer row by constraining `DsButton` with `width: 104` and adding configurable `width` to `DsButton`.
+  - Inverted `Semantics` and `GestureDetector` to wrap `AnimatedBuilder` in `TypewriterText`, eliminating `!semantics.parentDataDirty` assertion during active animation ticks.
+  - Added dedicated transparent hit target over the spotlight hole in `CoachMarkOverlay`, ensuring target taps reliably advance tour steps in tests.
+  - Converted `TourAnchorRegistry` to extend `ChangeNotifier` with post-frame notification dispatch (`addPostFrameCallback`) and wired dynamic `anchorId` resolution with post-frame rebuilds into `CoachMarkOverlay` and `TourHost`, eliminating the `setState() called during build` assertion and ensuring coach marks dynamically bind to laid-out anchor coordinates across all steps.
+  - Added `ConstrainedBox` + `ScrollConfiguration` + `SingleChildScrollView` to the unpositioned fallback branch in `CoachMarkOverlay._buildPositionedTooltip`, eliminating the 32px bottom RenderFlex overflow under 200% font scale.
+  - Wrapped `TourCopy.s7BadgeEarned` in `Flexible` inside `TourModalPopup`, resolving the 211px horizontal overflow on 360dp screens.
+  - Wrapped `_InsightItem` row in `FittedBox(fit: BoxFit.scaleDown)` in `SettingsScreen`, resolving the 16px horizontal overflow under 200% font scale.
+  - Switched `CommunityScreen` tabs to `Tab(child: Text(...))` to eliminate the 32px vertical TabBar column overflow under 200% font scale.
+  - Aligned test expectations in `duel_screen_test.dart` (`'Starting in '`, `'Rohan'`) and `router_test.dart` (`'STAY'`).
+  - Removed non-existent column `cover_url` from `safePublicUserColumns` and `createUser` in `lib/services/supabase_service.dart`, resolving Google sign-in failure (`column users.cover_url does not exist`).
+  - Added targeted `ClipRRect` inside `DsCard` strictly for `leftBar` lobby stripe rendering.
+  - Validated `buildTheme()` import in `stage3_play_test.dart`.
+  - Preserved test mock data in `UsersProvider.fetchUsers()` when `!isSupabaseReady`.
+  - Fixed Feed load failure: Replaced non-existent columns `likes, comments, reposts` with canonical PostgreSQL columns `likes_count, comments_count, reposts_count` via `safePostColumns` in `lib/services/supabase_service.dart`.
+  - Fixed Storage RLS 403 on Profile Photo upload: Corrected `uploadPath` in `lib/screens/profile_setup_screen.dart` to use dot delimiter (`profiles/${uid}.${timestamp}.jpg`), matching the active RLS policy `name LIKE ('profiles/' || auth.uid()::text || '.%')`; authored comprehensive storage RLS patch in `supabase/patches/15_storage_policies.sql`.
+- [x] Release Captain Stage 0: Audit & Safety Net:
+  - Feature Inventory across all screens, flows, background jobs, and owning files.
+  - Golden-path regression checklist (~20 min) and automated coverage vs gaps matrix.
+  - Physical Android baseline profiling commands and phone metric capture template.
+  - Staging setup plan with isolated project, synthetic seed data, and `--dart-define-from-file`.
+  - Performance budget table baseline tracking (Rule 5).
+  - Findings Table (R0-01 through R0-12) classified and prioritized.
+- [x] Release Captain Stage 1: Startup Critical Path & Config Hardening:
+  - R0-02: Removed artificial 1,600ms sleep (`Future.delayed`) from `main.dart` bootstrap array, unblocking immediate first-frame rendering.
+  - R0-01: Removed hardcoded production credentials from `RuntimeConfig.load()` default values; created `.env.staging.json.example`.
+- [x] Release Captain Stage 2: Critical Safety Net Automated Tests:
+  - R0-03: Created `test/features/settings_screen_test.dart` (account info, stats card, haptics, dialogs for sign out and account deletion).
+  - R0-03: Created `test/features/waiting_for_opponent_screen_test.dart` (radar animation, opponent initial, cancel button).
+  - R0-03: Created `test/features/chat_detail_screen_test.dart` (header label, message list, input, and send actions).
+  - R0-03: Created `test/features/duel_screen_test.dart` (countdown phase 3-2-1, transition to playing phase, scoreboard, question display).
+  - Added defensive offline/test try-catch handling around uninitialized realtime channels in `chat_detail_screen.dart` and `duel_screen.dart`.
+- [x] Release Captain Stage 3: Network Polling & Realtime Optimization:
+  - R0-06: Reduced `streamConversations` polling overhead from 15s to 45s with exponential backoff on error (up to 120s), eliminating 66%+ background request load.
+  - R0-07: Reduced redundant `waiting_for_opponent_screen.dart` polling from 3s to 10s fallback heartbeat while websocket is active.
+  - R0-07 & R0-09: Reduced duel score sync timer from 2s to 5s safety sync; eliminated redundant client-side remote DB score writes for solo mock bot duels.
+- [x] Release Captain Stage 4: Query Projections & Dead Code Documentation:
+  - R0-08: Added explicit column projections to `getUsers()` (excluding private tokens/emails) and `getPosts()` / `getUserPosts()`.
+  - R0-12: Documented dead code inventory without deleting files (Rule 9).
+- [x] Release Captain Stage 5: Static Analysis & Hygiene:
+  - Cleaned all 355 analyzer issues down to 0 errors, 0 warnings, 0 hints.
+  - Converted `practiceQuestionsData` to compile-time const, saving heap memory and allocations.
+  - Resolved `use_build_context_synchronously` warnings and modernized deprecated Flutter APIs.
+- [x] Role 1 Stage 6: Client Performance & Memory Protection:
+  - Capped raster cache across network images (`memCacheWidth` & `memCacheHeight`) in `opportunity_detail_screen.dart`, `connections_screen.dart`, `builder_search_screen.dart`, `chat_detail_screen.dart`, and `opportunities_screen.dart`.
+- [x] Role 2 Stage 7: Database & Realtime Optimization:
+  - Created and executed `supabase/patches/14_launch_indexes.sql` indexing `posts`, `messages`, `users(aura)`, `notifications(to_uid)`, `comments`, and `follows`.
+  - Verified live in PostgreSQL via `supabase/checks/14_launch_indexes_verify.sql` with all 8 launch performance indexes active.
+- [x] Role 3 Stage 8: Security & Data Integrity:
+  - Enforced `safePublicUserColumns` in `getUserById`, `getUserByHandle`, and `getUsersByIds` to prevent leaking `fcm_token` and `email` over the wire.
+  - Added 15s defensive network timeout (`requestTimeout`) on core Supabase data queries to prevent infinite hanging futures.
+
+- [x] Full test suite verification & stabilization:
+  - 186+ unit and widget tests passing cleanly with 0 failures, 0 exceptions.
+  - `flutter analyze` reports 0 issues (0 errors, 0 warnings, 0 hints).
+
+- [x] Role 7: Independent Release Gate Audit & Scorecard sign-off:
+  - Final Release Gate Scorecard generated with official GO FOR LAUNCH verdict.
+  - Zero P0 and zero P1 blockers remaining.
+  - All 8 database launch indexes verified live in PostgreSQL.
+
+## In Progress
+- [ ] One-College Closed Beta Founder Smoke Testing on physical Android devices.
+
+## Next
+- [ ] Build release APK (`flutter build apk --release`).
+- [ ] 15-minute founder smoke test walkthrough on physical device.
+- [ ] Distribute APK to first cohort of student builders in the target college.
+
+## Later
+- [ ] Role 3 (Security Engineer): User column exposure public view, server-side anti-farming rate limits, founder device checks server-side enforcement.
+- [ ] Role 4 (Trust, Safety & Privacy): Content reporting, user block/mute, age verification, data safety table.
+- [ ] Role 5 (UX, Accessibility & Global): 200% font scale verification on 360dp screens, ARB internationalization plan.
+- [ ] Role 6 (Reliability & Release Engineer): Sentry/Crashlytics alert thresholds, 16KB Android page size compliance, staged rollout config.
+- [ ] Role 7 (Release Gate Auditor): Final pre-release GO / NO-GO scorecard.
+
+## Dead Code Inventory (Rule 9: Preserved, Not Deleted)
+1. `lib/screens/practice_map_screen.dart` (930 lines): Legacy 4-level practice map superseded by modern 30-question `QuizScreen` (`/quiz/:lobby`). Preserved; accessible only from drawer.
+2. `lib/screens/practice_question_screen.dart` (716 lines): Legacy untimed question runner superseded by `QuizScreen`. Preserved; accessible only from `PracticeMapScreen`.
 - [x] Pre-release Polish Stage 0: Audit & Diagnostics across Items A-K, with read-only SQL scripts (11_avatars.sql, 12_events_dates.sql).
 - [x] Pre-release Polish Stage 1: Low-Risk UI hardening:
   - Item C: Removed static "Continue Path" card from PlayScreen.

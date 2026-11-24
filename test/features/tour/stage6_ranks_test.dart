@@ -109,7 +109,10 @@ void main() {
     testWidgets('New user sees S6 Leaderboard coach mark with new user copy and finishes tour', (tester) async {
       tester.view.physicalSize = const Size(360, 640);
       tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
 
       await tourController.initForUser(
         userId: 'u-ranks-new',
@@ -232,7 +235,10 @@ void main() {
     testWidgets('S6 Coach mark renders without overflow under 200% font scale on 360dp width', (tester) async {
       tester.view.physicalSize = const Size(360, 640);
       tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
 
       await tourController.initForUser(
         userId: 'u-ranks-new',

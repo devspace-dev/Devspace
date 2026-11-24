@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../../core/services/reward_feedback.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text.dart';
 import '../../../core/widgets/ds_card.dart';
@@ -192,7 +193,12 @@ class FirstQuestsCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: InkWell(
-        onTap: quest.isCompleted ? null : quest.onTap,
+        onTap: quest.isCompleted
+            ? null
+            : () {
+                RewardFeedback.selection();
+                quest.onTap();
+              },
         borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 4),

@@ -21,21 +21,24 @@ class DsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     Widget body;
     if (leftBar != null) {
-      body = IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              width: 8,
-              color: leftBar,
-            ),
-            Expanded(
-              child: Padding(
-                padding: padding,
-                child: child,
+      body = ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                width: 8,
+                color: leftBar,
               ),
-            ),
-          ],
+              Expanded(
+                child: Padding(
+                  padding: padding,
+                  child: child,
+                ),
+              ),
+            ],
+          ),
         ),
       );
     } else {
@@ -46,7 +49,6 @@ class DsCard extends StatelessWidget {
     }
 
     final card = Container(
-      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: Ds.surface,
         borderRadius: BorderRadius.circular(10),

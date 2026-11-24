@@ -118,6 +118,6 @@ void main() {
     await tester.tap(find.text('CONTINUE'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Q2 OF 8'), findsOneWidget);
+    expect(find.text('Q2 OF 30'), findsOneWidget);
   });
 }

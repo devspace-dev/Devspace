@@ -1,8 +1,6 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:devspace/core/theme/colors.dart';
 import 'package:devspace/models/user_model.dart';
 import 'package:devspace/screens/duel_result_screen.dart';
 
@@ -76,7 +74,8 @@ void main() {
     final opp = makeUser(id: 'u2', name: 'DevTwo');
 
     await tester.pumpWidget(buildTestWidget(me: me, opponent: opp));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     final rematchFinder = find.widgetWithText(ElevatedButton, 'REMATCH');
     final newDuelFinder = find.widgetWithText(ElevatedButton, 'NEW DUEL');
@@ -127,11 +126,13 @@ void main() {
         },
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     // Tap REMATCH
     await tester.tap(find.widgetWithText(ElevatedButton, 'REMATCH').first);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(sentSenderId, 'u1');
     expect(sentReceiverId, 'u2');
@@ -170,17 +171,20 @@ void main() {
         },
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     // Tap REMATCH -> enters waiting screen
     await tester.tap(find.widgetWithText(ElevatedButton, 'REMATCH').first);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('DECLINED OR TIMED OUT'), findsOneWidget);
 
     // Opponent declines or times out -> pops back to DuelResultScreen
     await tester.tap(find.text('DECLINED OR TIMED OUT'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     // Cooldown is active: 10 seconds remaining
     expect(find.text('REMATCH (10s)'), findsWidgets);
@@ -219,7 +223,8 @@ void main() {
         fontScale: 2.0,
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     // Expect no Flutter errors or overflow exceptions
     expect(tester.takeException(), isNull);
@@ -239,14 +244,16 @@ void main() {
         fontScale: 1.0,
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     final pageView = tester.widget<PageView>(find.byType(PageView));
     expect(pageView.scrollDirection, Axis.horizontal);
 
     // Swipe horizontally to switch to analysis
     await tester.fling(find.byType(PageView), const Offset(-300, 0), 1000);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('SWIPE RIGHT FOR SUMMARY'), findsOneWidget);
   });

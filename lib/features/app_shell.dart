@@ -26,6 +26,7 @@ import '../screens/chat_detail_screen.dart';
 import '../screens/question_detail_screen.dart';
 import '../widgets/duel_invite_dialog.dart';
 import 'path/providers/path_provider.dart';
+import 'tour/models/tour_step.dart';
 import 'tour/services/tour_controller.dart';
 import 'tour/widgets/tour_host.dart';
 

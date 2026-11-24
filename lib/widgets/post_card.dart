@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:flutter_animate/flutter_animate.dart';
+import '../core/services/reward_feedback.dart';
 import '../core/theme/colors.dart';
 import '../core/theme/text.dart';
 import '../core/widgets/ds_tag.dart';
@@ -15,11 +16,10 @@ import '../providers/users_provider.dart';
 import '../providers/auth_provider.dart';
 import '../screens/people_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../screens/profile_screen.dart';
+import '../features/profile/screens/profile_screen.dart';
 import '../screens/post_detail_screen.dart';
 import '../theme/app_colors.dart';
 import 'user_avatar.dart';
-import 'glass_container.dart';
 
 class PostCard extends StatefulWidget {
   final PostModel post;
@@ -97,11 +97,13 @@ class _PostCardState extends State<PostCard> {
     if (hasQuote && quotedPost == null && !quotedPostLoading) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        context.read<PostsProvider>().ensureQuotedPostLoaded(quotePostId).then((_) {
+        final postsP = context.read<PostsProvider>();
+        final usersP = context.read<UsersProvider>();
+        postsP.ensureQuotedPostLoaded(quotePostId).then((_) {
           if (mounted) {
-            final loadedQuote = context.read<PostsProvider>().quotedPost(quotePostId);
+            final loadedQuote = postsP.quotedPost(quotePostId);
             if (loadedQuote != null) {
-              context.read<UsersProvider>().fetchAndCacheUsers([loadedQuote.userId]);
+              usersP.fetchAndCacheUsers([loadedQuote.userId]);
             }
           }
         });
@@ -288,11 +290,13 @@ class _PostCardState extends State<PostCard> {
                         final next = !showComments;
                         _showCommentsNotifier.value = next;
                         if (next) {
-                          context.read<PostsProvider>().fetchComments(post.id).then((_) {
+                          final postsP = context.read<PostsProvider>();
+                          final usersP = context.read<UsersProvider>();
+                          postsP.fetchComments(post.id).then((_) {
                             if (mounted) {
-                              final comments = context.read<PostsProvider>().commentsForPost(post.id);
+                              final comments = postsP.commentsForPost(post.id);
                               final userIds = comments.map((c) => c.userId).toList();
-                              context.read<UsersProvider>().fetchAndCacheUsers(userIds);
+                              usersP.fetchAndCacheUsers(userIds);
                             }
                           });
                         }
@@ -385,11 +389,13 @@ class _PostCardState extends State<PostCard> {
                       final next = !_showCommentsNotifier.value;
                       _showCommentsNotifier.value = next;
                       if (next) {
-                        context.read<PostsProvider>().fetchComments(post.id).then((_) {
+                        final postsP = context.read<PostsProvider>();
+                        final usersP = context.read<UsersProvider>();
+                        postsP.fetchComments(post.id).then((_) {
                           if (mounted) {
-                            final comments = context.read<PostsProvider>().commentsForPost(post.id);
+                            final comments = postsP.commentsForPost(post.id);
                             final userIds = comments.map((c) => c.userId).toList();
-                            context.read<UsersProvider>().fetchAndCacheUsers(userIds);
+                            usersP.fetchAndCacheUsers(userIds);
                           }
                         });
                       }
@@ -560,14 +566,25 @@ class _PostCardState extends State<PostCard> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => GlassContainer(
-        color: AppColors.bg2For(context),
-        opacity: 0.9,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: Ds.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          border: Border.all(color: Ds.border),
+        ),
         child: SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Ds.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
               ListTile(
                 leading: const Icon(Icons.edit_rounded),
                 title: const Text('Edit Post'),
@@ -735,6 +752,7 @@ class _PostCardState extends State<PostCard> {
     String postId,
     String userId,
   ) async {
+    RewardFeedback.light();
     await postsProvider.toggleLike(postId, userId);
     if (!context.mounted) return;
 
@@ -752,6 +770,7 @@ class _PostCardState extends State<PostCard> {
     String postId,
     String userId,
   ) async {
+    RewardFeedback.light();
     await postsProvider.toggleBookmark(postId, userId);
     if (!context.mounted) return;
 
@@ -924,10 +943,12 @@ class _QuotePostSheetState extends State<_QuotePostSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return GlassContainer(
-      color: AppColors.bgFor(context),
-      opacity: 0.95,
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+    return Container(
+      decoration: BoxDecoration(
+        color: Ds.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        border: Border.all(color: Ds.border),
+      ),
       child: Container(
         padding: EdgeInsets.fromLTRB(16, 12, 16, 16 + MediaQuery.of(context).viewInsets.bottom),
         child: Column(

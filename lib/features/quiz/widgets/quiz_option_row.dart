@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import '../../../core/services/reward_feedback.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text.dart';
 import 'shake_animation.dart';
@@ -78,7 +78,7 @@ class _QuizOptionRowState extends State<QuizOptionRow> {
           onTapUp: enabled ? (_) => setState(() => _down = false) : null,
           onTap: enabled
               ? () {
-                  HapticFeedback.lightImpact();
+                  RewardFeedback.selection();
                   widget.onTap!();
                 }
               : null,
@@ -98,11 +98,13 @@ class _QuizOptionRowState extends State<QuizOptionRow> {
                 border: Border.all(color: border, width: 2),
               ),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Letter Chip (28x28, radius 6)
                   Container(
                     width: 28,
                     height: 28,
+                    margin: const EdgeInsets.only(top: 2),
                     decoration: BoxDecoration(
                       color: widget.state == OptionState.correct
                           ? Ds.mint
@@ -135,9 +137,15 @@ class _QuizOptionRowState extends State<QuizOptionRow> {
 
                   // State Indicator Icon
                   if (widget.state == OptionState.correct)
-                    const Icon(Icons.check_circle_rounded, color: Ds.mint, size: 22)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 3),
+                      child: Icon(Icons.check_circle_rounded, color: Ds.mint, size: 22),
+                    )
                   else if (widget.state == OptionState.wrong)
-                    const Icon(Icons.cancel_rounded, color: Ds.hot, size: 22),
+                    const Padding(
+                      padding: EdgeInsets.only(top: 3),
+                      child: Icon(Icons.cancel_rounded, color: Ds.hot, size: 22),
+                    ),
                 ],
               ),
             ),

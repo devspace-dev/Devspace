@@ -2,14 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:devspace/core/widgets/ds_button.dart';
 import 'package:devspace/core/widgets/glitch.dart';
 import 'package:devspace/features/path/providers/path_provider.dart';
 import 'package:devspace/features/tour/models/tour_step.dart';
 import 'package:devspace/features/tour/services/tour_controller.dart';
 import 'package:devspace/features/tour/tour_copy.dart';
 import 'package:devspace/features/tour/widgets/tour_host.dart';
-import 'package:devspace/features/tour/widgets/tour_popups.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

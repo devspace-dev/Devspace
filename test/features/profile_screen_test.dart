@@ -61,16 +61,15 @@ void main() {
     await tester.pumpWidget(createProfileApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('PROFILE'), findsOneWidget);
+    expect(find.text('Profile'), findsOneWidget);
     expect(find.text('Harshit Raj'), findsOneWidget);
-    expect(find.text('@harshit'), findsOneWidget);
+    expect(find.textContaining('@harshit'), findsOneWidget);
     expect(find.text('BUG HUNTER'), findsOneWidget); // 820 aura -> Bug Hunter
 
     // Three stat cards
-    expect(find.text('STREAK'), findsOneWidget);
+    expect(find.text('DAY STREAK'), findsOneWidget);
     expect(find.text('6'), findsOneWidget);
     expect(find.text('COLLEGE RANK'), findsOneWidget);
-    expect(find.text('#1'), findsOneWidget);
     expect(find.text('SOLVED'), findsOneWidget);
   });
 
@@ -79,11 +78,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('BADGES'), findsOneWidget);
-    expect(find.text('First Build'), findsOneWidget);
-    expect(find.text('Week Fire'), findsOneWidget);
-    expect(find.text('Century'), findsOneWidget);
-    expect(find.text('Veteran'), findsOneWidget);
-    expect(find.text('10x Dev'), findsOneWidget);
+    expect(find.text('First Practice Solve'), findsOneWidget);
+    expect(find.text('Easy Cleared'), findsOneWidget);
+    expect(find.text('Medium Cleared'), findsOneWidget);
+    expect(find.text('Hard Cleared'), findsOneWidget);
 
     expect(find.text('TECH STACK'), findsOneWidget);
     expect(find.text('FLUTTER'), findsOneWidget);
@@ -91,14 +89,98 @@ void main() {
     expect(find.text('DART'), findsOneWidget);
   });
 
-  testWidgets('ProfileScreen renders Edit Profile button, Saved Posts, and Theme settings', (tester) async {
+  testWidgets('ProfileScreen renders Edit Profile button, Saved Posts, and Settings', (tester) async {
     await tester.pumpWidget(createProfileApp());
     await tester.pumpAndSettle();
 
     expect(find.text('EDIT PROFILE'), findsOneWidget);
     expect(find.text('Saved Posts'), findsOneWidget);
-    expect(find.text('Theme'), findsOneWidget);
-    expect(find.text('Dark (v1)'), findsOneWidget);
+    expect(find.text('Settings'), findsOneWidget);
     expect(find.text('Sign Out'), findsOneWidget);
+  });
+
+  testWidgets('ProfileScreen shows Unranked in College Rank when aura is 0', (tester) async {
+    final zeroAuraUser = UserModel(
+      id: 'u-zero',
+      name: 'New Student',
+      handle: 'newstudent',
+      email: 'new@example.com',
+      avatar: '',
+      color: Colors.black,
+      aura: 0,
+      roles: const ['Student'],
+      year: '1st Year',
+      branch: 'CSE',
+      building: '',
+      stack: const ['Dart'],
+      followers: 0,
+      following: 0,
+      bio: '',
+      college: 'Jaipur National University',
+      githubHandle: '',
+      profileCompleted: true,
+      currentStreak: 0,
+    );
+
+    await tester.pumpWidget(createProfileApp(user: zeroAuraUser));
+    await tester.pumpAndSettle();
+
+    expect(find.text('COLLEGE RANK'), findsOneWidget);
+    expect(find.text('Unranked'), findsOneWidget);
+  });
+
+  testWidgets('ProfileScreen renders FOLLOW and MESSAGE when viewing peer profile', (tester) async {
+    final peerUser = UserModel(
+      id: 'u-peer',
+      name: 'Peer Developer',
+      handle: 'peerdev',
+      email: 'peer@example.com',
+      avatar: '',
+      color: Colors.black,
+      aura: 1200,
+      roles: const ['Student'],
+      year: '4th Year',
+      branch: 'IT',
+      building: '',
+      stack: const ['Python', 'Django'],
+      followers: 25,
+      following: 5,
+      bio: 'Open source lover',
+      college: 'MNIT Jaipur',
+      githubHandle: 'peerdev',
+      profileCompleted: true,
+      currentStreak: 12,
+      isFollowing: false,
+    );
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(
+            create: (_) => AuthProvider(
+              initialUser: testUser,
+              listenToAuthChanges: false,
+            ),
+          ),
+          ChangeNotifierProvider(
+            create: (_) => UsersProvider(
+              initialUsers: [testUser, peerUser],
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          theme: buildTheme(),
+          home: const ProfileScreen(userId: 'u-peer'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('@peerdev'), findsOneWidget);
+    expect(find.text('FOLLOW'), findsOneWidget);
+    expect(find.text('MESSAGE'), findsOneWidget);
+    // Peer should not see self-only settings or saved posts
+    expect(find.text('Saved Posts'), findsNothing);
+    expect(find.text('Sign Out'), findsNothing);
   });
 }

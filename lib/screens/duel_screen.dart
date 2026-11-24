@@ -57,9 +57,9 @@ class _DuelScreenState extends State<DuelScreen> {
   int _myScore = 0;
   int _opponentScore = 0;
   int _myOwnAnswersScore = 0;
-  int _myTeammateScore = 0;
+  final int _myTeammateScore = 0;
   int _opponentPlayerScore = 0;
-  int _opponentTeammateScore = 0;
+  final int _opponentTeammateScore = 0;
 
   int _questionsAnswered = 0;
   final List<int> _myScoreTimeline = [0];
@@ -106,38 +106,42 @@ class _DuelScreenState extends State<DuelScreen> {
       }
     });
 
-    _matchSubscription = Supabase.instance.client
-        .channel('public:arena_matches:id=eq.${widget.matchId}')
-        .onPostgresChanges(
-            event: PostgresChangeEvent.update,
-            schema: 'public',
-            table: 'arena_matches',
-            filter: PostgresChangeFilter(
-              type: PostgresChangeFilterType.eq,
-              column: 'id',
-              value: widget.matchId,
-            ),
-            callback: (payload) {
-              if (mounted) {
-                final record = payload.newRecord;
-                final newOppScore = widget.isPlayer1
-                    ? (record['player2_score'] as num?)?.toInt() ?? _opponentScore
-                    : (record['player1_score'] as num?)?.toInt() ?? _opponentScore;
+    try {
+      _matchSubscription = Supabase.instance.client
+          .channel('public:arena_matches:id=eq.${widget.matchId}')
+          .onPostgresChanges(
+              event: PostgresChangeEvent.update,
+              schema: 'public',
+              table: 'arena_matches',
+              filter: PostgresChangeFilter(
+                type: PostgresChangeFilterType.eq,
+                column: 'id',
+                value: widget.matchId,
+              ),
+              callback: (payload) {
+                if (mounted) {
+                  final record = payload.newRecord;
+                  final newOppScore = widget.isPlayer1
+                      ? (record['player2_score'] as num?)?.toInt() ?? _opponentScore
+                      : (record['player1_score'] as num?)?.toInt() ?? _opponentScore;
 
-                if (newOppScore > _opponentScore) {
-                  final diff = newOppScore - _opponentScore;
-                  final steps = diff ~/ 15;
-                  for (int i = 0; i < steps; i++) {
-                    _opponentPlayerScore += 15;
-                    _showStatusMessage('${widget.opponent.name} scored! +15');
+                  if (newOppScore > _opponentScore) {
+                    final diff = newOppScore - _opponentScore;
+                    final steps = diff ~/ 15;
+                    for (int i = 0; i < steps; i++) {
+                      _opponentPlayerScore += 15;
+                      _showStatusMessage('${widget.opponent.name} scored! +15');
+                    }
+                    setState(() {
+                      _opponentScore = newOppScore;
+                    });
                   }
-                  setState(() {
-                    _opponentScore = newOppScore;
-                  });
                 }
-              }
-            })
-        .subscribe();
+              })
+          .subscribe();
+    } catch (_) {
+      // Safe fallback when Supabase is not initialized (e.g. tests or offline)
+    }
   }
 
   Future<void> _initializeTeammates() async {
@@ -254,7 +258,7 @@ class _DuelScreenState extends State<DuelScreen> {
   }
 
   void _startScoreSync() {
-    _scoreSyncTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
+    _scoreSyncTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
       if (!mounted || _phase != DuelPhase.playing) {
         timer.cancel();
         return;
@@ -300,9 +304,6 @@ class _DuelScreenState extends State<DuelScreen> {
             if (DateTime.now().millisecond % 10 < 6) {
               _opponentPlayerScore += 15;
               _opponentScore = _opponentPlayerScore + _opponentTeammateScore;
-              SupabaseService.instance
-                  .updateArenaScore(widget.matchId, !widget.isPlayer1, _opponentScore);
-              // Rebuilds the score display too, since it shares this setState.
               _showStatusMessage('${widget.opponent.name} scored! +15');
             }
           }

@@ -157,9 +157,9 @@ class _PeopleScreenState extends State<PeopleScreen> {
                 ),
               ),
             if (usersP.isLoadingMore)
-              SliverToBoxAdapter(
+              const SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  padding: EdgeInsets.symmetric(vertical: 24),
                   child: Center(
                     child: SizedBox(
                       width: 20,

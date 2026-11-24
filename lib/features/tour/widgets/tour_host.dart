@@ -85,6 +85,7 @@ class TourHost extends StatelessWidget {
         final rect = TourAnchorRegistry.instance.getGlobalRect(TourAnchorId.firstTierTile);
         overlayWidget = CoachMarkOverlay(
           targetRect: rect,
+          anchorId: TourAnchorId.firstTierTile,
           title: TourCopy.s3PlayTitle,
           body: TourCopy.s3PlayBody,
           stepPill: tour.isNewUser ? 'STEP 3 OF 6' : 'STEP 2 OF 5',
@@ -105,6 +106,7 @@ class TourHost extends StatelessWidget {
         final rect = TourAnchorRegistry.instance.getGlobalRect(TourAnchorId.firstTierTile);
         overlayWidget = CoachMarkOverlay(
           targetRect: rect,
+          anchorId: TourAnchorId.firstTierTile,
           title: TourCopy.s3bPlayTitle,
           body: TourCopy.s3bPlayBody,
           stepPill: 'STEP 2 OF 5',
@@ -125,6 +127,7 @@ class TourHost extends StatelessWidget {
         final rect = TourAnchorRegistry.instance.getGlobalRect(TourAnchorId.createPostButton);
         overlayWidget = CoachMarkOverlay(
           targetRect: rect,
+          anchorId: TourAnchorId.createPostButton,
           title: TourCopy.s4CommunityTitle,
           body: TourCopy.s4CommunityBody,
           stepPill: tour.isNewUser ? 'STEP 4 OF 6' : 'STEP 3 OF 5',
@@ -145,6 +148,7 @@ class TourHost extends StatelessWidget {
         final rect = TourAnchorRegistry.instance.getGlobalRect(TourAnchorId.eventsTab);
         overlayWidget = CoachMarkOverlay(
           targetRect: rect,
+          anchorId: TourAnchorId.eventsTab,
           title: TourCopy.s5EventsTitle,
           body: TourCopy.s5EventsBody,
           stepPill: tour.isNewUser ? 'STEP 5 OF 6' : 'STEP 4 OF 5',
@@ -167,6 +171,7 @@ class TourHost extends StatelessWidget {
             : TourCopy.s6RanksBodyClimb;
         overlayWidget = CoachMarkOverlay(
           targetRect: rect,
+          anchorId: TourAnchorId.myRankRow,
           title: TourCopy.s6RanksTitle,
           body: bodyText,
           stepPill: tour.isNewUser ? 'STEP 6 OF 6' : 'STEP 5 OF 5',
@@ -207,9 +212,11 @@ class TourHost extends StatelessWidget {
                 children: [
                   const Icon(Icons.workspace_premium_rounded, color: Ds.aura, size: 20),
                   const SizedBox(width: 8),
-                  Text(
-                    TourCopy.s7BadgeEarned,
-                    style: DsText.caption.copyWith(color: Ds.aura),
+                  Flexible(
+                    child: Text(
+                      TourCopy.s7BadgeEarned,
+                      style: DsText.caption.copyWith(color: Ds.aura),
+                    ),
                   ),
                 ],
               ),

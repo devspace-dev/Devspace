@@ -1,9 +1,9 @@
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../../core/services/reward_feedback.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text.dart';
 import '../../../core/widgets/glitch.dart';
@@ -52,6 +52,8 @@ class _QuizScreenState extends State<QuizScreen> {
         _ => ('LOBBY', 'EASY', Ds.tierBronze),
       };
 
+  static const int kQuestionsPerSession = 30;
+
   @override
   void initState() {
     super.initState();
@@ -59,9 +61,30 @@ class _QuizScreenState extends State<QuizScreen> {
 
     final allForLevel = practiceQuestionsData.where((q) => q.levelIndex == _levelIndex).toList();
     if (allForLevel.isEmpty) {
-      _questions = practiceQuestionsData.take(8).toList();
+      _questions = practiceQuestionsData.take(kQuestionsPerSession).toList();
     } else {
-      _questions = allForLevel.take(8).toList();
+      // Smart Sampling: Prioritize uncompleted questions first, then mix in completed for revision
+      try {
+        final practiceP = context.read<PracticeProvider>();
+        final uncompleted = allForLevel
+            .where((q) => !practiceP.isQuestionCompleted(q.id))
+            .toList()
+          ..shuffle();
+        final completed = allForLevel
+            .where((q) => practiceP.isQuestionCompleted(q.id))
+            .toList()
+          ..shuffle();
+
+        final selected = <PracticeQuestion>[];
+        selected.addAll(uncompleted.take(kQuestionsPerSession));
+        if (selected.length < kQuestionsPerSession) {
+          selected.addAll(completed.take(kQuestionsPerSession - selected.length));
+        }
+        _questions = selected..shuffle();
+      } catch (_) {
+        // Fallback for isolated widget testing environments
+        _questions = (List<PracticeQuestion>.from(allForLevel)..shuffle()).take(kQuestionsPerSession).toList();
+      }
     }
   }
 
@@ -114,12 +137,12 @@ class _QuizScreenState extends State<QuizScreen> {
       if (mounted && !disableAnimations) {
         _confettiController.play();
       }
-      HapticFeedback.mediumImpact();
+      RewardFeedback.success();
       // ignore: deprecated_member_use
       SemanticsService.announce('Correct answer. Big brain. +$reward Aura', TextDirection.ltr);
     } else {
       _gotWrong = true;
-      HapticFeedback.heavyImpact();
+      RewardFeedback.medium();
       // ignore: deprecated_member_use
       SemanticsService.announce('Incorrect answer. Glitched.', TextDirection.ltr);
     }
@@ -256,13 +279,13 @@ class _QuizScreenState extends State<QuizScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Row of Slanted Tags
-                  Row(
+                  // Row of Slanted Tags (Wrap to prevent overflow on small screens / large fonts)
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
                       DsTag('Q${_currentIndex + 1} OF ${_questions.length}'),
-                      const SizedBox(width: 8),
                       DsTag(levelName, bg: tierColor, fg: Ds.ink),
-                      const SizedBox(width: 8),
                       DsTag(q.techStack),
                     ],
                   ),
@@ -272,7 +295,7 @@ class _QuizScreenState extends State<QuizScreen> {
                   Text(q.question, style: DsText.question),
                   const SizedBox(height: 16),
 
-                  // Optional Code Snippet
+                  // Optional Code Snippet (Horizontal scroll for long monospace lines)
                   if (q.codeSnippet != null && q.codeSnippet!.isNotEmpty) ...[
                     Container(
                       width: double.infinity,
@@ -282,12 +305,16 @@ class _QuizScreenState extends State<QuizScreen> {
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: Ds.border),
                       ),
-                      child: Text(
-                        q.codeSnippet!,
-                        style: const TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 13,
-                          color: Ds.aura,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: Text(
+                          q.codeSnippet!,
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 13,
+                            color: Ds.aura,
+                          ),
                         ),
                       ),
                     ),
@@ -340,37 +367,45 @@ class _QuizScreenState extends State<QuizScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Glitch(
-                        size: 56,
-                        mood: isCorrect ? GlitchMood.win : GlitchMood.lose,
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              isCorrect
-                                  ? (_gotWrong
-                                      ? 'CORRECT. +0 AURA'
-                                      : 'BIG BRAIN. +$questionReward AURA')
-                                  : 'GLITCHED.',
-                              style: DsText.h3.copyWith(
-                                color: isCorrect ? Ds.mint : Ds.hot,
-                              ),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.of(context).size.height * 0.32,
+                    ),
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Glitch(
+                            size: 56,
+                            mood: isCorrect ? GlitchMood.win : GlitchMood.lose,
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isCorrect
+                                      ? (_gotWrong
+                                          ? 'CORRECT. +0 AURA'
+                                          : 'BIG BRAIN. +$questionReward AURA')
+                                      : 'GLITCHED.',
+                                  style: DsText.h3.copyWith(
+                                    color: isCorrect ? Ds.mint : Ds.hot,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  q.explanation,
+                                  style: DsText.bodySm.copyWith(color: Ds.bone),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              q.explanation,
-                              style: DsText.bodySm.copyWith(color: Ds.bone),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                   const SizedBox(height: 16),
                   DsButton(

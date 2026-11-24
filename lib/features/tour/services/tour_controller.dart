@@ -335,6 +335,14 @@ class TourController extends ChangeNotifier {
     } catch (_) {}
   }
 
+  @override
+  void dispose() {
+    if (_instance == this) {
+      _instance = null;
+    }
+    super.dispose();
+  }
+
   @visibleForTesting
   void resetForTest() {
     _status = TourStatus.notStarted;

@@ -6,12 +6,14 @@ import '../../../core/widgets/ds_button.dart';
 import '../../../core/widgets/ds_card.dart';
 import '../../../core/widgets/ds_tag.dart';
 import '../../../core/widgets/glitch.dart';
+import '../models/tour_step.dart';
 import 'typewriter_text.dart';
 
 /// Fullscreen overlay that dims the background with a rounded spotlight cutout
 /// around [targetRect] and positions a tooltip bubble on the side with room.
 class CoachMarkOverlay extends StatefulWidget {
   final Rect? targetRect;
+  final TourAnchorId? anchorId;
   final String title;
   final String body;
   final GlitchMood mood;
@@ -25,7 +27,8 @@ class CoachMarkOverlay extends StatefulWidget {
 
   const CoachMarkOverlay({
     super.key,
-    required this.targetRect,
+    this.targetRect,
+    this.anchorId,
     required this.title,
     required this.body,
     this.mood = GlitchMood.idle,
@@ -45,18 +48,56 @@ class CoachMarkOverlay extends StatefulWidget {
 class _CoachMarkOverlayState extends State<CoachMarkOverlay> {
   final GlobalKey _stackKey = GlobalKey();
 
+  @override
+  void initState() {
+    super.initState();
+    TourAnchorRegistry.instance.addListener(_onAnchorRegistryChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    TourAnchorRegistry.instance.removeListener(_onAnchorRegistryChanged);
+    super.dispose();
+  }
+
+  void _onAnchorRegistryChanged() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(CoachMarkOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.targetRect != widget.targetRect || oldWidget.anchorId != widget.anchorId) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() {});
+      });
+    }
+  }
+
   Rect? _calculateLocalTargetRect() {
-    if (widget.targetRect == null) return null;
+    final target = widget.targetRect ??
+        (widget.anchorId != null
+            ? TourAnchorRegistry.instance.getGlobalRect(widget.anchorId!)
+            : null);
+    if (target == null) return null;
+
     final context = _stackKey.currentContext;
-    if (context == null || !context.mounted) return widget.targetRect;
+    if (context == null || !context.mounted) return target;
 
     final renderBox = context.findRenderObject() as RenderBox?;
     if (renderBox == null || !renderBox.hasSize || !renderBox.attached) {
-      return widget.targetRect;
+      return target;
     }
 
-    final globalTopLeft = widget.targetRect!.topLeft;
-    final globalBottomRight = widget.targetRect!.bottomRight;
+    final globalTopLeft = target.topLeft;
+    final globalBottomRight = target.bottomRight;
     final localTopLeft = renderBox.globalToLocal(globalTopLeft);
     final localBottomRight = renderBox.globalToLocal(globalBottomRight);
 
@@ -69,6 +110,10 @@ class _CoachMarkOverlayState extends State<CoachMarkOverlay> {
     final screenSize = mediaQuery.size;
     final padding = mediaQuery.padding;
     final localTargetRect = _calculateLocalTargetRect();
+    final target = widget.targetRect ??
+        (widget.anchorId != null
+            ? TourAnchorRegistry.instance.getGlobalRect(widget.anchorId!)
+            : null);
 
     return PopScope(
       canPop: false,
@@ -83,12 +128,12 @@ class _CoachMarkOverlayState extends State<CoachMarkOverlay> {
           GestureDetector(
             onTapUp: (details) {
               final local = details.localPosition;
-              if (localTargetRect != null &&
-                  localTargetRect.inflate(10).contains(local)) {
-                if (widget.onTargetTap != null) {
-                  widget.onTargetTap!();
-                  return;
-                }
+              final isTarget = (target != null &&
+                      target.inflate(20).contains(details.globalPosition)) ||
+                  (localTargetRect != null &&
+                      localTargetRect.inflate(20).contains(local));
+              if (isTarget && widget.onTargetTap != null) {
+                widget.onTargetTap!();
               }
               // Prevent accidental background dismiss
             },
@@ -104,7 +149,17 @@ class _CoachMarkOverlayState extends State<CoachMarkOverlay> {
             ),
           ),
 
-          // 2. Positioned Tooltip Bubble
+          // 2. Direct hit target for the spotlight hole
+          if (localTargetRect != null && widget.onTargetTap != null)
+            Positioned.fromRect(
+              rect: localTargetRect.inflate(20),
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: widget.onTargetTap,
+              ),
+            ),
+
+          // 3. Positioned Tooltip Bubble
           _buildPositionedTooltip(context, screenSize, padding, localTargetRect),
         ],
       ),
@@ -118,12 +173,29 @@ class _CoachMarkOverlayState extends State<CoachMarkOverlay> {
     Rect? localRect,
   ) {
     if (localRect == null) {
-      return Center(
-        child: SingleChildScrollView(
-          primary: false,
-          physics: const ClampingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: _buildTooltipCard(context, double.infinity),
+      final double maxCardWidth = math.min(screenSize.width - 32, 380.0);
+      return Positioned.fill(
+        child: Align(
+          alignment: Alignment.center,
+          child: SizedBox(
+            width: maxCardWidth,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: math.max(
+                  180.0,
+                  screenSize.height - safePadding.top - safePadding.bottom - 32,
+                ),
+              ),
+              child: ScrollConfiguration(
+                behavior: const ScrollBehavior().copyWith(overscroll: false),
+                child: SingleChildScrollView(
+                  primary: false,
+                  physics: const ClampingScrollPhysics(),
+                  child: _buildTooltipCard(context, maxCardWidth),
+                ),
+              ),
+            ),
+          ),
         ),
       );
     }
@@ -166,10 +238,13 @@ class _CoachMarkOverlayState extends State<CoachMarkOverlay> {
             screenHeight - (top ?? safePadding.top) - (bottom ?? safePadding.bottom) - 32,
           ),
         ),
-        child: SingleChildScrollView(
-          primary: false,
-          physics: const ClampingScrollPhysics(),
-          child: _buildTooltipCard(context, maxCardWidth),
+        child: ScrollConfiguration(
+          behavior: const ScrollBehavior().copyWith(overscroll: false),
+          child: SingleChildScrollView(
+            primary: false,
+            physics: const ClampingScrollPhysics(),
+            child: _buildTooltipCard(context, maxCardWidth),
+          ),
         ),
       ),
     );
@@ -242,11 +317,15 @@ class _CoachMarkOverlayState extends State<CoachMarkOverlay> {
                 )
               else
                 const SizedBox.shrink(),
-              DsButton(
-                label: widget.primaryButtonLabel,
-                height: 42,
-                kind: DsButtonKind.aura,
-                onPressed: widget.onPrimaryPressed,
+              SizedBox(
+                width: 104,
+                child: DsButton(
+                  label: widget.primaryButtonLabel,
+                  height: 40,
+                  width: 104,
+                  kind: DsButtonKind.aura,
+                  onPressed: widget.onPrimaryPressed,
+                ),
               ),
             ],
           ),

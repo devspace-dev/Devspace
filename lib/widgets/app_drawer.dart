@@ -8,7 +8,7 @@ import '../providers/auth_provider.dart';
 import '../screens/aura_board_screen.dart';
 import '../screens/daily_challenge_screen.dart';
 import '../screens/founder_tools_screen.dart';
-import '../screens/profile_screen.dart';
+import '../features/profile/screens/profile_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/practice_map_screen.dart';
 import '../screens/roadmap_directory_screen.dart';

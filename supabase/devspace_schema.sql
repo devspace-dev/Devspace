@@ -3866,48 +3866,101 @@ DROP POLICY IF EXISTS "Users can delete own scoped media" ON storage.objects;
 CREATE POLICY "Users can upload own scoped media" ON storage.objects
   FOR INSERT TO authenticated
   WITH CHECK (
-    bucket_id = 'images'
-    AND (
-      name LIKE ('posts/' || auth.uid()::text || '/%')
-      OR name LIKE ('documents/' || auth.uid()::text || '/%')
-      OR name LIKE ('profiles/' || auth.uid()::text || '.%')
-      OR name LIKE ('covers/' || auth.uid()::text || '.%')
+    (
+      bucket_id = 'images'
+      AND (
+        name LIKE ('posts/' || auth.uid()::text || '/%')
+        OR name LIKE ('profiles/' || auth.uid()::text || '.%')
+        OR name LIKE ('profiles/' || auth.uid()::text || '_%')
+        OR name LIKE ('profiles/' || auth.uid()::text || '/%')
+        OR name LIKE ('covers/' || auth.uid()::text || '.%')
+        OR name LIKE ('covers/' || auth.uid()::text || '_%')
+        OR name LIKE ('covers/' || auth.uid()::text || '/%')
+        OR name LIKE 'chat/%'
+        OR name LIKE 'events/%'
+      )
+    )
+    OR (
+      bucket_id = 'documents'
+      AND name LIKE ('documents/' || auth.uid()::text || '/%')
     )
   );
 
 CREATE POLICY "Users can update own scoped media" ON storage.objects
   FOR UPDATE TO authenticated
   USING (
-    bucket_id = 'images'
-    AND (
-      owner = auth.uid()
-      OR name LIKE ('posts/' || auth.uid()::text || '/%')
-      OR name LIKE ('documents/' || auth.uid()::text || '/%')
-      OR name LIKE ('profiles/' || auth.uid()::text || '.%')
-      OR name LIKE ('covers/' || auth.uid()::text || '.%')
+    (
+      bucket_id = 'images'
+      AND (
+        owner = auth.uid()
+        OR name LIKE ('posts/' || auth.uid()::text || '/%')
+        OR name LIKE ('profiles/' || auth.uid()::text || '.%')
+        OR name LIKE ('profiles/' || auth.uid()::text || '_%')
+        OR name LIKE ('profiles/' || auth.uid()::text || '/%')
+        OR name LIKE ('covers/' || auth.uid()::text || '.%')
+        OR name LIKE ('covers/' || auth.uid()::text || '_%')
+        OR name LIKE ('covers/' || auth.uid()::text || '/%')
+        OR name LIKE 'chat/%'
+        OR name LIKE 'events/%'
+      )
+    )
+    OR (
+      bucket_id = 'documents'
+      AND (
+        owner = auth.uid()
+        OR name LIKE ('documents/' || auth.uid()::text || '/%')
+      )
     )
   )
   WITH CHECK (
-    bucket_id = 'images'
-    AND (
-      owner = auth.uid()
-      OR name LIKE ('posts/' || auth.uid()::text || '/%')
-      OR name LIKE ('documents/' || auth.uid()::text || '/%')
-      OR name LIKE ('profiles/' || auth.uid()::text || '.%')
-      OR name LIKE ('covers/' || auth.uid()::text || '.%')
+    (
+      bucket_id = 'images'
+      AND (
+        owner = auth.uid()
+        OR name LIKE ('posts/' || auth.uid()::text || '/%')
+        OR name LIKE ('profiles/' || auth.uid()::text || '.%')
+        OR name LIKE ('profiles/' || auth.uid()::text || '_%')
+        OR name LIKE ('profiles/' || auth.uid()::text || '/%')
+        OR name LIKE ('covers/' || auth.uid()::text || '.%')
+        OR name LIKE ('covers/' || auth.uid()::text || '_%')
+        OR name LIKE ('covers/' || auth.uid()::text || '/%')
+        OR name LIKE 'chat/%'
+        OR name LIKE 'events/%'
+      )
+    )
+    OR (
+      bucket_id = 'documents'
+      AND (
+        owner = auth.uid()
+        OR name LIKE ('documents/' || auth.uid()::text || '/%')
+      )
     )
   );
 
 CREATE POLICY "Users can delete own scoped media" ON storage.objects
   FOR DELETE TO authenticated
   USING (
-    bucket_id = 'images'
-    AND (
-      owner = auth.uid()
-      OR name LIKE ('posts/' || auth.uid()::text || '/%')
-      OR name LIKE ('documents/' || auth.uid()::text || '/%')
-      OR name LIKE ('profiles/' || auth.uid()::text || '.%')
-      OR name LIKE ('covers/' || auth.uid()::text || '.%')
+    (
+      bucket_id = 'images'
+      AND (
+        owner = auth.uid()
+        OR name LIKE ('posts/' || auth.uid()::text || '/%')
+        OR name LIKE ('profiles/' || auth.uid()::text || '.%')
+        OR name LIKE ('profiles/' || auth.uid()::text || '_%')
+        OR name LIKE ('profiles/' || auth.uid()::text || '/%')
+        OR name LIKE ('covers/' || auth.uid()::text || '.%')
+        OR name LIKE ('covers/' || auth.uid()::text || '_%')
+        OR name LIKE ('covers/' || auth.uid()::text || '/%')
+        OR name LIKE 'chat/%'
+        OR name LIKE 'events/%'
+      )
+    )
+    OR (
+      bucket_id = 'documents'
+      AND (
+        owner = auth.uid()
+        OR name LIKE ('documents/' || auth.uid()::text || '/%')
+      )
     )
   );
 

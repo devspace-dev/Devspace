@@ -14,7 +14,6 @@ import '../models/message_model.dart';
 import '../models/user_model.dart';
 import '../theme/app_colors.dart';
 import '../widgets/user_avatar.dart';
-import '../services/storage_service.dart';
 import '../widgets/app_state_widgets.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -39,7 +38,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final ScrollController _scrollController = ScrollController();
   String? _lastMarkedIncomingMessageId;
 
-  late final RealtimeChannel _channel;
+  RealtimeChannel? _channel;
   late Stream<List<MessageModel>> _messagesStream;
   bool _isOtherUserTyping = false;
   Timer? _typingTimer;
@@ -73,33 +72,38 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 
   void _initPresence() {
-    final me = context.read<AuthProvider>().currentUser;
-    _channel =
-        Supabase.instance.client.channel('chat:${widget.conversation.id}');
+    try {
+      final me = context.read<AuthProvider>().currentUser;
+      final ch =
+          Supabase.instance.client.channel('chat:${widget.conversation.id}');
+      _channel = ch;
 
-    _channel.onPresenceSync((payload) {
-      final states = _channel.presenceState();
-      bool typing = false;
+      ch.onPresenceSync((payload) {
+        final states = ch.presenceState();
+        bool typing = false;
 
-      for (final state in states) {
-        for (final presence in state.presences) {
-          final p = presence.payload;
-          if (p['user_id'] == widget.otherUser.id && p['is_typing'] == true) {
-            typing = true;
-            break;
+        for (final state in states) {
+          for (final presence in state.presences) {
+            final p = presence.payload;
+            if (p['user_id'] == widget.otherUser.id && p['is_typing'] == true) {
+              typing = true;
+              break;
+            }
           }
+          if (typing) break;
         }
-        if (typing) break;
-      }
 
-      if (mounted) {
-        setState(() => _isOtherUserTyping = typing);
-      }
-    }).subscribe((status, error) async {
-      if (status == RealtimeSubscribeStatus.subscribed) {
-        await _channel.track({'user_id': me.id, 'is_typing': false});
-      }
-    });
+        if (mounted) {
+          setState(() => _isOtherUserTyping = typing);
+        }
+      }).subscribe((status, error) async {
+        if (status == RealtimeSubscribeStatus.subscribed) {
+          await ch.track({'user_id': me.id, 'is_typing': false});
+        }
+      });
+    } catch (_) {
+      // Safe fallback when Supabase is not initialized (e.g. tests or offline)
+    }
   }
 
   void _onTextChanged(String value) {
@@ -118,8 +122,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   void _setTyping(bool typing) {
     if (_iAmTyping == typing) return;
     _iAmTyping = typing;
-    final me = context.read<AuthProvider>().currentUser;
-    _channel.track({'user_id': me.id, 'is_typing': typing});
+    try {
+      final me = context.read<AuthProvider>().currentUser;
+      _channel?.track({'user_id': me.id, 'is_typing': typing});
+    } catch (_) {}
   }
 
   @override
@@ -128,7 +134,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       _messagesProvider.setActiveConversationId(null);
     }
     _setTyping(false);
-    _channel.unsubscribe();
+    _channel?.unsubscribe();
     _typingTimer?.cancel();
     _controller.dispose();
     _scrollController.dispose();
@@ -211,110 +217,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
 
 
-  void _showOptions() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        decoration: BoxDecoration(
-          color: AppColors.bg2For(context),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _OptionItem(
-              icon: Icons.image_rounded,
-              label: 'Gallery',
-              color: Colors.purple,
-              onTap: () async {
-                Navigator.pop(context);
-                final file =
-                    await StorageService.instance.pickImage(context, fromCamera: false);
-                if (!mounted) return;
-                if (file != null) {
-                  final me = context.read<AuthProvider>().currentUser;
-                  final provider = context.read<MessagesProvider>();
-                  provider.clearConversationError(widget.conversation.id);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Uploading image...')));
-                  try {
-                    final url = await StorageService.instance
-                        .uploadChatImage(widget.conversation.id, file);
-                    final success = await provider.send(
-                        widget.conversation.id, me.id, '[IMAGE]$url');
-                    if (!success && mounted) {
-                      final error = provider.sendError(widget.conversation.id);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(error ?? 'Failed to send image.')));
-                    }
-                  } catch (e) {
-                    if (mounted)
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Failed to send image: $e')));
-                  }
-                }
-              },
-            ),
-            _OptionItem(
-              icon: Icons.camera_alt_rounded,
-              label: 'Camera',
-              color: Colors.red,
-              onTap: () async {
-                Navigator.pop(context);
-                final file = await StorageService.instance.pickImage(context, fromCamera: true);
-                if (!mounted) return;
-                if (file != null) {
-                  final me = context.read<AuthProvider>().currentUser;
-                  final provider = context.read<MessagesProvider>();
-                  provider.clearConversationError(widget.conversation.id);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Uploading image...')));
-                  try {
-                    final url = await StorageService.instance
-                        .uploadChatImage(widget.conversation.id, file);
-                    final success = await provider.send(
-                        widget.conversation.id, me.id, '[IMAGE]$url');
-                    if (!success && mounted) {
-                      final error = provider.sendError(widget.conversation.id);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(error ?? 'Failed to send image.')));
-                    }
-                  } catch (e) {
-                    if (mounted)
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Failed to send image: $e')));
-                  }
-                }
-              },
-            ),
-            _OptionItem(
-              icon: Icons.description_rounded,
-              label: 'Document',
-              color: Colors.blue,
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Document sending not available yet.')));
-              },
-            ),
-            _OptionItem(
-              icon: Icons.location_on_rounded,
-              label: 'Location',
-              color: Colors.green,
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Location sending not available yet.')));
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final me = context.read<AuthProvider>().currentUser;
@@ -363,7 +265,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       ),
                     ),
                     if (_isOtherUserTyping)
-                      Text(
+                      const Text(
                         'typing...',
                         style: TextStyle(
                           fontSize: 12,
@@ -489,9 +391,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   String _formatDateHeader(DateTime dt) {
     final now = DateTime.now();
-    if (dt.day == now.day && dt.month == now.month && dt.year == now.year)
+    if (dt.day == now.day && dt.month == now.month && dt.year == now.year) {
       return 'Today';
-    if (dt.day == now.subtract(const Duration(days: 1)).day) return 'Yesterday';
+    }
+    if (dt.day == now.subtract(const Duration(days: 1)).day) {
+      return 'Yesterday';
+    }
     return DateFormat('MMMM d, yyyy').format(dt);
   }
 
@@ -657,37 +562,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 }
 
-class _OptionItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _OptionItem({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, color: color),
-      ),
-      title: Text(label,
-          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600)),
-      onTap: onTap,
-    );
-  }
-}
-
 class _MessageBubble extends StatelessWidget {
   final MessageModel message;
   final bool isMe;
@@ -806,6 +680,7 @@ class _MessageBubble extends StatelessWidget {
       child: CachedNetworkImage(
         imageUrl: imageUrl,
         fit: BoxFit.cover,
+        memCacheWidth: 600,
         maxWidthDiskCache: 800,
         placeholder: (context, url) => Container(
           width: 200,

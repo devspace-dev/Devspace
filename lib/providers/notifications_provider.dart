@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/notification_model.dart';
 import '../services/supabase_service.dart';
-import '../services/notification_service.dart';
+import 'messages_provider.dart';
 import '../main.dart' as import_main;
 
 class NotificationsProvider extends ChangeNotifier {
@@ -60,6 +60,29 @@ class NotificationsProvider extends ChangeNotifier {
   }
 
   void _showLocal(NotificationModel n) {
+    final lifecycleState = WidgetsBinding.instance.lifecycleState;
+    final isAppInForeground = lifecycleState == null ||
+        lifecycleState == AppLifecycleState.resumed;
+
+    if (!isAppInForeground) {
+      // OS system-tray notifications are handled strictly by FCM push
+      return;
+    }
+
+    final context = import_main.rootScaffoldMessengerKey.currentContext;
+    if (context != null && n.type == 'message') {
+      try {
+        final messagesProvider =
+            Provider.of<MessagesProvider>(context, listen: false);
+        if (messagesProvider.isNotificationForActiveConversation(n.fromUid)) {
+          // Suppress in-app SnackBar: user is actively viewing this conversation
+          return;
+        }
+      } catch (e) {
+        debugPrint('Active conversation check failed: $e');
+      }
+    }
+
     String title = 'DevSpace';
     if (n.type == 'like') title = 'New Like ⚡';
     if (n.type == 'comment') title = 'New Comment 💬';
@@ -69,55 +92,37 @@ class NotificationsProvider extends ChangeNotifier {
     if (n.type == 'pr_request') title = 'Collaboration Request 🤝';
     if (n.type == 'duel_invite') title = 'New Duel Challenge! ⚔️';
 
-    final payload = jsonEncode({
-      'type': n.type,
-      'postId': n.postId,
-      'questionId': n.questionId,
-      'fromUid': n.fromUid,
-      'id': n.id,
-    });
-
-    final lifecycleState = WidgetsBinding.instance.lifecycleState;
-    final isAppInForeground = lifecycleState == null ||
-        lifecycleState == AppLifecycleState.resumed;
-
-    if (isAppInForeground) {
-      // Show in-app SnackBar only when the app is foregrounded
-      import_main.rootScaffoldMessengerKey.currentState?.showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.notifications_active_rounded, color: Colors.white, size: 20),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-                    Text(n.message, style: const TextStyle(color: Colors.white70, fontSize: 13)),
-                  ],
-                ),
+    import_main.rootScaffoldMessengerKey.currentState?.showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.notifications_active_rounded,
+                color: Colors.white, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, color: Colors.white)),
+                  Text(n.message,
+                      style:
+                          const TextStyle(color: Colors.white70, fontSize: 13)),
+                ],
               ),
-            ],
-          ),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: const Color(0xFF1E1E1E), // AppColors.bg2 (approx)
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          duration: const Duration(seconds: 4),
-          elevation: 6,
-          margin: const EdgeInsets.only(bottom: 20, left: 16, right: 16),
+            ),
+          ],
         ),
-      );
-    } else {
-      // Show OS local notification banner only when the app is backgrounded
-      NotificationService.instance.showLocalNotification(
-        id: n.id,
-        title: title,
-        body: n.message,
-        payload: payload,
-      );
-    }
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: const Color(0xFF1E1E1E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 4),
+        elevation: 6,
+        margin: const EdgeInsets.only(bottom: 20, left: 16, right: 16),
+      ),
+    );
   }
 
   int get unreadCount => _notifications.where((n) => !n.read).length;

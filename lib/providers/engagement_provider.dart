@@ -209,7 +209,9 @@ class EngagementProvider extends ChangeNotifier {
 
     try {
       try {
-        await Supabase.instance.client.rpc('refresh_user_streak_if_needed');
+        if (SupabaseService.instance.isSupabaseReady) {
+          await Supabase.instance.client.rpc('refresh_user_streak_if_needed');
+        }
       } catch (streakError) {
         debugPrint('Failed to refresh user streak in fetchOverview: $streakError');
       }
@@ -362,7 +364,9 @@ class EngagementProvider extends ChangeNotifier {
 
       await fetchOverview(forceChallengeRefresh: true);
       try {
-        await SupabaseService.instance.syncMyBadges();
+        if (SupabaseService.instance.isSupabaseReady) {
+          await SupabaseService.instance.syncMyBadges();
+        }
       } catch (_) {}
       return true;
     } catch (e) {

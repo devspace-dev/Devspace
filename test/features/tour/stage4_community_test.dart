@@ -135,7 +135,10 @@ void main() {
     testWidgets('S4 Coach mark renders spotlight on create post FAB and advances on NEXT tap', (tester) async {
       tester.view.physicalSize = const Size(360, 640);
       tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
 
       await tourController.initForUser(
         userId: 'u-tour-user',
@@ -169,7 +172,8 @@ void main() {
       // Tap NEXT to advance to S5
       expect(find.text('NEXT'), findsOneWidget);
       await tester.tap(find.text('NEXT'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
       expect(tourController.currentStep, TourStep.s5Events);
     });
@@ -210,11 +214,13 @@ void main() {
       expect(tourController.currentStep, TourStep.s4Community);
 
       await tester.pumpWidget(buildCommunityTestApp(controller: tourController));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.text('Skip'), findsOneWidget);
       await tester.tap(find.text('Skip'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
       expect(tourController.status, TourStatus.skipped);
       expect(tourController.currentStep, isNull);
@@ -242,7 +248,10 @@ void main() {
     testWidgets('S4 Coach mark renders without overflow under 200% font scale on 360dp width', (tester) async {
       tester.view.physicalSize = const Size(360, 640);
       tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
 
       await tourController.initForUser(
         userId: 'u-tour-user',
@@ -303,7 +312,8 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
       expect(tester.takeException(), isNull);
       expect(find.byType(CoachMarkOverlay), findsOneWidget);

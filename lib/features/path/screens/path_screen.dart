@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../core/theme/colors.dart';
 import '../providers/path_provider.dart';
 import '../widgets/path_active_view.dart';
 import '../widgets/path_find_view.dart';

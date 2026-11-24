@@ -4,7 +4,6 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/text.dart';
 import '../../../core/widgets/ds_button.dart';
 import '../../../core/widgets/ds_card.dart';
-import '../../../core/widgets/ds_tag.dart';
 import '../../../core/widgets/glitch.dart';
 import '../tour_copy.dart';
 import 'typewriter_text.dart';

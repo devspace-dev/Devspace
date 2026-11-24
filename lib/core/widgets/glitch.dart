@@ -56,6 +56,7 @@ ${_face(m)}
   }
 
   @override
-  Widget build(BuildContext context) =>
-      SvgPicture.string(svg(mood), width: size, height: size);
+  Widget build(BuildContext context) => RepaintBoundary(
+        child: SvgPicture.string(svg(mood), width: size, height: size),
+      );
 }

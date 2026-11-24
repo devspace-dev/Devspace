@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import '../services/reward_feedback.dart';
 import '../theme/colors.dart';
 import '../theme/text.dart';
 
@@ -12,6 +12,7 @@ class DsButton extends StatefulWidget {
     required this.onPressed,
     this.kind = DsButtonKind.aura,
     this.height = 52,
+    this.width = double.infinity,
     this.icon,
     this.uppercase = true,
     this.loading = false,
@@ -21,6 +22,7 @@ class DsButton extends StatefulWidget {
   final VoidCallback? onPressed;
   final DsButtonKind kind;
   final double height;
+  final double? width;
   final Widget? icon;
   final bool uppercase;
   final bool loading;
@@ -54,14 +56,14 @@ class _DsButtonState extends State<DsButton> {
         onTapUp: enabled ? (_) => setState(() => _down = false) : null,
         onTap: enabled
             ? () {
-                HapticFeedback.lightImpact();
+                RewardFeedback.light();
                 widget.onPressed!();
               }
             : null,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 80),
           constraints: BoxConstraints(minHeight: widget.height),
-          width: double.infinity,
+          width: widget.width,
           margin: EdgeInsets.only(top: 5 - edgeW), // keeps total height stable
           alignment: Alignment.center,
           decoration: BoxDecoration(

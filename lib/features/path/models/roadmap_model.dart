@@ -5,6 +5,7 @@
 /// - Starting level skipping (`foundation` tags skipped in UI without fake DB rows)
 /// - Interactive canvas & accessible vertical list views
 /// - Direct "Practice this" navigation to matching quiz lobbies
+library;
 
 enum RoadmapLevel {
   beginner,

@@ -41,6 +41,12 @@ android {
     }
 
     signingConfigs {
+        getByName("debug") {
+            val projectKeystore = file("debug.keystore")
+            if (projectKeystore.exists()) {
+                storeFile = projectKeystore
+            }
+        }
         create("release") {
             keyAlias = keystoreProperties["keyAlias"] as String?
             keyPassword = keystoreProperties["keyPassword"] as String?

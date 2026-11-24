@@ -174,11 +174,11 @@ void main() {
     // Confirm dialog is shown
     expect(find.text('Leave DevSpace?'), findsOneWidget);
     expect(find.text('Are you sure you want to exit the app?'), findsOneWidget);
-    expect(find.text('Stay'), findsOneWidget);
+    expect(find.text('STAY'), findsOneWidget);
     expect(find.text('Exit'), findsOneWidget);
 
     // Tap Stay
-    await tester.tap(find.text('Stay'));
+    await tester.tap(find.text('STAY'));
     await tester.pumpAndSettle();
 
     // Dialog dismissed and still on PlayScreen

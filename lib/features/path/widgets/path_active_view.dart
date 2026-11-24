@@ -5,7 +5,6 @@ import '../../../core/theme/text.dart';
 import '../../../core/widgets/ds_button.dart';
 import '../../../core/widgets/ds_card.dart';
 import '../../../core/widgets/ds_tag.dart';
-import '../../../core/widgets/segment_bar.dart';
 import '../models/roadmap_model.dart';
 import '../providers/path_provider.dart';
 import 'path_map_canvas.dart';

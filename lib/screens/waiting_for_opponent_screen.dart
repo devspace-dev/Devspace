@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -27,56 +28,121 @@ class WaitingForOpponentScreen extends StatefulWidget {
 
 class _WaitingForOpponentScreenState extends State<WaitingForOpponentScreen> {
   RealtimeChannel? _subscription;
+  Timer? _pollTimer;
+  Timer? _timeoutTimer;
   bool _cancelled = false;
+  bool _handled = false;
 
   @override
   void initState() {
     super.initState();
     _listenForStatusChange();
+    _checkCurrentStatus();
+    _pollTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => _checkCurrentStatus(),
+    );
+    _timeoutTimer = Timer(const Duration(seconds: 60), _handleTimeout);
   }
 
   void _listenForStatusChange() {
-    _subscription = SupabaseService.instance.listenToDuelRequestStatus(
-      widget.requestId,
-      (request) {
-        if (!mounted || _cancelled) return;
-        final status = request['status'];
-        if (status == 'accepted') {
-          _subscription?.unsubscribe();
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => DuelScreen(
-                category: widget.category,
-                mode: widget.mode,
-                matchId: widget.requestId,
-                isPlayer1: true,
-                opponent: widget.opponent,
-              ),
-            ),
-          );
-        } else if (status == 'declined' || status == 'cancelled') {
-          _subscription?.unsubscribe();
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('${widget.opponent.name} declined the challenge.')),
-            );
-            Navigator.pop(context);
-          }
-        }
-      },
+    try {
+      _subscription = SupabaseService.instance.listenToDuelRequestStatus(
+        widget.requestId,
+        (request) {
+          _handleStatusUpdate(request['status']?.toString());
+        },
+      );
+    } catch (e) {
+      debugPrint('Realtime duel request subscription bypassed: $e');
+    }
+  }
+
+  Future<void> _checkCurrentStatus() async {
+    if (!mounted || _cancelled || _handled) return;
+    try {
+      final request = await SupabaseService.instance.getDuelRequest(widget.requestId);
+      if (request != null) {
+        _handleStatusUpdate(request['status']?.toString());
+      }
+    } catch (e) {
+      debugPrint('Status check bypassed: $e');
+    }
+  }
+
+  void _handleStatusUpdate(String? status) {
+    if (!mounted || _cancelled || _handled || status == null) return;
+    if (status == 'accepted') {
+      _handled = true;
+      _cleanupTimersAndRealtime();
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DuelScreen(
+            category: widget.category,
+            mode: widget.mode,
+            matchId: widget.requestId,
+            isPlayer1: true,
+            opponent: widget.opponent,
+          ),
+        ),
+      );
+    } else if (status == 'declined' || status == 'cancelled') {
+      _handled = true;
+      _cleanupTimersAndRealtime();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${widget.opponent.name} declined the challenge.')),
+      );
+      Navigator.pop(context);
+    }
+  }
+
+  Future<void> _handleTimeout() async {
+    if (!mounted || _cancelled || _handled) return;
+    _handled = true;
+    _cancelled = true;
+    _cleanupTimersAndRealtime();
+    await SupabaseService.instance.cancelDuelRequestAndCleanupMatch(widget.requestId);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${widget.opponent.name} did not respond in time.')),
     );
+    Navigator.pop(context);
+  }
+
+  Future<void> _cancelAndExit() async {
+    if (_cancelled || _handled) return;
+    _cancelled = true;
+    _handled = true;
+    _cleanupTimersAndRealtime();
+    await SupabaseService.instance.cancelDuelRequestAndCleanupMatch(widget.requestId);
+    if (mounted) {
+      Navigator.pop(context);
+    }
+  }
+
+  void _cleanupTimersAndRealtime() {
+    _pollTimer?.cancel();
+    _timeoutTimer?.cancel();
+    _subscription?.unsubscribe();
   }
 
   @override
   void dispose() {
-    _subscription?.unsubscribe();
+    _cleanupTimersAndRealtime();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          _cancelAndExit();
+        }
+      },
+      child: Scaffold(
       backgroundColor: const Color(0xFF0F0F12),
       body: Center(
         child: Column(
@@ -124,15 +190,12 @@ class _WaitingForOpponentScreenState extends State<WaitingForOpponentScreen> {
             ),
             const SizedBox(height: 40),
             TextButton(
-              onPressed: () async {
-                _cancelled = true;
-                await SupabaseService.instance.updateDuelRequestStatus(widget.requestId, 'cancelled');
-                if (context.mounted) Navigator.pop(context);
-              },
+              onPressed: _cancelAndExit,
               child: const Text('Cancel Request', style: TextStyle(color: Colors.redAccent)),
             ),
           ],
         ),
+      ),
       ),
     );
   }
