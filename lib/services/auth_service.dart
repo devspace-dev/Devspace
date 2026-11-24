@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'supabase_service.dart';
 import 'analytics_service.dart';
 import '../models/user_model.dart';
+import '../utils/runtime_config.dart';
 
 class AuthResult {
   final UserModel? user;
@@ -93,24 +94,6 @@ class AuthService {
     }
 
     return 'Google sign-in failed: $error';
-  }
-
-  String _friendlyPhoneError(AuthException e) {
-    if (e is AuthApiException) {
-      final message = e.message.toLowerCase();
-      if (message.contains('invalid phone')) {
-        return 'Enter a valid phone number with country code, for example +919876543210.';
-      }
-      if (message.contains('otp') || message.contains('token')) {
-        return 'The OTP is invalid or expired. Request a new code and try again.';
-      }
-      if (e.code == 'over_sms_send_rate_limit' ||
-          message.contains('rate limit')) {
-        return 'Too many OTP requests. Wait a minute before trying again.';
-      }
-    }
-
-    return 'Phone login failed: ${e.message}';
   }
 
   String? _friendlyDatabaseError(Object error) {
@@ -201,25 +184,6 @@ class AuthService {
     return email.toLowerCase().endsWith('@$_collegeDomain');
   }
 
-  String _buildAvatar(String name, String email) {
-    final trimmedName = name.trim();
-    if (trimmedName.isNotEmpty) {
-      final parts = trimmedName
-          .split(RegExp(r'\s+'))
-          .where((part) => part.isNotEmpty)
-          .toList();
-      final initials =
-          parts.take(2).map((part) => part[0].toUpperCase()).join();
-      if (initials.isNotEmpty) return initials;
-    }
-
-    final localPart = email.split('@').first.trim();
-    if (localPart.isEmpty) return 'DS';
-    final cleaned = localPart.replaceAll(RegExp(r'[^A-Za-z0-9]'), '');
-    if (cleaned.isEmpty) return 'DS';
-    return cleaned.substring(0, cleaned.length >= 2 ? 2 : 1).toUpperCase();
-  }
-
   String _sanitizeHandleSeed(String value) {
     final sanitized = value
         .toLowerCase()
@@ -289,13 +253,13 @@ class AuthService {
     return 'DevSpace Student';
   }
 
-  String _initialAvatarForUser(User user, String name, String email) {
+  String? _initialAvatarForUser(User user, String name, String email) {
     final metadata = user.userMetadata;
     final photoUrl = metadata?['avatar_url'] ?? metadata?['picture'];
     if (photoUrl is String && photoUrl.trim().startsWith('http')) {
       return photoUrl.trim();
     }
-    return _buildAvatar(name, email);
+    return null;
   }
 
   Future<UserModel?> _loadOrCreateProfile(User user) async {
@@ -330,7 +294,7 @@ class AuthService {
       name: name,
       email: email,
       handle: handle,
-      avatar: _initialAvatarForUser(user, name, email),
+      avatar: _initialAvatarForUser(user, name, email) ?? '',
       roles: const ['Student'],
       year: '',
       branch: '',
@@ -434,10 +398,13 @@ class AuthService {
     try {
       final googleSignIn = GoogleSignIn.instance;
       if (!_googleSignInInitialized) {
-        const webClientId = String.fromEnvironment(
+        const envWebClientId = String.fromEnvironment(
           'GOOGLE_WEB_CLIENT_ID',
           defaultValue: '',
         );
+        final webClientId = envWebClientId.isNotEmpty
+            ? envWebClientId
+            : RuntimeConfig.instance.googleWebClientId;
         await googleSignIn.initialize(
           serverClientId: webClientId.isEmpty ? null : webClientId,
         );
@@ -511,69 +478,6 @@ class AuthService {
     }
   }
 
-  Future<AuthResult> sendPhoneOtp(String phone) async {
-    try {
-      final normalizedPhone = phone.trim();
-      if (normalizedPhone.isEmpty || !normalizedPhone.startsWith('+')) {
-        return const AuthResult(
-          error: 'Enter phone number with country code, for example +919876543210.',
-        );
-      }
-
-      await _supabase.auth.signInWithOtp(phone: normalizedPhone);
-      return const AuthResult(message: 'OTP sent to your phone.');
-    } on AuthException catch (e) {
-      return AuthResult(error: _friendlyPhoneError(e));
-    } catch (e) {
-      return AuthResult(error: 'Failed to send OTP: $e');
-    }
-  }
-
-  Future<AuthResult> verifyPhoneOtp({
-    required String phone,
-    required String otp,
-  }) async {
-    try {
-      final normalizedPhone = phone.trim();
-      final normalizedOtp = otp.trim();
-      if (normalizedPhone.isEmpty || normalizedOtp.length < 4) {
-        return const AuthResult(error: 'Enter the OTP sent to your phone.');
-      }
-
-      final AuthResponse res = await _supabase.auth.verifyOTP(
-        phone: normalizedPhone,
-        token: normalizedOtp,
-        type: OtpType.sms,
-      );
-
-      final user = res.user;
-      if (user == null) {
-        return const AuthResult(error: 'Phone verification failed.');
-      }
-
-      _currentUser = await _loadOrCreateProfile(user);
-      _authStateController.add(_currentUser);
-
-      AnalyticsService.instance.logLogin('phone');
-      if (_currentUser != null) {
-        AnalyticsService.instance.setUserIdentifier(_currentUser!.id);
-      }
-
-      return AuthResult(user: _currentUser);
-    } on AuthException catch (e) {
-      return AuthResult(error: _friendlyPhoneError(e));
-    } on PostgrestException catch (e) {
-      return AuthResult(
-        error:
-            _friendlyDatabaseError(e) ?? 'Phone login failed: ${e.message}',
-      );
-    } catch (e) {
-      return AuthResult(
-        error: _friendlyDatabaseError(e) ?? 'Phone login failed: $e',
-      );
-    }
-  }
-
   Future<AuthResult> sendPasswordResetEmail(String email) async {
     try {
       await _supabase.auth.resetPasswordForEmail(email);
@@ -635,11 +539,13 @@ class AuthService {
       final trimmedBuilding = building.trim();
       final trimmedBio = bio.trim();
       final trimmedGithub = githubHandle.trim();
-      final nextAvatar = (avatar != null && avatar.trim().isNotEmpty)
+      final nextAvatar = (avatar != null &&
+              avatar.trim().isNotEmpty &&
+              _looksLikeImageReference(avatar))
           ? avatar.trim()
           : (_looksLikeImageReference(user.avatar)
               ? user.avatar
-              : _buildAvatar(trimmedName, user.email));
+              : null);
 
       await SupabaseService.instance.updateUser(user.id, {
         'name': trimmedName,

@@ -4,7 +4,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../core/services/reward_feedback.dart';
+import '../core/theme/colors.dart';
+import '../core/theme/text.dart';
+import '../core/widgets/ds_tag.dart';
 import '../models/comment_model.dart';
 import '../models/post_model.dart';
 import '../models/user_model.dart';
@@ -13,11 +16,10 @@ import '../providers/users_provider.dart';
 import '../providers/auth_provider.dart';
 import '../screens/people_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../screens/profile_screen.dart';
+import '../features/profile/screens/profile_screen.dart';
 import '../screens/post_detail_screen.dart';
 import '../theme/app_colors.dart';
 import 'user_avatar.dart';
-import 'glass_container.dart';
 
 class PostCard extends StatefulWidget {
   final PostModel post;
@@ -95,11 +97,13 @@ class _PostCardState extends State<PostCard> {
     if (hasQuote && quotedPost == null && !quotedPostLoading) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        context.read<PostsProvider>().ensureQuotedPostLoaded(quotePostId).then((_) {
+        final postsP = context.read<PostsProvider>();
+        final usersP = context.read<UsersProvider>();
+        postsP.ensureQuotedPostLoaded(quotePostId).then((_) {
           if (mounted) {
-            final loadedQuote = context.read<PostsProvider>().quotedPost(quotePostId);
+            final loadedQuote = postsP.quotedPost(quotePostId);
             if (loadedQuote != null) {
-              context.read<UsersProvider>().fetchAndCacheUsers([loadedQuote.userId]);
+              usersP.fetchAndCacheUsers([loadedQuote.userId]);
             }
           }
         });
@@ -114,188 +118,153 @@ class _PostCardState extends State<PostCard> {
       }
     }
 
-    final surfaceColor =
-        AppColors.isDark(context) ? AppColors.bg : AppColors.bg2For(context);
+    final surfaceColor = Ds.surface;
+    final hasImage = post.imageUrl != null && post.imageUrl!.isNotEmpty;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Container(
-        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: surfaceColor,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: AppColors.borderFor(context).withValues(alpha: 0.65),
-            width: 0.8,
+            color: Ds.border,
+            width: 1.2,
           ),
         ),
+        clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                GestureDetector(
-                  onTap: () => _openProfile(context, author.id),
-                  child: UserAvatar(user: author, size: 32),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: GestureDetector(
+            // 1. Author row (Top)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 8, 10),
+              child: Row(
+                children: [
+                  GestureDetector(
                     onTap: () => _openProfile(context, author.id),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                author.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 14,
-                                  color: AppColors.textFor(context),
+                    child: UserAvatar(user: author, size: 36),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => _openProfile(context, author.id),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  author.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: DsText.label.copyWith(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: Ds.bone,
+                                  ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              '•',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: AppColors.text3For(context),
+                              const SizedBox(width: 6),
+                              Text(
+                                '•',
+                                style: DsText.caption.copyWith(
+                                  color: Ds.muted,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              timeago.format(post.createdAt, locale: 'en_short'),
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 12,
-                                color: AppColors.text3For(context),
-                                fontWeight: FontWeight.w500,
+                              const SizedBox(width: 6),
+                              Text(
+                                timeago.format(post.createdAt, locale: 'en_short'),
+                                style: DsText.caption.copyWith(
+                                  fontSize: 12,
+                                  color: Ds.muted,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '@${author.handle}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 12,
-                            color: AppColors.text3For(context),
+                            ],
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 2),
+                          Text(
+                            '@${author.handle}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: DsText.caption.copyWith(
+                              fontSize: 12,
+                              color: Ds.muted,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                if (isMe)
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    icon: Icon(
-                      Icons.more_horiz_rounded,
-                      size: 16,
-                      color: AppColors.text3For(context),
+                  if (isMe)
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      icon: const Icon(
+                        Icons.more_horiz_rounded,
+                        size: 20,
+                        color: Ds.muted,
+                      ),
+                      onPressed: () => _showPostOptions(context, post),
                     ),
-                    onPressed: () => _showPostOptions(context, post),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Text(
-              post.content,
-              style: TextStyle(
-                fontSize: 14,
-                color: AppColors.textFor(context),
-                height: 1.45,
+                ],
               ),
             ),
-            if (hasQuote) ...[
-              const SizedBox(height: 12),
-              _QuotedPostPreview(
-                post: quotedPost,
-                user: quotedPost == null
-                    ? null
-                    : _quoteUser(usersP, me, quotedPost),
-                loading: quotedPostLoading,
-              ),
-            ],
-            if (post.imageUrl != null && post.imageUrl!.isNotEmpty) ...[
-              const SizedBox(height: 12),
+
+            // 2. Body / Media
+            if (hasImage) ...[
+              // Full-width edge-to-edge image
               _PostImageThumbnail(
                 imageUrl: post.imageUrl!,
                 heroTag: 'post-image-${post.id}',
-                maxHeight: 500,
-                fit: BoxFit.contain,
-                backgroundColor: Colors.black.withValues(alpha: 0.05),
+                maxHeight: 460,
+                fit: BoxFit.cover,
               ),
-            ],
-            if (post.documentUrl != null && post.documentUrl!.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              _PostDocumentPreview(
-                url: post.documentUrl!,
-                name: post.documentName ?? 'Document',
-              ),
-            ],
-            if (post.tags.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: post.tags
-                    .map(
-                      (t) => GestureDetector(
-                        onTap: () => _openTagSearch(context, t),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.bg3For(context),
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(
-                              color: AppColors.borderFor(context)
-                                  .withValues(alpha: 0.9),
-                            ),
-                          ),
-                          child: Text(
-                            '#$t',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.text2For(context),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                    )
-                    .toList(),
-              ),
-            ],
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              decoration: BoxDecoration(
-                border: Border(
-                  top: BorderSide(
-                    color:
-                        AppColors.borderFor(context).withValues(alpha: 0.65),
+            ] else ...[
+              // Text-only post content
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 2, 14, 10),
+                child: Text(
+                  post.content,
+                  style: DsText.body.copyWith(
+                    fontSize: 14.5,
+                    color: Ds.bone,
+                    height: 1.45,
                   ),
                 ),
               ),
+            ],
+
+            if (hasQuote)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+                child: _QuotedPostPreview(
+                  post: quotedPost,
+                  user: quotedPost == null
+                      ? null
+                      : _quoteUser(usersP, me, quotedPost),
+                  loading: quotedPostLoading,
+                ),
+              ),
+
+            if (post.documentUrl != null && post.documentUrl!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+                child: _PostDocumentPreview(
+                  url: post.documentUrl!,
+                  name: post.documentName ?? 'Document',
+                ),
+              ),
+
+            // 3. Action Row below media
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 2),
               child: Row(
                 children: [
                   _ActionBtn(
                     icon: Icons.favorite_border_rounded,
                     activeIcon: Icons.favorite_rounded,
-                    count: post.likes,
+                    count: null,
                     active: post.isLiked,
                     activeColor: AppColors.like,
                     label: 'Like',
@@ -306,37 +275,39 @@ class _PostCardState extends State<PostCard> {
                       _handleLikeTap(context, postsP, post.id, me.id);
                     },
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   ValueListenableBuilder<bool>(
                     valueListenable: _showCommentsNotifier,
                     builder: (context, showComments, _) => _ActionBtn(
                       icon: Icons.chat_bubble_outline_rounded,
                       activeIcon: Icons.chat_bubble_rounded,
-                      count: post.comments,
+                      count: null,
                       active: showComments,
                       label: 'Comment',
-                      activeColor: AppColors.textFor(context),
+                      activeColor: Ds.bone,
                       onTap: () {
                         HapticFeedback.lightImpact();
-                        final nextShowComments = !showComments;
-                        _showCommentsNotifier.value = nextShowComments;
-                        if (nextShowComments) {
-                          context.read<PostsProvider>().fetchComments(post.id).then((_) {
+                        final next = !showComments;
+                        _showCommentsNotifier.value = next;
+                        if (next) {
+                          final postsP = context.read<PostsProvider>();
+                          final usersP = context.read<UsersProvider>();
+                          postsP.fetchComments(post.id).then((_) {
                             if (mounted) {
-                              final comments = context.read<PostsProvider>().commentsForPost(post.id);
+                              final comments = postsP.commentsForPost(post.id);
                               final userIds = comments.map((c) => c.userId).toList();
-                              context.read<UsersProvider>().fetchAndCacheUsers(userIds);
+                              usersP.fetchAndCacheUsers(userIds);
                             }
                           });
                         }
                       },
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   _ActionBtn(
                     icon: Icons.repeat_rounded,
                     activeIcon: Icons.repeat_rounded,
-                    count: post.reposts,
+                    count: post.reposts > 0 ? post.reposts : null,
                     active: false,
                     label: 'Repost',
                     activeColor: AppColors.repost,
@@ -359,7 +330,7 @@ class _PostCardState extends State<PostCard> {
                     count: null,
                     active: post.isBookmarked,
                     label: 'Save',
-                    activeColor: AppColors.textFor(context),
+                    activeColor: Ds.bone,
                     disabled: bookmarkUpdating || me == null,
                     onTap: () {
                       if (me == null) return;
@@ -370,138 +341,219 @@ class _PostCardState extends State<PostCard> {
                 ],
               ),
             ),
+
+            // 4. Like count, Caption, Tags, Comment preview
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${post.likes} ${post.likes == 1 ? "like" : "likes"}',
+                    style: DsText.label.copyWith(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Ds.bone,
+                    ),
+                  ),
+                  if (hasImage && post.content.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    _PostCaption(
+                      authorHandle: author.handle,
+                      content: post.content,
+                    ),
+                  ],
+                  if (post.tags.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: post.tags
+                          .map(
+                            (t) => GestureDetector(
+                              onTap: () => _openTagSearch(context, t),
+                              child: DsTag(
+                                '#$t',
+                                bg: const Color(0xFF1E2030),
+                                fg: Ds.bone,
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ],
+                  const SizedBox(height: 6),
+                  GestureDetector(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      final next = !_showCommentsNotifier.value;
+                      _showCommentsNotifier.value = next;
+                      if (next) {
+                        final postsP = context.read<PostsProvider>();
+                        final usersP = context.read<UsersProvider>();
+                        postsP.fetchComments(post.id).then((_) {
+                          if (mounted) {
+                            final comments = postsP.commentsForPost(post.id);
+                            final userIds = comments.map((c) => c.userId).toList();
+                            usersP.fetchAndCacheUsers(userIds);
+                          }
+                        });
+                      }
+                    },
+                    child: Text(
+                      post.comments > 0
+                          ? 'View all ${post.comments} ${post.comments == 1 ? "comment" : "comments"}'
+                          : 'Add a comment...',
+                      style: DsText.caption.copyWith(
+                        fontSize: 13,
+                        color: Ds.muted,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // 5. Expandable Comments & Reply Section
             ValueListenableBuilder<bool>(
               valueListenable: _showCommentsNotifier,
               builder: (context, showComments, _) {
                 if (!showComments) return const SizedBox.shrink();
                 return Container(
-                margin: const EdgeInsets.only(top: 14),
-                padding: const EdgeInsets.only(top: 14),
-                decoration: BoxDecoration(
-                  border: Border(
-                    top: BorderSide(
-                      color: AppColors.borderFor(context)
-                          .withValues(alpha: 0.65),
+                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      top: BorderSide(
+                        color: Ds.border,
+                        width: 0.8,
+                      ),
                     ),
                   ),
-                ),
-                child: Column(
-                  children: [
-                    if (commentsLoading)
-                      const Padding(
-                        padding: EdgeInsets.all(16),
-                        child:
-                            Center(child: CircularProgressIndicator.adaptive()),
-                      )
-                    else
-                      ...comments.map(
-                        (comment) => _CommentRow(
-                          comment: comment,
-                          user: _commentUser(usersP, me, comment),
-                          onReply: me == null ? null : () {
-                            setState(() {
-                              _replyingTo = comment;
-                            });
-                            FocusScope.of(context).requestFocus(FocusNode()); // Optional: force focus if needed
-                          },
-                        ),
-                      ),
-                    if (me != null) ...[
-                      const SizedBox(height: 12),
-                      if (_replyingTo != null)
+                  child: Column(
+                    children: [
+                      if (commentsLoading)
+                        const Padding(
+                          padding: EdgeInsets.all(16),
+                          child:
+                              Center(child: CircularProgressIndicator.adaptive()),
+                        )
+                      else if (comments.isEmpty)
                         Padding(
-                          padding: const EdgeInsets.only(bottom: 8, left: 38),
-                          child: Row(
-                            children: [
-                              Text(
-                                'Replying to ',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.text3For(context),
-                                ),
-                              ),
-                              Text(
-                                '@${_commentUser(usersP, me, _replyingTo!).handle}',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const Spacer(),
-                              GestureDetector(
-                                onTap: () => setState(() => _replyingTo = null),
-                                child: Icon(
-                                  Icons.close_rounded,
-                                  size: 14,
-                                  color: AppColors.text3For(context),
-                                ),
-                              ),
-                            ],
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Center(
+                            child: Text(
+                              'No comments yet. Start the conversation!',
+                              style: DsText.caption.copyWith(color: Ds.muted),
+                            ),
+                          ),
+                        )
+                      else
+                        ...comments.map(
+                          (comment) => _CommentRow(
+                            comment: comment,
+                            user: _commentUser(usersP, me, comment),
+                            onReply: me == null ? null : () {
+                              setState(() {
+                                _replyingTo = comment;
+                              });
+                            },
                           ),
                         ),
-                      Row(
-                        children: [
-                          UserAvatar(user: me, size: 28),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: TextField(
-                              controller: _commentCtrl,
-                              autofocus: _replyingTo != null,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: AppColors.textFor(context),
-                              ),
-                              decoration: InputDecoration(
-                                hintText: 'Add a reply...',
-                                hintStyle: TextStyle(
-                                  color: AppColors.text3For(context),
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 10,
-                                ),
-                                fillColor:
-                                    Colors.white.withValues(alpha: 0.04),
-                                filled: true,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(18),
-                                  borderSide: BorderSide(
-                                    color: AppColors.borderFor(context),
+                      if (me != null) ...[
+                        const SizedBox(height: 12),
+                        if (_replyingTo != null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8, left: 38),
+                            child: Row(
+                              children: [
+                                Text(
+                                  'Replying to ',
+                                  style: DsText.caption.copyWith(
+                                    fontSize: 12,
+                                    color: Ds.muted,
                                   ),
                                 ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(18),
-                                  borderSide: BorderSide(
-                                    color: AppColors.borderFor(context),
-                                  ),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(18),
-                                  borderSide: const BorderSide(
+                                Text(
+                                  '@${_commentUser(usersP, me, _replyingTo!).handle}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
                                     color: AppColors.primary,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
+                                const Spacer(),
+                                GestureDetector(
+                                  onTap: () => setState(() => _replyingTo = null),
+                                  child: const Icon(
+                                    Icons.close_rounded,
+                                    size: 14,
+                                    color: Ds.muted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        Row(
+                          children: [
+                            UserAvatar(user: me, size: 28),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: TextField(
+                                controller: _commentCtrl,
+                                autofocus: _replyingTo != null,
+                                style: DsText.body.copyWith(
+                                  fontSize: 14,
+                                  color: Ds.bone,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: 'Add a reply...',
+                                  hintStyle: DsText.caption.copyWith(
+                                    color: Ds.muted,
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 10,
+                                  ),
+                                  fillColor: const Color(0xFF1E2030),
+                                  filled: true,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(18),
+                                    borderSide: BorderSide(
+                                      color: Ds.border.withValues(alpha: 0.6),
+                                    ),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(18),
+                                    borderSide: BorderSide(
+                                      color: Ds.border.withValues(alpha: 0.6),
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(18),
+                                    borderSide: const BorderSide(
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ),
+                                onSubmitted: (_) =>
+                                    _submitComment(postsP, post.id, me.id),
                               ),
-                              onSubmitted: (_) =>
-                                  _submitComment(postsP, post.id, me.id),
                             ),
-                          ),
-                          IconButton(
-                            onPressed: commentSubmitting
-                                ? null
-                                : () => _submitComment(postsP, post.id, me.id),
-                            icon: const Icon(
-                              Icons.arrow_upward_rounded,
-                              color: AppColors.primary,
+                            IconButton(
+                              onPressed: commentSubmitting
+                                  ? null
+                                  : () => _submitComment(postsP, post.id, me.id),
+                              icon: const Icon(
+                                Icons.arrow_upward_rounded,
+                                color: AppColors.primary,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
+                          ],
+                        ),
+                      ],
                     ],
-                  ],
-                ),
-              ).animate().fadeIn(duration: 200.ms);
+                  ),
+                ).animate().fadeIn(duration: 200.ms);
               },
             ),
           ],
@@ -514,14 +566,25 @@ class _PostCardState extends State<PostCard> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => GlassContainer(
-        color: AppColors.bg2For(context),
-        opacity: 0.9,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: Ds.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          border: Border.all(color: Ds.border),
+        ),
         child: SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Ds.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
               ListTile(
                 leading: const Icon(Icons.edit_rounded),
                 title: const Text('Edit Post'),
@@ -689,6 +752,7 @@ class _PostCardState extends State<PostCard> {
     String postId,
     String userId,
   ) async {
+    RewardFeedback.light();
     await postsProvider.toggleLike(postId, userId);
     if (!context.mounted) return;
 
@@ -706,6 +770,7 @@ class _PostCardState extends State<PostCard> {
     String postId,
     String userId,
   ) async {
+    RewardFeedback.light();
     await postsProvider.toggleBookmark(postId, userId);
     if (!context.mounted) return;
 
@@ -806,14 +871,33 @@ class _CommentRow extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(user.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                    Text(
+                      user.name,
+                      style: DsText.label.copyWith(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13.5,
+                        color: Ds.bone,
+                      ),
+                    ),
                     const SizedBox(width: 6),
-                    Text(timeago.format(comment.createdAt, locale: 'en_short'),
-                        style: TextStyle(fontSize: 12, color: AppColors.text3For(context))),
+                    Text(
+                      timeago.format(comment.createdAt, locale: 'en_short'),
+                      style: DsText.caption.copyWith(
+                        fontSize: 12,
+                        color: Ds.muted,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 2),
-                Text(comment.text, style: const TextStyle(fontSize: 14, height: 1.3)),
+                Text(
+                  comment.text,
+                  style: DsText.body.copyWith(
+                    fontSize: 13.5,
+                    height: 1.35,
+                    color: Ds.bone,
+                  ),
+                ),
                 if (onReply != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
@@ -821,9 +905,9 @@ class _CommentRow extends StatelessWidget {
                       onTap: onReply,
                       child: Text(
                         'Reply',
-                        style: TextStyle(
+                        style: DsText.caption.copyWith(
                           fontSize: 12,
-                          color: AppColors.text3For(context),
+                          color: Ds.muted,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -859,10 +943,12 @@ class _QuotePostSheetState extends State<_QuotePostSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return GlassContainer(
-      color: AppColors.bgFor(context),
-      opacity: 0.95,
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+    return Container(
+      decoration: BoxDecoration(
+        color: Ds.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        border: Border.all(color: Ds.border),
+      ),
       child: Container(
         padding: EdgeInsets.fromLTRB(16, 12, 16, 16 + MediaQuery.of(context).viewInsets.bottom),
         child: Column(
@@ -989,10 +1075,9 @@ class _QuotedPostPreviewState extends State<_QuotedPostPreview> {
                 const SizedBox(width: 8),
                 Text(
                   widget.user!.handle,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontWeight: FontWeight.w800,
+                  style: DsText.label.copyWith(
                     fontSize: 12,
-                    color: AppColors.text2For(context),
+                    color: Ds.muted,
                   ),
                 ),
               ],
@@ -1002,10 +1087,10 @@ class _QuotedPostPreviewState extends State<_QuotedPostPreview> {
               content,
               maxLines: _expanded ? null : 4,
               overflow: _expanded ? null : TextOverflow.ellipsis,
-              style: GoogleFonts.plusJakartaSans(
+              style: DsText.body.copyWith(
                 fontSize: 13,
                 height: 1.4,
-                color: AppColors.textFor(context),
+                color: Ds.bone,
               ),
             ),
             if (isLong && !_expanded)
@@ -1013,12 +1098,12 @@ class _QuotedPostPreviewState extends State<_QuotedPostPreview> {
                 padding: const EdgeInsets.only(top: 4),
                 child: GestureDetector(
                   onTap: () => setState(() => _expanded = true),
-                  child: Text(
+                  child: const Text(
                     'Read More',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
-                      color: AppColors.primary,
+                      color: Ds.aura,
                     ),
                   ),
                 ),
@@ -1030,74 +1115,142 @@ class _QuotedPostPreviewState extends State<_QuotedPostPreview> {
   }
 }
 
+class _PostCaption extends StatefulWidget {
+  final String authorHandle;
+  final String content;
+
+  const _PostCaption({
+    required this.authorHandle,
+    required this.content,
+  });
+
+  @override
+  State<_PostCaption> createState() => _PostCaptionState();
+}
+
+class _PostCaptionState extends State<_PostCaption> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final isLong = widget.content.length > 120;
+    final text = (!isLong || _expanded)
+        ? widget.content
+        : '${widget.content.substring(0, 120)}...';
+
+    return RichText(
+      text: TextSpan(
+        children: [
+          TextSpan(
+            text: '@${widget.authorHandle} ',
+            style: DsText.label.copyWith(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+              color: Ds.bone,
+            ),
+          ),
+          TextSpan(
+            text: text,
+            style: DsText.body.copyWith(
+              fontSize: 13.5,
+              color: Ds.bone,
+              height: 1.4,
+            ),
+          ),
+          if (isLong && !_expanded)
+            WidgetSpan(
+              alignment: PlaceholderAlignment.baseline,
+              baseline: TextBaseline.alphabetic,
+              child: GestureDetector(
+                onTap: () => setState(() => _expanded = true),
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: Text(
+                    'more',
+                    style: DsText.caption.copyWith(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: Ds.muted,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PostImageThumbnail extends StatelessWidget {
   final String imageUrl;
   final String heroTag;
   final double? maxHeight;
   final BoxFit fit;
-  final Color? backgroundColor;
 
   const _PostImageThumbnail({
     required this.imageUrl,
     required this.heroTag,
     this.maxHeight,
     this.fit = BoxFit.cover,
-    this.backgroundColor,
   });
 
   @override
   Widget build(BuildContext context) {
-    Widget image = ConstrainedBox(
+    final image = ConstrainedBox(
       constraints: BoxConstraints(
-        maxHeight: maxHeight ?? 500,
+        minHeight: 200,
+        maxHeight: maxHeight ?? 460,
       ),
       child: CachedNetworkImage(
         imageUrl: imageUrl,
         width: double.infinity,
-        fit: BoxFit.fitWidth,
+        fit: fit,
         memCacheWidth: 1080,
         placeholder: (_, __) => Container(
-          color: AppColors.bg2For(context),
-          height: 200,
+          color: const Color(0xFF141622),
+          height: 240,
+          child: const Center(
+            child: CircularProgressIndicator.adaptive(strokeWidth: 2),
+          ),
         ),
         errorWidget: (_, __, ___) => Container(
-          color: AppColors.bg2For(context),
-          height: 160,
+          color: const Color(0xFF141622),
+          height: 180,
           alignment: Alignment.center,
-          child: Icon(
-            Icons.broken_image_outlined,
-            color: AppColors.text3For(context),
-            size: 28,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.broken_image_outlined,
+                color: Ds.muted,
+                size: 32,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Failed to load image',
+                style: DsText.caption.copyWith(color: Ds.muted),
+              ),
+            ],
           ),
         ),
       ),
     );
 
-    if (backgroundColor != null) {
-      image = Container(
-        color: backgroundColor,
-        child: image,
-      );
-    }
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: GestureDetector(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => _PostImageViewer(
-                imageUrl: imageUrl,
-                heroTag: heroTag,
-                backgroundColor: backgroundColor,
-              ),
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => _PostImageViewer(
+              imageUrl: imageUrl,
+              heroTag: heroTag,
             ),
-          );
-        },
-        child: Hero(
-          tag: heroTag,
-          child: image,
-        ),
+          ),
+        );
+      },
+      child: Hero(
+        tag: heroTag,
+        child: image,
       ),
     );
   }
@@ -1106,17 +1259,15 @@ class _PostImageThumbnail extends StatelessWidget {
 class _PostImageViewer extends StatelessWidget {
   final String imageUrl;
   final String heroTag;
-  final Color? backgroundColor;
 
   const _PostImageViewer({
     required this.imageUrl,
     required this.heroTag,
-    this.backgroundColor,
   });
 
   @override
   Widget build(BuildContext context) {
-    Widget image = CachedNetworkImage(
+    final image = CachedNetworkImage(
       imageUrl: imageUrl,
       fit: BoxFit.contain,
       placeholder: (_, __) => const Center(
@@ -1131,18 +1282,16 @@ class _PostImageViewer extends StatelessWidget {
       ),
     );
 
-    if (backgroundColor != null) {
-      image = Container(color: backgroundColor, child: image);
-    }
-
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
           Center(
-            child: Hero(
-              tag: heroTag,
-              child: image,
+            child: InteractiveViewer(
+              child: Hero(
+                tag: heroTag,
+                child: image,
+              ),
             ),
           ),
           SafeArea(
@@ -1179,7 +1328,7 @@ class _ActionBtn extends StatelessWidget {
   const _ActionBtn({
     required this.icon,
     this.activeIcon,
-    required this.count,
+    this.count,
     required this.active,
     required this.onTap,
     required this.label,
@@ -1190,7 +1339,7 @@ class _ActionBtn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color =
-        active ? (activeColor ?? AppColors.primary) : AppColors.text3For(context);
+        active ? (activeColor ?? AppColors.primary) : Ds.muted;
     final displayIcon = active && activeIcon != null ? activeIcon! : icon;
 
     return Semantics(
@@ -1201,11 +1350,11 @@ class _ActionBtn extends StatelessWidget {
         onTap: disabled ? null : onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(displayIcon, size: 18, color: color),
+              Icon(displayIcon, size: 22, color: color),
               if (count != null) ...[
                 const SizedBox(width: 4),
                 Text(
@@ -1256,10 +1405,9 @@ class _PostDocumentPreview extends StatelessWidget {
                 name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.plusJakartaSans(
-                  fontWeight: FontWeight.w700,
+                style: DsText.label.copyWith(
                   fontSize: 14,
-                  color: AppColors.textFor(context),
+                  color: Ds.bone,
                 ),
               ),
             ),

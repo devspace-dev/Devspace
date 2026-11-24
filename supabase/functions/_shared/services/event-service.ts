@@ -237,6 +237,8 @@ export class EventService {
         const title = hack.name || "";
         const slug = hack.slug || "";
         if (!title || !slug) continue;
+        const tz = hack?.timezone;
+        if (tz && tz !== "Asia/Kolkata" && tz !== "Asia/Calcutta") continue;
 
         const link = `https://${slug}.devfolio.co`;
 
@@ -314,83 +316,201 @@ export class EventService {
     return hackathons;
   }
 
-  private async fetchUnstop() {
+  private isIndianUnstopOpportunity(opp: any): boolean {
+    if (opp?.region === "online") return true;
+    if (!opp?.address_with_country_logo?.country) return true;
+    return opp?.address_with_country_logo?.country?.name === "India";
+  }
+
+  private isTechBTechInternship(opp: any): boolean {
+    const title = (opp?.title || "").trim();
+    if (!title) return false;
+    const techRegex = /\b(software|developer|frontend|front-end|backend|back-end|full\s*stack|web|android|flutter|ios|mobile|ai|ml|machine\s*learning|deep\s*learning|data\s*(science|analyst|engineer|analytics)|python|java|javascript|react|node|cloud|devops|security|cyber|qa|sde|engineer|embedded|iot|blockchain|web3|solidity|tech)\b/i;
+    const nonTechRegex = /\b(sales|business\s*development|bde|marketing|content|writer|copywriting|seo|telecaller|calling|counselor|graphic\s*design|video\s*editor|hr|human\s*resource|talent|recruiter|finance|accounting|lawyer|legal|operations|lead\s*generation|campus\s*ambassador)\b/i;
+    if (!techRegex.test(title)) return false;
+    if (nonTechRegex.test(title)) return false;
+    const filters = opp?.filters || [];
+    if (filters.length > 0) {
+      const filterNames = filters.map((f: any) => (f?.name || "").toLowerCase());
+      const isEng = filterNames.some((n: string) => n.includes("engineering") || n.includes("undergraduate") || n.includes("fresher") || n.includes("all"));
+      if (!isEng) return false;
+    }
+    return true;
+  }
+
+  private unstopLocationText(opp: any): string {
+    if (opp?.region === "online") return "Online";
+    const addr = opp?.address_with_country_logo;
+    const place = [addr?.city, addr?.state].filter(Boolean).join(", ");
+    if (place) return place;
+    if (opp?.region === "hybrid") return "Hybrid";
+    return "In-person";
+  }
+
+  private async fetchUnstopHackathons(maxPages = 2, perPage = 50) {
     const hackathons: any[] = [];
-    try {
-      console.log("Fetching from Unstop API...");
-      const response = await fetch("https://unstop.com/api/public/opportunity/search-result?opportunity=hackathons&page=1", {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          "Accept": "application/json",
-        },
-      });
-      if (!response.ok) {
-        throw new Error(`Unstop API returned status ${response.status}`);
-      }
-      const json = await response.json();
-      const items = json.data?.data || [];
-      
-      for (const hack of items) {
-        const title = hack.title || "";
-        const publicUrl = hack.public_url || "";
-        if (!title || !publicUrl) continue;
-
-        const link = hack.seo_url || `https://unstop.com/${publicUrl}`;
-        const bannerUrl = hack.logoUrl2 || null;
-        const organizer = hack.organisation?.name || "Unstop";
-        const locationText = hack.region || "Online";
-        
-        const rawDesc = hack.details ? hack.details.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim() : "";
-        const description = rawDesc || `Join ${title} on Unstop!`;
-
-        const startDate = hack.regnRequirements?.start_regn_dt ? new Date(hack.regnRequirements.start_regn_dt) : null;
-        const endDateVal = hack.end_date ? new Date(hack.end_date) : null;
-        let dateText = "";
-        if (startDate && endDateVal) {
-          dateText = `${startDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${endDateVal.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
-        } else if (endDateVal) {
-          dateText = `Closes ${endDateVal.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
-        }
-
-        let endDate = hack.end_date || null;
-        if (endDate) {
-          endDate = new Date(endDate).toISOString();
-        }
-
-        hackathons.push({
-          title,
-          link,
-          banner_url: bannerUrl,
-          organizer,
-          date: dateText,
-          location: locationText,
-          description,
-          end_date: endDate
+    const seenLinks = new Set<string>();
+    for (let page = 1; page <= maxPages; page++) {
+      try {
+        console.log(`Fetching Unstop hackathons page ${page}...`);
+        const response = await fetch(`https://unstop.com/api/public/opportunity/search-result?opportunity=hackathons&eligible=engineering-students&per_page=${perPage}&page=${page}`, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "application/json",
+          },
         });
+        if (!response.ok) break;
+        const json = await response.json();
+        const items = json.data?.data || [];
+        if (items.length === 0) break;
+        
+        for (const hack of items) {
+          const title = hack.title?.trim() || "";
+          const publicUrl = hack.public_url || "";
+          if (!title || !publicUrl) continue;
+          if (!this.isIndianUnstopOpportunity(hack)) continue;
+
+          const link = hack.seo_url || `https://unstop.com/${publicUrl}`;
+          if (seenLinks.has(link)) continue;
+          seenLinks.add(link);
+
+          const bannerUrl = hack.logoUrl2 || hack.banner_mobile || null;
+          const organizer = hack.organisation?.name || "Unstop";
+          const locationText = this.unstopLocationText(hack);
+          
+          let rawDesc = hack.details ? hack.details.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim() : "";
+          if (rawDesc.length > 250) {
+            rawDesc = rawDesc.substring(0, 247) + "...";
+          }
+          const description = rawDesc || `Join ${title} organized by ${organizer} on Unstop!`;
+
+          const startDate = hack.regnRequirements?.start_regn_dt ? new Date(hack.regnRequirements.start_regn_dt) : null;
+          const endDateVal = hack.end_date ? new Date(hack.end_date) : null;
+          let dateText = "";
+          if (startDate && endDateVal) {
+            dateText = `${startDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${endDateVal.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+          } else if (endDateVal) {
+            dateText = `Closes ${endDateVal.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+          }
+
+          let endDate = hack.end_date || hack.regnRequirements?.end_regn_dt || null;
+          if (endDate) {
+            endDate = new Date(endDate).toISOString();
+          }
+
+          hackathons.push({
+            title,
+            link,
+            banner_url: bannerUrl,
+            organizer,
+            date: dateText,
+            location: locationText,
+            description,
+            end_date: endDate,
+            type: "hackathon"
+          });
+        }
+      } catch (e) {
+        console.error("Error fetching Unstop hackathons:", e);
+        break;
       }
-    } catch (e) {
-      console.error("Error fetching Unstop hackathons:", e);
     }
     return hackathons;
   }
 
+  private async fetchUnstopInternships() {
+    const internships: any[] = [];
+    const seenLinks = new Set<string>();
+    const terms = ["developer", "software"];
+
+    for (const term of terms) {
+      for (let page = 1; page <= 2; page++) {
+        try {
+          console.log(`Fetching Unstop tech internships term="${term}", page=${page}...`);
+          const response = await fetch(`https://unstop.com/api/public/opportunity/search-result?opportunity=internships&searchTerm=${encodeURIComponent(term)}&per_page=30&page=${page}`, {
+            headers: {
+              "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+              "Accept": "application/json",
+            },
+          });
+          if (!response.ok) break;
+          const json = await response.json();
+          const items = json.data?.data || [];
+          if (items.length === 0) break;
+
+          for (const item of items) {
+            const title = item.title?.trim() || "";
+            const publicUrl = item.public_url || "";
+            if (!title || !publicUrl) continue;
+            if (!this.isIndianUnstopOpportunity(item)) continue;
+            if (!this.isTechBTechInternship(item)) continue;
+
+            const link = item.seo_url || `https://unstop.com/${publicUrl}`;
+            if (seenLinks.has(link)) continue;
+            seenLinks.add(link);
+
+            const bannerUrl = item.logoUrl2 || item.banner_mobile || null;
+            const organizer = item.organisation?.name || "Unstop";
+            const locationText = this.unstopLocationText(item);
+
+            let rawDesc = item.details ? item.details.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim() : "";
+            if (rawDesc.length > 250) {
+              rawDesc = rawDesc.substring(0, 247) + "...";
+            }
+            const description = rawDesc || `Apply for ${title} at ${organizer} on Unstop!`;
+
+            const startDate = item.regnRequirements?.start_regn_dt ? new Date(item.regnRequirements.start_regn_dt) : null;
+            const endDateVal = item.end_date ? new Date(item.end_date) : null;
+            let dateText = "";
+            if (startDate && endDateVal) {
+              dateText = `${startDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${endDateVal.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+            } else if (endDateVal) {
+              dateText = `Closes ${endDateVal.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+            }
+
+            let endDate = item.end_date || item.regnRequirements?.end_regn_dt || null;
+            if (endDate) {
+              endDate = new Date(endDate).toISOString();
+            }
+
+            internships.push({
+              title,
+              link,
+              banner_url: bannerUrl,
+              organizer,
+              date: dateText,
+              location: locationText,
+              description,
+              end_date: endDate,
+              type: "internship"
+            });
+          }
+        } catch (e) {
+          console.error("Error fetching Unstop internships:", e);
+          break;
+        }
+      }
+    }
+    return internships;
+  }
+
   async syncHackathons() {
-    console.log("Starting unified hackathon synchronization in Edge Function...");
+    console.log("Starting unified India-optimized opportunities synchronization in Edge Function...");
     
-    const [devpostHacks, devfolioHacks, unstopHacks] = await Promise.all([
-      this.fetchDevpost(),
+    const [devfolioHacks, unstopHacks, unstopInternships] = await Promise.all([
       this.fetchDevfolio(),
-      this.fetchUnstop()
+      this.fetchUnstopHackathons(2, 50),
+      this.fetchUnstopInternships()
     ]);
 
-    const allHacks = [...devpostHacks, ...devfolioHacks, ...unstopHacks];
-    console.log(`Total active hackathons fetched: ${allHacks.length}`);
+    const allOpportunities = [...devfolioHacks, ...unstopHacks, ...unstopInternships];
+    console.log(`Total active India opportunities fetched: ${allOpportunities.length} (Devfolio: ${devfolioHacks.length}, Unstop Hacks: ${unstopHacks.length}, Unstop Internships: ${unstopInternships.length})`);
 
     let newCount = 0;
     let updatedCount = 0;
 
-    for (const hack of allHacks) {
-      const result = await this.upsertEvent(hack);
+    for (const item of allOpportunities) {
+      const result = await this.upsertEvent(item);
       if (result === "inserted") {
         newCount++;
       } else if (result === "updated") {
@@ -404,16 +524,16 @@ export class EventService {
       newCount,
       updatedCount,
       deletedCount,
-      totalFetched: allHacks.length,
+      totalFetched: allOpportunities.length,
       breakdown: {
-        devpost: devpostHacks.length,
         devfolio: devfolioHacks.length,
-        unstop: unstopHacks.length
+        unstopHackathons: unstopHacks.length,
+        unstopInternships: unstopInternships.length
       }
     };
   }
 
-  private async upsertEvent(eventData: any, includeEndDate = true): Promise<string | boolean> {
+  private async upsertEvent(eventData: any, includeEndDate = true, fallbackType = false): Promise<string | boolean> {
     const { link, title } = eventData;
     if (!link || !title) return false;
 
@@ -451,18 +571,19 @@ export class EventService {
       if (updateError) {
         if (includeEndDate && (updateError.code === "PGRST204" || updateError.message?.includes("end_date"))) {
           console.warn(`Warning: end_date column not found in schema. Retrying update without end_date...`);
-          return await this.upsertEvent(eventData, false);
+          return await this.upsertEvent(eventData, false, fallbackType);
         }
         console.error(`Error updating event ${existing.id}:`, updateError);
         return false;
       }
       return "updated";
     } else {
+      const typeToUse = fallbackType ? "event" : (eventData.type || "hackathon");
       const insertPayload = {
         ...payload,
         required_aura: 0,
         link: eventData.link,
-        type: "hackathon",
+        type: typeToUse,
         is_active: true
       };
       delete insertPayload.updated_at;
@@ -474,7 +595,11 @@ export class EventService {
       if (insertError) {
         if (includeEndDate && (insertError.code === "PGRST204" || insertError.message?.includes("end_date"))) {
           console.warn(`Warning: end_date column not found in schema. Retrying insert without end_date...`);
-          return await this.upsertEvent(eventData, false);
+          return await this.upsertEvent(eventData, false, fallbackType);
+        }
+        if (!fallbackType && (insertError.code === "23514" || insertError.message?.includes("events_type_check"))) {
+          console.warn(`Warning: events_type_check constraint does not allow "${eventData.type}". Retrying with type="event"...`);
+          return await this.upsertEvent(eventData, includeEndDate, true);
         }
         console.error(`Error inserting event "${title}":`, insertError);
         return false;
@@ -484,12 +609,12 @@ export class EventService {
   }
 
   private async cleanExpiredEvents() {
-    console.log("Cleaning up expired events...");
+    console.log("Cleaning up expired events and internships...");
     try {
       const { data: expiredEvents, error: expiredError } = await this.client
         .from("events")
         .select("id")
-        .eq("type", "hackathon")
+        .in("type", ["hackathon", "internship", "event"])
         .lt("end_date", new Date().toISOString());
 
       if (expiredError) {
@@ -523,11 +648,11 @@ export class EventService {
           return 0;
         }
         
-        console.log(`Successfully deleted ${expiredIds.length} expired hackathons.`);
+        console.log(`Successfully deleted ${expiredIds.length} expired opportunities.`);
         return expiredIds.length;
       }
     } catch (e) {
-      console.error("Exception cleaning up expired hackathons:", e);
+      console.error("Exception cleaning up expired opportunities:", e);
     }
     return 0;
   }

@@ -25,7 +25,13 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final me = context.read<AuthProvider>().currentUser;
+    final me = context.watch<AuthProvider>().currentUserOrNull;
+    if (me == null) {
+      return Scaffold(
+        backgroundColor: AppColors.bgFor(context),
+        body: const SizedBox.shrink(),
+      );
+    }
 
     return Scaffold(
       backgroundColor: AppColors.bgFor(context),
@@ -134,13 +140,24 @@ class _MessagesScreenState extends State<MessagesScreen> {
   }
 
   Widget _buildSliverAppBar(BuildContext context) {
+    final canPop = Navigator.canPop(context);
     return SliverAppBar(
       floating: true,
-      pinned: false,
+      pinned: canPop,
       backgroundColor: AppColors.bgFor(context),
-      expandedHeight: 80,
+      expandedHeight: canPop ? 72 : 80,
       centerTitle: false,
       automaticallyImplyLeading: false,
+      leading: canPop
+          ? IconButton(
+              icon: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: AppColors.textFor(context),
+              ),
+              tooltip: 'Back',
+              onPressed: () => Navigator.maybePop(context),
+            )
+          : null,
       actions: [
         IconButton(
           icon: Icon(Icons.more_vert_rounded, color: AppColors.textFor(context)),
@@ -149,7 +166,11 @@ class _MessagesScreenState extends State<MessagesScreen> {
         const SizedBox(width: 8),
       ],
       flexibleSpace: FlexibleSpaceBar(
-        titlePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        titlePadding: EdgeInsetsDirectional.only(
+          start: canPop ? 56 : 20,
+          end: 48,
+          bottom: 12,
+        ),
         title: Text(
           'Messages',
           style: GoogleFonts.plusJakartaSans(

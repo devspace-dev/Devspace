@@ -13,7 +13,7 @@ class StorageService {
   static const _uuid = Uuid();
 
   final _picker = ImagePicker();
-  final _supabase = Supabase.instance.client;
+  SupabaseClient get _supabase => Supabase.instance.client;
 
   // ── Pick from camera or gallery ──────────────────
   Future<File?> pickImage(
@@ -192,7 +192,11 @@ class StorageService {
 
   String resolvePublicUrl(String pathOrUrl) {
     if (pathOrUrl.startsWith('http')) return pathOrUrl;
-    return _supabase.storage.from('images').getPublicUrl(pathOrUrl);
+    try {
+      return _supabase.storage.from('images').getPublicUrl(pathOrUrl);
+    } catch (_) {
+      return pathOrUrl;
+    }
   }
 
   Future<String> uploadChatImage(String conversationId, File file) async {

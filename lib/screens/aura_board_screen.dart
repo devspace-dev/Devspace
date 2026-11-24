@@ -11,7 +11,7 @@ import '../services/supabase_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_ui_kit.dart';
 import '../widgets/user_avatar.dart';
-import 'profile_screen.dart';
+import '../features/profile/screens/profile_screen.dart';
 
 class AuraBoardScreen extends StatefulWidget {
   const AuraBoardScreen({super.key});

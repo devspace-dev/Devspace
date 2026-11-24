@@ -1,4 +1,7 @@
 const List<String> kTrendingTags = [
+  '#Doubt',
+  '#Question',
+  '#Project',
   '#MachineLearning',
   '#ReactJS',
   '#OpenSource',

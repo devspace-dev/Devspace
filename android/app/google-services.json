@@ -18,6 +18,14 @@
           "client_type": 1,
           "android_info": {
             "package_name": "com.devspace.community",
+            "certificate_hash": "05369b48e77ec32ebc218a5e3e9af37f1631af4c"
+          }
+        },
+        {
+          "client_id": "690782485467-o2o7lcl8ulf1atd22pdqim7mvf2dpddp.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.devspace.community",
             "certificate_hash": "dd2c81bbc7d5c7c7470990dcaac05b2bae7d4fb0"
           }
         },

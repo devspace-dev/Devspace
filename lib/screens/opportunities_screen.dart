@@ -327,6 +327,8 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
             width: 44,
             height: 44,
             fit: BoxFit.cover,
+            memCacheWidth: 132,
+            memCacheHeight: 132,
             placeholder: (context, url) => Container(
               color: Colors.grey.shade50,
               alignment: Alignment.center,
@@ -512,8 +514,62 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
   }
 
   bool _isPastEvent(EventAccessModel e) {
-    final end = DateTime.tryParse(e.endDate ?? '') ?? DateTime.tryParse(e.date ?? '');
-    if (end == null) return false;
+    final lowerTitle = e.title.toLowerCase();
+    if (RegExp(r'\b(ended|concluded|expired)\b').hasMatch(lowerTitle)) {
+      return true;
+    }
+
+    final raw = e.endDate ?? e.date ?? '';
+    final iso = DateTime.tryParse(raw);
+    if (iso != null) {
+      final now = DateTime.now();
+      return iso.toLocal().isBefore(DateTime(now.year, now.month, now.day));
+    }
+
+    // Try parsing date range ending part
+    final rangeParts = raw.split(RegExp(r'[-–]|(?:\bto\b)'));
+    final targetStr = rangeParts.isNotEmpty ? rangeParts.last.trim() : raw.trim();
+    final withoutTime = targetStr.replaceAll(
+      RegExp(r'\b\d{1,2}(?::\d{2})?\s*(?:am|pm)\b', caseSensitive: false),
+      '',
+    );
+
+    int year = DateTime.now().year;
+    final yearMatch = RegExp(r'\b(202[0-9])\b').firstMatch(targetStr) ??
+        RegExp(r'\b(202[0-9])\b').firstMatch(raw);
+    if (yearMatch != null) {
+      final y = int.tryParse(yearMatch.group(1)!);
+      if (y != null) year = y;
+    }
+
+    const months = {
+      'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
+      'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12,
+    };
+    int month = 12;
+    final monthMatch = RegExp(
+      r'\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b',
+      caseSensitive: false,
+    ).firstMatch(withoutTime) ?? RegExp(
+      r'\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b',
+      caseSensitive: false,
+    ).firstMatch(raw);
+
+    if (monthMatch != null) {
+      final key = monthMatch.group(1)!.substring(0, 3).toLowerCase();
+      month = months[key] ?? 12;
+    }
+
+    int day = 28;
+    final dayMatches = RegExp(r'\b([0-2]?[0-9]|3[0-1])\b').allMatches(withoutTime);
+    for (final m in dayMatches) {
+      final val = int.tryParse(m.group(1)!);
+      if (val != null && val >= 1 && val <= 31 && val != year) {
+        day = val;
+      }
+    }
+
+    final end = DateTime(year, month, day, 23, 59, 59);
     final now = DateTime.now();
     return end.isBefore(DateTime(now.year, now.month, now.day));
   }
@@ -611,6 +667,8 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
         height: bannerHeight,
         width: double.infinity,
         fit: BoxFit.cover,
+        memCacheWidth: 720,
+        memCacheHeight: (bannerHeight * 2).round(),
         placeholder: (context, url) => Container(
           height: bannerHeight,
           color: AppColors.bg3For(context),
@@ -1019,18 +1077,6 @@ class _OpportunityCardState extends State<_OpportunityCard> {
                                   : Icons.location_on_outlined,
                               label: location,
                             ),
-                          if (item.requiredAura > 0)
-                            _buildMetaChip(
-                              context,
-                              icon: isLocked
-                                  ? Icons.lock_rounded
-                                  : Icons.bolt_rounded,
-                              label: '${item.requiredAura} Aura',
-                              color: isLocked
-                                  ? AppColors.text3For(context)
-                                  : AppColors.primary,
-                              tinted: !isLocked,
-                            ),
                         ],
                       ),
 
@@ -1057,11 +1103,6 @@ class _OpportunityCardState extends State<_OpportunityCard> {
                           ),
                         ],
                       ),
-
-                      if (isLocked) ...[
-                        const SizedBox(height: 14),
-                        _buildLockProgress(context),
-                      ],
                     ],
                   ),
                 ),
@@ -1085,6 +1126,8 @@ class _OpportunityCardState extends State<_OpportunityCard> {
       height: _photoHeight,
       width: double.infinity,
       fit: BoxFit.cover,
+      memCacheWidth: 720,
+      memCacheHeight: (_photoHeight * 2).round(),
       placeholder: (context, _) => Container(
         height: _photoHeight,
         color: AppColors.bg3For(context),
@@ -1273,33 +1316,6 @@ class _OpportunityCardState extends State<_OpportunityCard> {
       ),
     );
   }
-
-  Widget _buildLockProgress(BuildContext context) {
-    final progress = (widget.myAura / widget.item.requiredAura).clamp(0.0, 1.0);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: LinearProgressIndicator(
-            value: progress,
-            backgroundColor: AppColors.bg3For(context),
-            color: AppColors.primary.withValues(alpha: 0.6),
-            minHeight: 5,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Keep building your aura to unlock access (${widget.myAura}/${widget.item.requiredAura} Aura)',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 10,
-            fontWeight: FontWeight.w600,
-            color: AppColors.text4For(context),
-          ),
-        ),
-      ],
-    );
-  }
 }
 
 // Flat banner used whenever an opportunity has no usable image. The colour is
@@ -1414,6 +1430,7 @@ Widget _buildLogoBanner(BuildContext context, String logoUrl, double height, boo
             child: CachedNetworkImage(
               imageUrl: logoUrl,
               fit: BoxFit.cover,
+              memCacheWidth: 400,
               errorWidget: (_, __, ___) => const SizedBox(),
             ),
           ),
@@ -1432,6 +1449,8 @@ Widget _buildLogoBanner(BuildContext context, String logoUrl, double height, boo
           child: CachedNetworkImage(
             imageUrl: logoUrl,
             fit: BoxFit.contain,
+            memCacheWidth: 200,
+            memCacheHeight: 200,
             placeholder: (context, url) => const SizedBox(
               width: 20,
               height: 20,

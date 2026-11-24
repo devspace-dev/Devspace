@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../core/theme/colors.dart';
+import '../core/theme/text.dart';
+import '../core/widgets/ds_button.dart';
+import '../core/widgets/ds_card.dart';
 import '../providers/auth_provider.dart';
-import '../theme/app_colors.dart';
 import '../utils/constants.dart';
 import '../widgets/image_upload_widget.dart';
 
@@ -80,20 +83,20 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   String get _title {
     if (_isOnboarding) {
-      return _step == 0 ? 'Create your profile' : 'Add builder details';
+      return _step == 0 ? 'CREATE YOUR PROFILE' : 'BUILDER DETAILS';
     }
     return _step == 0
-        ? 'Public basics'
+        ? 'PUBLIC BASICS'
         : _step == 1
-            ? 'Builder details'
-            : 'Photo and links';
+            ? 'BUILDER DETAILS'
+            : 'PHOTO & LINKS';
   }
 
   String get _subtitle {
     if (_isOnboarding) {
       return _step == 0
           ? 'Only the basics are required before entering DevSpace.'
-          : 'This is optional. You can finish now and edit later.';
+          : 'Optional details. You can finish now and update later.';
     }
     return 'Keep your student builder profile current and easy to scan.';
   }
@@ -225,47 +228,74 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     setState(() => _stack = _stack.where((item) => item != tag).toList());
   }
 
+  InputDecoration _inputDeco({String? hintText, String? prefixText, Widget? suffixIcon}) {
+    const surfaceAlt = Color(0xFF1E2030);
+    return InputDecoration(
+      filled: true,
+      fillColor: surfaceAlt,
+      hintText: hintText,
+      hintStyle: DsText.body.copyWith(color: Ds.muted, fontSize: 14),
+      prefixText: prefixText,
+      prefixStyle: DsText.label.copyWith(color: Ds.aura),
+      suffixIcon: suffixIcon,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Ds.border, width: 1.2),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Ds.border, width: 1.2),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Ds.aura, width: 1.8),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().currentUser;
-    final border = AppColors.borderFor(context);
-    final text = AppColors.textFor(context);
-    final text2 = AppColors.text2For(context);
-    final text3 = AppColors.text3For(context);
 
     return Scaffold(
-      backgroundColor: AppColors.bgFor(context),
+      backgroundColor: Ds.ink,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
+        elevation: 0,
         leading: _isOnboarding
             ? null
             : IconButton(
-                icon: Icon(Icons.arrow_back_rounded, color: text),
+                icon: const Icon(Icons.arrow_back_rounded, color: Ds.bone),
                 onPressed: () => Navigator.of(context).maybePop(),
               ),
-        title: Text(_isOnboarding ? 'Profile setup' : 'Edit profile'),
+        title: Text(
+          _isOnboarding ? 'PROFILE SETUP' : 'EDIT PROFILE',
+          style: DsText.h3.copyWith(fontSize: 18, color: Ds.bone),
+        ),
       ),
       body: SafeArea(
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     _title,
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                      color: text,
-                      letterSpacing: -0.5,
+                    style: DsText.h2.copyWith(
+                      color: Ds.bone,
+                      letterSpacing: 0.8,
                     ),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     _subtitle,
-                    style: TextStyle(fontSize: 13, height: 1.4, color: text2),
+                    style: DsText.caption.copyWith(
+                      color: Ds.muted,
+                      height: 1.4,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   Row(
@@ -274,15 +304,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       return Expanded(
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 220),
-                          height: 3,
+                          height: 4,
                           margin: EdgeInsets.only(
                             right: index == _totalSteps - 1 ? 0 : 6,
                           ),
                           decoration: BoxDecoration(
-                            color: active
-                                ? user.color
-                                : AppColors.bg3For(context),
-                            borderRadius: BorderRadius.circular(99),
+                            color: active ? Ds.aura : Ds.border,
+                            borderRadius: BorderRadius.circular(2),
                           ),
                         ),
                       );
@@ -290,11 +318,11 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '${_step + 1} of $_totalSteps',
-                    style: TextStyle(
+                    'STEP ${_step + 1} OF $_totalSteps',
+                    style: DsText.label.copyWith(
                       fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: text3,
+                      color: Ds.muted,
+                      letterSpacing: 1.0,
                     ),
                   ),
                 ],
@@ -317,16 +345,15 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.red.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.red.withValues(alpha: 0.22)),
+                    color: Ds.hot.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Ds.hot.withValues(alpha: 0.4)),
                   ),
                   child: Text(
                     _error!,
-                    style: const TextStyle(
-                      color: Colors.redAccent,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                    style: DsText.caption.copyWith(
+                      color: Ds.hot,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
@@ -337,18 +364,19 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 children: [
                   if (_step > 0) ...[
                     SizedBox(
-                      height: 50,
-                      width: 50,
+                      height: 52,
+                      width: 52,
                       child: OutlinedButton(
                         onPressed: _saving ? null : _back,
                         style: OutlinedButton.styleFrom(
                           padding: EdgeInsets.zero,
-                          side: BorderSide(color: border),
+                          side: const BorderSide(color: Ds.border, width: 1.2),
+                          backgroundColor: const Color(0xFF1E2030),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(10),
                           ),
                         ),
-                        child: Icon(Icons.chevron_left_rounded, color: text),
+                        child: const Icon(Icons.chevron_left_rounded, color: Ds.bone, size: 28),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -358,39 +386,24 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       onPressed: _saving
                           ? null
                           : () => _submit(skipOptional: true),
-                      child: const Text('Skip'),
+                      child: Text(
+                        'SKIP',
+                        style: DsText.label.copyWith(
+                          color: Ds.muted,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
                     ),
                     const SizedBox(width: 8),
                   ],
                   Expanded(
-                    child: SizedBox(
-                      height: 50,
-                      child: ElevatedButton(
-                        onPressed: _saving ? null : _next,
-                        style: ElevatedButton.styleFrom(
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        child: _saving
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : Text(
-                                _isLastStep
-                                    ? (_isOnboarding ? 'Enter DevSpace' : 'Save')
-                                    : 'Continue',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                      ),
+                    child: DsButton(
+                      label: _isLastStep
+                          ? (_isOnboarding ? 'ENTER DEVSPACE' : 'SAVE')
+                          : 'CONTINUE',
+                      kind: DsButtonKind.aura,
+                      loading: _saving,
+                      onPressed: _saving ? null : _next,
                     ),
                   ),
                 ],
@@ -407,28 +420,28 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
       children: [
         _FieldBlock(
-          label: 'Name',
+          label: 'NAME',
           child: TextField(
             controller: _nameCtrl,
             textInputAction: TextInputAction.next,
-            style: TextStyle(color: AppColors.textFor(context)),
-            decoration: const InputDecoration(hintText: 'Your full name'),
+            style: DsText.body.copyWith(color: Ds.bone),
+            decoration: _inputDeco(hintText: 'Your full name'),
           ),
         ),
         _FieldBlock(
-          label: 'Handle',
+          label: 'HANDLE',
           child: TextField(
             controller: _handleCtrl,
             textInputAction: TextInputAction.next,
-            style: TextStyle(color: AppColors.textFor(context)),
-            decoration: const InputDecoration(
+            style: DsText.body.copyWith(color: Ds.bone),
+            decoration: _inputDeco(
               hintText: 'your_handle',
               prefixText: '@ ',
             ),
           ),
         ),
         _FieldBlock(
-          label: 'College',
+          label: 'COLLEGE',
           child: Autocomplete<String>(
             initialValue: TextEditingValue(text: _collegeCtrl.text),
             optionsBuilder: (value) {
@@ -449,8 +462,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               return TextField(
                 controller: controller,
                 focusNode: focusNode,
-                style: TextStyle(color: AppColors.textFor(context)),
-                decoration: const InputDecoration(
+                style: DsText.body.copyWith(color: Ds.bone),
+                decoration: _inputDeco(
                   hintText: 'Search or type your college',
                 ),
                 onChanged: (value) {
@@ -462,13 +475,15 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             optionsViewBuilder: _optionsViewBuilder,
           ),
         ),
-        if (_isOnboarding)
-          _SoftNote(
-            icon: Icons.lock_open_rounded,
-            title: 'No long form before the app',
+        if (_isOnboarding) ...[
+          const SizedBox(height: 10),
+          const _SoftNote(
+            icon: Icons.flash_on_rounded,
+            title: 'NO LONG FORMS BEFORE THE APP',
             message:
-                'You can start with these basics. Add projects, skills, GitHub, and photo later from Profile.',
+                'You can start with these basics. Add projects, skills, GitHub, and photo later from your profile.',
           ),
+        ],
       ],
     );
   }
@@ -478,7 +493,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
       children: [
         _FieldBlock(
-          label: 'Year',
+          label: 'YEAR',
           child: _ChoiceWrap(
             options: kAcademicYears,
             selectedValues: _year.isEmpty ? const [] : [_year],
@@ -489,7 +504,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           ),
         ),
         _FieldBlock(
-          label: 'Branch',
+          label: 'BRANCH',
           child: _ChoiceWrap(
             options: kBranches,
             selectedValues: _branch.isEmpty ? const [] : [_branch],
@@ -500,7 +515,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           ),
         ),
         _FieldBlock(
-          label: 'Role',
+          label: 'ROLE',
           child: _ChoiceWrap(
             options: kProfileRoles,
             selectedValues: _roles,
@@ -512,7 +527,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           ),
         ),
         _FieldBlock(
-          label: 'Skills',
+          label: 'SKILLS',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -533,12 +548,12 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     focusNode: focusNode,
                     onChanged: (value) => _stackCtrl.text = value,
                     onSubmitted: (value) => _addStackTag(value),
-                    style: TextStyle(color: AppColors.textFor(context)),
-                    decoration: InputDecoration(
+                    style: DsText.body.copyWith(color: Ds.bone),
+                    decoration: _inputDeco(
                       hintText: 'Optional: Flutter, React, Python...',
                       suffixIcon: IconButton(
                         onPressed: () => _addStackTag(controller.text),
-                        icon: const Icon(Icons.add_circle_rounded),
+                        icon: const Icon(Icons.add_circle_rounded, color: Ds.aura),
                       ),
                     ),
                   );
@@ -552,9 +567,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   runSpacing: 8,
                   children: _stack
                       .map(
-                        (tag) => InputChip(
-                          label: Text(tag),
+                        (tag) => Chip(
+                          label: Text(tag, style: DsText.caption.copyWith(color: Ds.bone)),
+                          backgroundColor: const Color(0xFF1E2030),
+                          deleteIcon: const Icon(Icons.close, size: 16, color: Ds.muted),
                           onDeleted: () => _removeStackTag(tag),
+                          side: const BorderSide(color: Ds.border),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                         ),
                       )
                       .toList(),
@@ -574,7 +593,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         Center(
           child: ImageUploadWidget(
             existingUrl: _avatarPath,
-            uploadPath: 'profiles/${uid}_${DateTime.now().millisecondsSinceEpoch}.jpg',
+            uploadPath: 'profiles/${uid}.${DateTime.now().millisecondsSinceEpoch}.jpg',
             size: 92,
             isCircle: true,
             onUploaded: (url) {
@@ -585,24 +604,24 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         ),
         const SizedBox(height: 22),
         _FieldBlock(
-          label: 'Bio',
+          label: 'BIO',
           trailing: '${_wordCount(_bioCtrl.text)}/50 words',
           child: TextField(
             controller: _bioCtrl,
             maxLines: 4,
             onChanged: (_) => setState(() {}),
-            style: TextStyle(color: AppColors.textFor(context), height: 1.4),
-            decoration: const InputDecoration(
+            style: DsText.body.copyWith(color: Ds.bone, height: 1.4),
+            decoration: _inputDeco(
               hintText: 'Optional: what do you like building?',
             ),
           ),
         ),
         _FieldBlock(
-          label: 'GitHub',
+          label: 'GITHUB',
           child: TextField(
             controller: _githubCtrl,
-            style: TextStyle(color: AppColors.textFor(context)),
-            decoration: const InputDecoration(
+            style: DsText.body.copyWith(color: Ds.bone),
+            decoration: _inputDeco(
               hintText: 'github_username',
               prefixText: '@ ',
             ),
@@ -620,10 +639,14 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     return Align(
       alignment: Alignment.topLeft,
       child: Material(
-        color: AppColors.bg2For(context),
-        elevation: 6,
-        borderRadius: BorderRadius.circular(14),
-        child: ConstrainedBox(
+        color: const Color(0xFF1E2030),
+        elevation: 8,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Ds.border, width: 1.2),
+          ),
           constraints: BoxConstraints(
             maxHeight: 220,
             maxWidth: MediaQuery.sizeOf(context).width - 40,
@@ -638,7 +661,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 dense: true,
                 title: Text(
                   option,
-                  style: TextStyle(color: AppColors.textFor(context)),
+                  style: DsText.body.copyWith(color: Ds.bone, fontSize: 13),
                 ),
                 onTap: () => onSelected(option),
               );
@@ -672,20 +695,19 @@ class _FieldBlock extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.text3For(context),
+                style: DsText.label.copyWith(
+                  fontSize: 11,
+                  color: Ds.muted,
+                  letterSpacing: 1.2,
                 ),
               ),
               const Spacer(),
               if (trailing != null)
                 Text(
                   trailing!,
-                  style: TextStyle(
+                  style: DsText.caption.copyWith(
                     fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.text3For(context),
+                    color: Ds.muted,
                   ),
                 ),
             ],
@@ -711,17 +733,13 @@ class _SoftNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return DsCard(
+      leftBar: Ds.aura,
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.18)),
-      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppColors.primary, size: 20),
+          Icon(icon, color: Ds.aura, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -729,19 +747,18 @@ class _SoftNote extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.textFor(context),
+                  style: DsText.label.copyWith(
+                    fontSize: 12,
+                    color: Ds.bone,
+                    letterSpacing: 0.8,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   message,
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: DsText.caption.copyWith(
+                    color: Ds.muted,
                     height: 1.35,
-                    color: AppColors.text2For(context),
                   ),
                 ),
               ],
@@ -774,8 +791,24 @@ class _ChoiceWrap extends StatelessWidget {
       children: options.map((option) {
         final active = selectedValues.contains(option);
         return ChoiceChip(
-          label: Text(option),
+          label: Text(
+            option,
+            style: DsText.label.copyWith(
+              fontSize: 12,
+              color: active ? Ds.onAura : Ds.bone,
+            ),
+          ),
           selected: active,
+          selectedColor: Ds.aura,
+          backgroundColor: const Color(0xFF1E2030),
+          side: BorderSide(
+            color: active ? Ds.aura : Ds.border,
+            width: 1.2,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          showCheckmark: false,
           onSelected: (_) {
             final values = List<String>.from(selectedValues);
             if (active) {

@@ -1,13 +1,13 @@
-// Runtime configuration resolved from compile-time --dart-define values.
-
 class RuntimeConfig {
   RuntimeConfig._({
     required this.supabaseUrl,
     required this.supabaseAnonKey,
+    this.googleWebClientId = '',
   });
 
   final String supabaseUrl;
   final String supabaseAnonKey;
+  final String googleWebClientId;
 
   static RuntimeConfig? _instance;
 
@@ -20,22 +20,23 @@ class RuntimeConfig {
   }
 
   static Future<RuntimeConfig> load() async {
-    // Resolved exclusively from compile-time --dart-define or --dart-define-from-file=.env.local.json
-    const definedUrl = String.fromEnvironment(
+    const url = String.fromEnvironment(
       'SUPABASE_URL',
       defaultValue: '',
     );
-    const definedKey = String.fromEnvironment(
+    const key = String.fromEnvironment(
       'SUPABASE_ANON_KEY',
       defaultValue: '',
     );
-
-    String url = definedUrl.trim();
-    String key = definedKey.trim();
+    const googleClientId = String.fromEnvironment(
+      'GOOGLE_WEB_CLIENT_ID',
+      defaultValue: '',
+    );
 
     return _instance = RuntimeConfig._(
-      supabaseUrl: url,
-      supabaseAnonKey: key,
+      supabaseUrl: url.trim(),
+      supabaseAnonKey: key.trim(),
+      googleWebClientId: googleClientId.trim(),
     );
   }
 }

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/engagement_provider.dart';
@@ -91,7 +90,7 @@ class _AuraHistoryScreenState extends State<AuraHistoryScreen> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: (isPositive ? AppColors.primary : AppColors.like).withOpacity(0.1),
+                          color: (isPositive ? AppColors.primary : AppColors.like).withValues(alpha: 0.1),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(

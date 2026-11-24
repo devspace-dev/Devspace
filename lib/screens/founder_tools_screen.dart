@@ -582,7 +582,7 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
               _LabeledField(
                 label: 'Right answer',
                 child: DropdownButtonFormField<String>(
-                  value: _challengeCorrectAnswer,
+                  initialValue: _challengeCorrectAnswer,
                   decoration: const InputDecoration(
                     hintText: 'Choose the correct option',
                   ),
@@ -1298,7 +1298,7 @@ class _FounderToolsScreenState extends State<FounderToolsScreen> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: correctAnswer,
+                      initialValue: correctAnswer,
                       decoration: const InputDecoration(
                         labelText: 'Right answer',
                       ),

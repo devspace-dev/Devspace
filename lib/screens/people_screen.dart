@@ -6,7 +6,7 @@ import '../providers/users_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_state_widgets.dart';
 import '../widgets/profile_card.dart';
-import 'profile_screen.dart';
+import '../features/profile/screens/profile_screen.dart';
 
 class PeopleScreen extends StatefulWidget {
   final String initialQuery;
@@ -75,10 +75,11 @@ class _PeopleScreenState extends State<PeopleScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.bgFor(context),
-      body: RefreshIndicator.adaptive(
-        color: AppColors.primary,
-        onRefresh: () => usersP.refreshUsers(),
-        child: CustomScrollView(
+      body: SafeArea(
+        child: RefreshIndicator.adaptive(
+          color: AppColors.primary,
+          onRefresh: () => usersP.refreshUsers(),
+          child: CustomScrollView(
           controller: _scrollController,
           slivers: [
             SliverToBoxAdapter(
@@ -156,9 +157,9 @@ class _PeopleScreenState extends State<PeopleScreen> {
                 ),
               ),
             if (usersP.isLoadingMore)
-              SliverToBoxAdapter(
+              const SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  padding: EdgeInsets.symmetric(vertical: 24),
                   child: Center(
                     child: SizedBox(
                       width: 20,
@@ -190,6 +191,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
             const SliverToBoxAdapter(child: SizedBox(height: 100)),
           ],
         ),
+      ),
       ),
     );
   }

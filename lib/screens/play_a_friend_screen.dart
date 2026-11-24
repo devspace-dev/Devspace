@@ -1,13 +1,17 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'waiting_for_opponent_screen.dart';
-import '../services/supabase_service.dart';
-import '../providers/auth_provider.dart';
 import 'package:provider/provider.dart';
 
+import '../core/theme/colors.dart';
+import '../core/theme/text.dart';
+import '../core/widgets/ds_button.dart';
+import '../core/widgets/ds_tag.dart';
+import '../models/user_model.dart';
+import '../providers/auth_provider.dart';
 import '../providers/users_provider.dart';
+import '../services/supabase_service.dart';
 import '../widgets/profile_card.dart';
-import 'duel_screen.dart';
+import 'waiting_for_opponent_screen.dart';
 
 class PlayAFriendScreen extends StatefulWidget {
   final String category;
@@ -26,39 +30,186 @@ class PlayAFriendScreen extends StatefulWidget {
 }
 
 class _PlayAFriendScreenState extends State<PlayAFriendScreen> {
-  final bool _isLiveDuel = true;
   String _query = '';
   final TextEditingController _searchController = TextEditingController();
+  Timer? _debounce;
+  List<UserModel> _results = [];
+  bool _isLoading = true;
+  String? _error;
+  String? _sendingToUserId;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final usersP = context.read<UsersProvider>();
-      if (usersP.users.isEmpty && !usersP.isLoading) {
-        usersP.fetchUsers(query: _query);
+      if (mounted) {
+        _loadDirectory(query: '');
       }
     });
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
-  void _onSearch(String value) {
+  Future<void> _loadDirectory({required String query}) async {
+    if (!mounted) return;
     setState(() {
-      _query = value.trim();
+      _isLoading = true;
+      _error = null;
     });
-    context.read<UsersProvider>().fetchUsers(query: _query);
+
+    final me = context.read<AuthProvider>().currentUserOrNull;
+    final usersP = context.read<UsersProvider>();
+
+    try {
+      if (!SupabaseService.instance.isSupabaseReady) {
+        final local = _sortAndFilterUsers(
+          usersP.users,
+          meId: me?.id,
+          query: query,
+        );
+        if (!mounted) return;
+        setState(() {
+          _results = local;
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Ensure followed friends are always hydrated even when not in the first directory page.
+      if (me != null && query.isEmpty) {
+        try {
+          final followingIds =
+              await SupabaseService.instance.getFollowingIds(me.id);
+          if (followingIds.isNotEmpty) {
+            await usersP.fetchAndCacheUsers(followingIds.toList());
+          }
+        } catch (_) {}
+      }
+
+      final searched = await usersP.searchDevelopers(
+        query: query.isEmpty ? null : query,
+        limit: 50,
+      );
+
+      final byId = <String, UserModel>{
+        for (final u in searched) u.id: u,
+      };
+      if (query.isEmpty) {
+        for (final cached in usersP.users) {
+          byId.putIfAbsent(cached.id, () => cached);
+        }
+      }
+
+      final merged = _sortAndFilterUsers(
+        byId.values.toList(),
+        meId: me?.id,
+        query: query,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _results = merged;
+        _isLoading = false;
+        _error = null;
+      });
+    } catch (e) {
+      debugPrint('Failed loading duel builders: $e');
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _error = 'Could not load builders. Tap retry.';
+      });
+    }
+  }
+
+  List<UserModel> _sortAndFilterUsers(
+    List<UserModel> source, {
+    required String? meId,
+    required String query,
+  }) {
+    final trimmed = query.trim().toLowerCase();
+    final filtered = source.where((u) {
+      if (meId != null && u.id == meId) return false;
+      if (trimmed.isEmpty) return true;
+      final normalizedHandle = u.handle.toLowerCase();
+      final queryNoAt = trimmed.startsWith('@') ? trimmed.substring(1) : trimmed;
+      return u.name.toLowerCase().contains(trimmed) ||
+          normalizedHandle.contains(queryNoAt) ||
+          u.college.toLowerCase().contains(trimmed);
+    }).toList();
+
+    // Followed friends at top, then higher Aura, then alphabetical by name.
+    filtered.sort((a, b) {
+      if (a.isFollowing != b.isFollowing) {
+        return a.isFollowing ? -1 : 1;
+      }
+      final auraCmp = b.aura.compareTo(a.aura);
+      if (auraCmp != 0) return auraCmp;
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    });
+    return filtered;
+  }
+
+  void _onSearch(String value) {
+    final nextQuery = value.trim();
+    setState(() => _query = nextQuery);
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 280), () {
+      _loadDirectory(query: nextQuery);
+    });
+  }
+
+  Future<void> _challengeUser(UserModel opponent) async {
+    if (_sendingToUserId != null) return;
+    final me = context.read<AuthProvider>().currentUserOrNull;
+    if (me == null) return;
+
+    setState(() => _sendingToUserId = opponent.id);
+    try {
+      final requestId = await SupabaseService.instance.sendDuelRequest(
+        senderId: me.id,
+        receiverId: opponent.id,
+        category: widget.category,
+        mode: widget.mode,
+      );
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => WaitingForOpponentScreen(
+            requestId: requestId,
+            category: widget.category,
+            mode: widget.mode,
+            opponent: opponent,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() => _sendingToUserId = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to start challenge: ${SupabaseService.instance.cleanErrorText(e)}',
+            ),
+            backgroundColor: Ds.hot,
+          ),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final followedCount = _results.where((u) => u.isFollowing).length;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF141414),
+      backgroundColor: Ds.ink,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -66,287 +217,169 @@ class _PlayAFriendScreenState extends State<PlayAFriendScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 16),
-              // Header
               Row(
                 children: [
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                  Semantics(
+                    button: true,
+                    label: 'Back',
+                    child: GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: Ds.surface,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Ds.border),
+                        ),
+                        child: const Icon(
+                          Icons.arrow_back_rounded,
+                          color: Ds.bone,
+                          size: 20,
+                        ),
                       ),
-                      child: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 20),
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Text(
-                    'Play A Friend',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Invite link copied to clipboard!')),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.link_rounded, color: Colors.white, size: 16),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Play via Link',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Play a Friend', style: DsText.h3),
+                        Text(widget.mode, style: DsText.caption),
+                      ],
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 20),
 
-              // Search Bar
               TextField(
                 controller: _searchController,
                 onChanged: _onSearch,
-                style: GoogleFonts.plusJakartaSans(color: Colors.white, fontSize: 14),
+                style: DsText.body,
                 decoration: InputDecoration(
-                  hintText: 'Search for the friend',
-                  hintStyle: GoogleFonts.plusJakartaSans(
-                    color: Colors.white.withValues(alpha: 0.5),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  prefixIcon: Icon(Icons.search_rounded, color: Colors.white.withValues(alpha: 0.5), size: 20),
+                  hintText: 'Search by name, @handle or college',
+                  hintStyle: DsText.bodySm.copyWith(color: Ds.muted),
+                  prefixIcon: const Icon(Icons.search_rounded, color: Ds.muted, size: 20),
                   filled: true,
-                  fillColor: Colors.transparent,
+                  fillColor: Ds.surface,
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Ds.border, width: 2),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide(color: widget.color.withValues(alpha: 0.8)),
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: widget.color, width: 2),
                   ),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 ),
               ),
-
-              const SizedBox(height: 32),
+              const SizedBox(height: 20),
 
               Text(
-                'ONLINE FRIENDS',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white60,
-                  letterSpacing: 1,
-                ),
+                _query.isEmpty
+                    ? (followedCount > 0
+                        ? 'FRIENDS FIRST · ALL BUILDERS'
+                        : 'ALL BUILDERS')
+                    : 'SEARCH RESULTS',
+                style: DsText.caption.copyWith(letterSpacing: 1),
               ),
-
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               Expanded(
-                child: Consumer<UsersProvider>(
-                  builder: (context, usersP, _) {
-                    final allUsers = usersP.users;
-                    final users = _isLiveDuel 
-                        ? allUsers.where((u) => u.isFollowing).toList()
-                        : allUsers;
-
-                    if (usersP.isLoading && users.isEmpty) {
-                      return const Center(
-                        child: CircularProgressIndicator(color: Colors.white24),
-                      );
-                    }
-                    if (users.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              _isLiveDuel ? Icons.people_outline_rounded : Icons.person_search_rounded, 
-                              size: 64, 
-                              color: widget.color.withValues(alpha: 0.6),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              _isLiveDuel 
-                                  ? 'No online friends found' 
-                                  : (_query.isEmpty ? 'No friends found' : 'No users match your search'),
-                              style: GoogleFonts.plusJakartaSans(color: Colors.white54, fontSize: 14),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                    return ListView.builder(
-                      padding: const EdgeInsets.only(bottom: 24),
-                      itemCount: users.length,
-                      itemBuilder: (context, i) {
-                        final user = users[i];
-                        // Using a dark theme adaptation for ProfileCard to ensure visibility
-                        return Theme(
-                          data: Theme.of(context).copyWith(
-                            scaffoldBackgroundColor: const Color(0xFF141414),
-                            textTheme: Theme.of(context).textTheme.apply(
-                              bodyColor: Colors.white,
-                              displayColor: Colors.white,
-                            ),
-                          ),
-                          child: ProfileCard(
-                            user: user,
-                            trailing: ElevatedButton(
-                              onPressed: () async {
-                                try {
-                                  if (_isLiveDuel) {
-                                    final me = context.read<AuthProvider>().currentUserOrNull;
-                                    if (me != null) {
-                                      final requestId = await SupabaseService.instance.sendDuelRequest(
-                                        senderId: me.id,
-                                        receiverId: user.id,
-                                        category: widget.category,
-                                        mode: widget.mode,
-                                      );
-                                      if (context.mounted) {
-                                        Navigator.pushReplacement(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) => WaitingForOpponentScreen(
-                                              requestId: requestId,
-                                              category: widget.category,
-                                              mode: widget.mode,
-                                              opponent: user,
-                                            ),
-                                          ),
-                                        );
-                                      }
-                                    }
-                                  } else {
-                                    final newMatchId = await SupabaseService.instance.createArenaMatch(widget.mode, opponentId: user.id);
-                                    if (context.mounted) {
-                                      Navigator.pushReplacement(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => DuelScreen(
-                                            category: widget.category,
-                                            mode: widget.mode,
-                                            matchId: newMatchId,
-                                            isPlayer1: true,
-                                            opponent: user,
-                                          ),
-                                        ),
-                                      );
-                                    }
-                                  }
-                                } catch (e) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('Failed to start challenge: $e'),
-                                        backgroundColor: Colors.redAccent,
-                                      ),
-                                    );
-                                  }
-                                }
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: widget.color.withValues(alpha: 0.15),
-                                foregroundColor: widget.color,
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
-                                minimumSize: const Size(0, 32),
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                side: BorderSide(color: widget.color.withValues(alpha: 0.5)),
-                              ),
-                              child: Text(
-                                _isLiveDuel ? 'Invite' : 'Challenge',
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-                              ),
-                            ),
-                            onTap: () async {
-                                try {
-                                  if (_isLiveDuel) {
-                                    final me = context.read<AuthProvider>().currentUserOrNull;
-                                    if (me != null) {
-                                      final requestId = await SupabaseService.instance.sendDuelRequest(
-                                        senderId: me.id,
-                                        receiverId: user.id,
-                                        category: widget.category,
-                                        mode: widget.mode,
-                                      );
-                                      if (context.mounted) {
-                                        Navigator.pushReplacement(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) => WaitingForOpponentScreen(
-                                              requestId: requestId,
-                                              category: widget.category,
-                                              mode: widget.mode,
-                                              opponent: user,
-                                            ),
-                                          ),
-                                        );
-                                      }
-                                    }
-                                  } else {
-                                    final newMatchId = await SupabaseService.instance.createArenaMatch(widget.mode, opponentId: user.id);
-                                    if (context.mounted) {
-                                      Navigator.pushReplacement(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => DuelScreen(
-                                            category: widget.category,
-                                            mode: widget.mode,
-                                            matchId: newMatchId,
-                                            isPlayer1: true,
-                                            opponent: user,
-                                          ),
-                                        ),
-                                      );
-                                    }
-                                  }
-                                } catch (e) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('Failed to start challenge: $e'),
-                                        backgroundColor: Colors.redAccent,
-                                      ),
-                                    );
-                                  }
-                                }
-                            },
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
+                child: _buildBody(),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_isLoading && _results.isEmpty) {
+      return const Center(
+        child: CircularProgressIndicator(color: Ds.aura),
+      );
+    }
+
+    if (_error != null && _results.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.wifi_off_rounded, size: 48, color: Ds.muted),
+            const SizedBox(height: 12),
+            Text(_error!, style: DsText.bodySm.copyWith(color: Ds.muted)),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: 140,
+              child: DsButton(
+                label: 'Retry',
+                height: 44,
+                onPressed: () => _loadDirectory(query: _query),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_results.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.person_search_rounded,
+              size: 56,
+              color: widget.color.withValues(alpha: 0.7),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              _query.isEmpty
+                  ? 'No builders available yet'
+                  : 'No builders match "$_query"',
+              style: DsText.bodySm.copyWith(color: Ds.muted),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.only(bottom: 24),
+      itemCount: _results.length,
+      itemBuilder: (context, i) {
+        final user = _results[i];
+        final isSendingThis = _sendingToUserId == user.id;
+        return ProfileCard(
+          user: user,
+          onTap: () => _challengeUser(user),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (user.isFollowing) ...[
+                const DsTag('FRIEND', bg: Ds.mintPanel, fg: Ds.mint),
+                const SizedBox(width: 6),
+              ],
+              SizedBox(
+                width: 84,
+                child: DsButton(
+                  label: 'Invite',
+                  height: 38,
+                  loading: isSendingThis,
+                  onPressed:
+                      _sendingToUserId != null ? null : () => _challengeUser(user),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

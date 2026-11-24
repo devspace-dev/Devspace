@@ -3,17 +3,18 @@ import 'package:file_picker/file_picker.dart' as fp;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+
+import '../core/theme/colors.dart';
+import '../core/theme/text.dart';
 
 import '../providers/auth_provider.dart';
 import '../providers/posts_provider.dart';
-import '../screens/profile_screen.dart';
+import '../features/profile/screens/profile_screen.dart';
 import '../services/storage_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/constants.dart';
 import 'user_avatar.dart';
-import 'glass_container.dart';
 
 class ComposeBox extends StatefulWidget {
   const ComposeBox({super.key});
@@ -113,10 +114,9 @@ class _ComposeBoxState extends State<ComposeBox> {
                 ),
                 child: Text(
                   'What\'s happening?',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.text3For(context),
+                  style: DsText.body.copyWith(
+                    fontSize: 14,
+                    color: Ds.muted,
                   ),
                 ),
               ),
@@ -203,7 +203,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
     }
 
     final cursorPosition = selection.baseOffset;
-    if (cursorPosition == 0) {
+    if (cursorPosition <= 0 || cursorPosition > text.length) {
       _hideSuggestions();
       return;
     }
@@ -228,7 +228,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
       final filtered = _allCommonTags
           .where((tag) => 
               tag.toLowerCase().startsWith(query.toLowerCase()) && 
-              !_tags.contains(tag))
+              !_tags.any((t) => t.toLowerCase() == tag.toLowerCase()))
           .take(10)
           .toList();
           
@@ -252,15 +252,36 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
   void _addSuggestedTag(String tag) {
     HapticFeedback.lightImpact();
     final text = _textCtrl.text;
-    final textBefore = text.substring(0, _hashtagStartIndex);
-    final textAfter = text.substring(_textCtrl.selection.baseOffset);
-    
+    final start = _hashtagStartIndex.clamp(0, text.length);
+    int currentOffset = text.length;
+
+    if (_textCtrl.selection.isValid && _textCtrl.selection.baseOffset >= start) {
+      currentOffset = _textCtrl.selection.baseOffset.clamp(start, text.length);
+    } else {
+      final after = text.substring(start);
+      final spaceIdx = after.indexOf(' ');
+      final newlineIdx = after.indexOf('\n');
+      int endOffset = after.length;
+      if (spaceIdx != -1 && (newlineIdx == -1 || spaceIdx < newlineIdx)) {
+        endOffset = spaceIdx;
+      } else if (newlineIdx != -1) {
+        endOffset = newlineIdx;
+      }
+      currentOffset = (start + endOffset).clamp(start, text.length);
+    }
+
+    final replacement = '#$tag ';
+    final newText = text.replaceRange(start, currentOffset, replacement);
+    final newCursorPos = start + replacement.length;
+
     setState(() {
-      if (!_tags.contains(tag)) {
+      if (!_tags.any((t) => t.toLowerCase() == tag.toLowerCase())) {
         _tags.add(tag);
       }
-      _textCtrl.text = textBefore + textAfter;
-      _textCtrl.selection = TextSelection.collapsed(offset: textBefore.length);
+      _textCtrl.value = TextEditingValue(
+        text: newText,
+        selection: TextSelection.collapsed(offset: newCursorPos),
+      );
       _hideSuggestions();
     });
   }
@@ -284,40 +305,60 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
       ),
       child: Column(
         children: [
-          // Header
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(
-                    'Cancel',
-                    style: GoogleFonts.plusJakartaSans(
-                      color: AppColors.textFor(context),
-                      fontWeight: FontWeight.w600,
+          // Header with SafeArea to protect against notch/camera/status bar cutouts
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    height: 48,
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        minimumSize: const Size(48, 48),
+                      ),
+                      child: Text(
+                        'Cancel',
+                        style: DsText.label.copyWith(
+                          color: Ds.muted,
+                          fontSize: 15,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-                ElevatedButton(
-                  onPressed: _posting ? null : _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                    minimumSize: Size.zero,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  SizedBox(
+                    height: 38,
+                    child: ElevatedButton(
+                      onPressed: _posting ? null : _submit,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Ds.aura,
+                        foregroundColor: Ds.onAura,
+                        disabledBackgroundColor: Ds.surface,
+                        disabledForegroundColor: Ds.muted,
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        minimumSize: const Size(72, 38),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          side: const BorderSide(color: Ds.border, width: 1.5),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: _posting 
+                        ? const SizedBox(
+                            width: 18, 
+                            height: 18, 
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Ds.onAura),
+                          )
+                        : Text('POST', style: DsText.button.copyWith(fontSize: 14, color: Ds.onAura)),
+                    ),
                   ),
-                  child: _posting 
-                    ? const SizedBox(
-                        width: 20, 
-                        height: 20, 
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : Text('Post', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800)),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           
@@ -355,11 +396,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                                   controller: _textCtrl,
                                   maxLines: null,
                                   autofocus: true,
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 18, 
-                                    color: AppColors.textFor(context), 
-                                    height: 1.5,
-                                  ),
+                                  style: DsText.body.copyWith(fontSize: 16, color: Ds.bone, height: 1.5),
                                   decoration: const InputDecoration(
                                     hintText: 'Share your build journey...',
                                     filled: false,
@@ -372,11 +409,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                                 const SizedBox(height: 8),
                                 Text(
                                   '$_charCount characters',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.text3For(context),
-                                  ),
+                                  style: DsText.caption.copyWith(fontSize: 12, color: Ds.muted),
                                 ),
                               ],
                             ),
@@ -434,11 +467,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                                   _selectedDocName ?? 'Document',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                    color: AppColors.textFor(context),
-                                  ),
+                                  style: DsText.label.copyWith(fontSize: 14, color: Ds.bone),
                                 ),
                               ),
                               IconButton(
@@ -486,11 +515,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                                         children: [
                                           Text(
                                             '#$tag',
-                                            style: GoogleFonts.plusJakartaSans(
-                                              color: AppColors.primary,
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 13,
-                                            ),
+                                            style: DsText.label.copyWith(color: Ds.aura, fontSize: 12),
                                           ),
                                           const SizedBox(width: 6),
                                           const Icon(Icons.close_rounded, size: 14, color: AppColors.primary),
@@ -537,10 +562,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                             dense: true,
                             title: Text(
                               '#$tag',
-                              style: GoogleFonts.plusJakartaSans(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w700,
-                              ),
+                              style: DsText.label.copyWith(color: Ds.aura),
                             ),
                             onTap: () => _addSuggestedTag(tag),
                           );
@@ -583,11 +605,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                     if (_posting)
                        Text(
                         'Uploading...',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
-                        ),
+                        style: DsText.caption.copyWith(color: Ds.aura, fontWeight: FontWeight.w700),
                       ),
                   ],
                 ),
@@ -606,6 +624,17 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
     
     HapticFeedback.mediumImpact();
     setState(() => _posting = true);
+
+    // Auto-extract any hashtags written directly in the post text
+    final hashtagRegex = RegExp(r'#([a-zA-Z0-9_]+)');
+    for (final match in hashtagRegex.allMatches(text)) {
+      final tag = match.group(1);
+      if (tag != null &&
+          tag.isNotEmpty &&
+          !_tags.any((t) => t.toLowerCase() == tag.toLowerCase())) {
+        _tags.add(tag);
+      }
+    }
     
     final me = context.read<AuthProvider>().currentUser;
     final result = await context.read<PostsProvider>().addPost(
@@ -642,20 +671,22 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (sheetContext) => SafeArea(
-        child: GlassContainer(
-          color: AppColors.bg2For(sheetContext),
-          opacity: 0.98,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Ds.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            border: Border.all(color: Ds.border),
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: 12),
               Container(
                 width: 40,
-                height: 5,
+                height: 4,
                 decoration: BoxDecoration(
-                  color: AppColors.border2For(sheetContext),
-                  borderRadius: BorderRadius.circular(999),
+                  color: Ds.border,
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
               const SizedBox(height: 8),
@@ -663,7 +694,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                 leading: const Icon(Icons.camera_alt_rounded, color: AppColors.primary),
                 title: Text(
                   'Take a photo',
-                  style: GoogleFonts.plusJakartaSans(color: AppColors.textFor(sheetContext), fontWeight: FontWeight.w600),
+                  style: DsText.label.copyWith(color: Ds.bone),
                 ),
                 onTap: () => Navigator.pop(sheetContext, true),
               ),
@@ -671,7 +702,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                 leading: const Icon(Icons.photo_library_rounded, color: AppColors.primary),
                 title: Text(
                   'Choose from gallery',
-                  style: GoogleFonts.plusJakartaSans(color: AppColors.textFor(sheetContext), fontWeight: FontWeight.w600),
+                  style: DsText.label.copyWith(color: Ds.bone),
                 ),
                 onTap: () => Navigator.pop(sheetContext, false),
               ),
@@ -682,8 +713,14 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
       ),
     );
 
-    if (source == null) return;
-    final file = await StorageService.instance.pickImage(context, fromCamera: source);
+    if (source == null || !mounted) return;
+    final file = await StorageService.instance.pickImage(
+      context,
+      fromCamera: source,
+      maxWidth: 1280,
+      maxHeight: 1280,
+      imageQuality: 82,
+    );
     if (file == null || !mounted) return;
     setState(() => _selectedImage = file);
   }
@@ -721,12 +758,12 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: Text(
           'Add hashtags',
-          style: GoogleFonts.plusJakartaSans(color: AppColors.textFor(dialogContext), fontWeight: FontWeight.w800),
+          style: DsText.h3.copyWith(color: Ds.bone, fontSize: 18),
         ),
         content: TextField(
           controller: controller,
           autofocus: true,
-          style: GoogleFonts.plusJakartaSans(color: AppColors.textFor(dialogContext)),
+          style: DsText.body.copyWith(color: Ds.bone),
           decoration: InputDecoration(
             hintText: 'flutter, mnit, dev',
             hintStyle: TextStyle(color: AppColors.text3For(dialogContext)),
@@ -738,7 +775,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: AppColors.text3For(dialogContext))),
+            child: Text('Cancel', style: DsText.caption.copyWith(color: Ds.muted)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -754,7 +791,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
               backgroundColor: AppColors.primary,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            child: Text('Add', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800)),
+            child: Text('Add', style: DsText.button.copyWith(color: Ds.onAura, fontSize: 14)),
           ),
         ],
       ),

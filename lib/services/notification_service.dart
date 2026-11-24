@@ -23,6 +23,7 @@ class NotificationService {
 
   StreamSubscription<RemoteMessage>? _onMessageOpenedAppSub;
   StreamSubscription<RemoteMessage>? _onMessageSub;
+  String? _initializedForUid;
 
   static const _channel = AndroidNotificationChannel(
     'devspace_high',
@@ -48,6 +49,8 @@ class NotificationService {
   }
 
   Future<void> init(String uid) async {
+    if (_initializedForUid == uid) return;
+    _initializedForUid = uid;
     try {
       // 1. Firebase Messaging Setup
       final fcm = FirebaseMessaging.instance;
